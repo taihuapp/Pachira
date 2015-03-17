@@ -16,7 +16,12 @@
             <items>
                   <MenuItem mnemonicParsing="false" onAction="#handleNew" text="New" />
                   <MenuItem mnemonicParsing="false" onAction="#handleOpen" text="Open..." />
-                  <Menu mnemonicParsing="false" text="Recent..." />
+                  <Menu mnemonicParsing="false" text="Recent...">
+                     <items>
+                        <SeparatorMenuItem mnemonicParsing="false" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleClearList" text="Clear List" />
+                     </items>
+                  </Menu>
                   <MenuItem mnemonicParsing="false" onAction="#handleBackup" text="Backup" />
               <MenuItem mnemonicParsing="false" onAction="#handleClose" text="Close" />
             </items>

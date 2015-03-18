@@ -9,7 +9,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import sun.plugin.javascript.navig.Anchor;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,24 +21,20 @@ import java.util.prefs.Preferences;
 
 public class MainApp extends Application {
 
-    static int MAXOPENEDFILEHIST = 5; // keep max 5 opened files
-    static String KEY_OPENEDFILESPREFIX = "OPENEDFILES#";
+    static int MAXOPENEDDBHIST = 5; // keep max 5 opened files
+    static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     static String DBOWNER = "FC168ADM";
+    static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
 
     private Preferences mPrefs;
-    private BorderPane mMainLayout;
     private Stage mPrimaryStage;
     private Connection mConnection = null;
 
-    private void initPrefs() {
-        mPrefs = Preferences.userNodeForPackage(MainApp.class);
-    }
-
-    List<String> getOpenedFileNames(Preferences prefs) {
+    List<String> getOpenedDBNames() {
         List<String> fileNameList = new ArrayList<String>();
 
-        for (int i = 0; i < MAXOPENEDFILEHIST; i++) {
-            String fileName = prefs.get(KEY_OPENEDFILESPREFIX + i, "");
+        for (int i = 0; i < MAXOPENEDDBHIST; i++) {
+            String fileName = mPrefs.get(KEY_OPENEDDBPREFIX + i, "");
             if (!fileName.isEmpty()) {
                 fileNameList.add(fileName);
             }
@@ -47,57 +42,60 @@ public class MainApp extends Application {
         return fileNameList;
     }
 
-    void putOpenedFileNames(List<String> openedFileNameList, Preferences prefs) {
-        for (int i = 0; i < openedFileNameList.size(); i++) {
-            prefs.put(KEY_OPENEDFILESPREFIX + i, openedFileNameList.get(i));
+    void putOpenedDBNames(List<String> openedDBNames) {
+        for (int i = 0; i < openedDBNames.size(); i++) {
+            mPrefs.put(KEY_OPENEDDBPREFIX + i, openedDBNames.get(i));
+        }
+        for (int i = openedDBNames.size(); i < MAXOPENEDDBHIST; i++) {
+            mPrefs.remove(KEY_OPENEDDBPREFIX+i);
         }
     }
 
-    List<String> updateOpenedFileNames(List<String> openedFileNameList, String fileName) {
-        int idx = openedFileNameList.indexOf(fileName);
+    List<String> updateOpenedDBNames(List<String> openedDBNames, String fileName) {
+        int idx = openedDBNames.indexOf(fileName);
         if (idx > -1) {
-            openedFileNameList.remove(idx);
+            openedDBNames.remove(idx);
         }
-        openedFileNameList.add(0, fileName);  // always add on the top
+        openedDBNames.add(0, fileName);  // always add on the top
 
-        // keep only MAXOPENEDFILEHIST
-        while (openedFileNameList.size() > MAXOPENEDFILEHIST) {
-            openedFileNameList.remove(MAXOPENEDFILEHIST);
+        // keep only MAXOPENEDDBHIST
+        while (openedDBNames.size() > MAXOPENEDDBHIST) {
+            openedDBNames.remove(MAXOPENEDDBHIST);
         }
 
-        return openedFileNameList;
+        return openedDBNames;
     }
 
-    void openFile(Stage stage) {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open FaCai file");
-        File file;
-        file = fileChooser.showOpenDialog(stage);
-        if (file != null) {
-            List<String> openedFileNames = getOpenedFileNames(mPrefs);
-            openedFileNames = updateOpenedFileNames(openedFileNames, file.getAbsolutePath());
-            for (String s : openedFileNames) {
-                System.out.println(s);
-            }
-            putOpenedFileNames(openedFileNames, mPrefs);
+    // returns a password or null
+    private String showPasswordDialog(PasswordDialogController.MODE mode) {
+        String title;
+        switch (mode) {
+            case ENTER:
+                title = "Enter Password";
+                break;
+            case NEW:
+                title = "Set New Password";
+                break;
+            case CHANGE:
+                title = "Change Password";
+                break;
+            default:
+                System.err.println("Unknow MODE" + mode.toString());
+                title = "Unknown";
         }
-    }
 
-    // returns a new password or null
-    private String showNewPasswordDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("NewPasswordDialog.fxml"));
-            AnchorPane pane = (AnchorPane) loader.load();
+            loader.setLocation(MainApp.class.getResource("PasswordDialog.fxml"));
 
             Stage dialogStage = new Stage();
-            dialogStage.setTitle("Set New Password");
+            dialogStage.setTitle(title);
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
-            dialogStage.setScene(new Scene(pane));
-
-            NewPasswordDialogController controller = loader.getController();
+            dialogStage.setScene(new Scene((AnchorPane) loader.load()));
+            PasswordDialogController controller = loader.getController();
             controller.setmDialogStage(dialogStage);
+            controller.setMode(mode);
             dialogStage.showAndWait();
 
             return controller.getPassword();
@@ -107,64 +105,119 @@ public class MainApp extends Application {
         }
     }
 
-    private String getConnectionURL(String dbName, boolean create, String bootPassword, String user, String password) {
-        String url = "jdbc:derby:";
-        if (dbName != null) {
-            url += dbName + ";";
+    private void closeConnection() {
+        if (mConnection != null) {
+            try {
+                mConnection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            mConnection = null;
         }
-        if (create) {
-            url += "create=true;";
-        }
-        if (bootPassword != null) {
-            url += "dataEncryption=true;encryptionAlgorithm=Blowfish/CBC/NoPadding;bootPassword="
-                    + bootPassword + ";";
-        }
-        if (user != null) {
-            url += "user=" + user + ";";
-        }
-        if (password != null) {
-            url += "password=" + password + ";";
-        }
-        return url;
     }
 
     // create a new database
-    public void newDB() {
+    public void openDatabase(boolean isNew, String dbName) {
+        File file;
+        if (dbName != null) {
+            if (!dbName.endsWith(DBPOSTFIX))
+                dbName += DBPOSTFIX;
+            file = new File(dbName);
+        } else {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DB", "*" + DBPOSTFIX));
+            String title;
+            if (isNew) {
+                title = "Create a new FaCai168 database...";
+            } else {
+                title = "Open an existing FaCai168 database...";
+            }
+            fileChooser.setTitle(title);
+            if (isNew) {
+                file = fileChooser.showSaveDialog(mPrimaryStage);
+            } else {
+                file = fileChooser.showOpenDialog(mPrimaryStage);
+            }
 
-        String password = showNewPasswordDialog();
-        if (password == null) {
+            if (file == null) {
+                return;
+            }
+            dbName = file.getAbsolutePath();
+        }
+        closeConnection();
+
+        if (isNew && file.exists() && !file.delete()) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
-            alert.setTitle("Password not set");
-            alert.setHeaderText("Need a password to continue...");
+            alert.setTitle("Unable to delete " + dbName);
             alert.showAndWait();
             return;
         }
 
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Create a new FaiCai168 database...");
-        File file = fileChooser.showSaveDialog(mPrimaryStage);
-        if (file == null) {
-            return;
+        // trim the POSTFIX
+        if (dbName.endsWith(DBPOSTFIX)) {
+            dbName = dbName.substring(0, dbName.length()-DBPOSTFIX.length());
         }
 
-        String dbName = file.getAbsolutePath();
-        //System.setProperty("derby.authentication.provider", "Native:"  + dbName + ":LOCAL");
+        String password = showPasswordDialog(
+                isNew ? PasswordDialogController.MODE.NEW : PasswordDialogController.MODE.ENTER);
+        if (password == null) {
+            if (isNew) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.initOwner(mPrimaryStage);
+                alert.setTitle("Password not set");
+                alert.setHeaderText("Need a password to continue...");
+                alert.showAndWait();
+            }
+            return;
+        }
 
         try {
-            // create a db without authentication first
-            String url = getConnectionURL(dbName, true, password, DBOWNER, password);
-            System.out.println(url);
-            mConnection = DriverManager.getConnection(url);
+            String url = "jdbc:h2:"+dbName+";CIPHER=AES;";
+            if (!isNew) {
+                // open existing
+                url += "IFEXISTS=TRUE;";
+            }
+            mConnection = DriverManager.getConnection(url, DBOWNER, password + " " + password);
         } catch (SQLException e) {
-            e.printStackTrace();
+            int errorCode = e.getErrorCode();
+            // 90049 -- bad encryption password
+            // 28000 -- wrong user name or password
+            if (errorCode == 90049 || errorCode == 28000) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.initOwner(mPrimaryStage);
+                alert.setTitle("Bad password");
+                alert.setHeaderText("Wrong password for " + dbName);
+                alert.showAndWait();
+            } else {
+                printSQLException(e);
+                e.printStackTrace();
+            }
         }
         if (mConnection == null) {
-            System.err.println("Failed to create database " + dbName);
             return;
         }
 
+        // save opened DB hist
+        putOpenedDBNames(updateOpenedDBNames(getOpenedDBNames(), dbName));
+
         System.out.println("Need to setup database structure here");
+    }
+
+    public static void printSQLException(SQLException e)
+    {
+        // Unwraps the entire exception chain to unveil the real cause of the
+        // Exception.
+        while (e != null)
+        {
+            System.err.println("\n----- SQLException -----");
+            System.err.println("  SQL State:  " + e.getSQLState());
+            System.err.println("  Error Code: " + e.getErrorCode());
+            System.err.println("  Message:    " + e.getMessage());
+            // for stack traces, refer to derby.log or uncomment this:
+            //e.printStackTrace(System.err);
+            e = e.getNextException();
+        }
     }
 
     // init the main layout
@@ -172,8 +225,7 @@ public class MainApp extends Application {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("MainLayout.fxml"));
-            mMainLayout = (BorderPane) loader.load();
-            mPrimaryStage.setScene(new Scene(mMainLayout));
+            mPrimaryStage.setScene(new Scene((BorderPane) loader.load()));
             mPrimaryStage.show();
 
             ((MainController) loader.getController()).setMainApp(this);
@@ -185,28 +237,14 @@ public class MainApp extends Application {
     @Override
     public void stop() throws Exception {
         System.out.println("Stopping...");
-        if (mConnection != null) {
-            // close connection
-            try {
-                mConnection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            mConnection = null;
-        }
-
-        // Shutdown database
-        try {
-            DriverManager.getConnection("jdbc:derby:;shutdown=true");
-        } catch (SQLException e) {
-            if ((e.getErrorCode() == 50000) && ("XJ015".equals(e.getSQLState()))) {
-                System.out.println("Derby shutdown normally");
-            } else {
-                System.err.println("Derby didn't shut down normally.");
-                e.printStackTrace();
-            }
-        }
+        closeConnection();
     }
+
+    @Override
+    public void init() {
+        mPrefs = Preferences.userNodeForPackage(MainApp.class);
+    }
+
 
     @Override
     public void start(final Stage stage) throws Exception {
@@ -258,7 +296,6 @@ public class MainApp extends Application {
 */
 
     }
-
 
     public static void main(String[] args) {
 

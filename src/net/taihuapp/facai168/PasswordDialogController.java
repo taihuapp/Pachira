@@ -8,17 +8,18 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
 
-import java.awt.*;
-
-
 /**
  * Created by ghe on 3/16/15.
  */
-public class NewPasswordDialogController implements ChangeListener {
+public class PasswordDialogController implements ChangeListener {
+
+    public enum MODE {ENTER, NEW, CHANGE}
 
     private Stage mDialogStage;
     private String mPassword = null;
 
+    @FXML
+    private Label mConfirmPasswordLabel;
     @FXML
     private PasswordField mPasswordField;
     @FXML
@@ -31,6 +32,30 @@ public class NewPasswordDialogController implements ChangeListener {
     private Button mOKButton;
 
     public void setmDialogStage(Stage stage) { mDialogStage = stage; }
+    public void setMode(MODE mode) {
+        switch (mode) {
+            case NEW:
+                mPasswordField.textProperty().addListener(this);
+                mConfirmPasswordField.textProperty().addListener(this);
+                mLengthWarningLabel.setVisible(true);
+                mMatchWarningLabel.setVisible(false);
+                mOKButton.setVisible(false);
+                break;
+            case ENTER:
+                mConfirmPasswordLabel.setVisible(false);
+                mConfirmPasswordField.setVisible(false);
+                mLengthWarningLabel.setVisible(false);
+                mMatchWarningLabel.setVisible(false);
+                mOKButton.setVisible(true);
+                break;
+            case CHANGE:
+                System.err.println("CHANGE PASSWORD Mode not implemented yet");
+                break;
+            default:
+                System.err.println("Unknown mode " + mode.toString());
+                break;
+        }
+    }
 
     @FXML
     private void handleCancel() {
@@ -61,10 +86,5 @@ public class NewPasswordDialogController implements ChangeListener {
 
     @FXML
     private void initialize() {
-        mPasswordField.textProperty().addListener(this);
-        mConfirmPasswordField.textProperty().addListener(this);
-        mLengthWarningLabel.setVisible(true);
-        mMatchWarningLabel.setVisible(false);
-        mOKButton.setVisible(false);
     }
 }

@@ -16,7 +16,7 @@
             <items>
                   <MenuItem mnemonicParsing="false" onAction="#handleNew" text="New" />
                   <MenuItem mnemonicParsing="false" onAction="#handleOpen" text="Open..." />
-                  <Menu mnemonicParsing="false" text="Recent...">
+                  <Menu fx:id="mRecentDBMenu" mnemonicParsing="false" text="Recent...">
                      <items>
                         <SeparatorMenuItem mnemonicParsing="false" />
                         <MenuItem mnemonicParsing="false" onAction="#handleClearList" text="Clear List" />

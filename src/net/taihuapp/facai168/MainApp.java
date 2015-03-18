@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.Preferences;
@@ -143,6 +144,10 @@ public class MainApp extends Application {
                 return;
             }
             dbName = file.getAbsolutePath();
+            if (!dbName.endsWith(DBPOSTFIX)) {
+                dbName += DBPOSTFIX;
+                file = new File(dbName);
+            }
         }
         closeConnection();
 
@@ -201,7 +206,54 @@ public class MainApp extends Application {
         // save opened DB hist
         putOpenedDBNames(updateOpenedDBNames(getOpenedDBNames(), dbName));
 
-        System.out.println("Need to setup database structure here");
+        if (isNew) {
+            initDBStructure();
+        }
+    }
+
+    // initialize database structure
+    private void initDBStructure() {
+        if (mConnection == null)
+            return;
+
+        // Create and populate AccountType table
+        String createCmd0 = "create table AccountTypes ("
+                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "TYPE varchar(40) NOT NULL, "
+                + "PRIMARY KEY (ID));";
+
+        String insertCmd0 = "insert into AccountTypes (TYPE) VALUES ('Spending');";
+        String insertCmd1 = "insert into AccountTypes (TYPE) VALUES ('Investing');";
+        String insertCmd2 = "insert into AccountTypes (TYPE) VALUES ('Property');";
+        String insertCmd3 = "insert into AccountTypes (TYPE) VALUES ('Debt');";
+        String createCmd1 = "create table Accounts ("
+                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "TYPE_ID integer NOT NULL, "
+                + "NAME varchar(20) NOT NULL, "
+                + "Description varchar(80) NOT NULL, "
+                + "PRIMARY KEY (ID));";
+        Statement stmt = null;
+        try {
+            stmt = mConnection.createStatement();
+            stmt.executeUpdate(createCmd0);
+            stmt.executeUpdate(insertCmd0);
+            stmt.executeUpdate(insertCmd1);
+            stmt.executeUpdate(insertCmd2);
+            stmt.executeUpdate(insertCmd3);
+            stmt.executeUpdate(createCmd1);
+            stmt.close();
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (stmt != null)
+                    stmt.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void printSQLException(SQLException e)

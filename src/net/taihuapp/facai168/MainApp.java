@@ -1,6 +1,8 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -9,13 +11,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import sun.awt.datatransfer.DataTransferer;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.Preferences;
@@ -27,9 +27,15 @@ public class MainApp extends Application {
     static String DBOWNER = "FC168ADM";
     static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
 
+    static int ACCUONTTYPELEN = 16;
+    static int ACCOUNTNAMELEN = 16;
+    static int ACCOUNTDESCLEN = 256;
+
     private Preferences mPrefs;
     private Stage mPrimaryStage;
     private Connection mConnection = null;
+
+    private ObservableList<Account> mAccountData = FXCollections.observableArrayList();
 
     List<String> getOpenedDBNames() {
         List<String> fileNameList = new ArrayList<String>();
@@ -41,6 +47,30 @@ public class MainApp extends Application {
             }
         }
         return fileNameList;
+    }
+
+    List<AccountType> getAccountTypeList() {
+        List<AccountType> aList = new ArrayList<AccountType>();
+
+        if (mConnection != null) {
+            Statement stmt = null;
+            try {
+                stmt = mConnection.createStatement();
+                String sqlCmd = "select ID, TYPE from ACCOUNTTYPES order by ID;";
+                ResultSet rs = stmt.executeQuery(sqlCmd);
+                while (rs.next()) {
+                    int id = rs.getInt("ID");
+                    String type = rs.getString("TYPE");
+                    aList.add(new AccountType(id, type));
+                }
+                rs.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+
+        return aList;
     }
 
     void putOpenedDBNames(List<String> openedDBNames) {
@@ -65,6 +95,36 @@ public class MainApp extends Application {
         }
 
         return openedDBNames;
+    }
+
+    public void showEditAccountDialog(Account account) {
+        boolean isNew = account.getID() < 0;
+        String title;
+        if (isNew) {
+            title = "New Account";
+        } else {
+            title = "Edit Account";
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("EditAccountDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle(title);
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene((AnchorPane) loader.load()));
+            EditAccountDialogController controller = (EditAccountDialogController) loader.getController();
+            if (controller == null) {
+                System.out.println("Null controller?");
+            } else {
+                controller.setMainApp(this);
+            }
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // returns a password or null
@@ -95,7 +155,7 @@ public class MainApp extends Application {
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene((AnchorPane) loader.load()));
             PasswordDialogController controller = loader.getController();
-            controller.setmDialogStage(dialogStage);
+            controller.setDialogStage(dialogStage);
             controller.setMode(mode);
             dialogStage.showAndWait();
 
@@ -111,11 +171,14 @@ public class MainApp extends Application {
             try {
                 mConnection.close();
             } catch (SQLException e) {
+                printSQLException(e);
                 e.printStackTrace();
             }
             mConnection = null;
         }
     }
+
+    public boolean isConnected() { return mConnection != null; }
 
     // create a new database
     public void openDatabase(boolean isNew, String dbName) {
@@ -217,20 +280,20 @@ public class MainApp extends Application {
             return;
 
         // Create and populate AccountType table
-        String createCmd0 = "create table AccountTypes ("
+        String createCmd0 = "create table ACCOUNTTYPES ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
-                + "TYPE varchar(40) NOT NULL, "
+                + "TYPE varchar(" + ACCUONTTYPELEN + ") NOT NULL, "
                 + "PRIMARY KEY (ID));";
 
-        String insertCmd0 = "insert into AccountTypes (TYPE) VALUES ('Spending');";
-        String insertCmd1 = "insert into AccountTypes (TYPE) VALUES ('Investing');";
-        String insertCmd2 = "insert into AccountTypes (TYPE) VALUES ('Property');";
-        String insertCmd3 = "insert into AccountTypes (TYPE) VALUES ('Debt');";
-        String createCmd1 = "create table Accounts ("
+        String insertCmd0 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Spending');";
+        String insertCmd1 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Investing');";
+        String insertCmd2 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Property');";
+        String insertCmd3 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Debt');";
+        String createCmd1 = "create table ACCOUNTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
                 + "TYPE_ID integer NOT NULL, "
-                + "NAME varchar(20) NOT NULL, "
-                + "Description varchar(80) NOT NULL, "
+                + "NAME varchar(" + ACCOUNTNAMELEN + ") NOT NULL, "
+                + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "PRIMARY KEY (ID));";
         Statement stmt = null;
         try {
@@ -279,7 +342,7 @@ public class MainApp extends Application {
             loader.setLocation(MainApp.class.getResource("MainLayout.fxml"));
             mPrimaryStage.setScene(new Scene((BorderPane) loader.load()));
             mPrimaryStage.show();
-
+            System.out.println("before loader.getController");
             ((MainController) loader.getController()).setMainApp(this);
         } catch (IOException e) {
             e.printStackTrace();

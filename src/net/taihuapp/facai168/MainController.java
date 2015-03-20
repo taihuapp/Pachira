@@ -18,6 +18,12 @@ public class MainController {
     @FXML
     private Menu mRecentDBMenu;
 
+    @FXML
+    private Menu mEditMenu;
+
+    @FXML
+    private MenuItem mNewAccountMenuItem;
+
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
         updateRecentMenu();
@@ -32,12 +38,14 @@ public class MainController {
     private void handleOpen() {
         mMainApp.openDatabase(false, null);
         updateRecentMenu();
+        updateUI(mMainApp.isConnected());
     }
 
     @FXML
     private void handleNew() {
         mMainApp.openDatabase(true, null);
         updateRecentMenu();
+        updateUI(mMainApp.isConnected());
     }
 
     @FXML
@@ -49,7 +57,19 @@ public class MainController {
     private void handleClearList() {
         mMainApp.putOpenedDBNames(new ArrayList<String>());
         updateRecentMenu();
-        System.out.println("Clear List");
+    }
+
+    @FXML
+    private void handleNewAccount() {
+        Account account = new Account();
+        mMainApp.showEditAccountDialog(account);
+
+        System.err.println("Create new account");
+    }
+
+    private void updateUI(boolean isConnected) {
+        System.out.println("updateUI " + isConnected);
+        mEditMenu.setVisible(isConnected);
     }
 
     public void updateRecentMenu() {
@@ -57,6 +77,7 @@ public class MainController {
             public void handle(ActionEvent t) {
                 MenuItem mi = (MenuItem) t.getTarget();
                 mMainApp.openDatabase(false, mi.getText());
+                updateUI(mMainApp.isConnected());
             }
         };
         ObservableList<MenuItem> recentList = mRecentDBMenu.getItems();
@@ -68,9 +89,5 @@ public class MainController {
             mi.setOnAction(menuAction);
             recentList.add(0, mi);
         }
-    }
-
-    @FXML
-    private void initialize() {
     }
 }

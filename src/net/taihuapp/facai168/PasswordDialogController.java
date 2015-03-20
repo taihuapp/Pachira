@@ -31,7 +31,7 @@ public class PasswordDialogController implements ChangeListener {
     @FXML
     private Button mOKButton;
 
-    public void setmDialogStage(Stage stage) { mDialogStage = stage; }
+    public void setDialogStage(Stage stage) { mDialogStage = stage; }
     public void setMode(MODE mode) {
         switch (mode) {
             case NEW:

@@ -26,10 +26,15 @@
               <MenuItem mnemonicParsing="false" onAction="#handleClose" text="Close" />
             </items>
           </Menu>
-          <Menu mnemonicParsing="false" text="Edit">
-            <items>
-              <MenuItem mnemonicParsing="false" text="Delete" />
-            </items>
+          <Menu fx:id="mEditMenu" mnemonicParsing="false" text="Edit" visible="false">
+               <items>
+                  <Menu mnemonicParsing="false" text="Account">
+                    <items>
+                      <MenuItem mnemonicParsing="false" onAction="#handleNewAccount" text="New" />
+                        <SeparatorMenuItem mnemonicParsing="false" />
+                    </items>
+                  </Menu>
+               </items>
           </Menu>
           <Menu mnemonicParsing="false" text="Help">
             <items>

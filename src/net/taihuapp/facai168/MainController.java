@@ -5,6 +5,8 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 
@@ -24,9 +26,15 @@ public class MainController {
     @FXML
     private MenuItem mNewAccountMenuItem;
 
+    @FXML
+    private ListView<Account> mAccountListView;
+
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
         updateRecentMenu();
+        //todo
+        // should I call updateUI here?
+
     }
 
     @FXML
@@ -62,14 +70,31 @@ public class MainController {
     @FXML
     private void handleNewAccount() {
         Account account = new Account();
-        mMainApp.showEditAccountDialog(account);
-
-        System.err.println("Create new account");
+        if (mMainApp.showEditAccountDialog(account)) {
+            mMainApp.getAccountList().add(account);
+        }
     }
 
     private void updateUI(boolean isConnected) {
         System.out.println("updateUI " + isConnected);
         mEditMenu.setVisible(isConnected);
+        mAccountListView.setVisible(isConnected);
+        if (isConnected) {
+            mAccountListView.setItems(mMainApp.getAccountList());
+            mAccountListView.setCellFactory((list) -> {
+                return new ListCell<Account>() {
+                    @Override
+                    protected void updateItem(Account item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (item == null || empty) {
+                            setText(null);
+                        } else {
+                            setText(item.getName());
+                        }
+                    }
+                };
+            });
+        }
     }
 
     public void updateRecentMenu() {

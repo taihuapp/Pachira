@@ -23,9 +23,9 @@
                 <Label text="Account Type" />
                 <ChoiceBox fx:id="mTypeChoiceBox" prefWidth="150.0" GridPane.columnIndex="1" />
                 <Label text="Account Name" GridPane.rowIndex="1" />
-                <TextField GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                <TextField fx:id="mNameTextField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                 <Label text="Description" GridPane.rowIndex="2" />
-                <TextArea prefHeight="78.0" prefWidth="248.0" GridPane.columnIndex="1" GridPane.rowIndex="2" GridPane.rowSpan="3" />
+                <TextArea fx:id="mDescriptionTextArea" prefHeight="78.0" prefWidth="248.0" GridPane.columnIndex="1" GridPane.rowIndex="2" GridPane.rowSpan="3" />
                 <ButtonBar GridPane.columnIndex="1" GridPane.rowIndex="5">
                     <buttons>
                         <Button mnemonicParsing="false" onAction="#handleOK" text="OK" />

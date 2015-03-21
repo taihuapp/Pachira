@@ -19,11 +19,16 @@ public class Account {
 
     // default constructor
     public Account() {
-        mID = new SimpleIntegerProperty(-1);
-        mTypeID = new SimpleIntegerProperty(-1);
-        mName = new SimpleStringProperty("");
-        mDescription = new SimpleStringProperty("");
+        this(-1, -1, "", "");
     }
+
+    public Account(int id, int typeID, String name, String description) {
+        mID = new SimpleIntegerProperty(id);
+        mTypeID = new SimpleIntegerProperty(typeID);
+        mName = new SimpleStringProperty(name);
+        mDescription = new SimpleStringProperty(description);
+    }
+
 
     // getters and setters
     public IntegerProperty getIDProperty() { return mID; }
@@ -41,4 +46,9 @@ public class Account {
     public StringProperty getDescriptionProperty() { return mDescription; }
     public String getDescription() { return mDescription.get(); }
     public void setDescription(String d) { mDescription.set(d); }
+
+    public String toString() {
+        return "mID:" + mID.get() + ";mTypeID:" + mTypeID.get()
+                + ";mName:" + mName.get() + ";mDescription:" + mDescription.get();
+    }
 }

@@ -2,6 +2,7 @@ package net.taihuapp.facai168;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -11,11 +12,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import sun.awt.datatransfer.DataTransferer;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.Preferences;
@@ -35,7 +36,8 @@ public class MainApp extends Application {
     private Stage mPrimaryStage;
     private Connection mConnection = null;
 
-    private ObservableList<Account> mAccountData = FXCollections.observableArrayList();
+    private List<AccountType> mAccountTypeList = new ArrayList<AccountType>();
+    private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
 
     List<String> getOpenedDBNames() {
         List<String> fileNameList = new ArrayList<String>();
@@ -49,9 +51,106 @@ public class MainApp extends Application {
         return fileNameList;
     }
 
-    List<AccountType> getAccountTypeList() {
-        List<AccountType> aList = new ArrayList<AccountType>();
+    public ObservableList<Account> getAccountList() {
+        return mAccountList;
+    }
 
+    public List<AccountType> getAccountTypeList() {
+        return mAccountTypeList;
+    }
+
+    public void insertUpdateAccountList(int index, Account account) {
+        if (index < 0) {
+            mAccountList.add(account);
+        } else {
+            mAccountList.set(index, account);
+        }
+    }
+
+    private void insertUpdateAccountToDB(Account account) {
+        String sqlCmd;
+        if (account.getID() < 0) {
+            sqlCmd = "insert into ACCOUNTS (TYPE_ID, NAME, DESCRIPTION) values (?,?,?)";
+        } else {
+            sqlCmd = "update ACCOUNTS set TYPE_ID = ?, NAME = ?, DESCRIPTION = ? where ID = ?";
+        }
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.setInt(1, account.getTypeID());
+            preparedStatement.setString(2, account.getName());
+            preparedStatement.setString(3, account.getDescription());
+            if (account.getID() >= 0) {
+                preparedStatement.setInt(4, account.getID());
+            }
+            if (preparedStatement.executeUpdate() == 0) {
+                throw new SQLException("Insert Account failed, no rows affected");
+            }
+            resultSet = preparedStatement.getGeneratedKeys();
+            if (resultSet.next()) {
+                account.setID(resultSet.getInt(1));
+            } else {
+                throw new SQLException("Insert Account failed, no ID obtained");
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            System.err.println("mConnection is null");
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+                if (resultSet != null)
+                    resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void initAccountList() {
+        if (mConnection != null) {
+            ListChangeListener<Account> listener = new ListChangeListener<Account>() {
+                @Override
+                public void onChanged(Change<? extends Account> c) {
+                    while (c.next()) {
+                        if (c.wasAdded()) {
+                            for (Object o : c.getAddedSubList()) {
+                                insertUpdateAccountToDB((Account) o);
+                            }
+                        }
+                    }
+
+                }
+            };
+
+            mAccountList.removeListener(listener);
+            mAccountList.removeAll();
+            Statement stmt = null;
+            try {
+                stmt = mConnection.createStatement();
+                String sqlCmd = "select ID, TYPE_ID, NAME, DESCRIPTION from ACCOUNTS order by TYPE_ID, ID";
+                ResultSet rs = stmt.executeQuery(sqlCmd);
+                while (rs.next()) {
+                    int id = rs.getInt("ID");
+                    int typeID = rs.getInt("TYPE_ID");
+                    String name = rs.getString("NAME");
+                    String description = rs.getString("DESCRIPTION");
+                    mAccountList.add(new Account(id, typeID, name, description));
+                }
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+            mAccountList.addListener(listener);
+        }
+    }
+
+    private void initAccountTypeList() {
         if (mConnection != null) {
             Statement stmt = null;
             try {
@@ -61,7 +160,7 @@ public class MainApp extends Application {
                 while (rs.next()) {
                     int id = rs.getInt("ID");
                     String type = rs.getString("TYPE");
-                    aList.add(new AccountType(id, type));
+                    mAccountTypeList.add(new AccountType(id, type));
                 }
                 rs.close();
             } catch (SQLException e) {
@@ -69,8 +168,6 @@ public class MainApp extends Application {
                 e.printStackTrace();
             }
         }
-
-        return aList;
     }
 
     void putOpenedDBNames(List<String> openedDBNames) {
@@ -97,7 +194,7 @@ public class MainApp extends Application {
         return openedDBNames;
     }
 
-    public void showEditAccountDialog(Account account) {
+    public boolean showEditAccountDialog(Account account) {
         boolean isNew = account.getID() < 0;
         String title;
         if (isNew) {
@@ -117,13 +214,16 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene((AnchorPane) loader.load()));
             EditAccountDialogController controller = (EditAccountDialogController) loader.getController();
             if (controller == null) {
-                System.out.println("Null controller?");
+                System.err.println("Null controller?");
             } else {
-                controller.setMainApp(this);
+                controller.setDialogStage(dialogStage, account, getAccountTypeList());
             }
             dialogStage.showAndWait();
+            // todo
+            return controller.isOK();
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
     }
 
@@ -251,16 +351,27 @@ public class MainApp extends Application {
             int errorCode = e.getErrorCode();
             // 90049 -- bad encryption password
             // 28000 -- wrong user name or password
-            if (errorCode == 90049 || errorCode == 28000) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.initOwner(mPrimaryStage);
-                alert.setTitle("Bad password");
-                alert.setHeaderText("Wrong password for " + dbName);
-                alert.showAndWait();
-            } else {
-                printSQLException(e);
-                e.printStackTrace();
+            // 90020 -- Database may be already in use: locked by another process
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.initOwner(mPrimaryStage);
+            switch (errorCode) {
+                case 90049:
+                case 28000:
+                    alert.setTitle("Bad password");
+                    alert.setHeaderText("Wrong password for " + dbName);
+                    break;
+                case 90020:
+                    alert.setTitle("Filed locked");
+                    alert.setHeaderText("File may be already in use, locked by another process.");
+                    break;
+                default:
+                    alert.setTitle("SQL Error");
+                    alert.setHeaderText("Error Code: " + errorCode);
+                    printSQLException(e);
+                    e.printStackTrace();
+                    break;
             }
+            alert.showAndWait();
         }
         if (mConnection == null) {
             return;
@@ -272,6 +383,10 @@ public class MainApp extends Application {
         if (isNew) {
             initDBStructure();
         }
+
+        // initialize
+        initAccountTypeList();
+        initAccountList();
     }
 
     // initialize database structure
@@ -289,6 +404,7 @@ public class MainApp extends Application {
         String insertCmd1 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Investing');";
         String insertCmd2 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Property');";
         String insertCmd3 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Debt');";
+
         String createCmd1 = "create table ACCOUNTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
                 + "TYPE_ID integer NOT NULL, "
@@ -342,7 +458,6 @@ public class MainApp extends Application {
             loader.setLocation(MainApp.class.getResource("MainLayout.fxml"));
             mPrimaryStage.setScene(new Scene((BorderPane) loader.load()));
             mPrimaryStage.show();
-            System.out.println("before loader.getController");
             ((MainController) loader.getController()).setMainApp(this);
         } catch (IOException e) {
             e.printStackTrace();
@@ -351,7 +466,6 @@ public class MainApp extends Application {
 
     @Override
     public void stop() throws Exception {
-        System.out.println("Stopping...");
         closeConnection();
     }
 
@@ -360,60 +474,17 @@ public class MainApp extends Application {
         mPrefs = Preferences.userNodeForPackage(MainApp.class);
     }
 
-
     @Override
     public void start(final Stage stage) throws Exception {
 
         mPrimaryStage = stage;
         mPrimaryStage.setTitle("FaCai168");
         initMainLayout();
-        //initPrefs();
-
-/*
-        //Parent root = FXMLLoader.load(getClass().getResource("MainLayout.fxml"));
-        //StackPane root = new StackPane();
-        primaryStage.setTitle("FaCai168");
-        final VBox vbox = new VBox();
-        vbox.setAlignment(Pos.CENTER);
-
-
-        Scene scene = new Scene(vbox, 300, 275);
-        primaryStage.setScene(scene);
-
-        // menuBar and fileMenu
-        MenuBar menuBar = new MenuBar();
-
-        Menu menuFile = new Menu("File");
-
-        MenuItem miNew = new MenuItem("New...");
-        miNew.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                System.out.println("New..." + event.toString());
-            }
-        });
-
-        menuFile.getItems().addAll(miNew);
-        menuBar.getMenus().addAll(menuFile);
-        ((VBox) scene.getRoot()).getChildren().addAll(menuBar, vbox);
-
-        primaryStage.show();
-
-        Button button =  new Button();
-        button.setText("Say Hi");
-        button.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                openFile(primaryStage);
-            }
-        });
-        vbox.getChildren().add(button);
-*/
-
     }
 
     public static void main(String[] args) {
 
         launch(args);
     }
+
 }

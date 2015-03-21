@@ -12,32 +12,39 @@ import javafx.beans.value.ObservableValue;
  * Created by ghe on 3/19/15.
  */
 public class Account {
+
+    public enum Type { SPENDING, INVESTING, PROPERTY, DEBT }
+
+    private Type mType;
+
     private final IntegerProperty mID;
-    private final IntegerProperty mTypeID;
     private final StringProperty mName;
     private final StringProperty mDescription;
 
     // default constructor
     public Account() {
-        this(-1, -1, "", "");
+        this(-1, Type.SPENDING, "", "");
     }
 
-    public Account(int id, int typeID, String name, String description) {
+    public Account(int id, Type type, String name, String description) {
         mID = new SimpleIntegerProperty(id);
-        mTypeID = new SimpleIntegerProperty(typeID);
+        mType = type;
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
     }
 
-
     // getters and setters
+    public Type getType() { return mType; }
+    public void setType(Type t) throws Exception {
+        if (mID.get() >= 0) {
+            throw new Exception("Can't change account type for an exiting account");
+        }
+        mType = t;
+    }
+
     public IntegerProperty getIDProperty() { return mID; }
     public int getID() { return mID.get(); }
     public void setID(int id) { mID.set(id); }
-
-    public IntegerProperty getTypeIDProperty() { return mTypeID; }
-    public int getTypeID() { return mTypeID.get(); }
-    public void setTypeID(int typeID) { mTypeID.set(typeID); }
 
     public StringProperty getNameProperty() { return mName; }
     public String getName() { return mName.get(); }
@@ -48,7 +55,7 @@ public class Account {
     public void setDescription(String d) { mDescription.set(d); }
 
     public String toString() {
-        return "mID:" + mID.get() + ";mTypeID:" + mTypeID.get()
+        return "mID:" + mID.get() + ";mType:" + mType.name()
                 + ";mName:" + mName.get() + ";mDescription:" + mDescription.get();
     }
 }

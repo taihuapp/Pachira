@@ -36,7 +36,6 @@ public class MainApp extends Application {
     private Stage mPrimaryStage;
     private Connection mConnection = null;
 
-    private List<AccountType> mAccountTypeList = new ArrayList<AccountType>();
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
 
     List<String> getOpenedDBNames() {
@@ -55,10 +54,6 @@ public class MainApp extends Application {
         return mAccountList;
     }
 
-    public List<AccountType> getAccountTypeList() {
-        return mAccountTypeList;
-    }
-
     public void insertUpdateAccountList(int index, Account account) {
         if (index < 0) {
             mAccountList.add(account);
@@ -70,15 +65,15 @@ public class MainApp extends Application {
     private void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
         if (account.getID() < 0) {
-            sqlCmd = "insert into ACCOUNTS (TYPE_ID, NAME, DESCRIPTION) values (?,?,?)";
+            sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION) values (?,?,?)";
         } else {
-            sqlCmd = "update ACCOUNTS set TYPE_ID = ?, NAME = ?, DESCRIPTION = ? where ID = ?";
+            sqlCmd = "update ACCOUNTS set TYPE = ?, NAME = ?, DESCRIPTION = ? where ID = ?";
         }
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
         try {
             preparedStatement = mConnection.prepareStatement(sqlCmd);
-            preparedStatement.setInt(1, account.getTypeID());
+            preparedStatement.setString(1, account.getType().name());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
             if (account.getID() >= 0) {
@@ -133,40 +128,20 @@ public class MainApp extends Application {
             Statement stmt = null;
             try {
                 stmt = mConnection.createStatement();
-                String sqlCmd = "select ID, TYPE_ID, NAME, DESCRIPTION from ACCOUNTS order by TYPE_ID, ID";
+                String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION from ACCOUNTS order by TYPE, ID";
                 ResultSet rs = stmt.executeQuery(sqlCmd);
                 while (rs.next()) {
                     int id = rs.getInt("ID");
-                    int typeID = rs.getInt("TYPE_ID");
+                    Account.Type type = Account.Type.valueOf(rs.getString("TYPE"));
                     String name = rs.getString("NAME");
                     String description = rs.getString("DESCRIPTION");
-                    mAccountList.add(new Account(id, typeID, name, description));
+                    mAccountList.add(new Account(id, type, name, description));
                 }
             } catch (SQLException e) {
                 printSQLException(e);
                 e.printStackTrace();
             }
             mAccountList.addListener(listener);
-        }
-    }
-
-    private void initAccountTypeList() {
-        if (mConnection != null) {
-            Statement stmt = null;
-            try {
-                stmt = mConnection.createStatement();
-                String sqlCmd = "select ID, TYPE from ACCOUNTTYPES order by ID;";
-                ResultSet rs = stmt.executeQuery(sqlCmd);
-                while (rs.next()) {
-                    int id = rs.getInt("ID");
-                    String type = rs.getString("TYPE");
-                    mAccountTypeList.add(new AccountType(id, type));
-                }
-                rs.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
         }
     }
 
@@ -216,7 +191,8 @@ public class MainApp extends Application {
             if (controller == null) {
                 System.err.println("Null controller?");
             } else {
-                controller.setDialogStage(dialogStage, account, getAccountTypeList());
+                controller.setDialogStage(dialogStage);
+                controller.setAccount(account);
             }
             dialogStage.showAndWait();
             // todo
@@ -385,7 +361,6 @@ public class MainApp extends Application {
         }
 
         // initialize
-        initAccountTypeList();
         initAccountList();
     }
 
@@ -394,40 +369,24 @@ public class MainApp extends Application {
         if (mConnection == null)
             return;
 
-        // Create and populate AccountType table
-        String createCmd0 = "create table ACCOUNTTYPES ("
+        String sqlCmd = "create table ACCOUNTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
                 + "TYPE varchar(" + ACCUONTTYPELEN + ") NOT NULL, "
-                + "PRIMARY KEY (ID));";
-
-        String insertCmd0 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Spending');";
-        String insertCmd1 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Investing');";
-        String insertCmd2 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Property');";
-        String insertCmd3 = "insert into ACCOUNTTYPES (TYPE) VALUES ('Debt');";
-
-        String createCmd1 = "create table ACCOUNTS ("
-                + "ID integer NOT NULL AUTO_INCREMENT, "
-                + "TYPE_ID integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "PRIMARY KEY (ID));";
-        Statement stmt = null;
+        PreparedStatement preparedStatement = null;
         try {
-            stmt = mConnection.createStatement();
-            stmt.executeUpdate(createCmd0);
-            stmt.executeUpdate(insertCmd0);
-            stmt.executeUpdate(insertCmd1);
-            stmt.executeUpdate(insertCmd2);
-            stmt.executeUpdate(insertCmd3);
-            stmt.executeUpdate(createCmd1);
-            stmt.close();
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.executeUpdate();
+            preparedStatement.close();
         } catch (SQLException e) {
             printSQLException(e);
             e.printStackTrace();
         } finally {
             try {
-                if (stmt != null)
-                    stmt.close();
+                if (preparedStatement != null)
+                    preparedStatement.close();
             } catch (SQLException e) {
                 printSQLException(e);
                 e.printStackTrace();

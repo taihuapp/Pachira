@@ -37,7 +37,22 @@ public class MainApp extends Application {
     private Connection mConnection = null;
 
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
+    private ListChangeListener<Account> mAccountListListener =
+            new ListChangeListener<Account>() {
+                @Override
+                public void onChanged(Change<? extends Account> c) {
+                    while (c.next()) {
+                        if (c.wasAdded()) {
+                            for (Object o : c.getAddedSubList()) {
+                                insertUpdateAccountToDB((Account) o);
+                            }
+                        }
+                    }
+                    ;
+                }
+            };
 
+    // get opened named from pref
     List<String> getOpenedDBNames() {
         List<String> fileNameList = new ArrayList<String>();
 
@@ -109,22 +124,8 @@ public class MainApp extends Application {
 
     private void initAccountList() {
         if (mConnection != null) {
-            ListChangeListener<Account> listener = new ListChangeListener<Account>() {
-                @Override
-                public void onChanged(Change<? extends Account> c) {
-                    while (c.next()) {
-                        if (c.wasAdded()) {
-                            for (Object o : c.getAddedSubList()) {
-                                insertUpdateAccountToDB((Account) o);
-                            }
-                        }
-                    }
-
-                }
-            };
-
-            mAccountList.removeListener(listener);
-            mAccountList.removeAll();
+            mAccountList.removeListener(mAccountListListener);
+            mAccountList.clear();
             Statement stmt = null;
             try {
                 stmt = mConnection.createStatement();
@@ -141,7 +142,7 @@ public class MainApp extends Application {
                 printSQLException(e);
                 e.printStackTrace();
             }
-            mAccountList.addListener(listener);
+            mAccountList.addListener(mAccountListListener);
         }
     }
 
@@ -187,7 +188,7 @@ public class MainApp extends Application {
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene((AnchorPane) loader.load()));
-            EditAccountDialogController controller = (EditAccountDialogController) loader.getController();
+            EditAccountDialogController controller = loader.getController();
             if (controller == null) {
                 System.err.println("Null controller?");
             } else {
@@ -359,9 +360,10 @@ public class MainApp extends Application {
         if (isNew) {
             initDBStructure();
         }
-
         // initialize
         initAccountList();
+
+        mPrimaryStage.setTitle("FaCai168 " + dbName);
     }
 
     // initialize database structure

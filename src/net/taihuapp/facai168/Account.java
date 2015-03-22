@@ -1,10 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.InvalidationListener;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 
@@ -21,6 +18,8 @@ public class Account {
     private final StringProperty mName;
     private final StringProperty mDescription;
 
+    private DoubleProperty mCurrentBalance;
+
     // default constructor
     public Account() {
         this(-1, Type.SPENDING, "", "");
@@ -31,6 +30,8 @@ public class Account {
         mType = type;
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
+
+        mCurrentBalance = new SimpleDoubleProperty(0);
     }
 
     // getters and setters
@@ -53,6 +54,10 @@ public class Account {
     public StringProperty getDescriptionProperty() { return mDescription; }
     public String getDescription() { return mDescription.get(); }
     public void setDescription(String d) { mDescription.set(d); }
+
+    public DoubleProperty getCurrentBalanceProperty() { return mCurrentBalance; }
+    public Double getCurrentBalance() { return mCurrentBalance.get(); }
+    public void setCurrentBalance(double cb) { mCurrentBalance.set(cb); }
 
     public String toString() {
         return "mID:" + mID.get() + ";mType:" + mType.name()

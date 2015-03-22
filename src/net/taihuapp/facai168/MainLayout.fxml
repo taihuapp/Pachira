@@ -7,7 +7,7 @@
 
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.MainController">
    <top>
-      <MenuBar BorderPane.alignment="CENTER">
+      <MenuBar prefHeight="30.0" prefWidth="800.0" BorderPane.alignment="CENTER">
         <menus>
           <Menu mnemonicParsing="false" text="File">
             <items>
@@ -42,6 +42,14 @@
       </MenuBar>
    </top>
    <left>
-      <ListView fx:id="mAccountListView" prefHeight="571.0" prefWidth="150.0" BorderPane.alignment="CENTER" />
+      <TableView fx:id="mAccountTableView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <columns>
+          <TableColumn fx:id="mAccountColumn" editable="false" prefWidth="100.0" text="Account" />
+          <TableColumn fx:id="mBalanceColumn" editable="false" prefWidth="100.0" text="Balance" />
+        </columns>
+         <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+         </columnResizePolicy>
+      </TableView>
    </left>
 </BorderPane>

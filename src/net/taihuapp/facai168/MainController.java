@@ -5,11 +5,9 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.*;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,22 +17,23 @@ public class MainController {
 
     @FXML
     private Menu mRecentDBMenu;
-
     @FXML
     private Menu mEditMenu;
-
     @FXML
     private MenuItem mNewAccountMenuItem;
-
     @FXML
-    private ListView<Account> mAccountListView;
+    private TableView<Account> mAccountTableView;
+    @FXML
+    private TableColumn<Account, String> mAccountColumn;
+    @FXML
+    private TableColumn<Account, Double> mBalanceColumn;
 
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
         updateRecentMenu();
-        //todo
-        // should I call updateUI here?
+        updateUI(mMainApp.isConnected());
 
+        mAccountTableView.setItems(mMainApp.getAccountList());
     }
 
     @FXML
@@ -76,25 +75,8 @@ public class MainController {
     }
 
     private void updateUI(boolean isConnected) {
-        System.out.println("updateUI " + isConnected);
         mEditMenu.setVisible(isConnected);
-        mAccountListView.setVisible(isConnected);
-        if (isConnected) {
-            mAccountListView.setItems(mMainApp.getAccountList());
-            mAccountListView.setCellFactory((list) -> {
-                return new ListCell<Account>() {
-                    @Override
-                    protected void updateItem(Account item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (item == null || empty) {
-                            setText(null);
-                        } else {
-                            setText(item.getName());
-                        }
-                    }
-                };
-            });
-        }
+        mAccountTableView.setVisible(isConnected);
     }
 
     public void updateRecentMenu() {
@@ -114,5 +96,28 @@ public class MainController {
             mi.setOnAction(menuAction);
             recentList.add(0, mi);
         }
+    }
+
+    @FXML
+    private void initialize() {
+        mAccountColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());
+        mBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getCurrentBalanceProperty().asObject());
+
+        mBalanceColumn.setCellFactory(column -> {
+            return new TableCell<Account, Double>() {
+                @Override
+                protected void updateItem(Double item, boolean empty) {
+                    super.updateItem(item, empty);
+
+                    if (item == null || empty) {
+                        setText("");
+                    } else {
+                        // format
+                        setText((new DecimalFormat("#0.00")).format(item));
+                    }
+                    setStyle("-fx-alignment: CENTER-RIGHT;");
+                }
+            };
+        });
     }
 }

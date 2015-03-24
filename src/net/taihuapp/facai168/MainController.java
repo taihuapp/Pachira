@@ -20,7 +20,9 @@ public class MainController {
     @FXML
     private Menu mEditMenu;
     @FXML
-    private MenuItem mNewAccountMenuItem;
+    private MenuItem mBackupMenuItem;
+    @FXML
+    private MenuItem mImportQIFMenuItem;
     @FXML
     private TableView<Account> mAccountTableView;
     @FXML
@@ -56,6 +58,11 @@ public class MainController {
     }
 
     @FXML
+    private void handleImportQIF() {
+        mMainApp.importQIF();
+    }
+
+    @FXML
     private void handleBackup() {
         System.out.println("Backup");
     }
@@ -70,12 +77,15 @@ public class MainController {
     private void handleNewAccount() {
         Account account = new Account();
         if (mMainApp.showEditAccountDialog(account)) {
-            mMainApp.getAccountList().add(account);
+            mMainApp.insertUpdateAccountToDB(account);
+            mMainApp.initAccountList();
         }
     }
 
     private void updateUI(boolean isConnected) {
         mEditMenu.setVisible(isConnected);
+        mBackupMenuItem.setVisible(isConnected);
+        mImportQIFMenuItem.setVisible(isConnected);
         mAccountTableView.setVisible(isConnected);
     }
 
@@ -96,6 +106,14 @@ public class MainController {
             mi.setOnAction(menuAction);
             recentList.add(0, mi);
         }
+    }
+
+    public void showAccountTransactions(Account account) {
+        if (account == null) {
+            return;
+        }
+        System.out.println("Showing " + account.getName() + " transactions");
+        account.setCurrentBalance(5);
     }
 
     @FXML
@@ -119,5 +137,7 @@ public class MainController {
                 }
             };
         });
+        mAccountTableView.getSelectionModel().selectedItemProperty().addListener(
+                (observable, oldValue, newValue) -> showAccountTransactions(newValue));
     }
 }

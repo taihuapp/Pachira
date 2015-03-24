@@ -37,20 +37,6 @@ public class MainApp extends Application {
     private Connection mConnection = null;
 
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
-    private ListChangeListener<Account> mAccountListListener =
-            new ListChangeListener<Account>() {
-                @Override
-                public void onChanged(Change<? extends Account> c) {
-                    while (c.next()) {
-                        if (c.wasAdded()) {
-                            for (Object o : c.getAddedSubList()) {
-                                insertUpdateAccountToDB((Account) o);
-                            }
-                        }
-                    }
-                    ;
-                }
-            };
 
     // get opened named from pref
     List<String> getOpenedDBNames() {
@@ -69,15 +55,7 @@ public class MainApp extends Application {
         return mAccountList;
     }
 
-    public void insertUpdateAccountList(int index, Account account) {
-        if (index < 0) {
-            mAccountList.add(account);
-        } else {
-            mAccountList.set(index, account);
-        }
-    }
-
-    private void insertUpdateAccountToDB(Account account) {
+    public void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
         if (account.getID() < 0) {
             sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION) values (?,?,?)";
@@ -104,8 +82,22 @@ public class MainApp extends Application {
                 throw new SQLException("Insert Account failed, no ID obtained");
             }
         } catch (SQLException e) {
-            printSQLException(e);
-            e.printStackTrace();
+            String title = "Database Error";
+            String headerText = "Unknown DB error";
+            if (e.getErrorCode() == 23505) {
+                title = "Duplicate Account Name";
+                headerText = "Account name " + account.getName() + " is already taken.";
+            } else {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.initOwner(mPrimaryStage);
+            alert.setTitle(title);
+            alert.setHeaderText(headerText);
+            alert.showAndWait();
+
         } catch (NullPointerException e) {
             System.err.println("mConnection is null");
             e.printStackTrace();
@@ -122,9 +114,8 @@ public class MainApp extends Application {
         }
     }
 
-    private void initAccountList() {
+    public void initAccountList() {
         if (mConnection != null) {
-            mAccountList.removeListener(mAccountListListener);
             mAccountList.clear();
             Statement stmt = null;
             try {
@@ -142,7 +133,6 @@ public class MainApp extends Application {
                 printSQLException(e);
                 e.printStackTrace();
             }
-            mAccountList.addListener(mAccountListListener);
         }
     }
 
@@ -196,7 +186,6 @@ public class MainApp extends Application {
                 controller.setAccount(account);
             }
             dialogStage.showAndWait();
-            // todo
             return controller.isOK();
         } catch (IOException e) {
             e.printStackTrace();
@@ -256,6 +245,35 @@ public class MainApp extends Application {
     }
 
     public boolean isConnected() { return mConnection != null; }
+
+    // import data from QIF file
+    public void importQIF() {
+        File file;
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("QIF", "*.QIF"));
+        fileChooser.setTitle("Import QIF file...");
+        file = fileChooser.showOpenDialog(mPrimaryStage);
+        if (file == null) {
+            return;
+        }
+
+        QIFParser qifParser = new QIFParser();
+        int n = -1;
+        try {
+            n = qifParser.parseFile(file);
+            System.out.println("parsed " + n + " records");
+        } catch (IOException e) {
+            System.err.println(e);
+            e.printStackTrace();
+        }
+        List<QIFParser.Account> aList = qifParser.getAccountList();
+        for (QIFParser.Account a : aList) {
+            // todo
+            // do something with the account
+        }
+
+        System.out.println("Parse " + file.getAbsolutePath());
+    }
 
     // create a new database
     public void openDatabase(boolean isNew, String dbName) {
@@ -341,6 +359,10 @@ public class MainApp extends Application {
                     alert.setTitle("Filed locked");
                     alert.setHeaderText("File may be already in use, locked by another process.");
                     break;
+                case 90013:
+                    alert.setTitle("File does not exist.");
+                    alert.setHeaderText("File may be moved or deleted.");
+                    break;
                 default:
                     alert.setTitle("SQL Error");
                     alert.setHeaderText("Error Code: " + errorCode);
@@ -374,7 +396,7 @@ public class MainApp extends Application {
         String sqlCmd = "create table ACCOUNTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
                 + "TYPE varchar(" + ACCUONTTYPELEN + ") NOT NULL, "
-                + "NAME varchar(" + ACCOUNTNAMELEN + ") NOT NULL, "
+                + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "PRIMARY KEY (ID));";
         PreparedStatement preparedStatement = null;
@@ -447,5 +469,4 @@ public class MainApp extends Application {
 
         launch(args);
     }
-
 }

@@ -273,6 +273,7 @@ public class MainApp extends Application {
         }
 
         System.out.println("Parse " + file.getAbsolutePath());
+        System.out.println("CategoryList length = " + qifParser.getCategoryList().size());
     }
 
     // create a new database

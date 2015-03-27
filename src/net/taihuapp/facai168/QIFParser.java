@@ -22,7 +22,7 @@ public class QIFParser {
         private boolean mIsTaxRelated;
         private int mTaxRefNum;  // Tax reference number (for tax-related items
         private boolean mIsIncome; // income category flag
-//38689943
+
         public Category() {
             mName = "";
             mDescription = "";
@@ -71,6 +71,18 @@ public class QIFParser {
             }
             return category;
         }
+    }
+
+    // starting from lines.get(startIdx) seek the line number of the next line
+    // equals match
+    // if not found, -1 is returned
+    static int findNextMatch(List<String> lines, int startIdx, String match) {
+        for (int i = startIdx; i < lines.size(); i++) {
+            if (lines.get(i).equals(match)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     static class Account {
@@ -129,28 +141,29 @@ public class QIFParser {
                     System.err.println(line + " Not implemented yet.");
                     return -1;
                 default:
-                    for (int j = i; j < nLines; j++) {
-                        if (allLines.get(j).equals("^")) {
-                            switch (currentRecordType) {
-                                case CAT:
-                                    category = Category.fromQIFLines(allLines.subList(i, j));
-                                    if (category != null) {
-                                        mCategoryList.add(category);
-                                        category = null;
-                                        nRecords++;
-                                    } else {
-                                        System.err.println("Bad formated Category text: "
-                                                + allLines.subList(i, j).toString());
-                                    }
-                                    i = j;
-                                    break;
-                                default:
-                                    System.err.println("Not implemented yet");
-                                    return -1;
-                            }
-                            break;  // break out the for loop
-                        }
+                    int j = findNextMatch(allLines, i, "^");
+                    if (j == -1) {
+                        System.err.println("Bad formated file.  Can't find '^'");
+                        return -1;
                     }
+                    switch (currentRecordType) {
+                        case CAT:
+                            category = Category.fromQIFLines(allLines.subList(i, j));
+                            if (category != null) {
+                                mCategoryList.add(category);
+                                category = null;
+                                nRecords++;
+                            } else {
+                                System.err.println("Bad formated Category text: "
+                                        + allLines.subList(i, j).toString());
+                            }
+                            i = j;
+                            break;
+                        default:
+                            System.err.println("Not implemented yet");
+                            return -1;
+                    }
+                    break;  // break out the switch
             }
             i++;
         }

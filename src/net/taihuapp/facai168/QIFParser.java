@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -12,21 +11,22 @@ import java.util.List;
  */
 public class QIFParser {
     // These are the exportable lists show in the QIF99 spec
-    // ACCOUNT list is not among the exportable lists, it uses !Option:AutoSwitch and !Clear:AutoSwitch
-    // to indicate
-    public enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BUDGET, INVITEM, TEMPLATE, ACCOUNT }
+    // CLASS and TEMPLATE are not being used
+    public enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT }
 
     static class Category extends Object {
         private String mName;  // name of the category
         private String mDescription;  // description
-        private boolean mIsTaxRelated;
-        private int mTaxRefNum;  // Tax reference number (for tax-related items
         private boolean mIsIncome; // income category flag
+        // mTaxRefNum = -1 for non tax related
+        //               0 for tax related but no valid ref num
+        //              >0 actual tax ref number
+        private int mTaxRefNum;  // Tax reference number (for tax-related items,
+        private double mBudgetAmount; // budget amount
 
         public Category() {
             mName = "";
             mDescription = "";
-            mIsTaxRelated = false;
             mTaxRefNum = -1;
             mIsIncome = true;
         }
@@ -35,15 +35,21 @@ public class QIFParser {
         public String getName() { return mName; }
         public void setDescription(String d) { mDescription = d; }
         public String getDescription() { return mDescription; }
-        public void setIsTaxRelated(boolean t) { mIsTaxRelated = t; }
-        public boolean isTaxRelated() { return mIsTaxRelated; }
+        public void setIsTaxRelated(boolean t) {
+            if (t && (getTaxRefNum() < 0)) {
+                setTaxRefNum(0); // set it to be tax related
+            } else if (!t) {
+                setTaxRefNum(-1); // set it to be non tax related
+            }
+        }
+        public boolean isTaxRelated() { return getTaxRefNum() >= 0; }
         public void setTaxRefNum(int r) { mTaxRefNum = r; }
         public int getTaxRefNum() { return mTaxRefNum; }
         public void setIsIncome(boolean i) { mIsIncome = i;}
         public boolean isIncome() { return mIsIncome; }
-
-        static Category fromQIFLines(List<String> lines) throws IOException {
-            System.out.println(lines.toString());
+        public void setBudgetAmount(double b) { mBudgetAmount = b; }
+        public double getBudgetAmount() { return mBudgetAmount; }
+        static Category fromQIFLines(List<String> lines)  {
             Category category = new Category();
             for (String l : lines) {
                 switch (l.charAt(0)) {
@@ -64,6 +70,9 @@ public class QIFParser {
                         break;
                     case 'E':
                         category.setIsIncome(false);
+                        break;
+                    case 'B':
+                        category.setBudgetAmount(Double.parseDouble(l.substring(1).replace(",","")));
                         break;
                     default:
                         return null;
@@ -86,10 +95,66 @@ public class QIFParser {
     }
 
     static class Account {
-        private List<Transaction> mTransactionList;
+        private String mName;  // name of the account
+        private String mType;  // Type of the account
+        private double mSalesTaxRate; // sales tax rate for tax account
+        private String mDescription; // description of the account
+        private double mCreditLimit;  // for credit card account
+        private double mBalance; // account balance
 
-        public List<Transaction> getTransactionList() { return mTransactionList; }
+        // default constructor set members to default values
+        public Account() {
+            mName = "";
+            mType = "";
+            mSalesTaxRate = 0;
+            mDescription = "";
+            mCreditLimit = -1;
+            mBalance = 0;
+        }
+
+        // setters and getters
+        public void setName(String n) { mName = n; }
+        public String getName() { return mName; }
+        public void setType(String t) { mType = t; }
+        public String getType() { return mType; }
+        public void setSalesTaxRate(double r) { mSalesTaxRate = r; }
+        public double getSalesTaxRate() { return mSalesTaxRate; }
+        public void setDescription(String d) { mDescription = d; }
+        public String getDescription() { return mDescription; }
+        public void setCreditLimit(double c) { mCreditLimit = c; }
+        public double getCreditLimit() { return mCreditLimit; }
+        public void setBalance(double b) { mBalance = b; }
+        public double getBalance() { return mBalance; }
+
+        static Account fromQIFLines(List<String> lines) {
+            System.out.println(lines.toString());
+            Account account = new Account();
+            for (String l : lines) {
+                switch (l.charAt(0)) {
+                    case 'N':
+                        account.setName(l.substring(1));
+                        break;
+                    case 'T':
+                        account.setType(l.substring(1));
+                        break;
+                    case 'R':
+                        account.setSalesTaxRate(Double.parseDouble(l.substring(1)));
+                        break;
+                    case 'D':
+                        account.setDescription(l.substring(1));
+                        break;
+                    case 'L':
+                        account.setCreditLimit(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    default:
+                        // bad formated record, return null
+                        return null;
+                }
+            }
+            return account;
+        }
     }
+
     static class Transaction {
 
     }
@@ -120,27 +185,46 @@ public class QIFParser {
             allLines.set(i, s);
         }
 
+        boolean autoSwitch = false;
         RecordType currentRecordType = null;
         boolean endRecord = true;
         int i = 0;
         Category category = null;
+        Account account = new Account();
         while (i < nLines) {
             String line = allLines.get(i);
             switch (line) {
                 case "!Type:Cat":
                     currentRecordType = RecordType.CAT;
                     break;
-                case "!Account":
-                case "!Clear:AutoSwitch":
-                case "!Option:AutoSwitch":
                 case "!Type:Bank":
+                    currentRecordType = RecordType.BANK;
+                    break;
                 case "!Type:Invst":
+                    currentRecordType = RecordType.INVITEM;
+                    break;
+                case "!Account":
+                    currentRecordType = RecordType.ACCOUNT;
+                    break;
+                case "!Clear:AutoSwitch":
+                    currentRecordType = null;
+                    autoSwitch = false;
+                    break;
+                case "!Option:AutoSwitch":
+                    currentRecordType = null;
+                    autoSwitch = true;
+                    break;
                 case "!Type:Memorized":
+                    currentRecordType = RecordType.MEMORIZED;
+                    break;
                 case "!Type:Prices":
+                    currentRecordType = RecordType.PRICES;
+                    break;
                 case "!Type:Security":
-                    System.err.println(line + " Not implemented yet.");
-                    return -1;
+                    currentRecordType = RecordType.SECURITY;
+                    break;
                 default:
+                    // this is a content line, find the end of the record
                     int j = findNextMatch(allLines, i, "^");
                     if (j == -1) {
                         System.err.println("Bad formated file.  Can't find '^'");
@@ -151,16 +235,31 @@ public class QIFParser {
                             category = Category.fromQIFLines(allLines.subList(i, j));
                             if (category != null) {
                                 mCategoryList.add(category);
+                                System.out.println("# of Category = " + mCategoryList.size());
                                 category = null;
                                 nRecords++;
                             } else {
-                                System.err.println("Bad formated Category text: "
+                                System.err.println("Bad formatted Category text: "
                                         + allLines.subList(i, j).toString());
                             }
                             i = j;
                             break;
+                        case ACCOUNT:
+                            account = Account.fromQIFLines(allLines.subList(i, j));
+                            if (account != null) {
+                                if (autoSwitch) {
+                                    mAccountList.add(account);
+                                    System.out.println("# of Account = " + mAccountList.size());
+                                }
+                                nRecords++;
+                            } else {
+                                System.err.println("Bad formatted Account record: "
+                                + allLines.subList(i,j).toString());
+                            }
+                            i = j;
+                            break;
                         default:
-                            System.err.println("Not implemented yet");
+                            System.err.println(currentRecordType.toString() + " Not implemented yet");
                             return -1;
                     }
                     break;  // break out the switch

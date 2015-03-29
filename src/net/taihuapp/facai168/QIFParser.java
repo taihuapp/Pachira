@@ -14,7 +14,7 @@ public class QIFParser {
     // CLASS and TEMPLATE are not being used
     public enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT }
 
-    static class Category extends Object {
+    static class Category {
         private String mName;  // name of the category
         private String mDescription;  // description
         private boolean mIsIncome; // income category flag
@@ -94,6 +94,53 @@ public class QIFParser {
         return -1;
     }
 
+    static class Security {
+        private String mName;
+        private String mSymbol;
+        private String mType;
+        private String mGoal;
+
+        // constructor
+        public Security() {
+            mName = "";
+            mSymbol = "";
+            mType = "";
+            mGoal = "";
+        }
+
+        public void setName(String n) { mName = n; }
+        public String getName() { return mName; }
+        public void setSymbol(String s) { mSymbol = s; }
+        public String getSymbol() { return mSymbol; }
+        public void setType(String t) { mType = t; }
+        public String getType() { return mType; }
+        public void setGoal(String g) { mGoal = g; }
+        public String getGoal() { return mGoal; }
+
+        static Security fromQIFLines(List<String> lines) {
+            Security security = new Security();
+            for (String l : lines) {
+                switch (l.charAt(0)) {
+                    case 'N':
+                        security.setName(l.substring(1));
+                        break;
+                    case 'S':
+                        security.setSymbol(l.substring(1));
+                        break;
+                    case 'T':
+                        security.setType(l.substring(1));
+                        break;
+                    case 'G':
+                        security.setGoal((l.substring(1)));
+                        break;
+                    default:
+                        return null;
+                }
+            }
+            return security;
+        }
+    }
+
     static class Account {
         private String mName;  // name of the account
         private String mType;  // Type of the account
@@ -147,7 +194,7 @@ public class QIFParser {
                         account.setCreditLimit(Double.parseDouble(l.substring(1).replace(",","")));
                         break;
                     default:
-                        // bad formated record, return null
+                        // bad formatted record, return null
                         return null;
                 }
             }
@@ -161,11 +208,13 @@ public class QIFParser {
 
     private List<Account> mAccountList;
     private List<Category> mCategoryList;
+    private List<Security> mSecurityList;
 
     // public constructor
     public QIFParser() {
         mAccountList = new ArrayList<>();
         mCategoryList = new ArrayList<>();
+        mSecurityList = new ArrayList<>();
     }
 
     // return the number of records
@@ -187,9 +236,7 @@ public class QIFParser {
 
         boolean autoSwitch = false;
         RecordType currentRecordType = null;
-        boolean endRecord = true;
         int i = 0;
-        Category category = null;
         Account account = new Account();
         while (i < nLines) {
             String line = allLines.get(i);
@@ -232,7 +279,7 @@ public class QIFParser {
                     }
                     switch (currentRecordType) {
                         case CAT:
-                            category = Category.fromQIFLines(allLines.subList(i, j));
+                            Category category = Category.fromQIFLines(allLines.subList(i, j));
                             if (category != null) {
                                 mCategoryList.add(category);
                                 System.out.println("# of Category = " + mCategoryList.size());
@@ -254,7 +301,18 @@ public class QIFParser {
                                 nRecords++;
                             } else {
                                 System.err.println("Bad formatted Account record: "
-                                + allLines.subList(i,j).toString());
+                                        + allLines.subList(i,j).toString());
+                            }
+                            i = j;
+                            break;
+                        case SECURITY:
+                            Security security = Security.fromQIFLines(allLines.subList(i,j));
+                            if (security != null) {
+                                mSecurityList.add(security);
+                                System.out.println("# of Security = " + mSecurityList.size());
+                            } else {
+                                System.err.println("Bad formatted Security record: "
+                                        + allLines.subList(i,j).toString());
                             }
                             i = j;
                             break;

@@ -3,6 +3,12 @@ package net.taihuapp.facai168;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -202,19 +208,169 @@ public class QIFParser {
         }
     }
 
-    static class Transaction {
+    static class BankTransaction {
+        // split bank transaction
+        static class SplitBT {
+            private String mCategory; // split category
+            private String mMemo; // split memo
+            private double mAmount; // split amount
+            private double mPercentage; // % of split if % is used
 
+            // public constructor
+            public SplitBT() {
+                mCategory = "";
+                mMemo = "";
+                mAmount = 0;
+                mPercentage = -1;
+            }
+
+            // setters and getters
+            public void setCategory(String c) { mCategory = c; }
+            public String getCategory() { return mCategory; }
+            public void setMemo(String m) { mMemo = m; }
+            public String getMemo() { return mMemo; }
+            public void setAmount(double a) { mAmount = a; }
+            public double getAmount() { return mAmount; }
+            public void setPercentage(double p) { mPercentage = p; }
+            public double getPercentage() { return mPercentage; }
+        }
+
+        private LocalDate mDate;
+        private double mTAmount;
+        private double mUAmount;  // not sure what's the difference between T and U amounts
+        private int mCleared;  // 0 for not present, 1 for *, 2 for X
+        private String mCheckNumber; // check number of ref, such as ATM, etc, so string is used
+        private String mPayee;
+        private String mMemo;
+        private List<String> mAddressList; // QIF says up to 6 lines.
+        private String mCategoryOrTransfer;
+        private List<SplitBT> mSplitList;
+
+        // default constructor
+        public BankTransaction() {
+            mCleared = 0;
+            mAddressList = new ArrayList<>();
+            mSplitList = new ArrayList<>();
+        }
+        // setters
+        public void setDate(LocalDate d) { mDate = d; }
+        public void setTAmount(double t) { mTAmount = t; }
+        public void setUAmount(double u) { mUAmount = u; }
+        public void setCleared(char c) {
+            switch (c) {
+                case '*':
+                    mCleared = 1;
+                    break;
+                case 'X':
+                    mCleared = 2;
+                    break;
+                default:
+                    mCleared = 0;
+                    break;
+            }
+        }
+        public void setCheckNumber(String c) { mCheckNumber = c; }
+        public void setPayee(String p) { mPayee = p; }
+        public void setMemo(String m) { mMemo = m; }
+        public void addAddress(String a) { mAddressList.add(a); }
+        public void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
+        public void addSplit(SplitBT s) { mSplitList.add(s); }
+
+        public static BankTransaction fromQIFLines(List<String> lines) {
+            System.out.println(lines.toString());
+            BankTransaction bt = new BankTransaction();
+            SplitBT splitBT = null;
+            for (String l : lines) {
+                switch (l.charAt(0)) {
+                    case 'D':
+                        bt.setDate(parseDate(l.substring(1)));
+                        break;
+                    case 'T':
+                        bt.setTAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    case 'U':
+                        bt.setUAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    case 'C':
+                        bt.setCleared(l.charAt(1));
+                        break;
+                    case 'N':
+                        bt.setCheckNumber(l.substring(1));
+                        break;
+                    case 'P':
+                        bt.setPayee(l.substring(1));
+                        break;
+                    case 'M':
+                        bt.setMemo(l.substring(1));
+                        break;
+                    case 'A':
+                        bt.addAddress(l.substring(1));
+                        break;
+                    case 'L':
+                        bt.setCategoryOrTransfer(l.substring(1));
+                        break;
+                    case 'S':
+                        if (splitBT != null) {
+                            bt.addSplit(splitBT);
+                        }
+                        splitBT = new SplitBT();
+                        splitBT.setCategory(l.substring(1));
+                        break;
+                    case 'E':
+                        if (splitBT == null) {
+                            System.err.println("Bad formatted BankTransactionSplit " +
+                                    lines.toString());
+                            return null;
+                        } else {
+                            splitBT.setMemo(l.substring(1));
+                        }
+                        break;
+                    case '$':
+                        if (splitBT == null) {
+                            System.err.println("Bad formatted BankTransactionSplit " +
+                                    lines.toString());
+                            return null;
+                        } else {
+                            splitBT.setAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        }
+                        break;
+                    case 'F':
+                        System.err.println("F flag in BankTransaction not implemented "
+                                + lines.toString());
+                        break;
+                    default:
+                        System.err.println("Offending line: " + l);
+                        return null;
+                }
+            }
+            if (splitBT != null) {
+                bt.addSplit(splitBT);
+            }
+            return bt;
+        }
     }
+
 
     private List<Account> mAccountList;
     private List<Category> mCategoryList;
     private List<Security> mSecurityList;
+    private List<BankTransaction> mBankTransactionList;
 
     // public constructor
     public QIFParser() {
         mAccountList = new ArrayList<>();
         mCategoryList = new ArrayList<>();
         mSecurityList = new ArrayList<>();
+        mBankTransactionList = new ArrayList<>();
+    }
+
+    // parse QIF formated date
+    private static LocalDate parseDate(String s) {
+        DateTimeFormatter dtf = new DateTimeFormatterBuilder()
+                .appendValue(ChronoField.MONTH_OF_YEAR).appendLiteral('/')
+                .appendValue(ChronoField.DAY_OF_MONTH).appendLiteral('/')
+                .appendValueReduced(ChronoField.YEAR, 2, 2, 1970).toFormatter();
+        return LocalDate.parse(s.replace(' ', '0').replace('\'', '/'), dtf);
     }
 
     // return the number of records
@@ -225,7 +381,7 @@ public class QIFParser {
         if (nLines == 0)
             return 0;
         if (!allLines.get(nLines-1).equals("^")) {
-            throw new IOException("Bad formated file");
+            throw new IOException("Bad formatted file");
         }
 
         // trim off white spaces
@@ -274,7 +430,7 @@ public class QIFParser {
                     // this is a content line, find the end of the record
                     int j = findNextMatch(allLines, i, "^");
                     if (j == -1) {
-                        System.err.println("Bad formated file.  Can't find '^'");
+                        System.err.println("Bad formatted file.  Can't find '^'");
                         return -1;
                     }
                     switch (currentRecordType) {
@@ -312,6 +468,17 @@ public class QIFParser {
                                 System.out.println("# of Security = " + mSecurityList.size());
                             } else {
                                 System.err.println("Bad formatted Security record: "
+                                        + allLines.subList(i,j).toString());
+                            }
+                            i = j;
+                            break;
+                        case BANK:
+                            BankTransaction bt = BankTransaction.fromQIFLines(allLines.subList(i,j));
+                            if (bt != null) {
+                                mBankTransactionList.add(bt);
+                                System.out.println("# of BT = " + mBankTransactionList.size());
+                            } else {
+                                System.err.println("Bad formatted BankTransaction record: "
                                         + allLines.subList(i,j).toString());
                             }
                             i = j;

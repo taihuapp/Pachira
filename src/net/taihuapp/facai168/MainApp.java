@@ -2,7 +2,6 @@ package net.taihuapp.facai168;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -16,7 +15,6 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.Preferences;
@@ -467,7 +465,6 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
-
         launch(args);
     }
 }

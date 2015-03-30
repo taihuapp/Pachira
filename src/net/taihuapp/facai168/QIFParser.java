@@ -511,12 +511,62 @@ public class QIFParser {
         }
     }
 
+    static class Price {
+        private String mSecurity;
+        private LocalDate mDate;
+        private double mPrice;
+
+        // setters
+        public void setSecurity(String s) { mSecurity = s; }
+        public void setDate(LocalDate d) { mDate = d; }
+        public void setPrice(double p) { mPrice = p; }
+
+        public static Price fromQIFLines(List<String> lines) {
+            if (lines.size() > 1) {
+                System.err.println("Price record, expected 1 line, got " + lines.size());
+                return null;
+            }
+            String tokens[] = lines.get(0).split(",");
+            if (tokens.length != 3) {
+                System.err.println("Expect 3 ',' separated fields, got " + tokens.length);
+                return null;
+            }
+            Price price = new Price();
+            price.setSecurity(tokens[0].replace("\"", ""));
+            price.setDate(parseDate(tokens[2].replace("\"", "").trim()));
+
+            // the actual price has two possible formats:
+            // decimal, xxx.yyyy
+            // fraction [x ]y/z
+            int idx0 = tokens[1].indexOf('/');
+            if (idx0 == -1) {
+                // not a fraction
+                price.setPrice(Double.parseDouble(tokens[1]));
+            } else {
+                int whole, num, den, idx1;
+                den = Integer.valueOf(tokens[1].substring(idx0+1));
+                idx1 = tokens[1].indexOf(' ');
+                if (idx1 == -1) {
+                    // no space
+                    whole = 0;
+                    num = Integer.valueOf(tokens[1].substring(0,idx0));
+                } else {
+                    whole = Integer.valueOf(tokens[1].substring(0, idx1));
+                    num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
+                }
+                price.setPrice((double) whole + (double) num / (double) den);
+            }
+            return price;
+        }
+    }
+
     private List<Account> mAccountList;
     private List<Category> mCategoryList;
     private List<Security> mSecurityList;
     private List<BankTransaction> mBankTransactionList;
     private List<TradeTransaction> mTradeTransactionList;
     private List<MemorizedTransaction> mMemorizedTransactionList;
+    private List<Price> mPriceList;
 
     // public constructor
     public QIFParser() {
@@ -526,6 +576,7 @@ public class QIFParser {
         mBankTransactionList = new ArrayList<>();
         mTradeTransactionList = new ArrayList<>();
         mMemorizedTransactionList = new ArrayList<>();
+        mPriceList = new ArrayList<>();
     }
 
     // parse QIF formatted date
@@ -602,12 +653,11 @@ public class QIFParser {
                             Category category = Category.fromQIFLines(allLines.subList(i, j));
                             if (category != null) {
                                 mCategoryList.add(category);
-                                System.out.println("# of Category = " + mCategoryList.size());
                                 category = null;
                                 nRecords++;
                             } else {
                                 System.err.println("Bad formatted Category text: "
-                                        + allLines.subList(i, j).toString());
+                                        + allLines.subList(i, j));
                             }
                             i = j;
                             break;
@@ -616,9 +666,9 @@ public class QIFParser {
                             if (account != null) {
                                 if (autoSwitch) {
                                     mAccountList.add(account);
-                                    System.out.println("# of Account = " + mAccountList.size());
                                 } else {
-
+                                    // todo
+                                    // what should I do here?
                                 }
                                 nRecords++;
                             } else {
@@ -671,6 +721,19 @@ public class QIFParser {
                             if (mt != null) {
                                 mMemorizedTransactionList.add(mt);
                                 System.out.println("# of MT = " + mMemorizedTransactionList.size());
+                            } else {
+                                System.err.println("Bad formatted MemorizedTransaction: "
+                                        + allLines.subList(i,j));
+                            }
+                            i = j;
+                            break;
+                        case PRICES:
+                            Price price = Price.fromQIFLines(allLines.subList(i,j));
+                            if (price != null) {
+                                mPriceList.add(price);
+                            } else {
+                                System.err.println("Bad formatted Price record: "
+                                        + allLines.subList(i, j));
                             }
                             i = j;
                             break;

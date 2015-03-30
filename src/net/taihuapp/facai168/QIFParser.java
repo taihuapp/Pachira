@@ -541,7 +541,11 @@ public class QIFParser {
             int idx0 = tokens[1].indexOf('/');
             if (idx0 == -1) {
                 // not a fraction
-                price.setPrice(Double.parseDouble(tokens[1]));
+                if (tokens[1].length() > 0) {
+                    price.setPrice(Double.parseDouble(tokens[1]));
+                } else {
+                    price.setPrice(0);
+                }
             } else {
                 int whole, num, den, idx1;
                 den = Integer.valueOf(tokens[1].substring(idx0+1));

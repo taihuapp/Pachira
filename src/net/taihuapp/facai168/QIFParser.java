@@ -178,7 +178,6 @@ public class QIFParser {
         public double getBalance() { return mBalance; }
 
         static Account fromQIFLines(List<String> lines) {
-            System.out.println(lines.toString());
             Account account = new Account();
             for (String l : lines) {
                 switch (l.charAt(0)) {
@@ -265,7 +264,6 @@ public class QIFParser {
         public void addSplit(SplitBT s) { mSplitList.add(s); }
 
         public static BankTransaction fromQIFLines(List<String> lines) {
-            System.out.println(lines.toString());
             BankTransaction bt = new BankTransaction();
             SplitBT splitBT = null;
             for (String l : lines) {
@@ -380,7 +378,6 @@ public class QIFParser {
         public void setAmountTransferred(double a) { mAmountTransferred = a; }
 
         public static TradeTransaction fromQIFLines(List<String> lines) {
-            System.out.println(lines.toString());
             TradeTransaction tt = new TradeTransaction();
             for (String l : lines) {
                 switch (l.charAt(0)) {
@@ -484,7 +481,6 @@ public class QIFParser {
         }
 
         public static MemorizedTransaction fromQIFLines(List<String> lines) {
-            System.out.println(lines);
             List<String> unParsedLines = new ArrayList<>();
             MemorizedTransaction mt = new MemorizedTransaction();
             for (String l : lines) {
@@ -620,6 +616,9 @@ public class QIFParser {
                     currentRecordType = RecordType.CAT;
                     break;
                 case "!Type:Bank":
+                case "!Type:Cash":
+                case "!Type:Oth A":
+                case "!Type:Oth L":
                     currentRecordType = RecordType.BANK;
                     break;
                 case "!Type:Invst":
@@ -685,10 +684,9 @@ public class QIFParser {
                             Security security = Security.fromQIFLines(allLines.subList(i,j));
                             if (security != null) {
                                 mSecurityList.add(security);
-                                System.out.println("# of Security = " + mSecurityList.size());
                             } else {
                                 System.err.println("Bad formatted Security record: "
-                                        + allLines.subList(i,j).toString());
+                                        + allLines.subList(i,j));
                             }
                             i = j;
                             break;
@@ -699,7 +697,6 @@ public class QIFParser {
                                     bt.setAccountName(account.getName());
                                 }
                                 mBankTransactionList.add(bt);
-                                System.out.println("# of BT = " + mBankTransactionList.size());
                             } else {
                                 System.err.println("Bad formatted BankTransaction record: "
                                         + allLines.subList(i,j));
@@ -713,7 +710,6 @@ public class QIFParser {
                                     tt.setAccountName(account.getName());
                                 }
                                 mTradeTransactionList.add(tt);
-                                System.out.println("# of TT = " + mTradeTransactionList.size());
                             } else {
                                 System.err.println("Bad formatted TradeTransaction record: "
                                         + allLines.subList(i,j));
@@ -724,7 +720,6 @@ public class QIFParser {
                             MemorizedTransaction mt = MemorizedTransaction.fromQIFLines(allLines.subList(i,j));
                             if (mt != null) {
                                 mMemorizedTransactionList.add(mt);
-                                System.out.println("# of MT = " + mMemorizedTransactionList.size());
                             } else {
                                 System.err.println("Bad formatted MemorizedTransaction: "
                                         + allLines.subList(i,j));

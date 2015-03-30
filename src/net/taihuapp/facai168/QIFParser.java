@@ -433,11 +433,90 @@ public class QIFParser {
         }
     }
 
+    static class MemorizedTransaction {
+        public enum Type { INVESTMENT, EPAYMENT, CHECK, PAYMENT, DEPOSIT }
+
+        private Type mType;
+        private double mQQuantity; // number of new shares for a split
+        private double mRQuantity; // number of old shares for a split
+        private BankTransaction mBT;
+        private TradeTransaction mTT;
+
+
+        public MemorizedTransaction() {
+            mBT = null;
+            mTT = null;
+        }
+
+        // getters
+        public Type getType() { return mType; }
+
+        //setters
+        public void setType(char t) {
+            switch (t) {
+                case 'I':
+                    mType = Type.INVESTMENT;
+                    break;
+                case 'E':
+                    mType = Type.EPAYMENT;
+                    break;
+                case 'C':
+                    mType = Type.CHECK;
+                    break;
+                case 'P':
+                    mType = Type.PAYMENT;
+                    break;
+                case 'D':
+                    mType = Type.DEPOSIT;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown type [" + t + "] for MemorizedType");
+            }
+        }
+        public void setQQuantity(double q) { mQQuantity = q; }
+        public void setRQuantity(double r) { mRQuantity = r; }
+        public void setTransactionDetails(List<String> lines) {
+            if (getType() == Type.INVESTMENT) {
+                mTT = TradeTransaction.fromQIFLines(lines);
+            } else {
+                mBT = BankTransaction.fromQIFLines(lines);
+            }
+        }
+
+        public static MemorizedTransaction fromQIFLines(List<String> lines) {
+            System.out.println(lines);
+            List<String> unParsedLines = new ArrayList<>();
+            MemorizedTransaction mt = new MemorizedTransaction();
+            for (String l : lines) {
+                switch (l.charAt(0)) {
+                    case 'K':
+                        mt.setType(l.charAt(1));
+                        break;
+                    case 'Q':
+                        mt.setQQuantity(Double.parseDouble(l.substring(1).replace(",", "")));
+                        break;
+                    case 'R':
+                        mt.setRQuantity(Double.parseDouble(l.substring(1).replace(",", "")));
+                        break;
+                    default:
+                        unParsedLines.add(l);
+                        break;
+                }
+            }
+
+            if (unParsedLines.size() > 0) {
+                mt.setTransactionDetails(unParsedLines);
+            }
+            return mt;
+        }
+    }
+
     private List<Account> mAccountList;
     private List<Category> mCategoryList;
     private List<Security> mSecurityList;
     private List<BankTransaction> mBankTransactionList;
     private List<TradeTransaction> mTradeTransactionList;
+    private List<MemorizedTransaction> mMemorizedTransactionList;
 
     // public constructor
     public QIFParser() {
@@ -446,6 +525,7 @@ public class QIFParser {
         mSecurityList = new ArrayList<>();
         mBankTransactionList = new ArrayList<>();
         mTradeTransactionList = new ArrayList<>();
+        mMemorizedTransactionList = new ArrayList<>();
     }
 
     // parse QIF formatted date
@@ -537,6 +617,8 @@ public class QIFParser {
                                 if (autoSwitch) {
                                     mAccountList.add(account);
                                     System.out.println("# of Account = " + mAccountList.size());
+                                } else {
+
                                 }
                                 nRecords++;
                             } else {
@@ -581,6 +663,14 @@ public class QIFParser {
                             } else {
                                 System.err.println("Bad formatted TradeTransaction record: "
                                         + allLines.subList(i,j));
+                            }
+                            i = j;
+                            break;
+                        case MEMORIZED:
+                            MemorizedTransaction mt = MemorizedTransaction.fromQIFLines(allLines.subList(i,j));
+                            if (mt != null) {
+                                mMemorizedTransactionList.add(mt);
+                                System.out.println("# of MT = " + mMemorizedTransactionList.size());
                             }
                             i = j;
                             break;

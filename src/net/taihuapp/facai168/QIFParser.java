@@ -3,8 +3,6 @@ package net.taihuapp.facai168;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -235,40 +233,30 @@ public class QIFParser {
             public double getPercentage() { return mPercentage; }
         }
 
+        private String mAccountName;
         private LocalDate mDate;
         private double mTAmount;
         private double mUAmount;  // not sure what's the difference between T and U amounts
-        private int mCleared;  // 0 for not present, 1 for *, 2 for X
+        private char mCleared;  // 0 for not present, 1 for *, 2 for X
         private String mCheckNumber; // check number of ref, such as ATM, etc, so string is used
         private String mPayee;
         private String mMemo;
         private List<String> mAddressList; // QIF says up to 6 lines.
-        private String mCategoryOrTransfer;
+        private String mCategoryOrTransfer; // L line
         private List<SplitBT> mSplitList;
 
         // default constructor
         public BankTransaction() {
-            mCleared = 0;
+            mCleared = ' ';
             mAddressList = new ArrayList<>();
             mSplitList = new ArrayList<>();
         }
         // setters
+        public void setAccountName(String a) { mAccountName = a; }
         public void setDate(LocalDate d) { mDate = d; }
         public void setTAmount(double t) { mTAmount = t; }
         public void setUAmount(double u) { mUAmount = u; }
-        public void setCleared(char c) {
-            switch (c) {
-                case '*':
-                    mCleared = 1;
-                    break;
-                case 'X':
-                    mCleared = 2;
-                    break;
-                default:
-                    mCleared = 0;
-                    break;
-            }
-        }
+        public void setCleared(char c) { mCleared = c; }
         public void setCheckNumber(String c) { mCheckNumber = c; }
         public void setPayee(String p) { mPayee = p; }
         public void setMemo(String m) { mMemo = m; }
@@ -350,11 +338,106 @@ public class QIFParser {
         }
     }
 
+    static class TradeTransaction {
+
+        public enum Action { BUY, BUYX, CASH, CGLONG, CGSHORT, DIV, MISCEXP, EISCEXPX,
+            MISCINC, MISCINCX, REINVDIV, REINVLG, REINVSH,
+            SELL, SELLX, SHRSIN, SHRSOUT, STKSPLIT, XIN, XOUT }
+
+        private String mAccountName;
+        private LocalDate mDate;
+        private Action mAction;
+        private String mSecurity;
+        private double mPrice;
+        private double mQuantity;
+        private char mCleared; // C line
+        private String mTransferReminderText; // P line
+        private String mMemo;
+        private double mCommission;
+        private String mCategoryOrTransfer; // L line
+        private double mTAmount; // not sure what's the difference between
+        private double mUAmount; // T and U amounts
+        private double mAmountTransferred; // $ line
+
+        public TradeTransaction() {
+            mCleared = ' ';
+        }
+
+        // setters
+        public void setAccountName(String a) { mAccountName = a;}
+        public void setDate(LocalDate d) { mDate = d; }
+        public void setAction(Action action) { mAction = action; }
+        public void setSecurity(String s) { mSecurity = s; }
+        public void setPrice(double p) { mPrice = p; }
+        public void setQuantity(double q) { mQuantity = q; }
+        public void setCleared(char c) { mCleared = c; }
+        public void setTransferReminderText(String t) { mTransferReminderText = t; }
+        public void setMemo(String m) { mMemo = m; }
+        public void setCommission(double c) { mCommission = c; }
+        public void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
+        public void setTAmount(double t) { mTAmount = t; }
+        public void setUAmount(double u) { mUAmount = u; }
+        public void setAmountTransferred(double a) { mAmountTransferred = a; }
+
+        public static TradeTransaction fromQIFLines(List<String> lines) {
+            System.out.println(lines.toString());
+            TradeTransaction tt = new TradeTransaction();
+            for (String l : lines) {
+                switch (l.charAt(0)) {
+                    case 'D':
+                        tt.setDate(parseDate(l.substring(1)));
+                        break;
+                    case 'N':
+                        tt.setAction(Action.valueOf(l.substring(1).toUpperCase()));
+                        break;
+                    case 'Y':
+                        tt.setSecurity(l.substring(1));
+                        break;
+                    case 'I':
+                        tt.setPrice(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    case 'Q':
+                        tt.setQuantity(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    case 'C':
+                        tt.setCleared(l.charAt(1));
+                        break;
+                    case 'P':
+                        tt.setTransferReminderText(l.substring(1));
+                        break;
+                    case 'M':
+                        tt.setMemo(l.substring(1));
+                        break;
+                    case 'O':
+                        tt.setCommission(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    case 'L':
+                        tt.setCategoryOrTransfer(l.substring(1));
+                        break;
+                    case 'T':
+                        tt.setTAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    case 'U':
+                        tt.setUAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    case '$':
+                        tt.setAmountTransferred(Double.parseDouble(l.substring(1).replace(",","")));
+                        break;
+                    default:
+                        System.err.println("Offending line: " + l);
+                        return null;
+
+                }
+            }
+            return tt;
+        }
+    }
 
     private List<Account> mAccountList;
     private List<Category> mCategoryList;
     private List<Security> mSecurityList;
     private List<BankTransaction> mBankTransactionList;
+    private List<TradeTransaction> mTradeTransactionList;
 
     // public constructor
     public QIFParser() {
@@ -362,9 +445,10 @@ public class QIFParser {
         mCategoryList = new ArrayList<>();
         mSecurityList = new ArrayList<>();
         mBankTransactionList = new ArrayList<>();
+        mTradeTransactionList = new ArrayList<>();
     }
 
-    // parse QIF formated date
+    // parse QIF formatted date
     private static LocalDate parseDate(String s) {
         DateTimeFormatter dtf = new DateTimeFormatterBuilder()
                 .appendValue(ChronoField.MONTH_OF_YEAR).appendLiteral('/')
@@ -475,11 +559,28 @@ public class QIFParser {
                         case BANK:
                             BankTransaction bt = BankTransaction.fromQIFLines(allLines.subList(i,j));
                             if (bt != null) {
+                                if (account != null) {
+                                    bt.setAccountName(account.getName());
+                                }
                                 mBankTransactionList.add(bt);
                                 System.out.println("# of BT = " + mBankTransactionList.size());
                             } else {
                                 System.err.println("Bad formatted BankTransaction record: "
-                                        + allLines.subList(i,j).toString());
+                                        + allLines.subList(i,j));
+                            }
+                            i = j;
+                            break;
+                        case INVITEM:
+                            TradeTransaction tt = TradeTransaction.fromQIFLines(allLines.subList(i,j));
+                            if (tt != null) {
+                                if (account != null) {
+                                    tt.setAccountName(account.getName());
+                                }
+                                mTradeTransactionList.add(tt);
+                                System.out.println("# of TT = " + mTradeTransactionList.size());
+                            } else {
+                                System.err.println("Bad formatted TradeTransaction record: "
+                                        + allLines.subList(i,j));
                             }
                             i = j;
                             break;

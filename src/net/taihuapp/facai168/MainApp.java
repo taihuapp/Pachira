@@ -256,14 +256,16 @@ public class MainApp extends Application {
         }
 
         QIFParser qifParser = new QIFParser();
-        int n = -1;
         try {
-            n = qifParser.parseFile(file);
-            System.out.println("parsed " + n + " records");
+            if (qifParser.parseFile(file) < 0) {
+                System.err.println("Failed to parse " + file);
+            }
         } catch (IOException e) {
             System.err.println(e);
             e.printStackTrace();
         }
+
+        // process parsed records
         List<QIFParser.Account> aList = qifParser.getAccountList();
         for (QIFParser.Account a : aList) {
             // todo
@@ -465,6 +467,7 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
+
         launch(args);
     }
 }

@@ -243,12 +243,14 @@ public class QIFParser {
         private List<String> mAddressList; // QIF says up to 6 lines.
         private String mCategoryOrTransfer; // L line
         private List<SplitBT> mSplitList;
+        private String[] mAmortizationLines;
 
         // default constructor
         public BankTransaction() {
             mCleared = ' ';
             mAddressList = new ArrayList<>();
             mSplitList = new ArrayList<>();
+            mAmortizationLines = new String[7];
         }
         // setters
         public void setAccountName(String a) { mAccountName = a; }
@@ -262,6 +264,7 @@ public class QIFParser {
         public void addAddress(String a) { mAddressList.add(a); }
         public void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
         public void addSplit(SplitBT s) { mSplitList.add(s); }
+        public void setAmortizationLine(int i, String l) { mAmortizationLines[i] = l; }
 
         public static BankTransaction fromQIFLines(List<String> lines) {
             BankTransaction bt = new BankTransaction();
@@ -324,8 +327,18 @@ public class QIFParser {
                         System.err.println("F flag in BankTransaction not implemented "
                                 + lines.toString());
                         break;
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                        // 7 lines of amortization record, ignored for now
+                        bt.setAmortizationLine(Character.getNumericValue(l.charAt(0))-1, l.substring(1));
+                        break;
                     default:
-                        System.err.println("Offending line: " + l);
+                        System.err.println("BankTransaction Offending line: " + l);
                         return null;
                 }
             }
@@ -338,9 +351,11 @@ public class QIFParser {
 
     static class TradeTransaction {
 
-        public enum Action { BUY, BUYX, CASH, CGLONG, CGSHORT, DIV, MISCEXP, EISCEXPX,
-            MISCINC, MISCINCX, REINVDIV, REINVLG, REINVSH,
-            SELL, SELLX, SHRSIN, SHRSOUT, STKSPLIT, XIN, XOUT }
+        public enum Action { BUY, BUYX, CASH, CGLONG, CGLONGX, CGSHORT, CGSHORTX,
+            CONTRIB, CONTRIBX, DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
+            MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
+            RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, STKSPLIT, WITHDRWX,
+            XIN, XOUT }
 
         private String mAccountName;
         private LocalDate mDate;
@@ -421,7 +436,7 @@ public class QIFParser {
                         tt.setAmountTransferred(Double.parseDouble(l.substring(1).replace(",","")));
                         break;
                     default:
-                        System.err.println("Offending line: " + l);
+                        System.err.println("TradeTransaction: Offending line: " + l);
                         return null;
 
                 }
@@ -588,9 +603,9 @@ public class QIFParser {
         return LocalDate.parse(s.replace(' ', '0').replace('\'', '/'), dtf);
     }
 
-    // return the number of records
+    // return -1 for some sort of failure
+    //         0 for success
     public int parseFile(File qif) throws IOException {
-        int nRecords = 0;
         List<String> allLines = Files.readAllLines(qif.toPath());
         int nLines = allLines.size();
         if (nLines == 0)
@@ -657,7 +672,6 @@ public class QIFParser {
                             if (category != null) {
                                 mCategoryList.add(category);
                                 category = null;
-                                nRecords++;
                             } else {
                                 System.err.println("Bad formatted Category text: "
                                         + allLines.subList(i, j));
@@ -673,7 +687,6 @@ public class QIFParser {
                                     // todo
                                     // what should I do here?
                                 }
-                                nRecords++;
                             } else {
                                 System.err.println("Bad formatted Account record: "
                                         + allLines.subList(i,j).toString());
@@ -744,9 +757,7 @@ public class QIFParser {
             }
             i++;
         }
-        System.out.println("Parsing...");
-
-        return nRecords;
+        return 0;
     }
 
     public List<Account> getAccountList() { return mAccountList; }

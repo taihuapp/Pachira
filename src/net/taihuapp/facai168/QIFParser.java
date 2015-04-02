@@ -84,6 +84,8 @@ public class QIFParser {
             }
             return category;
         }
+
+        public String toString() { return "[" + mName + "," + mDescription + "]" ;}
     }
 
     // starting from lines.get(startIdx) seek the line number of the next line
@@ -620,7 +622,15 @@ public class QIFParser {
             allLines.set(i, s);
         }
 
-        boolean autoSwitch = false;
+        // About AutoSwitch
+        // It occurs in these cases:
+        // 1.  none
+        // 2.  Option:AutoSwitch and then Clear:AutoSwitch
+        // 3.  2 + another Option:AutoSwitch, but no more Clea:AutoSwitch
+        // The accounts bracketed in Option:AutoSwitch and Clear:AutoSwitch are meant for import
+        // set boolean autoSwitch to be true at start, do nothing when encounts Option!AutoSwitch
+        // set autoSwitch to be false when encounts Clear:AutoSwitch.
+        boolean autoSwitch = true;
         RecordType currentRecordType = null;
         int i = 0;
         Account account = new Account();
@@ -648,7 +658,6 @@ public class QIFParser {
                     break;
                 case "!Option:AutoSwitch":
                     currentRecordType = null;
-                    autoSwitch = true;
                     break;
                 case "!Type:Memorized":
                     currentRecordType = RecordType.MEMORIZED;

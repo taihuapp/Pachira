@@ -27,7 +27,7 @@ public class MainApp extends Application {
     static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
 
     static int ACCUONTTYPELEN = 16;
-    static int ACCOUNTNAMELEN = 16;
+    static int ACCOUNTNAMELEN = 40;
     static int ACCOUNTDESCLEN = 256;
 
     private Preferences mPrefs;
@@ -51,6 +51,15 @@ public class MainApp extends Application {
 
     public ObservableList<Account> getAccountList() {
         return mAccountList;
+    }
+
+    public Account getAccountByName(String name) {
+        for (Account a : getAccountList()) {
+            if (a.getName().equals(name)) {
+                return a;
+            }
+        }
+        return null;
     }
 
     public void insertUpdateAccountToDB(Account account) {
@@ -267,11 +276,40 @@ public class MainApp extends Application {
 
         // process parsed records
         List<QIFParser.Account> aList = qifParser.getAccountList();
-        for (QIFParser.Account a : aList) {
-            // todo
-            // do something with the account
+        for (QIFParser.Account qa : aList) {
+            System.err.println("Inserting... " + qa.getName());
+            Account.Type at = null;
+            switch (qa.getType()) {
+                case "Bank":
+                case "Cash":
+                case "CCard":
+                    at = Account.Type.SPENDING;
+                    break;
+                case "Mutual":
+                case "Port":
+                case "401(k)/403(b)":
+                    at = Account.Type.INVESTING;
+                    break;
+                case "Oth A":
+                    at = Account.Type.PROPERTY;
+                    break;
+                case "Oth L":
+                    at = Account.Type.DEBT;
+                    break;
+                default:
+                    break;
+            }
+            if (at != null) {
+                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription()));
+            } else {
+                System.err.println("Unknow account type: " + qa.getType()
+                        + " for account [" + qa.getName() + "], skip.");
+            }
         }
-
+        List<QIFParser.Category> cList = qifParser.getCategoryList();
+        for (QIFParser.Category c : cList) {
+            System.out.println(c);
+        }
         System.out.println("Parse " + file.getAbsolutePath());
         System.out.println("CategoryList length = " + qifParser.getCategoryList().size());
     }

@@ -60,6 +60,7 @@ public class MainController {
     @FXML
     private void handleImportQIF() {
         mMainApp.importQIF();
+        mMainApp.initAccountList();
     }
 
     @FXML

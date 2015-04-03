@@ -28,6 +28,9 @@ public class MainApp extends Application {
 
     static int ACCOUNTNAMELEN = 40;
     static int ACCOUNTDESCLEN = 256;
+    static int SECURITYTICKERLEN = 16;
+    static int SECURITYNAMELEN = 32;
+    static int SECURITYTYPELEN = 16;
 
     private Preferences mPrefs;
     private Stage mPrimaryStage;
@@ -59,6 +62,65 @@ public class MainApp extends Application {
             }
         }
         return null;
+    }
+
+    public void insertUpdateSecurityToDB(Security security) {
+        String sqlCmd;
+        if (security.getID() < 0) {
+            sqlCmd = "insert into SECURITIES (TICKER, NAME, TYPE) values (?,?,?)";
+        } else {
+            sqlCmd = "update SECURITIES set TICKER = ?, NAME = ?, TYPE = ? where ID = ?";
+        }
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.setString(1, security.getTicker());
+            preparedStatement.setString(2, security.getName());
+            preparedStatement.setInt(3, security.getType().ordinal());
+            if (security.getID() >= 0) {
+                preparedStatement.setInt(4, security.getID());
+            }
+            if (preparedStatement.executeUpdate() == 0) {
+                throw new SQLException("Insert Security failed, no rows affected");
+            }
+            resultSet = preparedStatement.getGeneratedKeys();
+            if (resultSet.next()) {
+                security.setID(resultSet.getInt(1));
+            } else {
+                throw new SQLException("Insert Security failed, no ID obtained");
+            }
+        } catch (SQLException e) {
+            String title = "Database Error";
+            String headerText = "Unknown DB error";
+            if (e.getErrorCode() == 23505) {
+                title = "Duplicate Security Ticker or Name";
+                headerText = "Security ticker/name " + security.getTicker() + "/"
+                        + security.getName() + " is already taken.";
+            } else {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.initOwner(mPrimaryStage);
+            alert.setTitle(title);
+            alert.setHeaderText(headerText);
+            alert.showAndWait();
+        } catch (NullPointerException e) {
+            System.err.println("mConnection is null");
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+                if (resultSet != null)
+                    resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
     }
 
     public void insertUpdateAccountToDB(Account account) {
@@ -306,6 +368,12 @@ public class MainApp extends Application {
                         + " for account [" + qa.getName() + "], skip.");
             }
         }
+
+        List<QIFParser.Security> sList = qifParser.getSecurityList();
+        for (QIFParser.Security s : sList) {
+            insertUpdateSecurityToDB(new Security(-1, s.getSymbol(), s.getName(), Security.Type.fromString(s.getType())));
+        }
+
         List<QIFParser.Category> cList = qifParser.getCategoryList();
         for (QIFParser.Category c : cList) {
             System.out.println(c);
@@ -432,14 +500,37 @@ public class MainApp extends Application {
         if (mConnection == null)
             return;
 
+        // Accounts table
         String sqlCmd = "create table ACCOUNTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
-                //+ "TYPE varchar(" + ACCUONTTYPELEN + ") NOT NULL, "
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "PRIMARY KEY (ID));";
         PreparedStatement preparedStatement = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.executeUpdate();
+            preparedStatement.close();
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+
+        // Security Table
+        sqlCmd = "create table SECURITIES ("
+                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "TICKER varchar(" + SECURITYTICKERLEN + ") UNIQUE NOT NULL, "
+                + "NAME varchar(" + SECURITYNAMELEN + ") UNIQUE NOT NULL, "
+                + "TYPE integer NOT NULL);";
         try {
             preparedStatement = mConnection.prepareStatement(sqlCmd);
             preparedStatement.executeUpdate();

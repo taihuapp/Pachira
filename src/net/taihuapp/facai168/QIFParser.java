@@ -770,5 +770,6 @@ public class QIFParser {
     }
 
     public List<Account> getAccountList() { return mAccountList; }
+    public List<Security> getSecurityList() { return mSecurityList; }
     public List<Category> getCategoryList() { return mCategoryList; }
 }

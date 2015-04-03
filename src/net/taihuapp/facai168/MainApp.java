@@ -26,7 +26,6 @@ public class MainApp extends Application {
     static String DBOWNER = "FC168ADM";
     static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
 
-    static int ACCUONTTYPELEN = 16;
     static int ACCOUNTNAMELEN = 40;
     static int ACCOUNTDESCLEN = 256;
 
@@ -73,7 +72,7 @@ public class MainApp extends Application {
         ResultSet resultSet = null;
         try {
             preparedStatement = mConnection.prepareStatement(sqlCmd);
-            preparedStatement.setString(1, account.getType().name());
+            preparedStatement.setInt(1, account.getType().ordinal());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
             if (account.getID() >= 0) {
@@ -131,7 +130,8 @@ public class MainApp extends Application {
                 ResultSet rs = stmt.executeQuery(sqlCmd);
                 while (rs.next()) {
                     int id = rs.getInt("ID");
-                    Account.Type type = Account.Type.valueOf(rs.getString("TYPE"));
+                    int typeOrdinal = rs.getInt("TYPE");
+                    Account.Type type = Account.Type.values()[typeOrdinal];
                     String name = rs.getString("NAME");
                     String description = rs.getString("DESCRIPTION");
                     mAccountList.add(new Account(id, type, name, description));
@@ -434,7 +434,8 @@ public class MainApp extends Application {
 
         String sqlCmd = "create table ACCOUNTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
-                + "TYPE varchar(" + ACCUONTTYPELEN + ") NOT NULL, "
+                //+ "TYPE varchar(" + ACCUONTTYPELEN + ") NOT NULL, "
+                + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "PRIMARY KEY (ID));";

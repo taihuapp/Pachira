@@ -14,8 +14,11 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.prefs.Preferences;
 
@@ -123,6 +126,64 @@ public class MainApp extends Application {
         }
     }
 
+    // mode = 1, insert
+    //        2  update
+    //        3 insert and update
+    // return true of operation successful
+    //        false otherwise
+    public boolean insertUpdatePriceToDB(Integer securityID, Date date, BigDecimal p, int mode) {
+        boolean status = false;
+        String sqlCmd;
+        switch (mode) {
+            case 1:
+                sqlCmd = "insert into PRICES (PRICE, SECURITYID, DATE) values (?, ?, ?)";
+                break;
+            case 2:
+                sqlCmd = "update PRICES set PRICE = ? where SECURITYID = ? and DATE = ?";
+                break;
+            case 3:
+                if (!insertUpdatePriceToDB(securityID, date, p, 1)) {
+                    return insertUpdatePriceToDB(securityID, date, p, 2);
+                } else {
+                    return true;
+                }
+            default:
+                throw new IllegalArgumentException("insertUpdatePriceToDB called with bad mode = " + mode);
+        }
+
+        PreparedStatement preparedStatement = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.setBigDecimal(1, p);
+            preparedStatement.setInt(2, securityID);
+            preparedStatement.setDate(3, date);
+            if (preparedStatement.executeUpdate() == 0) {
+                throw new SQLException("Insert PRICE failed with " +
+                        securityID + "," + date + p);
+            } else {
+                status = true;
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+              e.printStackTrace();
+            return false;
+        } finally {
+            if (preparedStatement != null) {
+                try {
+                    preparedStatement.close();
+                } catch (SQLException e) {
+                    status = false;
+                    printSQLException(e);
+                    e.printStackTrace();
+                }
+            }
+        }
+        return status;
+    }
+
+
     public void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
         if (account.getID() < 0) {
@@ -180,6 +241,40 @@ public class MainApp extends Application {
                 e.printStackTrace();
             }
         }
+    }
+
+    private int getSecurityID(String ticker) {
+        if (mConnection == null) {
+            return -1;
+        }
+        String sqlCmd = "select ID from SECURITIES where TICKER = '"
+                + ticker + "'";
+        int id = -1;
+        Statement statement = null;
+        ResultSet resultSet = null;
+        try {
+            statement = mConnection.createStatement();
+            resultSet = statement.executeQuery(sqlCmd);
+            if (resultSet.next()) {
+                id = resultSet.getInt("ID");
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (statement != null) {
+                    statement.close();
+                }
+                if (resultSet != null) {
+                    resultSet.close();
+                }
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+        return id;
     }
 
     public void initAccountList() {
@@ -374,6 +469,19 @@ public class MainApp extends Application {
             insertUpdateSecurityToDB(new Security(-1, s.getSymbol(), s.getName(), Security.Type.fromString(s.getType())));
         }
 
+        List<QIFParser.Price> pList = qifParser.getPriceList();
+        HashMap<String, Integer> tickerIDMap = new HashMap<>();
+        for (QIFParser.Price p : pList) {
+            String security = p.getSecurity();
+            Integer id = tickerIDMap.get(security);
+            if (id == null) {
+                tickerIDMap.put(security, id = getSecurityID(security));
+            }
+            if (!insertUpdatePriceToDB(id, Date.valueOf(p.getDate()), p.getPrice(), 3)) {
+                System.err.println("Insert to PRICE failed with "
+                        + security + "(" + id + ")," + p.getDate() + "," + p.getPrice());
+            }
+        }
         List<QIFParser.Category> cList = qifParser.getCategoryList();
         for (QIFParser.Category c : cList) {
             System.out.println(c);
@@ -547,6 +655,28 @@ public class MainApp extends Application {
                 e.printStackTrace();
             }
         }
+
+        // Price Table
+        sqlCmd = "create table PRICES ("
+                + "SECURITYID integer NOT NULL, "
+                + "DATE date NOT NULL, "
+                + "PRICE DECIMAL(20,8))";
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.executeUpdate();
+            preparedStatement.close();
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void printSQLException(SQLException e)
@@ -598,6 +728,7 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
 
-        launch(args);
+        System.out.println(new BigDecimal("0.25"));
+         launch(args);
     }
 }

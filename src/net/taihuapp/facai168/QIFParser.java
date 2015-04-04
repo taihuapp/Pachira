@@ -2,6 +2,7 @@ package net.taihuapp.facai168;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -527,12 +528,16 @@ public class QIFParser {
     static class Price {
         private String mSecurity;
         private LocalDate mDate;
-        private double mPrice;
+        private BigDecimal mPrice;
 
         // setters
         public void setSecurity(String s) { mSecurity = s; }
         public void setDate(LocalDate d) { mDate = d; }
-        public void setPrice(double p) { mPrice = p; }
+        public void setPrice(BigDecimal p) { mPrice = p; }
+        public String getSecurity() { return mSecurity; }
+        public LocalDate getDate() { return mDate; }
+        public BigDecimal getPrice() { return mPrice; }
+
 
         public static Price fromQIFLines(List<String> lines) {
             if (lines.size() > 1) {
@@ -555,9 +560,9 @@ public class QIFParser {
             if (idx0 == -1) {
                 // not a fraction
                 if (tokens[1].length() > 0) {
-                    price.setPrice(Double.parseDouble(tokens[1]));
+                    price.setPrice(new BigDecimal(tokens[1]));
                 } else {
-                    price.setPrice(0);
+                    price.setPrice(new BigDecimal(0));
                 }
             } else {
                 int whole, num, den, idx1;
@@ -571,7 +576,7 @@ public class QIFParser {
                     whole = Integer.valueOf(tokens[1].substring(0, idx1));
                     num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
                 }
-                price.setPrice((double) whole + (double) num / (double) den);
+                price.setPrice(new BigDecimal((double) whole + (double) num / (double) den));
             }
             return price;
         }
@@ -772,4 +777,5 @@ public class QIFParser {
     public List<Account> getAccountList() { return mAccountList; }
     public List<Security> getSecurityList() { return mSecurityList; }
     public List<Category> getCategoryList() { return mCategoryList; }
+    public List<Price> getPriceList() { return mPriceList; }
 }

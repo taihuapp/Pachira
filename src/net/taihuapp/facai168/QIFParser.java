@@ -20,6 +20,7 @@ public class QIFParser {
     public enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT }
 
     static class Category {
+        private int mID;
         private String mName;  // name of the category
         private String mDescription;  // description
         private boolean mIsIncome; // income category flag
@@ -27,15 +28,18 @@ public class QIFParser {
         //               0 for tax related but no valid ref num
         //              >0 actual tax ref number
         private int mTaxRefNum;  // Tax reference number (for tax-related items,
-        private double mBudgetAmount; // budget amount
+        private BigDecimal mBudgetAmount; // budget amount
 
         public Category() {
+            mID = -1;
             mName = "";
             mDescription = "";
             mTaxRefNum = -1;
             mIsIncome = true;
         }
 
+        public void setID(int id) { mID = id; }
+        public int getID() { return mID; }
         public void setName(String n) { mName = n; }
         public String getName() { return mName; }
         public void setDescription(String d) { mDescription = d; }
@@ -52,8 +56,8 @@ public class QIFParser {
         public int getTaxRefNum() { return mTaxRefNum; }
         public void setIsIncome(boolean i) { mIsIncome = i;}
         public boolean isIncome() { return mIsIncome; }
-        public void setBudgetAmount(double b) { mBudgetAmount = b; }
-        public double getBudgetAmount() { return mBudgetAmount; }
+        public void setBudgetAmount(BigDecimal b) { mBudgetAmount = b; }
+        public BigDecimal getBudgetAmount() { return mBudgetAmount; }
         static Category fromQIFLines(List<String> lines)  {
             Category category = new Category();
             for (String l : lines) {
@@ -77,7 +81,7 @@ public class QIFParser {
                         category.setIsIncome(false);
                         break;
                     case 'B':
-                        category.setBudgetAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        category.setBudgetAmount(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     default:
                         return null;
@@ -566,7 +570,7 @@ public class QIFParser {
                 }
             } else {
                 int whole, num, den, idx1;
-                den = Integer.valueOf(tokens[1].substring(idx0+1));
+                den = Integer.valueOf(tokens[1].substring(idx0 + 1));
                 idx1 = tokens[1].indexOf(' ');
                 if (idx1 == -1) {
                     // no space
@@ -576,7 +580,7 @@ public class QIFParser {
                     whole = Integer.valueOf(tokens[1].substring(0, idx1));
                     num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
                 }
-                price.setPrice(new BigDecimal((double) whole + (double) num / (double) den));
+                price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den))));
             }
             return price;
         }
@@ -647,6 +651,7 @@ public class QIFParser {
                     break;
                 case "!Type:Bank":
                 case "!Type:Cash":
+                case "!Type:CCard":
                 case "!Type:Oth A":
                 case "!Type:Oth L":
                     currentRecordType = RecordType.BANK;

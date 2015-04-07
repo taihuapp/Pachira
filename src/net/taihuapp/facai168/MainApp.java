@@ -35,6 +35,9 @@ public class MainApp extends Application {
     static int SECURITYNAMELEN = 32;
     static int SECURITYTYPELEN = 16;
 
+    static int CATEGORYNAMELEN = 40;
+    static int CATEGORYDESCLEN = 256;
+
     private Preferences mPrefs;
     private Stage mPrimaryStage;
     private Connection mConnection = null;
@@ -183,6 +186,61 @@ public class MainApp extends Application {
         return status;
     }
 
+    public void insertCategoryToDB(QIFParser.Category category) {
+        System.out.println("Inserting " + category.toString());
+        String sqlCmd;
+        sqlCmd = "insert into CATEGORIES (NAME, DESCRIPTION, INCOMEFLAG, TAXREFNUM, BUDGETAMOUNT) "
+                + "values (?,?,?, ?, ?)";
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.setString(1, category.getName());
+            preparedStatement.setString(2, category.getDescription());
+            preparedStatement.setBoolean(3, category.isIncome());
+            preparedStatement.setInt(4, category.getTaxRefNum());
+            preparedStatement.setBigDecimal(5, category.getBudgetAmount());
+            if (preparedStatement.executeUpdate() == 0) {
+                throw new SQLException("Insert Security failed, no rows affected");
+            }
+            resultSet = preparedStatement.getGeneratedKeys();
+            if (resultSet.next()) {
+                category.setID(resultSet.getInt(1));
+            } else {
+                throw new SQLException("Insert Security failed, no ID obtained");
+            }
+        } catch (SQLException e) {
+            String title = "Database Error";
+            String headerText = "Unknown DB error";
+            if (e.getErrorCode() == 23505) {
+                title = "Duplicate Category Name";
+                headerText = "Category name " + category.getName() + " exists already.";
+            }
+
+            printSQLException(e);
+            e.printStackTrace();
+
+
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.initOwner(mPrimaryStage);
+            alert.setTitle(title);
+            alert.setHeaderText(headerText);
+            alert.showAndWait();
+        } catch (NullPointerException e) {
+            System.err.println("mConnection is null");
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+                if (resultSet != null)
+                    resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+    }
 
     public void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
@@ -482,9 +540,9 @@ public class MainApp extends Application {
                         + security + "(" + id + ")," + p.getDate() + "," + p.getPrice());
             }
         }
-        List<QIFParser.Category> cList = qifParser.getCategoryList();
-        for (QIFParser.Category c : cList) {
-            System.out.println(c);
+
+        for (QIFParser.Category c : qifParser.getCategoryList()) {
+            insertCategoryToDB(c);
         }
         System.out.println("Parse " + file.getAbsolutePath());
         System.out.println("CategoryList length = " + qifParser.getCategoryList().size());
@@ -603,6 +661,28 @@ public class MainApp extends Application {
         mPrimaryStage.setTitle("FaCai168 " + dbName);
     }
 
+    private void sqlCreateTable(String createSQL) {
+        PreparedStatement preparedStatement = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(createSQL);
+            preparedStatement.executeUpdate();
+            preparedStatement.close();
+        } catch (NullPointerException e) {
+            System.err.println("Null mConnection");
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+    }
+
     // initialize database structure
     private void initDBStructure() {
         if (mConnection == null)
@@ -615,23 +695,7 @@ public class MainApp extends Application {
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "PRIMARY KEY (ID));";
-        PreparedStatement preparedStatement = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
-            preparedStatement.executeUpdate();
-            preparedStatement.close();
-        } catch (SQLException e) {
-            printSQLException(e);
-            e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null)
-                    preparedStatement.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
-        }
+        sqlCreateTable(sqlCmd);
 
         // Security Table
         sqlCmd = "create table SECURITIES ("
@@ -639,44 +703,24 @@ public class MainApp extends Application {
                 + "TICKER varchar(" + SECURITYTICKERLEN + ") UNIQUE NOT NULL, "
                 + "NAME varchar(" + SECURITYNAMELEN + ") UNIQUE NOT NULL, "
                 + "TYPE integer NOT NULL);";
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
-            preparedStatement.executeUpdate();
-            preparedStatement.close();
-        } catch (SQLException e) {
-            printSQLException(e);
-            e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null)
-                    preparedStatement.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
-        }
+        sqlCreateTable(sqlCmd);
 
         // Price Table
         sqlCmd = "create table PRICES ("
                 + "SECURITYID integer NOT NULL, "
                 + "DATE date NOT NULL, "
-                + "PRICE DECIMAL(20,8))";
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
-            preparedStatement.executeUpdate();
-            preparedStatement.close();
-        } catch (SQLException e) {
-            printSQLException(e);
-            e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null)
-                    preparedStatement.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
-        }
+                + "PRICE decimal(20,8))";
+        sqlCreateTable(sqlCmd);
+
+        // Category Table
+        sqlCmd = "create table CATEGORIES ("
+                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "NAME varchar(" + CATEGORYNAMELEN + ") UNIQUE NOT NULL, "
+                + "DESCRIPTION varchar(" + CATEGORYDESCLEN + ") NOT NULL, "
+                + "INCOMEFLAG boolean, "
+                + "TAXREFNUM integer, "
+                + "BUDGETAMOUNT decimal(20,4))";
+        sqlCreateTable(sqlCmd);
     }
 
     public static void printSQLException(SQLException e)

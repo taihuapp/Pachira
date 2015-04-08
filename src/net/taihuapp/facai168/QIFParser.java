@@ -155,19 +155,19 @@ public class QIFParser {
     static class Account {
         private String mName;  // name of the account
         private String mType;  // Type of the account
-        private double mSalesTaxRate; // sales tax rate for tax account
+        private BigDecimal mSalesTaxRate; // sales tax rate for tax account
         private String mDescription; // description of the account
-        private double mCreditLimit;  // for credit card account
-        private double mBalance; // account balance
+        private BigDecimal mCreditLimit;  // for credit card account
+        private BigDecimal mBalance; // account balance
 
         // default constructor set members to default values
         public Account() {
             mName = "";
             mType = "";
-            mSalesTaxRate = 0;
+            mSalesTaxRate = BigDecimal.ZERO;
             mDescription = "";
-            mCreditLimit = -1;
-            mBalance = 0;
+            mCreditLimit = BigDecimal.ZERO;
+            mBalance = BigDecimal.ZERO;
         }
 
         // setters and getters
@@ -175,14 +175,14 @@ public class QIFParser {
         public String getName() { return mName; }
         public void setType(String t) { mType = t; }
         public String getType() { return mType; }
-        public void setSalesTaxRate(double r) { mSalesTaxRate = r; }
-        public double getSalesTaxRate() { return mSalesTaxRate; }
+        public void setSalesTaxRate(BigDecimal r) { mSalesTaxRate = r; }
+        public BigDecimal getSalesTaxRate() { return mSalesTaxRate; }
         public void setDescription(String d) { mDescription = d; }
         public String getDescription() { return mDescription; }
-        public void setCreditLimit(double c) { mCreditLimit = c; }
-        public double getCreditLimit() { return mCreditLimit; }
-        public void setBalance(double b) { mBalance = b; }
-        public double getBalance() { return mBalance; }
+        public void setCreditLimit(BigDecimal c) { mCreditLimit = c; }
+        public BigDecimal getCreditLimit() { return mCreditLimit; }
+        public void setBalance(BigDecimal b) { mBalance = b; }
+        public BigDecimal getBalance() { return mBalance; }
 
         static Account fromQIFLines(List<String> lines) {
             Account account = new Account();
@@ -195,13 +195,13 @@ public class QIFParser {
                         account.setType(l.substring(1));
                         break;
                     case 'R':
-                        account.setSalesTaxRate(Double.parseDouble(l.substring(1)));
+                        account.setSalesTaxRate(new BigDecimal(l.substring(1)));
                         break;
                     case 'D':
                         account.setDescription(l.substring(1));
                         break;
                     case 'L':
-                        account.setCreditLimit(Double.parseDouble(l.substring(1).replace(",","")));
+                        account.setCreditLimit(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     default:
                         // bad formatted record, return null
@@ -217,15 +217,15 @@ public class QIFParser {
         static class SplitBT {
             private String mCategory; // split category
             private String mMemo; // split memo
-            private double mAmount; // split amount
-            private double mPercentage; // % of split if % is used
+            private BigDecimal mAmount; // split amount
+            private BigDecimal mPercentage; // % of split if % is used
 
             // public constructor
             public SplitBT() {
                 mCategory = "";
                 mMemo = "";
-                mAmount = 0;
-                mPercentage = -1;
+                mAmount = BigDecimal.ZERO;
+                mPercentage = BigDecimal.ZERO;
             }
 
             // setters and getters
@@ -233,16 +233,16 @@ public class QIFParser {
             public String getCategory() { return mCategory; }
             public void setMemo(String m) { mMemo = m; }
             public String getMemo() { return mMemo; }
-            public void setAmount(double a) { mAmount = a; }
-            public double getAmount() { return mAmount; }
-            public void setPercentage(double p) { mPercentage = p; }
-            public double getPercentage() { return mPercentage; }
+            public void setAmount(BigDecimal a) { mAmount = a; }
+            public BigDecimal getAmount() { return mAmount; }
+            public void setPercentage(BigDecimal p) { mPercentage = p; }
+            public BigDecimal getPercentage() { return mPercentage; }
         }
 
         private String mAccountName;
         private LocalDate mDate;
-        private double mTAmount;
-        private double mUAmount;  // not sure what's the difference between T and U amounts
+        private BigDecimal mTAmount;
+        private BigDecimal mUAmount;  // not sure what's the difference between T and U amounts
         private char mCleared;  // 0 for not present, 1 for *, 2 for X
         private String mCheckNumber; // check number of ref, such as ATM, etc, so string is used
         private String mPayee;
@@ -262,8 +262,8 @@ public class QIFParser {
         // setters
         public void setAccountName(String a) { mAccountName = a; }
         public void setDate(LocalDate d) { mDate = d; }
-        public void setTAmount(double t) { mTAmount = t; }
-        public void setUAmount(double u) { mUAmount = u; }
+        public void setTAmount(BigDecimal t) { mTAmount = t; }
+        public void setUAmount(BigDecimal u) { mUAmount = u; }
         public void setCleared(char c) { mCleared = c; }
         public void setCheckNumber(String c) { mCheckNumber = c; }
         public void setPayee(String p) { mPayee = p; }
@@ -282,10 +282,10 @@ public class QIFParser {
                         bt.setDate(parseDate(l.substring(1)));
                         break;
                     case 'T':
-                        bt.setTAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        bt.setTAmount(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'U':
-                        bt.setUAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        bt.setUAmount(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'C':
                         bt.setCleared(l.charAt(1));
@@ -327,7 +327,7 @@ public class QIFParser {
                                     lines.toString());
                             return null;
                         } else {
-                            splitBT.setAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                            splitBT.setAmount(new BigDecimal(l.substring(1).replace(",","")));
                         }
                         break;
                     case 'F':
@@ -368,16 +368,16 @@ public class QIFParser {
         private LocalDate mDate;
         private Action mAction;
         private String mSecurity;
-        private double mPrice;
-        private double mQuantity;
+        private BigDecimal mPrice;
+        private BigDecimal mQuantity;
         private char mCleared; // C line
         private String mTransferReminderText; // P line
         private String mMemo;
-        private double mCommission;
+        private BigDecimal mCommission;
         private String mCategoryOrTransfer; // L line
-        private double mTAmount; // not sure what's the difference between
-        private double mUAmount; // T and U amounts
-        private double mAmountTransferred; // $ line
+        private BigDecimal mTAmount; // not sure what's the difference between
+        private BigDecimal mUAmount; // T and U amounts
+        private BigDecimal mAmountTransferred; // $ line
 
         public TradeTransaction() {
             mCleared = ' ';
@@ -388,16 +388,16 @@ public class QIFParser {
         public void setDate(LocalDate d) { mDate = d; }
         public void setAction(Action action) { mAction = action; }
         public void setSecurity(String s) { mSecurity = s; }
-        public void setPrice(double p) { mPrice = p; }
-        public void setQuantity(double q) { mQuantity = q; }
+        public void setPrice(BigDecimal p) { mPrice = p; }
+        public void setQuantity(BigDecimal q) { mQuantity = q; }
         public void setCleared(char c) { mCleared = c; }
         public void setTransferReminderText(String t) { mTransferReminderText = t; }
         public void setMemo(String m) { mMemo = m; }
-        public void setCommission(double c) { mCommission = c; }
+        public void setCommission(BigDecimal c) { mCommission = c; }
         public void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
-        public void setTAmount(double t) { mTAmount = t; }
-        public void setUAmount(double u) { mUAmount = u; }
-        public void setAmountTransferred(double a) { mAmountTransferred = a; }
+        public void setTAmount(BigDecimal t) { mTAmount = t; }
+        public void setUAmount(BigDecimal u) { mUAmount = u; }
+        public void setAmountTransferred(BigDecimal a) { mAmountTransferred = a; }
 
         public static TradeTransaction fromQIFLines(List<String> lines) {
             TradeTransaction tt = new TradeTransaction();
@@ -413,10 +413,10 @@ public class QIFParser {
                         tt.setSecurity(l.substring(1));
                         break;
                     case 'I':
-                        tt.setPrice(Double.parseDouble(l.substring(1).replace(",","")));
+                        tt.setPrice(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'Q':
-                        tt.setQuantity(Double.parseDouble(l.substring(1).replace(",","")));
+                        tt.setQuantity(new BigDecimal(l.substring(1).replace(",", "")));
                         break;
                     case 'C':
                         tt.setCleared(l.charAt(1));
@@ -428,19 +428,19 @@ public class QIFParser {
                         tt.setMemo(l.substring(1));
                         break;
                     case 'O':
-                        tt.setCommission(Double.parseDouble(l.substring(1).replace(",","")));
+                        tt.setCommission(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'L':
                         tt.setCategoryOrTransfer(l.substring(1));
                         break;
                     case 'T':
-                        tt.setTAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        tt.setTAmount(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'U':
-                        tt.setUAmount(Double.parseDouble(l.substring(1).replace(",","")));
+                        tt.setUAmount(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case '$':
-                        tt.setAmountTransferred(Double.parseDouble(l.substring(1).replace(",","")));
+                        tt.setAmountTransferred(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     default:
                         System.err.println("TradeTransaction: Offending line: " + l);
@@ -456,8 +456,8 @@ public class QIFParser {
         public enum Type { INVESTMENT, EPAYMENT, CHECK, PAYMENT, DEPOSIT }
 
         private Type mType;
-        private double mQQuantity; // number of new shares for a split
-        private double mRQuantity; // number of old shares for a split
+        private BigDecimal mQQuantity; // number of new shares for a split
+        private BigDecimal mRQuantity; // number of old shares for a split
         private BankTransaction mBT;
         private TradeTransaction mTT;
 
@@ -492,8 +492,8 @@ public class QIFParser {
                     throw new IllegalArgumentException("Unknown type [" + t + "] for MemorizedType");
             }
         }
-        public void setQQuantity(double q) { mQQuantity = q; }
-        public void setRQuantity(double r) { mRQuantity = r; }
+        public void setQQuantity(BigDecimal q) { mQQuantity = q; }
+        public void setRQuantity(BigDecimal r) { mRQuantity = r; }
         public void setTransactionDetails(List<String> lines) {
             if (getType() == Type.INVESTMENT) {
                 mTT = TradeTransaction.fromQIFLines(lines);
@@ -511,10 +511,10 @@ public class QIFParser {
                         mt.setType(l.charAt(1));
                         break;
                     case 'Q':
-                        mt.setQQuantity(Double.parseDouble(l.substring(1).replace(",", "")));
+                        mt.setQQuantity(new BigDecimal(l.substring(1).replace(",", "")));
                         break;
                     case 'R':
-                        mt.setRQuantity(Double.parseDouble(l.substring(1).replace(",", "")));
+                        mt.setRQuantity(new BigDecimal(l.substring(1).replace(",", "")));
                         break;
                     default:
                         unParsedLines.add(l);
@@ -566,7 +566,7 @@ public class QIFParser {
                 if (tokens[1].length() > 0) {
                     price.setPrice(new BigDecimal(tokens[1]));
                 } else {
-                    price.setPrice(new BigDecimal(0));
+                    price.setPrice(BigDecimal.ZERO);
                 }
             } else {
                 int whole, num, den, idx1;

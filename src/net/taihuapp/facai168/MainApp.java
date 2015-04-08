@@ -723,8 +723,7 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
     }
 
-    public static void printSQLException(SQLException e)
-    {
+    public static void printSQLException(SQLException e) {
         // Unwraps the entire exception chain to unveil the real cause of the
         // Exception.
         while (e != null)

@@ -5,6 +5,8 @@ import javafx.beans.property.*;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 
+import java.math.BigDecimal;
+
 /**
  * Created by ghe on 3/19/15.
  */
@@ -18,7 +20,7 @@ public class Account {
     private final StringProperty mName;
     private final StringProperty mDescription;
 
-    private DoubleProperty mCurrentBalance;
+    private ObjectProperty<BigDecimal> mCurrentBalance;
 
     // default constructor
     public Account() {
@@ -31,7 +33,7 @@ public class Account {
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
 
-        mCurrentBalance = new SimpleDoubleProperty(0);
+        mCurrentBalance = new SimpleObjectProperty<>(BigDecimal.ZERO);
     }
 
     // getters and setters
@@ -55,9 +57,9 @@ public class Account {
     public String getDescription() { return mDescription.get(); }
     public void setDescription(String d) { mDescription.set(d); }
 
-    public DoubleProperty getCurrentBalanceProperty() { return mCurrentBalance; }
-    public Double getCurrentBalance() { return mCurrentBalance.get(); }
-    public void setCurrentBalance(double cb) { mCurrentBalance.set(cb); }
+    public ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
+    public BigDecimal getCurrentBalance() { return mCurrentBalance.get(); }
+    public void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
 
     public String toString() {
         return "mID:" + mID.get() + ";mType:" + mType.name()

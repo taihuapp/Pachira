@@ -7,6 +7,7 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,7 @@ public class MainController {
     @FXML
     private TableColumn<Account, String> mAccountColumn;
     @FXML
-    private TableColumn<Account, Double> mBalanceColumn;
+    private TableColumn<Account, BigDecimal> mBalanceColumn;
 
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
@@ -114,18 +115,18 @@ public class MainController {
             return;
         }
         System.out.println("Showing " + account.getName() + " transactions");
-        account.setCurrentBalance(5);
+        account.setCurrentBalance(BigDecimal.TEN);
     }
 
     @FXML
     private void initialize() {
         mAccountColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());
-        mBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getCurrentBalanceProperty().asObject());
+        mBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getCurrentBalanceProperty());
 
         mBalanceColumn.setCellFactory(column -> {
-            return new TableCell<Account, Double>() {
+            return new TableCell<Account, BigDecimal>() {
                 @Override
-                protected void updateItem(Double item, boolean empty) {
+                protected void updateItem(BigDecimal item, boolean empty) {
                     super.updateItem(item, empty);
 
                     if (item == null || empty) {
@@ -138,6 +139,7 @@ public class MainController {
                 }
             };
         });
+
         mAccountTableView.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> showAccountTransactions(newValue));
     }

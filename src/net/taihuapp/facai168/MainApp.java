@@ -15,7 +15,6 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,10 +32,19 @@ public class MainApp extends Application {
     static int ACCOUNTDESCLEN = 256;
     static int SECURITYTICKERLEN = 16;
     static int SECURITYNAMELEN = 32;
-    static int SECURITYTYPELEN = 16;
 
     static int CATEGORYNAMELEN = 40;
     static int CATEGORYDESCLEN = 256;
+
+    static int TRANSACTIONMEMOLEN = 64;
+    static int TRANSACTIONREFLEN = 8;
+    static int TRANSACTIONPAYEELEN = 32;
+    static int TRANSACTIONTRACEACTIONLEN = 16;
+    static int TRANSACTIONTRANSFERREMINDERLEN = 40;
+    static int ADDRESSLINELEN = 32;
+
+    static int AMORTLINELEN = 32;
+
 
     private Preferences mPrefs;
     private Stage mPrimaryStage;
@@ -46,7 +54,7 @@ public class MainApp extends Application {
 
     // get opened named from pref
     List<String> getOpenedDBNames() {
-        List<String> fileNameList = new ArrayList<String>();
+        List<String> fileNameList = new ArrayList<>();
 
         for (int i = 0; i < MAXOPENEDDBHIST; i++) {
             String fileName = mPrefs.get(KEY_OPENEDDBPREFIX + i, "");
@@ -145,11 +153,7 @@ public class MainApp extends Application {
                 sqlCmd = "update PRICES set PRICE = ? where SECURITYID = ? and DATE = ?";
                 break;
             case 3:
-                if (!insertUpdatePriceToDB(securityID, date, p, 1)) {
-                    return insertUpdatePriceToDB(securityID, date, p, 2);
-                } else {
-                    return true;
-                }
+                return insertUpdatePriceToDB(securityID, date, p, 1) || insertUpdatePriceToDB(securityID, date, p, 2);
             default:
                 throw new IllegalArgumentException("insertUpdatePriceToDB called with bad mode = " + mode);
         }
@@ -338,11 +342,11 @@ public class MainApp extends Application {
     public void initAccountList() {
         if (mConnection != null) {
             mAccountList.clear();
-            Statement stmt = null;
+            Statement statement;
             try {
-                stmt = mConnection.createStatement();
+                statement = mConnection.createStatement();
                 String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION from ACCOUNTS order by TYPE, ID";
-                ResultSet rs = stmt.executeQuery(sqlCmd);
+                ResultSet rs = statement.executeQuery(sqlCmd);
                 while (rs.next()) {
                     int id = rs.getInt("ID");
                     int typeOrdinal = rs.getInt("TYPE");
@@ -399,7 +403,7 @@ public class MainApp extends Application {
             dialogStage.setTitle(title);
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
-            dialogStage.setScene(new Scene((AnchorPane) loader.load()));
+            dialogStage.setScene(new Scene(loader.load()));
             EditAccountDialogController controller = loader.getController();
             if (controller == null) {
                 System.err.println("Null controller?");
@@ -541,9 +545,7 @@ public class MainApp extends Application {
             }
         }
 
-        for (QIFParser.Category c : qifParser.getCategoryList()) {
-            insertCategoryToDB(c);
-        }
+        for (QIFParser.Category c : qifParser.getCategoryList()) insertCategoryToDB(c);
         System.out.println("Parse " + file.getAbsolutePath());
         System.out.println("CategoryList length = " + qifParser.getCategoryList().size());
     }
@@ -694,7 +696,7 @@ public class MainApp extends Application {
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
-                + "PRIMARY KEY (ID));";
+                + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
         // Security Table
@@ -702,14 +704,16 @@ public class MainApp extends Application {
                 + "ID integer NOT NULL AUTO_INCREMENT, "
                 + "TICKER varchar(" + SECURITYTICKERLEN + ") UNIQUE NOT NULL, "
                 + "NAME varchar(" + SECURITYNAMELEN + ") UNIQUE NOT NULL, "
-                + "TYPE integer NOT NULL);";
+                + "TYPE integer NOT NULL, "
+                + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
         // Price Table
         sqlCmd = "create table PRICES ("
                 + "SECURITYID integer NOT NULL, "
                 + "DATE date NOT NULL, "
-                + "PRICE decimal(20,8))";
+                + "PRICE decimal(20,8),"
+                + "PRIMARY KEY (SECURITYID, DATE));";
         sqlCreateTable(sqlCmd);
 
         // Category Table
@@ -719,7 +723,69 @@ public class MainApp extends Application {
                 + "DESCRIPTION varchar(" + CATEGORYDESCLEN + ") NOT NULL, "
                 + "INCOMEFLAG boolean, "
                 + "TAXREFNUM integer, "
-                + "BUDGETAMOUNT decimal(20,4))";
+                + "BUDGETAMOUNT decimal(20,4), "
+                + "primary key (ID))";
+        sqlCreateTable(sqlCmd);
+
+        // SplitTransaction
+        sqlCmd = "create table SPLITTRANSACTIONS ("
+                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "CATEGORYID integer, "
+                + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
+                + "AMOUNT decimal(20,4), "
+                + "PERCENTAGE decimal(20, 4), "
+                + "primary key (ID));";
+        sqlCreateTable(sqlCmd);
+
+        // Addresses table
+        sqlCmd = "create table ADDRESSES ("
+                + "ID integer not null auto_increment, "
+                + "LINE0 varchar(" + ADDRESSLINELEN + "), "
+                + "LINE1 varchar(" + ADDRESSLINELEN + "), "
+                + "LINE2 varchar(" + ADDRESSLINELEN + "), "
+                + "LINE3 varchar(" + ADDRESSLINELEN + "), "
+                + "LINE4 varchar(" + ADDRESSLINELEN + "), "
+                + "LINE5 varchar(" + ADDRESSLINELEN + "), "
+                + "primary key (ID));";
+        sqlCreateTable(sqlCmd);
+
+        // amortlines table
+        sqlCmd = "create table AMORTIZATIONLINES ("
+                + "ID integer not null auto_increment, "
+                + "LINE0 varchar(" + AMORTLINELEN + "), "
+                + "LINE1 varchar(" + AMORTLINELEN + "), "
+                + "LINE2 varchar(" + AMORTLINELEN + "), "
+                + "LINE3 varchar(" + AMORTLINELEN + "), "
+                + "LINE4 varchar(" + AMORTLINELEN + "), "
+                + "LINE5 varchar(" + AMORTLINELEN + "), "
+                + "LINE6 varchar(" + AMORTLINELEN + "), "
+                + "primary key (ID)); ";
+        sqlCreateTable(sqlCmd);
+
+        // Transactions
+        sqlCmd = "create table TRANSACTIONS ("
+                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "ACCOUNTID integer NOT NULL, "
+                + "DATE date NOT NULL, "
+                + "AMOUNT decimal(20,4), "
+                + "CLEARED integer, "
+                + "CATEGORYID integer, "
+                + "TRANSFERACCOUNTID integer, "
+                + "MEMO varchar(" + TRANSACTIONMEMOLEN + "), "
+                + "CHECKNUM integer, "
+                + "REFERENCE varchar (" + TRANSACTIONREFLEN + "), "
+                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
+                + "SPLITFLAG boolean, "
+                + "ADDRESSID integer, "
+                + "AMORTIZATIONID integer, "
+                + "TRACEACTION varchar(" + TRANSACTIONTRACEACTIONLEN + "), "
+                + "SECURITYID integer, "
+                + "PRICE decimal(20,6), "
+                + "QUANTITY decimal(20,6), "
+                + "TRANSFERREMINDER varchar(" + TRANSACTIONTRANSFERREMINDERLEN + "), "
+                + "COMMISSION decimal(20,4), "
+                + "AMOUNTTRANSFERRED decimal(20,4), "
+                + "primary key (ID));";
         sqlCreateTable(sqlCmd);
     }
 
@@ -743,7 +809,7 @@ public class MainApp extends Application {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("MainLayout.fxml"));
-            mPrimaryStage.setScene(new Scene((BorderPane) loader.load()));
+            mPrimaryStage.setScene(new Scene(loader.load()));
             mPrimaryStage.show();
             ((MainController) loader.getController()).setMainApp(this);
         } catch (IOException e) {

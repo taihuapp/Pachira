@@ -1,9 +1,6 @@
 package net.taihuapp.facai168;
 
-import javafx.beans.InvalidationListener;
 import javafx.beans.property.*;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 
 import java.math.BigDecimal;
 
@@ -20,7 +17,7 @@ public class Account {
     private final StringProperty mName;
     private final StringProperty mDescription;
 
-    private ObjectProperty<BigDecimal> mCurrentBalance;
+    private final ObjectProperty<BigDecimal> mCurrentBalance;
 
     // default constructor
     public Account() {

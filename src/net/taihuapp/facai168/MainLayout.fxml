@@ -54,10 +54,10 @@
       </TableView>
    </left>
    <center>
-      <TableView prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+      <TableView fx:id="mTransactionTableView" prefHeight="200.0" prefWidth="200.0" visible="false" BorderPane.alignment="CENTER">
         <columns>
-          <TableColumn prefWidth="75.0" text="Date" />
-          <TableColumn prefWidth="175.0" text="Description" />
+          <TableColumn fx:id="mTransactionDateColumn" prefWidth="75.0" text="Date" />
+          <TableColumn fx:id="mTransactionPayeeColumn" prefWidth="175.0" text="Payee" />
         </columns>
       </TableView>
    </center>

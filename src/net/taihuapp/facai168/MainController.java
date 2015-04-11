@@ -6,8 +6,11 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.control.TableView;
 
+import javax.swing.text.*;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +34,21 @@ public class MainController {
     @FXML
     private TableColumn<Account, BigDecimal> mBalanceColumn;
 
+    @FXML
+    private TableView<Transaction> mTransactionTableView;
+    @FXML
+    private TableColumn<Transaction, Date> mTransactionDateColumn;
+    @FXML
+    private TableColumn<Transaction, String> mTransactionPayeeColumn;
+
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
         mAccountTableView.setItems(mMainApp.getAccountList());
+        mTransactionTableView.setItems(mMainApp.getTransactionList());
+
     }
 
     @FXML
@@ -114,8 +126,9 @@ public class MainController {
         if (account == null) {
             return;
         }
+        mMainApp.initTransactionList(account);
         System.out.println("Showing " + account.getName() + " transactions");
-        account.setCurrentBalance(BigDecimal.TEN);
+        mTransactionTableView.setVisible(true);
     }
 
     @FXML
@@ -142,5 +155,9 @@ public class MainController {
 
         mAccountTableView.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> showAccountTransactions(newValue));
+
+        // transactiontable
+        mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
+        mTransactionPayeeColumn.setCellValueFactory(cellData->cellData.getValue().getPayeeProperty());
     }
 }

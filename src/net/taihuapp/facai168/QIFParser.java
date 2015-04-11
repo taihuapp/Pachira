@@ -273,6 +273,11 @@ public class QIFParser {
         public void addSplit(SplitBT s) { mSplitList.add(s); }
         public void setAmortizationLine(int i, String l) { mAmortizationLines[i] = l; }
 
+        // getters
+        public String getAccountName() { return mAccountName; }
+        public LocalDate getDate() { return mDate; }
+        public String getPayee() { return mPayee; }
+
         public static BankTransaction fromQIFLines(List<String> lines) {
             BankTransaction bt = new BankTransaction();
             SplitBT splitBT = null;
@@ -783,4 +788,6 @@ public class QIFParser {
     public List<Security> getSecurityList() { return mSecurityList; }
     public List<Category> getCategoryList() { return mCategoryList; }
     public List<Price> getPriceList() { return mPriceList; }
+    public List<BankTransaction> getBankTransactionList() { return mBankTransactionList; }
+    public List<TradeTransaction> getTradeTransactionList() { return mTradeTransactionList; }
 }

@@ -51,6 +51,7 @@ public class MainApp extends Application {
     private Connection mConnection = null;
 
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
+    private ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
 
     // get opened named from pref
     List<String> getOpenedDBNames() {
@@ -65,9 +66,9 @@ public class MainApp extends Application {
         return fileNameList;
     }
 
-    public ObservableList<Account> getAccountList() {
-        return mAccountList;
-    }
+    public ObservableList<Account> getAccountList() { return mAccountList; }
+
+    public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
 
     public Account getAccountByName(String name) {
         for (Account a : getAccountList()) {
@@ -188,6 +189,66 @@ public class MainApp extends Application {
             }
         }
         return status;
+    }
+
+    public int insertTransactionToDB(QIFParser.BankTransaction bt) {
+        int rowID = -1;
+        System.out.println("Inserting " + bt.toString());
+        String accountName = bt.getAccountName();
+        Account account = getAccountByName(accountName);
+        if (account == null) {
+            System.err.println("Account [" + accountName + "] not found, nothing inserted");
+            return rowID;
+        }
+        String sqlCmd;
+        sqlCmd = "insert into TRANSACTIONS (ACCOUNTID, DATE, PAYEE) values (?,?,?)";
+
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            preparedStatement.setInt(1, account.getID());
+            preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
+            preparedStatement.setString(3, bt.getPayee());
+
+            if (preparedStatement.executeUpdate() != 0) {
+                resultSet = preparedStatement.getGeneratedKeys();
+                if (resultSet.next()) {
+                    rowID = resultSet.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+                if (resultSet != null)
+                    resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+
+        return rowID;
+    }
+
+    public int insertTransactionToDB(QIFParser.TradeTransaction transaction) {
+        int rowID = -1;
+        System.out.println("Inserting " + transaction.toString());
+        String sqlCmd;
+        sqlCmd = "insert into TRANSACTIONS (ACCOUNTID, DATE, TRADEACTION) values (?,?,?)";
+        return rowID;
+    }
+
+    private Account getAccountByID(int id) {
+        for (Account a : getAccountList()) {
+            if (a.getID() == id)
+                return a;
+        }
+        return null;
     }
 
     public void insertCategoryToDB(QIFParser.Category category) {
@@ -362,6 +423,41 @@ public class MainApp extends Application {
         }
     }
 
+    public void initTransactionList(Account account) {
+        if (mConnection == null)
+            return;
+        mTransactionList.clear();
+        int accountID = account.getID();
+        Statement statement = null;
+        ResultSet resultSet = null;
+        String sqlCmd = "select ID, DATE, PAYEE from TRANSACTIONS where ACCOUNTID = " + accountID
+                + " order by DATE, ID";
+        try {
+            statement = mConnection.createStatement();
+            resultSet = statement.executeQuery(sqlCmd);
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                Date date = resultSet.getDate("DATE");
+                String payee = resultSet.getString("PAYEE");
+                mTransactionList.add(new Transaction(id, accountID, date, payee));
+            }
+
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (statement != null)
+                    statement.close();
+                if (resultSet != null)
+                    resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+    }
+
     void putOpenedDBNames(List<String> openedDBNames) {
         for (int i = 0; i < openedDBNames.size(); i++) {
             mPrefs.put(KEY_OPENEDDBPREFIX + i, openedDBNames.get(i));
@@ -525,6 +621,7 @@ public class MainApp extends Application {
                         + " for account [" + qa.getName() + "], skip.");
             }
         }
+        initAccountList();
 
         List<QIFParser.Security> sList = qifParser.getSecurityList();
         for (QIFParser.Security s : sList) {
@@ -546,6 +643,12 @@ public class MainApp extends Application {
         }
 
         for (QIFParser.Category c : qifParser.getCategoryList()) insertCategoryToDB(c);
+
+        int cnt = 0;
+        for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) cnt += insertTransactionToDB(bt);
+        for (QIFParser.TradeTransaction tt : qifParser.getTradeTransactionList()) insertTransactionToDB(tt);
+
+        System.out.println("Inserted " + cnt + " transactions");
         System.out.println("Parse " + file.getAbsolutePath());
         System.out.println("CategoryList length = " + qifParser.getCategoryList().size());
     }
@@ -778,7 +881,7 @@ public class MainApp extends Application {
                 + "SPLITFLAG boolean, "
                 + "ADDRESSID integer, "
                 + "AMORTIZATIONID integer, "
-                + "TRACEACTION varchar(" + TRANSACTIONTRACEACTIONLEN + "), "
+                + "TRADEACTION varchar(" + TRANSACTIONTRACEACTIONLEN + "), "
                 + "SECURITYID integer, "
                 + "PRICE decimal(20,6), "
                 + "QUANTITY decimal(20,6), "

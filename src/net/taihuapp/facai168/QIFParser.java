@@ -244,11 +244,11 @@ public class QIFParser {
         private BigDecimal mTAmount;
         private BigDecimal mUAmount;  // not sure what's the difference between T and U amounts
         private char mCleared;  // 0 for not present, 1 for *, 2 for X
-        private String mCheckNumber; // check number of ref, such as ATM, etc, so string is used
+        private String mReference; // check number or ref, such as ATM, etc, so string is used
         private String mPayee;
         private String mMemo;
         private List<String> mAddressList; // QIF says up to 6 lines.
-        private String mCategoryOrTransfer; // L line
+        private String mCategory; // L line if matches [*], then transfer, otherwise, category
         private List<SplitBT> mSplitList;
         private String[] mAmortizationLines;
 
@@ -257,7 +257,7 @@ public class QIFParser {
             mCleared = ' ';
             mAddressList = new ArrayList<>();
             mSplitList = new ArrayList<>();
-            mAmortizationLines = new String[7];
+            mAmortizationLines = null;
         }
         // setters
         public void setAccountName(String a) { mAccountName = a; }
@@ -265,18 +265,40 @@ public class QIFParser {
         public void setTAmount(BigDecimal t) { mTAmount = t; }
         public void setUAmount(BigDecimal u) { mUAmount = u; }
         public void setCleared(char c) { mCleared = c; }
-        public void setCheckNumber(String c) { mCheckNumber = c; }
+        public void setReference(String r) { mReference = r; }
         public void setPayee(String p) { mPayee = p; }
         public void setMemo(String m) { mMemo = m; }
         public void addAddress(String a) { mAddressList.add(a); }
-        public void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
+        public void setCategory(String c) { mCategory = c; }
         public void addSplit(SplitBT s) { mSplitList.add(s); }
-        public void setAmortizationLine(int i, String l) { mAmortizationLines[i] = l; }
+        public void setAmortizationLine(int i, String l) {
+            if (mAmortizationLines == null) mAmortizationLines = new String[7];
+            mAmortizationLines[i] = l;
+        }
 
         // getters
         public String getAccountName() { return mAccountName; }
         public LocalDate getDate() { return mDate; }
+        public BigDecimal getTAmount() { return mTAmount; }
+        public int getCleared() { return mCleared; }
+        private boolean isCategory() {
+            return !(mCategory != null && mCategory.startsWith("[") && mCategory.endsWith("]"));
+        }
+        public String getCategory() {
+            if (!isCategory()) return null;
+            return mCategory;
+        }
+        public String getTransfer() {
+            if (isCategory()) return null;
+            return mCategory.substring(1, mCategory.length()-1);
+        }
+
+        public String getReference() { return mReference; }
+        public String getMemo() { return mMemo; }
         public String getPayee() { return mPayee; }
+        public List<SplitBT> getSplitList() { return mSplitList; }
+        public List<String> getAddressList() { return mAddressList; }
+        public String[] getAmortizationLines() { return mAmortizationLines; }
 
         public static BankTransaction fromQIFLines(List<String> lines) {
             BankTransaction bt = new BankTransaction();
@@ -296,7 +318,7 @@ public class QIFParser {
                         bt.setCleared(l.charAt(1));
                         break;
                     case 'N':
-                        bt.setCheckNumber(l.substring(1));
+                        bt.setReference(l.substring(1));
                         break;
                     case 'P':
                         bt.setPayee(l.substring(1));
@@ -308,7 +330,7 @@ public class QIFParser {
                         bt.addAddress(l.substring(1));
                         break;
                     case 'L':
-                        bt.setCategoryOrTransfer(l.substring(1));
+                        bt.setCategory(l.substring(1));
                         break;
                     case 'S':
                         if (splitBT != null) {
@@ -695,7 +717,6 @@ public class QIFParser {
                             Category category = Category.fromQIFLines(allLines.subList(i, j));
                             if (category != null) {
                                 mCategoryList.add(category);
-                                category = null;
                             } else {
                                 System.err.println("Bad formatted Category text: "
                                         + allLines.subList(i, j));

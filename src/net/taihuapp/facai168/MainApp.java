@@ -7,7 +7,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -52,6 +51,7 @@ public class MainApp extends Application {
 
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
     private ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
+    private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
 
     // get opened named from pref
     List<String> getOpenedDBNames() {
@@ -67,14 +67,21 @@ public class MainApp extends Application {
     }
 
     public ObservableList<Account> getAccountList() { return mAccountList; }
-
     public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
+    public ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
 
     public Account getAccountByName(String name) {
         for (Account a : getAccountList()) {
             if (a.getName().equals(name)) {
                 return a;
             }
+        }
+        return null;
+    }
+
+    public QIFParser.Category getCategoryByName(String name) {
+        for (QIFParser.Category c : getCategoryList()) {
+            if (c.getName().equals(name)) return c;
         }
         return null;
     }
@@ -191,6 +198,92 @@ public class MainApp extends Application {
         return status;
     }
 
+    public int insertAddressToDB(List<String> address) {
+        int rowID = -1;
+        int nLines = Math.min(6, address.size());  // only 6 lines
+        String sqlCmd = "insert into ADDRESSES (";
+        for (int i = 0; i < nLines; i++) {
+            sqlCmd += ("LINE" + i);
+            if (i < nLines-1)
+                sqlCmd += ",";
+        }
+        sqlCmd += ") values (";
+        for (int i = 0; i < nLines; i++) {
+            sqlCmd += "?";
+            if (i < nLines-1)
+                sqlCmd += ",";
+        }
+        sqlCmd += ")";
+
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            for (int i = 0; i < nLines; i++)
+                preparedStatement.setString(i+1, address.get(i));
+
+            if (preparedStatement.executeUpdate() != 0) {
+                resultSet = preparedStatement.getGeneratedKeys();
+                if (resultSet.next()) rowID = resultSet.getInt(1);
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null) preparedStatement.close();
+                if (resultSet != null) resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+        return rowID;
+    }
+
+    public int insertAmortizationToDB(String[] amortLines) {
+        int rowID = -1;
+        int nLines = 7;
+        String sqlCmd = "insert into AMORTIZATIONLINES (";
+        for (int i = 0; i < nLines; i++) {
+            sqlCmd += ("LINE" + i);
+            if (i < nLines-1)
+                sqlCmd += ",";
+        }
+        sqlCmd += ") values (";
+        for (int i = 0; i < nLines; i++) {
+            sqlCmd += "?";
+            if (i < nLines-1)
+                sqlCmd += ",";
+        }
+        sqlCmd += ")";
+
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        try {
+            preparedStatement = mConnection.prepareStatement(sqlCmd);
+            for (int i = 0; i < nLines; i++)
+                preparedStatement.setString(i+1, amortLines[i]);
+
+            if (preparedStatement.executeUpdate() != 0) {
+                resultSet = preparedStatement.getGeneratedKeys();
+                if (resultSet.next()) rowID = resultSet.getInt(1);
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (preparedStatement != null) preparedStatement.close();
+                if (resultSet != null) resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+        return rowID;
+    }
+
     public int insertTransactionToDB(QIFParser.BankTransaction bt) {
         int rowID = -1;
         System.out.println("Inserting " + bt.toString());
@@ -200,8 +293,24 @@ public class MainApp extends Application {
             System.err.println("Account [" + accountName + "] not found, nothing inserted");
             return rowID;
         }
+
+        List<String> address = bt.getAddressList();
+        int addressID = -1;
+        if (!address.isEmpty()) {
+            addressID = insertAddressToDB(address);
+        }
+
+        String[] amortLines = bt.getAmortizationLines();
+        int amortID = -1;
+        if (amortLines != null)
+            amortID = insertAmortizationToDB(amortLines);
+
         String sqlCmd;
-        sqlCmd = "insert into TRANSACTIONS (ACCOUNTID, DATE, PAYEE) values (?,?,?)";
+        sqlCmd = "insert into TRANSACTIONS " +
+                "(ACCOUNTID, DATE, AMOUNT, CLEARED, CATEGORYID, " +
+                "MEMO, REFERENCE, " +
+                "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID" +
+                ") values (?,?,?,?,?,?,?,?,?,?,?)";
 
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
@@ -209,7 +318,25 @@ public class MainApp extends Application {
             preparedStatement = mConnection.prepareStatement(sqlCmd);
             preparedStatement.setInt(1, account.getID());
             preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
-            preparedStatement.setString(3, bt.getPayee());
+            preparedStatement.setBigDecimal(3, bt.getTAmount());
+            preparedStatement.setInt(4, bt.getCleared());
+            String categoryName = bt.getCategory();
+            String transferName = bt.getTransfer();
+            int categoryID = 0;
+            int transferID = 0;
+            if (categoryName != null) {
+                categoryID = getCategoryByName(categoryName).getID();
+            } else if (transferName != null) {
+                transferID = getAccountByName(bt.getTransfer()).getID();
+            }
+            preparedStatement.setInt(5, categoryID > 0 ? categoryID : -transferID);
+            preparedStatement.setString(6, bt.getMemo());
+            preparedStatement.setString(7, bt.getReference());
+            preparedStatement.setString(8, bt.getPayee());
+            List<QIFParser.BankTransaction.SplitBT> splitList = bt.getSplitList();
+            preparedStatement.setBoolean(9, !splitList.isEmpty());
+            preparedStatement.setInt(10, addressID);
+            preparedStatement.setInt(11, amortID);
 
             if (preparedStatement.executeUpdate() != 0) {
                 resultSet = preparedStatement.getGeneratedKeys();
@@ -243,16 +370,7 @@ public class MainApp extends Application {
         return rowID;
     }
 
-    private Account getAccountByID(int id) {
-        for (Account a : getAccountList()) {
-            if (a.getID() == id)
-                return a;
-        }
-        return null;
-    }
-
     public void insertCategoryToDB(QIFParser.Category category) {
-        System.out.println("Inserting " + category.toString());
         String sqlCmd;
         sqlCmd = "insert into CATEGORIES (NAME, DESCRIPTION, INCOMEFLAG, TAXREFNUM, BUDGETAMOUNT) "
                 + "values (?,?,?, ?, ?)";
@@ -400,6 +518,46 @@ public class MainApp extends Application {
         return id;
     }
 
+    public void initCategoryList() {
+        if (mConnection == null) return;
+
+        mCategoryList.clear();
+        Statement statement = null;
+        ResultSet resultSet = null;
+        String sqlCmd = "select * from CATEGORIES";
+        try {
+            statement = mConnection.createStatement();
+            resultSet = statement.executeQuery(sqlCmd);
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                String name = resultSet.getString("NAME");
+                String description = resultSet.getString("DESCRIPTION");
+                boolean incomeFlag = resultSet.getBoolean("INCOMEFLAG");
+                int taxRefNum = resultSet.getInt("TAXREFNUM");
+                BigDecimal budgetAmount = resultSet.getBigDecimal("BUDGETAMOUNT");
+                QIFParser.Category category = new QIFParser.Category();
+                category.setID(id);
+                category.setName(name);
+                category.setDescription(description);
+                category.setIsIncome(incomeFlag);
+                category.setTaxRefNum(taxRefNum);
+                category.setBudgetAmount(budgetAmount);
+                mCategoryList.add(category);
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (statement != null) statement.close();
+                if (resultSet != null) resultSet.close();
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
+    }
+
     public void initAccountList() {
         if (mConnection != null) {
             mAccountList.clear();
@@ -541,7 +699,7 @@ public class MainApp extends Application {
             dialogStage.setTitle(title);
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
-            dialogStage.setScene(new Scene((AnchorPane) loader.load()));
+            dialogStage.setScene(new Scene(loader.load()));
             PasswordDialogController controller = loader.getController();
             controller.setDialogStage(dialogStage);
             controller.setMode(mode);
@@ -592,7 +750,6 @@ public class MainApp extends Application {
         // process parsed records
         List<QIFParser.Account> aList = qifParser.getAccountList();
         for (QIFParser.Account qa : aList) {
-            System.err.println("Inserting... " + qa.getName());
             Account.Type at = null;
             switch (qa.getType()) {
                 case "Bank":
@@ -643,6 +800,7 @@ public class MainApp extends Application {
         }
 
         for (QIFParser.Category c : qifParser.getCategoryList()) insertCategoryToDB(c);
+        initCategoryList();
 
         int cnt = 0;
         for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) cnt += insertTransactionToDB(bt);
@@ -872,11 +1030,9 @@ public class MainApp extends Application {
                 + "DATE date NOT NULL, "
                 + "AMOUNT decimal(20,4), "
                 + "CLEARED integer, "
-                + "CATEGORYID integer, "
-                + "TRANSFERACCOUNTID integer, "
+                + "CATEGORYID integer, "   // positive for category ID, negative for transfer account id
                 + "MEMO varchar(" + TRANSACTIONMEMOLEN + "), "
-                + "CHECKNUM integer, "
-                + "REFERENCE varchar (" + TRANSACTIONREFLEN + "), "
+                + "REFERENCE varchar (" + TRANSACTIONREFLEN + "), "  // reference or check number as string
                 + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
                 + "SPLITFLAG boolean, "
                 + "ADDRESSID integer, "
@@ -939,8 +1095,9 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
-
-        System.out.println(new BigDecimal("0.25"));
-         launch(args);
+        String a = "[Savings]";
+        if (a.endsWith("]") && a.startsWith("[")) System.out.println("Match");
+        else System.out.println("Not");
+        launch(args);
     }
 }

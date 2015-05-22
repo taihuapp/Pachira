@@ -244,7 +244,7 @@ public class QIFParser {
         private BigDecimal mTAmount;
         private BigDecimal mUAmount;  // not sure what's the difference between T and U amounts
         private char mCleared;  // 0 for not present, 1 for *, 2 for X
-        private String mReference; // check number or ref, such as ATM, etc, so string is used
+        private String mCheckNumber; // check number or ref, such as ATM, etc, so string is used
         private String mPayee;
         private String mMemo;
         private List<String> mAddressList; // QIF says up to 6 lines.
@@ -265,7 +265,7 @@ public class QIFParser {
         public void setTAmount(BigDecimal t) { mTAmount = t; }
         public void setUAmount(BigDecimal u) { mUAmount = u; }
         public void setCleared(char c) { mCleared = c; }
-        public void setReference(String r) { mReference = r; }
+        public void setReference(String r) { mCheckNumber = r; }
         public void setPayee(String p) { mPayee = p; }
         public void setMemo(String m) { mMemo = m; }
         public void addAddress(String a) { mAddressList.add(a); }
@@ -293,7 +293,7 @@ public class QIFParser {
             return mCategory.substring(1, mCategory.length()-1);
         }
 
-        public String getReference() { return mReference; }
+        public String getReference() { return mCheckNumber; }
         public String getMemo() { return mMemo; }
         public String getPayee() { return mPayee; }
         public List<SplitBT> getSplitList() { return mSplitList; }

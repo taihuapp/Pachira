@@ -2,11 +2,11 @@ package net.taihuapp.facai168;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
-import javafx.scene.layout.AnchorPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -47,11 +47,19 @@ public class MainApp extends Application {
 
     private Preferences mPrefs;
     private Stage mPrimaryStage;
-    private Connection mConnection = null;
+    private Connection mConnection = null;  // todo replace Connection with a custom db class object
 
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
     private ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
     private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
+
+    public void updateTransactionListBalance() {
+        BigDecimal b = new BigDecimal(0);
+        for (Transaction t : getTransactionList()) {
+            b = b.add(t.getAmountProperty().get());
+            t.setBalance(b);
+        }
+    }
 
     // get opened named from pref
     List<String> getOpenedDBNames() {
@@ -75,6 +83,22 @@ public class MainApp extends Application {
             if (a.getName().equals(name)) {
                 return a;
             }
+        }
+        return null;
+    }
+
+    public Account getAccountByID(int id) {
+        for (Account a : getAccountList()) {
+            if (a.getID() == id)
+                return a;
+        }
+        return null;
+    }
+
+    public QIFParser.Category getCategoryByID(int id) {
+        for (QIFParser.Category c : getCategoryList()) {
+            if (c.getID() == id)
+                return c;
         }
         return null;
     }
@@ -300,6 +324,8 @@ public class MainApp extends Application {
             addressID = insertAddressToDB(address);
         }
 
+        List<QIFParser.BankTransaction.SplitBT> splitList = bt.getSplitList();
+
         String[] amortLines = bt.getAmortizationLines();
         int amortID = -1;
         if (amortLines != null)
@@ -333,7 +359,6 @@ public class MainApp extends Application {
             preparedStatement.setString(6, bt.getMemo());
             preparedStatement.setString(7, bt.getReference());
             preparedStatement.setString(8, bt.getPayee());
-            List<QIFParser.BankTransaction.SplitBT> splitList = bt.getSplitList();
             preparedStatement.setBoolean(9, !splitList.isEmpty());
             preparedStatement.setInt(10, addressID);
             preparedStatement.setInt(11, amortID);
@@ -359,7 +384,18 @@ public class MainApp extends Application {
             }
         }
 
+        if (rowID >= 0 && !splitList.isEmpty()) {
+            insertSplitBTToDB(rowID, splitList);
+        }
         return rowID;
+    }
+
+    // return true of insert succeded, false otherwise
+    public boolean insertSplitBTToDB(int parentID, List<QIFParser.BankTransaction.SplitBT> splitList) {
+        boolean status = false;
+
+
+        return status;
     }
 
     public int insertTransactionToDB(QIFParser.TradeTransaction transaction) {
@@ -559,8 +595,8 @@ public class MainApp extends Application {
     }
 
     public void initAccountList() {
+        mAccountList.clear();
         if (mConnection != null) {
-            mAccountList.clear();
             Statement statement;
             try {
                 statement = mConnection.createStatement();
@@ -582,13 +618,14 @@ public class MainApp extends Application {
     }
 
     public void initTransactionList(Account account) {
+        mTransactionList.clear();
         if (mConnection == null)
             return;
-        mTransactionList.clear();
         int accountID = account.getID();
         Statement statement = null;
         ResultSet resultSet = null;
-        String sqlCmd = "select ID, DATE, PAYEE from TRANSACTIONS where ACCOUNTID = " + accountID
+        String sqlCmd = "select ID, DATE, REFERENCE, AMOUNT, PAYEE, MEMO, CATEGORYID"
+                + " from TRANSACTIONS where ACCOUNTID = " + accountID
                 + " order by DATE, ID";
         try {
             statement = mConnection.createStatement();
@@ -596,8 +633,22 @@ public class MainApp extends Application {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
                 Date date = resultSet.getDate("DATE");
+                String reference = resultSet.getString("REFERENCE");
                 String payee = resultSet.getString("PAYEE");
-                mTransactionList.add(new Transaction(id, accountID, date, payee));
+                String memo = resultSet.getString("MEMO");
+                BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
+                int categoryID = resultSet.getInt("CATEGORYID");
+                String categoryStr = "";
+                if (categoryID > 0) {
+                    QIFParser.Category c = getCategoryByID(categoryID);
+                    categoryStr = c == null ? String.valueOf(categoryID) : c.getName();
+                } else {
+                    Account a = getAccountByID(-categoryID);
+                    categoryStr = (a == null) ? String.valueOf(-categoryID) : a.getName();
+                    categoryStr = "[" + categoryStr + "]";
+                }
+                mTransactionList.add(new Transaction(id, accountID, date, reference, payee,
+                        memo, categoryStr, amount));
             }
 
         } catch (SQLException e) {
@@ -843,8 +894,13 @@ public class MainApp extends Application {
                 file = new File(dbName);
             }
         }
+        // we have enough information to open a new db, close the current db now
         closeConnection();
+        initAccountList();  // empty it
+        initTransactionList(null); // empty it
 
+
+        // Trying to create a new db, but unable to delete existing same name db
         if (isNew && file.exists() && !file.delete()) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
@@ -908,6 +964,8 @@ public class MainApp extends Application {
             }
             alert.showAndWait();
         }
+
+        // todo
         if (mConnection == null) {
             return;
         }
@@ -1084,6 +1142,15 @@ public class MainApp extends Application {
     @Override
     public void init() {
         mPrefs = Preferences.userNodeForPackage(MainApp.class);
+
+        // add a change listener to update Balance
+        mTransactionList.addListener(new ListChangeListener<Transaction>() {
+            @Override
+            public void onChanged(Change<? extends Transaction> c) {
+                updateTransactionListBalance();
+            }
+        });
+
     }
 
     @Override
@@ -1095,9 +1162,7 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
-        String a = "[Savings]";
-        if (a.endsWith("]") && a.startsWith("[")) System.out.println("Match");
-        else System.out.println("Not");
+
         launch(args);
     }
 }

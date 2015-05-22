@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -8,7 +9,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.TableView;
 
-import javax.swing.text.*;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.text.DecimalFormat;
@@ -32,14 +32,24 @@ public class MainController {
     @FXML
     private TableColumn<Account, String> mAccountColumn;
     @FXML
-    private TableColumn<Account, BigDecimal> mBalanceColumn;
+    private TableColumn<Account, BigDecimal> mAccountBalanceColumn;
 
     @FXML
     private TableView<Transaction> mTransactionTableView;
     @FXML
     private TableColumn<Transaction, Date> mTransactionDateColumn;
     @FXML
+    private TableColumn<Transaction, String> mTransactionReferenceColumn;
+    @FXML
     private TableColumn<Transaction, String> mTransactionPayeeColumn;
+    @FXML
+    private TableColumn<Transaction, String> mTransactionMemoColumn;
+    @FXML
+    private TableColumn<Transaction, String> mTransactionCategoryColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> mTransactionAmountColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> mTransactionBalanceColumn;
 
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
@@ -48,7 +58,6 @@ public class MainController {
 
         mAccountTableView.setItems(mMainApp.getAccountList());
         mTransactionTableView.setItems(mMainApp.getTransactionList());
-
     }
 
     @FXML
@@ -134,9 +143,9 @@ public class MainController {
     @FXML
     private void initialize() {
         mAccountColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());
-        mBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getCurrentBalanceProperty());
+        mAccountBalanceColumn.setCellValueFactory(cellData -> cellData.getValue().getCurrentBalanceProperty());
 
-        mBalanceColumn.setCellFactory(column -> {
+        mAccountBalanceColumn.setCellFactory(column -> {
             return new TableCell<Account, BigDecimal>() {
                 @Override
                 protected void updateItem(BigDecimal item, boolean empty) {
@@ -158,6 +167,44 @@ public class MainController {
 
         // transactiontable
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
-        mTransactionPayeeColumn.setCellValueFactory(cellData->cellData.getValue().getPayeeProperty());
+        mTransactionReferenceColumn.setCellValueFactory(cellData -> cellData.getValue().getReferenceProperty());
+        mTransactionPayeeColumn.setCellValueFactory(cellData -> cellData.getValue().getPayeeProperty());
+        mTransactionMemoColumn.setCellValueFactory(cellData -> cellData.getValue().getMemoProperty());
+        mTransactionCategoryColumn.setCellValueFactory(cellData -> cellData.getValue().getCategoryProperty());
+        mTransactionAmountColumn.setCellValueFactory(cellData->cellData.getValue().getAmountProperty());
+        mTransactionAmountColumn.setCellFactory(column -> {
+            return new TableCell<Transaction, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+
+                    if (item == null || empty) {
+                        setText("");
+                    } else {
+                        // format
+                        setText((new DecimalFormat("#0.00")).format(item));
+                    }
+                    setStyle("-fx-alignment: CENTER-RIGHT;");
+                }
+            };
+        });
+        mTransactionBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getBalanceProperty());
+        mTransactionBalanceColumn.setCellFactory(column -> {
+            return new TableCell<Transaction, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+
+                    if (item == null || empty) {
+                        setText("");
+                    } else {
+                        // format
+                        setText((new DecimalFormat("#0.00")).format(item));
+                    }
+                    setStyle("-fx-alignment: CENTER-RIGHT;");
+                }
+            };
+        });
+
     }
 }

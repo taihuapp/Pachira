@@ -117,24 +117,20 @@ public class MainApp extends Application {
         } else {
             sqlCmd = "update SECURITIES set TICKER = ?, NAME = ?, TYPE = ? where ID = ?";
         }
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setString(1, security.getTicker());
             preparedStatement.setString(2, security.getName());
             preparedStatement.setInt(3, security.getType().ordinal());
             if (security.getID() >= 0) {
                 preparedStatement.setInt(4, security.getID());
             }
-            if (preparedStatement.executeUpdate() == 0) {
-                throw new SQLException("Insert Security failed, no rows affected");
-            }
-            resultSet = preparedStatement.getGeneratedKeys();
-            if (resultSet.next()) {
-                security.setID(resultSet.getInt(1));
-            } else {
-                throw new SQLException("Insert Security failed, no ID obtained");
+            preparedStatement.executeUpdate();
+
+            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                if (resultSet.next()) {
+                    security.setID(resultSet.getInt(1));
+                }
             }
         } catch (SQLException e) {
             String title = "Database Error";
@@ -156,16 +152,6 @@ public class MainApp extends Application {
         } catch (NullPointerException e) {
             System.err.println("mConnection is null");
             e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null)
-                    preparedStatement.close();
-                if (resultSet != null)
-                    resultSet.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
         }
     }
 
@@ -190,41 +176,85 @@ public class MainApp extends Application {
                 throw new IllegalArgumentException("insertUpdatePriceToDB called with bad mode = " + mode);
         }
 
-        PreparedStatement preparedStatement = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setBigDecimal(1, p);
             preparedStatement.setInt(2, securityID);
             preparedStatement.setDate(3, date);
-            if (preparedStatement.executeUpdate() == 0) {
-                throw new SQLException("Insert PRICE failed with " +
-                        securityID + "," + date + p);
-            } else {
-                status = true;
-            }
+            preparedStatement.executeUpdate();
+            status = true;
         } catch (SQLException e) {
             printSQLException(e);
             e.printStackTrace();
         } catch (NullPointerException e) {
-              e.printStackTrace();
-            return false;
-        } finally {
-            if (preparedStatement != null) {
-                try {
-                    preparedStatement.close();
-                } catch (SQLException e) {
-                    status = false;
-                    printSQLException(e);
-                    e.printStackTrace();
-                }
-            }
+            e.printStackTrace();
         }
         return status;
     }
 
+    // the name should be a category name or account name surrounded by []
+    // return categoryID or negative accountID
+    private int mapCategoryOrAccountNameToID(String name) {
+        if (name.startsWith("[") && name.endsWith("]")) {
+            int len = name.length();
+            Account a = getAccountByName(name.substring(1, len-1));
+            if (a != null)
+                return -a.getID();
+            return 0;
+        } else {
+            QIFParser.Category c = getCategoryByName(name);
+            if (c != null)
+                return c.getID();
+            return 0;
+        }
+    }
+
+    private String mapCategoryOrAccountIDToName(int id) {
+        if (id > 0) {
+            QIFParser.Category c = getCategoryByID(id);
+            if (c != null)
+                return c.getName();
+            return "";
+        } else if (id < 0) {
+            Account a = getAccountByID(-id);
+            if (a != null)
+                return a.getName();
+            return "";
+        } else {
+            return "";
+        }
+    }
+
+    // take a transaction id, and a list of split BT, insert the list of bt into database
+    // return the number of splitBT inserted, which should be same as the length of
+    // the input list
+    public int insertSplitBTToDB(int btID, List<QIFParser.BankTransaction.SplitBT> splitBTList) {
+        int cnt = 0;
+
+        String sqlCmd = "insert into SPLITTRANSACTIONS (TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, PERCENTAGE) "
+                + "values (?, ?, ?, ?, ?)";
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            for (QIFParser.BankTransaction.SplitBT sbt : splitBTList) {
+                preparedStatement.setInt(1, btID);
+                preparedStatement.setInt(2, mapCategoryOrAccountNameToID(sbt.getCategory()));
+                preparedStatement.setString(3, sbt.getMemo());
+                preparedStatement.setBigDecimal(4, sbt.getAmount());
+                preparedStatement.setBigDecimal(5, sbt.getPercentage());
+
+                preparedStatement.executeUpdate();
+                cnt++;
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        }
+        return cnt;
+    }
+
+    // return the inserted rowID, -1 if error.
     public int insertAddressToDB(List<String> address) {
         int rowID = -1;
-        int nLines = Math.min(6, address.size());  // only 6 lines
+        int nLines = Math.min(6, address.size());  // max 6 lines
         String sqlCmd = "insert into ADDRESSES (";
         for (int i = 0; i < nLines; i++) {
             sqlCmd += ("LINE" + i);
@@ -239,32 +269,24 @@ public class MainApp extends Application {
         }
         sqlCmd += ")";
 
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, address.get(i));
 
             if (preparedStatement.executeUpdate() != 0) {
-                resultSet = preparedStatement.getGeneratedKeys();
-                if (resultSet.next()) rowID = resultSet.getInt(1);
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    if (resultSet.next())
+                        rowID = resultSet.getInt(1);
+                }
             }
         } catch (SQLException e) {
             printSQLException(e);
             e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null) preparedStatement.close();
-                if (resultSet != null) resultSet.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
         }
         return rowID;
     }
 
+    // return inserted rowID or -1 for failure
     public int insertAmortizationToDB(String[] amortLines) {
         int rowID = -1;
         int nLines = 7;
@@ -282,54 +304,56 @@ public class MainApp extends Application {
         }
         sqlCmd += ")";
 
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, amortLines[i]);
 
             if (preparedStatement.executeUpdate() != 0) {
-                resultSet = preparedStatement.getGeneratedKeys();
-                if (resultSet.next()) rowID = resultSet.getInt(1);
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    if (resultSet.next())
+                        rowID = resultSet.getInt(1);
+                }
             }
         } catch (SQLException e) {
             printSQLException(e);
             e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null) preparedStatement.close();
-                if (resultSet != null) resultSet.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
         }
         return rowID;
     }
 
-    public int insertTransactionToDB(QIFParser.BankTransaction bt) {
+    // insert transaction to database and returns rowID
+    // return -1 if failed
+    public int insertTransactionToDB(QIFParser.BankTransaction bt) throws SQLException {
         int rowID = -1;
         System.out.println("Inserting " + bt.toString());
         String accountName = bt.getAccountName();
         Account account = getAccountByName(accountName);
         if (account == null) {
             System.err.println("Account [" + accountName + "] not found, nothing inserted");
-            return rowID;
+            return -1;
         }
+
+        boolean success = true;
+
+        mConnection.setAutoCommit(false);
 
         List<String> address = bt.getAddressList();
         int addressID = -1;
         if (!address.isEmpty()) {
             addressID = insertAddressToDB(address);
+            if (addressID < 0)
+                success = false;
         }
-
-        List<QIFParser.BankTransaction.SplitBT> splitList = bt.getSplitList();
 
         String[] amortLines = bt.getAmortizationLines();
         int amortID = -1;
-        if (amortLines != null)
+        if (success && (amortLines != null)) {
             amortID = insertAmortizationToDB(amortLines);
+            if (amortID < 0)
+                success = false;
+        }
+
+        List<QIFParser.BankTransaction.SplitBT> splitList = bt.getSplitList();
 
         String sqlCmd;
         sqlCmd = "insert into TRANSACTIONS " +
@@ -338,64 +362,59 @@ public class MainApp extends Application {
                 "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID" +
                 ") values (?,?,?,?,?,?,?,?,?,?,?)";
 
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
-            preparedStatement.setInt(1, account.getID());
-            preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
-            preparedStatement.setBigDecimal(3, bt.getTAmount());
-            preparedStatement.setInt(4, bt.getCleared());
-            String categoryName = bt.getCategory();
-            String transferName = bt.getTransfer();
-            int categoryID = 0;
-            int transferID = 0;
-            if (categoryName != null) {
-                categoryID = getCategoryByName(categoryName).getID();
-            } else if (transferName != null) {
-                transferID = getAccountByName(bt.getTransfer()).getID();
-            }
-            preparedStatement.setInt(5, categoryID > 0 ? categoryID : -transferID);
-            preparedStatement.setString(6, bt.getMemo());
-            preparedStatement.setString(7, bt.getReference());
-            preparedStatement.setString(8, bt.getPayee());
-            preparedStatement.setBoolean(9, !splitList.isEmpty());
-            preparedStatement.setInt(10, addressID);
-            preparedStatement.setInt(11, amortID);
+        if (success) {
+            try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
 
-            if (preparedStatement.executeUpdate() != 0) {
-                resultSet = preparedStatement.getGeneratedKeys();
-                if (resultSet.next()) {
-                    rowID = resultSet.getInt(1);
+                preparedStatement.setInt(1, account.getID());
+                preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
+                preparedStatement.setBigDecimal(3, bt.getTAmount());
+                preparedStatement.setInt(4, bt.getCleared());
+                String categoryName = bt.getCategory();
+                String transferName = bt.getTransfer();
+                int categoryID = 0;
+                int transferID = 0;
+
+                // todo
+                // simplify with map.... functions
+                if (categoryName != null) {
+                    categoryID = getCategoryByName(categoryName).getID();
+                } else if (transferName != null) {
+                    transferID = getAccountByName(bt.getTransfer()).getID();
                 }
-            }
-        } catch (SQLException e) {
-            printSQLException(e);
-            e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null)
-                    preparedStatement.close();
-                if (resultSet != null)
-                    resultSet.close();
+                preparedStatement.setInt(5, categoryID > 0 ? categoryID : -transferID);
+                preparedStatement.setString(6, bt.getMemo());
+                preparedStatement.setString(7, bt.getReference());
+                preparedStatement.setString(8, bt.getPayee());
+                preparedStatement.setBoolean(9, !splitList.isEmpty());
+                preparedStatement.setInt(10, addressID);
+                preparedStatement.setInt(11, amortID);
+
+                preparedStatement.executeUpdate();
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    if (resultSet.next()) {
+                        rowID = resultSet.getInt(1);
+                    }
+                }
             } catch (SQLException e) {
                 printSQLException(e);
                 e.printStackTrace();
             }
+
+            if (rowID < 0)
+                success = false;
         }
 
-        if (rowID >= 0 && !splitList.isEmpty()) {
-            insertSplitBTToDB(rowID, splitList);
+        if (success && !splitList.isEmpty() && (insertSplitBTToDB(rowID, splitList) != splitList.size()))
+            success = false;
+
+        if (!success) {
+            mConnection.rollback();
+        } else {
+            mConnection.commit();
         }
+        mConnection.setAutoCommit(true);
+
         return rowID;
-    }
-
-    // return true of insert succeded, false otherwise
-    public boolean insertSplitBTToDB(int parentID, List<QIFParser.BankTransaction.SplitBT> splitList) {
-        boolean status = false;
-
-
-        return status;
     }
 
     public int insertTransactionToDB(QIFParser.TradeTransaction transaction) {
@@ -410,23 +429,18 @@ public class MainApp extends Application {
         String sqlCmd;
         sqlCmd = "insert into CATEGORIES (NAME, DESCRIPTION, INCOMEFLAG, TAXREFNUM, BUDGETAMOUNT) "
                 + "values (?,?,?, ?, ?)";
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
             preparedStatement.setString(1, category.getName());
             preparedStatement.setString(2, category.getDescription());
             preparedStatement.setBoolean(3, category.isIncome());
             preparedStatement.setInt(4, category.getTaxRefNum());
             preparedStatement.setBigDecimal(5, category.getBudgetAmount());
-            if (preparedStatement.executeUpdate() == 0) {
-                throw new SQLException("Insert Security failed, no rows affected");
-            }
-            resultSet = preparedStatement.getGeneratedKeys();
-            if (resultSet.next()) {
+            preparedStatement.executeUpdate();
+
+            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                resultSet.next();
                 category.setID(resultSet.getInt(1));
-            } else {
-                throw new SQLException("Insert Security failed, no ID obtained");
             }
         } catch (SQLException e) {
             String title = "Database Error";
@@ -439,7 +453,6 @@ public class MainApp extends Application {
             printSQLException(e);
             e.printStackTrace();
 
-
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
             alert.setTitle(title);
@@ -448,16 +461,6 @@ public class MainApp extends Application {
         } catch (NullPointerException e) {
             System.err.println("mConnection is null");
             e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null)
-                    preparedStatement.close();
-                if (resultSet != null)
-                    resultSet.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
         }
     }
 
@@ -833,7 +836,8 @@ public class MainApp extends Application {
 
         List<QIFParser.Security> sList = qifParser.getSecurityList();
         for (QIFParser.Security s : sList) {
-            insertUpdateSecurityToDB(new Security(-1, s.getSymbol(), s.getName(), Security.Type.fromString(s.getType())));
+            insertUpdateSecurityToDB(new Security(-1, s.getSymbol(), s.getName(),
+                    Security.Type.fromString(s.getType())));
         }
 
         List<QIFParser.Price> pList = qifParser.getPriceList();
@@ -854,7 +858,33 @@ public class MainApp extends Application {
         initCategoryList();
 
         int cnt = 0;
-        for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) cnt += insertTransactionToDB(bt);
+        for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) {
+            // todo
+            Savepoint save0 = null;
+            int rowID = -1;
+            try {
+                mConnection.setAutoCommit(false);
+                save0 = mConnection.setSavepoint();
+                rowID = insertTransactionToDB(bt);
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            } finally {
+                // todo
+                // need more thinking here
+                // need immediate work.
+                try {
+                    if (rowID > 0) {
+                        mConnection.commit();
+                    } else {
+                        mConnection.rollback(save0);
+                    }
+                } catch (SQLException e) {
+                    printSQLException(e);
+                    e.printStackTrace();
+                }
+            }
+        }
         for (QIFParser.TradeTransaction tt : qifParser.getTradeTransactionList()) insertTransactionToDB(tt);
 
         System.out.println("Inserted " + cnt + " transactions");
@@ -1049,10 +1079,11 @@ public class MainApp extends Application {
         // SplitTransaction
         sqlCmd = "create table SPLITTRANSACTIONS ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "TRANSACTIONID integer NOT NULL, "
                 + "CATEGORYID integer, "
                 + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
                 + "AMOUNT decimal(20,4), "
-                + "PERCENTAGE decimal(20, 4), "
+                + "PERCENTAGE decimal(20,4), "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 

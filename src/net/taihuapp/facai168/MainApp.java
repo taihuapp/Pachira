@@ -355,14 +355,14 @@ public class MainApp extends Application {
 
         List<QIFParser.BankTransaction.SplitBT> splitList = bt.getSplitList();
 
-        String sqlCmd;
-        sqlCmd = "insert into TRANSACTIONS " +
-                "(ACCOUNTID, DATE, AMOUNT, CLEARED, CATEGORYID, " +
-                "MEMO, REFERENCE, " +
-                "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID" +
-                ") values (?,?,?,?,?,?,?,?,?,?,?)";
-
         if (success) {
+            String sqlCmd;
+            sqlCmd = "insert into TRANSACTIONS " +
+                    "(ACCOUNTID, DATE, AMOUNT, CLEARED, CATEGORYID, " +
+                    "MEMO, REFERENCE, " +
+                    "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID" +
+                    ") values (?,?,?,?,?,?,?,?,?,?,?)";
+
             try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
 
                 preparedStatement.setInt(1, account.getID());
@@ -417,9 +417,11 @@ public class MainApp extends Application {
         return rowID;
     }
 
-    public int insertTransactionToDB(QIFParser.TradeTransaction transaction) {
+    // insert trade transaction to database and returns rowID
+    // return -1 if failed
+    public int insertTransactionToDB(QIFParser.TradeTransaction tt) {
         int rowID = -1;
-        System.out.println("Inserting " + transaction.toString());
+        System.out.println("Inserting " + tt.toString());
         String sqlCmd;
         sqlCmd = "insert into TRANSACTIONS (ACCOUNTID, DATE, TRADEACTION) values (?,?,?)";
         return rowID;
@@ -641,7 +643,7 @@ public class MainApp extends Application {
                 String memo = resultSet.getString("MEMO");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
                 int categoryID = resultSet.getInt("CATEGORYID");
-                String categoryStr = "";
+                String categoryStr;
                 if (categoryID > 0) {
                     QIFParser.Category c = getCategoryByID(categoryID);
                     categoryStr = c == null ? String.valueOf(categoryID) : c.getName();
@@ -859,32 +861,19 @@ public class MainApp extends Application {
 
         int cnt = 0;
         for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) {
-            // todo
-            Savepoint save0 = null;
-            int rowID = -1;
             try {
-                mConnection.setAutoCommit(false);
-                save0 = mConnection.setSavepoint();
-                rowID = insertTransactionToDB(bt);
+                int rowID = insertTransactionToDB(bt);
+                if (rowID < 0) {
+                    System.err.println("Failed to insert transaction: " + bt.toString());
+                } else {
+                    cnt++;
+                }
             } catch (SQLException e) {
                 printSQLException(e);
                 e.printStackTrace();
-            } finally {
-                // todo
-                // need more thinking here
-                // need immediate work.
-                try {
-                    if (rowID > 0) {
-                        mConnection.commit();
-                    } else {
-                        mConnection.rollback(save0);
-                    }
-                } catch (SQLException e) {
-                    printSQLException(e);
-                    e.printStackTrace();
-                }
             }
         }
+
         for (QIFParser.TradeTransaction tt : qifParser.getTradeTransactionList()) insertTransactionToDB(tt);
 
         System.out.println("Inserted " + cnt + " transactions");
@@ -1175,13 +1164,7 @@ public class MainApp extends Application {
         mPrefs = Preferences.userNodeForPackage(MainApp.class);
 
         // add a change listener to update Balance
-        mTransactionList.addListener(new ListChangeListener<Transaction>() {
-            @Override
-            public void onChanged(Change<? extends Transaction> c) {
-                updateTransactionListBalance();
-            }
-        });
-
+        mTransactionList.addListener((ListChangeListener<Transaction>) c -> updateTransactionListBalance());
     }
 
     @Override

@@ -394,7 +394,7 @@ public class QIFParser {
         private String mAccountName;
         private LocalDate mDate;
         private Action mAction;
-        private String mSecurity;
+        private String mSecurityName;
         private BigDecimal mPrice;
         private BigDecimal mQuantity;
         private char mCleared; // C line
@@ -414,7 +414,7 @@ public class QIFParser {
         public void setAccountName(String a) { mAccountName = a;}
         public void setDate(LocalDate d) { mDate = d; }
         public void setAction(Action action) { mAction = action; }
-        public void setSecurity(String s) { mSecurity = s; }
+        public void setSecurityName(String n) { mSecurityName = n; }
         public void setPrice(BigDecimal p) { mPrice = p; }
         public void setQuantity(BigDecimal q) { mQuantity = q; }
         public void setCleared(char c) { mCleared = c; }
@@ -425,6 +425,13 @@ public class QIFParser {
         public void setTAmount(BigDecimal t) { mTAmount = t; }
         public void setUAmount(BigDecimal u) { mUAmount = u; }
         public void setAmountTransferred(BigDecimal a) { mAmountTransferred = a; }
+
+        // getters
+        public String getAccountName() { return mAccountName; }
+        public LocalDate getDate() { return mDate; }
+        public BigDecimal getTAmount() { return mTAmount; }
+        public Action getAction() { return mAction; }
+        public String getSecurityName() { return mSecurityName; }
 
         public static TradeTransaction fromQIFLines(List<String> lines) {
             TradeTransaction tt = new TradeTransaction();
@@ -437,7 +444,7 @@ public class QIFParser {
                         tt.setAction(Action.valueOf(l.substring(1).toUpperCase()));
                         break;
                     case 'Y':
-                        tt.setSecurity(l.substring(1));
+                        tt.setSecurityName(l.substring(1));
                         break;
                     case 'I':
                         tt.setPrice(new BigDecimal(l.substring(1).replace(",","")));

@@ -1,13 +1,13 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Platform;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.TableView;
+import javafx.util.Callback;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -41,13 +41,19 @@ public class MainController {
     @FXML
     private TableColumn<Transaction, String> mTransactionReferenceColumn;
     @FXML
+    private TableColumn<Transaction, String> mTransactionTradeActionColumn;
+    @FXML
+    private TableColumn<Transaction, String> mTransactionSecurityNameColumn;
+    @FXML
     private TableColumn<Transaction, String> mTransactionPayeeColumn;
     @FXML
     private TableColumn<Transaction, String> mTransactionMemoColumn;
     @FXML
     private TableColumn<Transaction, String> mTransactionCategoryColumn;
     @FXML
-    private TableColumn<Transaction, BigDecimal> mTransactionAmountColumn;
+    private TableColumn<Transaction, BigDecimal> mTransactionPaymentColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> mTransactionDepositColumn;
     @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionBalanceColumn;
 
@@ -138,6 +144,15 @@ public class MainController {
         mMainApp.initTransactionList(account);
         System.out.println("Showing " + account.getName() + " transactions");
         mTransactionTableView.setVisible(true);
+        boolean isTradingAccount = account.getType() == Account.Type.INVESTING;
+
+        mTransactionTradeActionColumn.setVisible(isTradingAccount);
+        mTransactionReferenceColumn.setVisible(!isTradingAccount);
+        mTransactionPayeeColumn.setVisible(!isTradingAccount);
+        mTransactionMemoColumn.setVisible(!isTradingAccount);
+        mTransactionCategoryColumn.setVisible(!isTradingAccount);
+        mTransactionPaymentColumn.setVisible(!isTradingAccount);
+        mTransactionDepositColumn.setVisible(!isTradingAccount);
     }
 
     @FXML
@@ -167,44 +182,44 @@ public class MainController {
 
         // transactiontable
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
+        mTransactionTradeActionColumn.setCellValueFactory(cellData -> cellData.getValue().getTradeActionProperty());
+        mTransactionSecurityNameColumn.setCellValueFactory(cellData -> cellData.getValue().getSecurityNameProperty());
         mTransactionReferenceColumn.setCellValueFactory(cellData -> cellData.getValue().getReferenceProperty());
+
         mTransactionPayeeColumn.setCellValueFactory(cellData -> cellData.getValue().getPayeeProperty());
+
         mTransactionMemoColumn.setCellValueFactory(cellData -> cellData.getValue().getMemoProperty());
+
         mTransactionCategoryColumn.setCellValueFactory(cellData -> cellData.getValue().getCategoryProperty());
-        mTransactionAmountColumn.setCellValueFactory(cellData->cellData.getValue().getAmountProperty());
-        mTransactionAmountColumn.setCellFactory(column -> {
-            return new TableCell<Transaction, BigDecimal>() {
-                @Override
-                protected void updateItem(BigDecimal item, boolean empty) {
-                    super.updateItem(item, empty);
 
-                    if (item == null || empty) {
-                        setText("");
-                    } else {
-                        // format
-                        setText((new DecimalFormat("#0.00")).format(item));
+        Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
+                new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {
+                    @Override
+                    public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> column) {
+                        return new TableCell<Transaction, BigDecimal>() {
+                            @Override
+                            protected void updateItem(BigDecimal item, boolean empty) {
+                                super.updateItem(item, empty);
+
+                                if (item == null || empty) {
+                                    setText("");
+                                } else {
+                                    // format
+                                    setText((new DecimalFormat("#0.00")).format(item));
+                                }
+                                setStyle("-fx-alignment: CENTER-RIGHT;");
+                            }
+                        };
                     }
-                    setStyle("-fx-alignment: CENTER-RIGHT;");
-                }
-            };
-        });
+                };
+
+        mTransactionPaymentColumn.setCellValueFactory(cellData->cellData.getValue().getPaymentProperty());
+        mTransactionPaymentColumn.setCellFactory(dollarCentsCF);
+
+        mTransactionDepositColumn.setCellValueFactory(cellData->cellData.getValue().getDepositProperty());
+        mTransactionDepositColumn.setCellFactory(dollarCentsCF);
+
         mTransactionBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getBalanceProperty());
-        mTransactionBalanceColumn.setCellFactory(column -> {
-            return new TableCell<Transaction, BigDecimal>() {
-                @Override
-                protected void updateItem(BigDecimal item, boolean empty) {
-                    super.updateItem(item, empty);
-
-                    if (item == null || empty) {
-                        setText("");
-                    } else {
-                        // format
-                        setText((new DecimalFormat("#0.00")).format(item));
-                    }
-                    setStyle("-fx-alignment: CENTER-RIGHT;");
-                }
-            };
-        });
-
+        mTransactionBalanceColumn.setCellFactory(dollarCentsCF);
     }
 }

@@ -57,11 +57,14 @@
       <TableView fx:id="mTransactionTableView" prefHeight="200.0" prefWidth="200.0" visible="false" BorderPane.alignment="CENTER">
         <columns>
             <TableColumn fx:id="mTransactionDateColumn" prefWidth="120.0" text="Date" />
+            <TableColumn fx:id="mTransactionTradeActionColumn" prefWidth="75.0" text="Action" />
+            <TableColumn fx:id="mTransactionSecurityNameColumn" prefWidth="75.0" text="Security" />
             <TableColumn fx:id="mTransactionReferenceColumn" prefWidth="75.0" text="Check#" />
             <TableColumn fx:id="mTransactionPayeeColumn" prefWidth="175.0" text="Payee" />
             <TableColumn fx:id="mTransactionMemoColumn" prefWidth="175.0" text="Memo" />
             <TableColumn fx:id="mTransactionCategoryColumn" prefWidth="175.0" text="Category" />
-            <TableColumn fx:id="mTransactionAmountColumn" prefWidth="100.0" text="Amount" />
+            <TableColumn fx:id="mTransactionPaymentColumn" prefWidth="100.0" text="Payment" />
+            <TableColumn fx:id="mTransactionDepositColumn" prefWidth="100.0" text="Deposit" />
             <TableColumn fx:id="mTransactionBalanceColumn" prefWidth="100.0" text="Balance" />
         </columns>
       </TableView>

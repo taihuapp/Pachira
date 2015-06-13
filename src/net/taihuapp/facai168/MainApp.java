@@ -52,11 +52,17 @@ public class MainApp extends Application {
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
     private ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
     private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
+    private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
 
     public void updateTransactionListBalance() {
         BigDecimal b = new BigDecimal(0);
         for (Transaction t : getTransactionList()) {
-            b = b.add(t.getAmountProperty().get());
+            BigDecimal amount = t.getAmount();
+            String taStr = t.getTradeActionProperty().get();
+            if (taStr != null && taStr.equals(Transaction.TradeAction.BUY.name())) {
+                amount = amount.negate();
+            }
+            b = b.add(amount);
             t.setBalance(b);
         }
     }
@@ -77,6 +83,7 @@ public class MainApp extends Application {
     public ObservableList<Account> getAccountList() { return mAccountList; }
     public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
     public ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
+    public ObservableList<Security> getSecurityList() { return mSecurityList; }
 
     public Account getAccountByName(String name) {
         for (Account a : getAccountList()) {
@@ -91,6 +98,22 @@ public class MainApp extends Application {
         for (Account a : getAccountList()) {
             if (a.getID() == id)
                 return a;
+        }
+        return null;
+    }
+
+    public Security getSecurityByID(int id) {
+        for (Security s : getSecurityList()) {
+            if (s.getID() == id)
+                return s;
+        }
+        return null;
+    }
+
+    public Security getSecurityByName(String name) {
+        for (Security s : getSecurityList()) {
+            if (s.getName().equals(name))
+                return s;
         }
         return null;
     }
@@ -217,7 +240,7 @@ public class MainApp extends Application {
         } else if (id < 0) {
             Account a = getAccountByID(-id);
             if (a != null)
-                return a.getName();
+                return "[" + a.getName() + "]";
             return "";
         } else {
             return "";
@@ -374,8 +397,6 @@ public class MainApp extends Application {
                 int categoryID = 0;
                 int transferID = 0;
 
-                // todo
-                // simplify with map.... functions
                 if (categoryName != null) {
                     categoryID = getCategoryByName(categoryName).getID();
                 } else if (transferName != null) {
@@ -419,11 +440,51 @@ public class MainApp extends Application {
 
     // insert trade transaction to database and returns rowID
     // return -1 if failed
-    public int insertTransactionToDB(QIFParser.TradeTransaction tt) {
+    public int insertTransactionToDB(QIFParser.TradeTransaction tt) throws SQLException {
         int rowID = -1;
         System.out.println("Inserting " + tt.toString());
-        String sqlCmd;
-        sqlCmd = "insert into TRANSACTIONS (ACCOUNTID, DATE, TRADEACTION) values (?,?,?)";
+        Account account = getAccountByName(tt.getAccountName());
+        if (account == null) {
+            System.err.println("Account [" + tt.getAccountName() + "] not found, nothing inserted");
+            return -1;
+        }
+
+        // temporarily unset autocommit
+        mConnection.setAutoCommit(false);
+
+        String sqlCmd = "insert into TRANSACTIONS " +
+                "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID) values (?, ?,?,?, ?)";
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
+            preparedStatement.setInt(1, account.getID());
+            preparedStatement.setDate(2, Date.valueOf(tt.getDate()));
+            preparedStatement.setBigDecimal(3, tt.getTAmount());
+            preparedStatement.setString(4, tt.getAction().name());
+            String name = tt.getSecurityName();
+            int securityID = -1;
+            if (name != null && name.length() > 0) {
+                System.err.println("name = " + name);
+                securityID = getSecurityByName(name).getID();
+            }
+            preparedStatement.setInt(5, securityID);
+
+            preparedStatement.executeUpdate();
+            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                if (resultSet.next()) {
+                    rowID = resultSet.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        }
+
+        if (rowID < 0)
+            mConnection.rollback();
+        else
+            mConnection.commit();
+
+        // we are done here
+        mConnection.setAutoCommit(true);
         return rowID;
     }
 
@@ -601,25 +662,45 @@ public class MainApp extends Application {
 
     public void initAccountList() {
         mAccountList.clear();
-        if (mConnection != null) {
-            Statement statement;
-            try {
-                statement = mConnection.createStatement();
-                String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION from ACCOUNTS order by TYPE, ID";
-                ResultSet rs = statement.executeQuery(sqlCmd);
-                while (rs.next()) {
-                    int id = rs.getInt("ID");
-                    int typeOrdinal = rs.getInt("TYPE");
-                    Account.Type type = Account.Type.values()[typeOrdinal];
-                    String name = rs.getString("NAME");
-                    String description = rs.getString("DESCRIPTION");
-                    mAccountList.add(new Account(id, type, name, description));
-                }
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
+        if (mConnection == null) return;
+
+        try (Statement statement = mConnection.createStatement()){
+            String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION from ACCOUNTS order by TYPE, ID";
+            ResultSet rs = statement.executeQuery(sqlCmd);
+            while (rs.next()) {
+                int id = rs.getInt("ID");
+                int typeOrdinal = rs.getInt("TYPE");
+                Account.Type type = Account.Type.values()[typeOrdinal];
+                String name = rs.getString("NAME");
+                String description = rs.getString("DESCRIPTION");
+                mAccountList.add(new Account(id, type, name, description));
             }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
         }
+    }
+
+    public void initSecurityList() {
+        mSecurityList.clear();
+        if (mConnection == null) return;
+
+        try (Statement statement = mConnection.createStatement()){
+            String sqlCmd = "select ID, TICKER, NAME, TYPE from SECURITIES order by ID";
+            ResultSet rs = statement.executeQuery(sqlCmd);
+            while (rs.next()) {
+                int id = rs.getInt("ID");
+                int typeOrdinal = rs.getInt("TYPE");
+                String ticker = rs.getString("TICKER");
+                String name = rs.getString("NAME");
+                Security.Type type = Security.Type.values()[typeOrdinal];
+                mSecurityList.add(new Security(id, ticker, name, type));
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        }
+        System.out.println("Security List: " + mSecurityList.size());
     }
 
     public void initTransactionList(Account account) {
@@ -627,14 +708,12 @@ public class MainApp extends Application {
         if (mConnection == null)
             return;
         int accountID = account.getID();
-        Statement statement = null;
-        ResultSet resultSet = null;
-        String sqlCmd = "select ID, DATE, REFERENCE, AMOUNT, PAYEE, MEMO, CATEGORYID"
+
+        String sqlCmd = "select * "
                 + " from TRANSACTIONS where ACCOUNTID = " + accountID
                 + " order by DATE, ID";
-        try {
-            statement = mConnection.createStatement();
-            resultSet = statement.executeQuery(sqlCmd);
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
                 Date date = resultSet.getDate("DATE");
@@ -642,33 +721,30 @@ public class MainApp extends Application {
                 String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
-                int categoryID = resultSet.getInt("CATEGORYID");
-                String categoryStr;
-                if (categoryID > 0) {
-                    QIFParser.Category c = getCategoryByID(categoryID);
-                    categoryStr = c == null ? String.valueOf(categoryID) : c.getName();
-                } else {
-                    Account a = getAccountByID(-categoryID);
-                    categoryStr = (a == null) ? String.valueOf(-categoryID) : a.getName();
-                    categoryStr = "[" + categoryStr + "]";
-                }
-                mTransactionList.add(new Transaction(id, accountID, date, reference, payee,
-                        memo, categoryStr, amount));
-            }
+                String categoryStr = mapCategoryOrAccountIDToName(resultSet.getInt("CATEGORYID"));
+                Transaction.TradeAction tradeAction = null;
+                String taStr = resultSet.getString("TRADEACTION");
 
+                if (taStr != null) tradeAction = Transaction.TradeAction.valueOf(taStr);
+
+                int securityID = resultSet.getInt("SECURITYID");
+                BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
+                BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
+
+                if (account.getType() == Account.Type.INVESTING) {
+                    String name = "";
+                    if (securityID > 0)
+                        name = getSecurityByID(securityID).getName();
+                    mTransactionList.add(new Transaction(id, accountID, date, tradeAction, name,
+                            quantity, memo, commission, amount));
+                } else {
+                    mTransactionList.add(new Transaction(id, accountID, date, reference, payee,
+                            memo, categoryStr, amount));
+                }
+            }
         } catch (SQLException e) {
             printSQLException(e);
             e.printStackTrace();
-        } finally {
-            try {
-                if (statement != null)
-                    statement.close();
-                if (resultSet != null)
-                    resultSet.close();
-            } catch (SQLException e) {
-                printSQLException(e);
-                e.printStackTrace();
-            }
         }
     }
 
@@ -841,6 +917,7 @@ public class MainApp extends Application {
             insertUpdateSecurityToDB(new Security(-1, s.getSymbol(), s.getName(),
                     Security.Type.fromString(s.getType())));
         }
+        initSecurityList();
 
         List<QIFParser.Price> pList = qifParser.getPriceList();
         HashMap<String, Integer> tickerIDMap = new HashMap<>();
@@ -874,7 +951,19 @@ public class MainApp extends Application {
             }
         }
 
-        for (QIFParser.TradeTransaction tt : qifParser.getTradeTransactionList()) insertTransactionToDB(tt);
+        for (QIFParser.TradeTransaction tt : qifParser.getTradeTransactionList()) {
+            try {
+                int rowID = insertTransactionToDB(tt);
+                if (rowID < 0) {
+                    System.err.println("Failed to insert transaction: " + tt.toString());
+                } else {
+                    cnt++;
+                }
+            } catch (SQLException e) {
+                printSQLException(e);
+                e.printStackTrace();
+            }
+        }
 
         System.out.println("Inserted " + cnt + " transactions");
         System.out.println("Parse " + file.getAbsolutePath());
@@ -917,6 +1006,7 @@ public class MainApp extends Application {
         closeConnection();
         initAccountList();  // empty it
         initTransactionList(null); // empty it
+        initSecurityList(); // empty it
 
 
         // Trying to create a new db, but unable to delete existing same name db
@@ -997,6 +1087,8 @@ public class MainApp extends Application {
         }
         // initialize
         initAccountList();
+        initCategoryList();
+        initSecurityList();
 
         mPrimaryStage.setTitle("FaCai168 " + dbName);
     }
@@ -1176,7 +1268,6 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
-
         launch(args);
     }
 }

@@ -41,10 +41,6 @@ public class MainController {
     @FXML
     private TableColumn<Transaction, String> mTransactionReferenceColumn;
     @FXML
-    private TableColumn<Transaction, String> mTransactionTradeActionColumn;
-    @FXML
-    private TableColumn<Transaction, String> mTransactionSecurityNameColumn;
-    @FXML
     private TableColumn<Transaction, String> mTransactionPayeeColumn;
     @FXML
     private TableColumn<Transaction, String> mTransactionMemoColumn;
@@ -56,6 +52,16 @@ public class MainController {
     private TableColumn<Transaction, BigDecimal> mTransactionDepositColumn;
     @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionBalanceColumn;
+
+    @FXML
+    private TableColumn<Transaction, String> mTransactionTradeActionColumn;
+    @FXML
+    private TableColumn<Transaction, String> mTransactionSecurityNameColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> mTransactionInvestAmountColumn;
+    @FXML
+    private TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn;
+
 
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
@@ -143,8 +149,10 @@ public class MainController {
         }
         mMainApp.initTransactionList(account);
         System.out.println("Showing " + account.getName() + " transactions");
-        mTransactionTableView.setVisible(true);
+
         boolean isTradingAccount = account.getType() == Account.Type.INVESTING;
+
+        mTransactionTableView.setVisible(true);
 
         mTransactionTradeActionColumn.setVisible(isTradingAccount);
         mTransactionReferenceColumn.setVisible(!isTradingAccount);
@@ -153,6 +161,11 @@ public class MainController {
         mTransactionCategoryColumn.setVisible(!isTradingAccount);
         mTransactionPaymentColumn.setVisible(!isTradingAccount);
         mTransactionDepositColumn.setVisible(!isTradingAccount);
+        mTransactionBalanceColumn.setText(isTradingAccount ? "Cash Bal" : "Balance");
+
+        mTransactionSecurityNameColumn.setVisible(isTradingAccount);
+        mTransactionInvestAmountColumn.setVisible(isTradingAccount);
+        mTransactionCashAmountColumn.setVisible(isTradingAccount);
     }
 
     @FXML
@@ -218,6 +231,12 @@ public class MainController {
 
         mTransactionDepositColumn.setCellValueFactory(cellData->cellData.getValue().getDepositProperty());
         mTransactionDepositColumn.setCellFactory(dollarCentsCF);
+
+        mTransactionInvestAmountColumn.setCellValueFactory(cellData->cellData.getValue().getInvestAmountProperty());
+        mTransactionInvestAmountColumn.setCellFactory(dollarCentsCF);
+
+        mTransactionCashAmountColumn.setCellValueFactory(cellData->cellData.getValue().getCashAmountProperty());
+        mTransactionCashAmountColumn.setCellFactory(dollarCentsCF);
 
         mTransactionBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getBalanceProperty());
         mTransactionBalanceColumn.setCellFactory(dollarCentsCF);

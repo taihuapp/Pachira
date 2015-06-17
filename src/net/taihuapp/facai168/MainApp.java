@@ -57,11 +57,7 @@ public class MainApp extends Application {
     public void updateTransactionListBalance() {
         BigDecimal b = new BigDecimal(0);
         for (Transaction t : getTransactionList()) {
-            BigDecimal amount = t.getAmount();
-            String taStr = t.getTradeActionProperty().get();
-            if (taStr != null && taStr.equals(Transaction.TradeAction.BUY.name())) {
-                amount = amount.negate();
-            }
+            BigDecimal amount = t.getCashAmountProperty().get();
             b = b.add(amount);
             t.setBalance(b);
         }

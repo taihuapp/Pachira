@@ -63,6 +63,8 @@
             <TableColumn fx:id="mTransactionPayeeColumn" prefWidth="175.0" text="Payee" />
             <TableColumn fx:id="mTransactionMemoColumn" prefWidth="175.0" text="Memo" />
             <TableColumn fx:id="mTransactionCategoryColumn" prefWidth="175.0" text="Category" />
+            <TableColumn fx:id="mTransactionInvestAmountColumn" prefWidth="100.0" text="Inv Amt" />
+            <TableColumn fx:id="mTransactionCashAmountColumn" prefWidth="100.0" text="Cash Amt" />
             <TableColumn fx:id="mTransactionPaymentColumn" prefWidth="100.0" text="Payment" />
             <TableColumn fx:id="mTransactionDepositColumn" prefWidth="100.0" text="Deposit" />
             <TableColumn fx:id="mTransactionBalanceColumn" prefWidth="100.0" text="Balance" />

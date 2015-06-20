@@ -58,6 +58,9 @@ public class MainApp extends Application {
         BigDecimal b = new BigDecimal(0);
         for (Transaction t : getTransactionList()) {
             BigDecimal amount = t.getCashAmountProperty().get();
+            if (amount == null) {
+                System.err.println(t.toString());
+            }
             b = b.add(amount);
             t.setBalance(b);
         }
@@ -717,6 +720,9 @@ public class MainApp extends Application {
                 String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
+                if (amount == null) {
+                    amount = BigDecimal.ZERO;
+                }
                 String categoryStr = mapCategoryOrAccountIDToName(resultSet.getInt("CATEGORYID"));
                 Transaction.TradeAction tradeAction = null;
                 String taStr = resultSet.getString("TRADEACTION");

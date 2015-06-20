@@ -73,6 +73,8 @@ public class Transaction {
                 mCashAmount.setValue(amount.negate());
                 break;
             case BUYX:
+            case SHRSIN:
+            case SHRSOUT:
                 mInvestAmount.setValue(amount);
                 mCashAmount.setValue(BigDecimal.ZERO);
                 break;
@@ -83,6 +85,11 @@ public class Transaction {
             case SELLX:
                 mInvestAmount.setValue(amount.negate());
                 mCashAmount.setValue(BigDecimal.ZERO);
+                break;
+            case XIN:
+            case XOUT:
+                mInvestAmount.setValue(BigDecimal.ZERO);
+                mCashAmount.setValue(amount);
                 break;
             case CGLONGX:
             case CGSHORTX:
@@ -101,13 +108,9 @@ public class Transaction {
             case REINVSH:
             case RTRNCAP:
             case RTRNCAPX:
-            case SHRSIN:
-            case SHRSOUT:
             case STKSPLIT:
             case WITHDRWX:
-            case XIN:
-            case XOUT:
-                System.err.println("TradingAction not implement yet");
+                System.err.println("TradingAction " + ta.name() + " not implement yet");
                 break;
             case CASH:
             case DIV:
@@ -119,6 +122,12 @@ public class Transaction {
                 break;
         }
 
+        if (mCashAmount.get() == null) {
+            if (amount == null)
+                System.err.println("Amount is null?" + id);
+            System.err.println("Null cash amount? " + id);
+            System.exit(1);
+        }
         // todo
         // need to finish here
     }

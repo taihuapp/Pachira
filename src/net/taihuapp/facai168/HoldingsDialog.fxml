@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.HoldingsDialogController">
+   <children>
+      <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <DatePicker fx:id="mDatePicker" />
+            <TableView prefHeight="200.0" prefWidth="200.0">
+              <columns>
+                <TableColumn fx:id="mNameColumn" prefWidth="114.0" text="Security" />
+                <TableColumn fx:id="mPriceColumn" prefWidth="55.0" text="Price" />
+                  <TableColumn fx:id="mQuantityColumn" prefWidth="97.0" text="Quantity" />
+                  <TableColumn fx:id="mMarketValueColumn" prefWidth="112.0" text="Market Value" />
+                  <TableColumn fx:id="mCostBasisColumn" prefWidth="97.0" text="Cost Basis" />
+                  <TableColumn fx:id="mPNLColumn" prefWidth="62.0" text="P&amp;L" />
+                  <TableColumn fx:id="mPctRetColumn" prefWidth="56.0" text="\%" />
+              </columns>
+            </TableView>
+         </children>
+      </VBox>
+   </children>
+</AnchorPane>

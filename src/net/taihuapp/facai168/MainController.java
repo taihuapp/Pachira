@@ -7,6 +7,7 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.VBox;
 import javafx.util.Callback;
 
 import java.math.BigDecimal;
@@ -33,6 +34,14 @@ public class MainController {
     private TableColumn<Account, String> mAccountColumn;
     @FXML
     private TableColumn<Account, BigDecimal> mAccountBalanceColumn;
+
+    @FXML
+    private VBox mTransactionVBox;
+
+    @FXML
+    private Label mTransactionAccountNameLabel;
+    @FXML
+    Button mTransactionShowHoldingsButton;
 
     @FXML
     private TableView<Transaction> mTransactionTableView;
@@ -143,7 +152,14 @@ public class MainController {
         }
     }
 
+    @FXML
+    private void handleShowHoldings() {
+        mMainApp.showAccountHoldings();
+    }
+
     public void showAccountTransactions(Account account) {
+        mMainApp.setCurrentAccount(account);
+
         if (account == null) {
             return;
         }
@@ -151,6 +167,10 @@ public class MainController {
         System.out.println("Showing " + account.getName() + " transactions");
 
         boolean isTradingAccount = account.getType() == Account.Type.INVESTING;
+
+        mTransactionAccountNameLabel.setVisible(true);
+        mTransactionAccountNameLabel.setText(account.getName());
+        mTransactionShowHoldingsButton.setVisible(isTradingAccount);
 
         mTransactionTableView.setVisible(true);
 

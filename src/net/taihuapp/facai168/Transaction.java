@@ -14,7 +14,7 @@ public class Transaction {
     public enum TradeAction { BUY, BUYX, CASH, CGLONG, CGLONGX, CGSHORT, CGSHORTX,
         CONTRIB, CONTRIBX, DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
         MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
-        RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, STKSPLIT, WITHDRWX,
+        RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, STKSPLIT, WITHDRWX,
         XIN, XOUT }
 
     private int mID = -1;
@@ -79,6 +79,7 @@ public class Transaction {
                 mCashAmount.setValue(BigDecimal.ZERO);
                 break;
             case SELL:
+            case SHTSELL:
                 mInvestAmount.setValue(amount.negate());
                 mCashAmount.setValue(amount);
                 break;
@@ -93,9 +94,12 @@ public class Transaction {
                 break;
             case CGLONGX:
             case CGSHORTX:
+            case DIVX:
+                mInvestAmount.setValue(BigDecimal.ZERO);
+                mCashAmount.setValue(BigDecimal.ZERO);
+                break;
             case CONTRIB:
             case CONTRIBX:
-            case DIVX:
             case INTINCX:
             case MISCEXP:
             case MISCEXPX:

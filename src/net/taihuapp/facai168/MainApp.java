@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Application;
+import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -53,6 +54,13 @@ public class MainApp extends Application {
     private ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
     private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
+    private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
+
+
+    private Account mCurrentAccount = null;
+
+    public Account getCurrentAccount() { return mCurrentAccount; }
+    public void setCurrentAccount(Account a) { mCurrentAccount = a; }
 
     public void updateTransactionListBalance() {
         BigDecimal b = new BigDecimal(0);
@@ -83,6 +91,7 @@ public class MainApp extends Application {
     public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
     public ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
     public ObservableList<Security> getSecurityList() { return mSecurityList; }
+    public ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
 
     public Account getAccountByName(String name) {
         for (Account a : getAccountList()) {
@@ -846,6 +855,36 @@ public class MainApp extends Application {
         }
     }
 
+    public void showAccountHoldings() {
+        if (mCurrentAccount == null) {
+            System.err.println("Can't show holdings for null account.");
+            return;
+        }
+        if (mCurrentAccount.getType() != Account.Type.INVESTING) {
+            System.err.println("Show holdings only applicable for trading account");
+            return;
+        }
+
+        System.out.println("Showing holdings for " + mCurrentAccount.getName());
+
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("HoldingsDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Account Holdings: " + mCurrentAccount.getName());
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+
+            HoldingsDialogController controller = loader.getController();
+            controller.setMainApp(this);
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void closeConnection() {
         if (mConnection != null) {
             try {
@@ -1218,6 +1257,15 @@ public class MainApp extends Application {
                 + "AMOUNTTRANSFERRED decimal(20,4), "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
+
+        // LotInfo table
+        sqlCmd = "create table LotInfo ("
+                + "TransID integer NOT NULL, "
+                + "MatchID integer NOT NULL, "
+                + "OpenQuantity decimal(20,6), "
+                + "Constraint UniquePair unique (TransID, MatchID));";
+        sqlCreateTable(sqlCmd);
+
     }
 
     public static void printSQLException(SQLException e) {

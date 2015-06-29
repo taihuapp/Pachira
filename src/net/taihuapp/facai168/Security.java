@@ -2,6 +2,7 @@ package net.taihuapp.facai168;
 
 /**
  * Created by ghe on 4/2/15.
+ * Security class
  */
 public class Security {
     public enum Type {

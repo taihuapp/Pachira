@@ -432,6 +432,12 @@ public class QIFParser {
         public BigDecimal getTAmount() { return mTAmount; }
         public Action getAction() { return mAction; }
         public String getSecurityName() { return mSecurityName; }
+        public int getCleared() { return mCleared; }
+        public String getCategoryOrTransfer() { return mCategoryOrTransfer; }
+        public String getMemo() { return mMemo; }
+        public BigDecimal getPrice() { return mPrice; }
+        public BigDecimal getQuantity() { return mQuantity; }
+        public BigDecimal getCommission() { return mCommission; }
 
         public static TradeTransaction fromQIFLines(List<String> lines) {
             TradeTransaction tt = new TradeTransaction();

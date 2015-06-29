@@ -10,7 +10,7 @@
       <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <DatePicker fx:id="mDatePicker" />
-            <TableView prefHeight="200.0" prefWidth="200.0">
+            <TableView fx:id="mSecurityHoldingsTableView" prefHeight="200.0" prefWidth="200.0">
               <columns>
                 <TableColumn fx:id="mNameColumn" prefWidth="114.0" text="Security" />
                 <TableColumn fx:id="mPriceColumn" prefWidth="55.0" text="Price" />

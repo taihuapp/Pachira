@@ -3,6 +3,7 @@ package net.taihuapp.facai168;
 import javafx.fxml.FXML;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,6 +19,9 @@ public class HoldingsDialogController {
 
     @FXML
     private DatePicker mDatePicker;
+
+    @FXML
+    private TableView<SecurityHolding> mSecurityHoldingsTableView;
 
     @FXML
     private TableColumn<SecurityHolding, String> mNameColumn;
@@ -36,15 +40,11 @@ public class HoldingsDialogController {
 
 
 
-    public void setMainApp(MainApp mainApp) { mMainApp = mainApp; }
+    public void setMainApp(MainApp mainApp) {
+        mMainApp = mainApp;
 
-    private void updateHoldings() {
-        LocalDate date = mDatePicker.getValue();
-        System.out.println("Selected date: " + mDatePicker.getValue());
-    }
+        mSecurityHoldingsTableView.setItems(mMainApp.getSecurityHoldingList());
 
-    @FXML
-    private void initialize() {
 
         mNameColumn.setCellValueFactory(cellData->cellData.getValue().getSecurityNameProperty());
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
@@ -56,7 +56,15 @@ public class HoldingsDialogController {
 
         mDatePicker.setOnAction(event -> { updateHoldings(); });
         mDatePicker.setValue(LocalDate.now());
-
-
+        updateHoldings();// setValue doesn't trigger an event, call update mannually.
     }
+
+    private void updateHoldings() {
+        LocalDate date = mDatePicker.getValue();
+        mMainApp.updateHoldingsList(date);
+        System.out.println("Selected date: " + mDatePicker.getValue());
+    }
+
+    @FXML
+    private void initialize() {}
 }

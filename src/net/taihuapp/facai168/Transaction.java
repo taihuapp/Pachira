@@ -3,7 +3,7 @@ package net.taihuapp.facai168;
 import javafx.beans.property.*;
 
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 
 /**
  * Created by ghe on 4/9/15.
@@ -11,15 +11,16 @@ import java.sql.Date;
 
 public class Transaction {
 
-    public enum TradeAction { BUY, BUYX, CASH, CGLONG, CGLONGX, CGSHORT, CGSHORTX,
-        CONTRIB, CONTRIBX, DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
-        MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
-        RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, STKSPLIT, WITHDRWX,
-        XIN, XOUT }
+    public enum TradeAction { BUY, BUYX, CASH, CGLONG, CGLONGX, CGMID, CGMIDX,
+        CGSHORT, CGSHORTX, CVTSHRT, CVTSHRTX, DIV, DIVX, INTINC, INTINCX,
+        MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
+        REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
+        SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
+        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX }
 
     private int mID = -1;
     private int mAccountID = -1;
-    private final ObjectProperty<Date> mDate = new SimpleObjectProperty<>();
+    private final ObjectProperty<LocalDate> mDate = new SimpleObjectProperty<>();
     private StringProperty mTradeAction = new SimpleStringProperty();
     private StringProperty mSecurityName = new SimpleStringProperty();
     private final StringProperty mReference = new SimpleStringProperty();
@@ -32,10 +33,12 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mBalance = new SimpleObjectProperty<>();
     private final ObjectProperty<BigDecimal> mInvestAmount = new SimpleObjectProperty<>();
     private final ObjectProperty<BigDecimal> mCommission = new SimpleObjectProperty<>();
+    private final ObjectProperty<BigDecimal> mQuantity = new SimpleObjectProperty<>();
 
     // getters
+    public int getID() { return mID; }
     public int getAccountID() { return mAccountID; }
-    public ObjectProperty<Date> getDateProperty() { return mDate; }
+    public ObjectProperty<LocalDate> getDateProperty() { return mDate; }
     public StringProperty getReferenceProperty() { return mReference; }
     public StringProperty getPayeeProperty() { return mPayee; }
     public StringProperty getMemoProperty() { return mMemo; }
@@ -47,6 +50,7 @@ public class Transaction {
     public ObjectProperty<BigDecimal> getDepositProperty() { return mDeposite; }
     public ObjectProperty<BigDecimal> getCommissionProperty() { return mCommission; }
     public ObjectProperty<BigDecimal> getBalanceProperty() { return mBalance; }
+    public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantity; }
 
     //public TradeAction getTradeAction() { return mTradeAction; }
     public StringProperty getTradeActionProperty() { return mTradeAction; }
@@ -58,23 +62,38 @@ public class Transaction {
     // Trade Transaction constructor
     // for cash transactions, the amount can be either positive or negative
     // for other transactions, the amount is the notional amount, either 0 or positive
-    public Transaction(int id, int accountID, Date date, TradeAction ta, String securityName,
+    public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String securityName,
                        BigDecimal quantity, String memo, BigDecimal commission, BigDecimal amount) {
         mID = id;
         mAccountID = accountID;
-        mDate.setValue(date);
-        mTradeAction.setValue(ta.name());
-        mSecurityName.setValue(securityName);
-        mCommission.setValue(commission);
+        mDate.set(date);
+        mTradeAction.set(ta.name());
+        mSecurityName.set(securityName);
+        mCommission.set(commission);
+        mQuantity.set(quantity);
 
         switch (ta) {
+            // todo
+            // need to verify each
             case BUY:
+            case BUYBOND:
+            case CVTSHRT:
                 mInvestAmount.setValue(amount);
                 mCashAmount.setValue(amount.negate());
                 break;
             case BUYX:
+            case BUYBONDX:
+            case CVTSHRTX:
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
+            case STKSPLIT:
             case SHRSIN:
             case SHRSOUT:
+            case STOCKDIV:
+            case XFRSHRS:
                 mInvestAmount.setValue(amount);
                 mCashAmount.setValue(BigDecimal.ZERO);
                 break;
@@ -84,45 +103,39 @@ public class Transaction {
                 mCashAmount.setValue(amount);
                 break;
             case SELLX:
+            case SHTSELLX:
                 mInvestAmount.setValue(amount.negate());
                 mCashAmount.setValue(BigDecimal.ZERO);
                 break;
+            case CASH:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
+            case DIV:
+            case INTINC:
+            case MARGINT:
+            case MISCEXP:
+            case MISCINC:
+            case RTRNCAP:
             case XIN:
             case XOUT:
                 mInvestAmount.setValue(BigDecimal.ZERO);
                 mCashAmount.setValue(amount);
                 break;
             case CGLONGX:
+            case CGMIDX:
             case CGSHORTX:
             case DIVX:
+            case INTINCX:
+            case MARGINTX:
+            case MISCEXPX:
+            case MISCINCX:
+            case RTRNCAPX:
                 mInvestAmount.setValue(BigDecimal.ZERO);
                 mCashAmount.setValue(BigDecimal.ZERO);
                 break;
-            case CONTRIB:
-            case CONTRIBX:
-            case INTINCX:
-            case MISCEXP:
-            case MISCEXPX:
-            case MISCINC:
-            case MISCINCX:
-            case REINVDIV:
-            case REINVINT:
-            case REINVLG:
-            case REINVMD:
-            case REINVSH:
-            case RTRNCAP:
-            case RTRNCAPX:
-            case STKSPLIT:
-            case WITHDRWX:
+            default:
                 System.err.println("TradingAction " + ta.name() + " not implement yet");
-                break;
-            case CASH:
-            case DIV:
-            case CGLONG:
-            case CGSHORT:
-            case INTINC:
-                mInvestAmount.setValue(BigDecimal.ZERO);
-                mCashAmount.setValue(amount);
                 break;
         }
 
@@ -138,7 +151,7 @@ public class Transaction {
 
 
     // Banking Transaction constructors
-    public Transaction(int id, int accountID, Date date, String reference, String payee, String memo,
+    public Transaction(int id, int accountID, LocalDate date, String reference, String payee, String memo,
                        String category, BigDecimal amount) {
         mID = id;
         mAccountID = accountID;

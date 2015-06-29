@@ -11,8 +11,8 @@ import javafx.scene.layout.VBox;
 import javafx.util.Callback;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.text.DecimalFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,7 +46,7 @@ public class MainController {
     @FXML
     private TableView<Transaction> mTransactionTableView;
     @FXML
-    private TableColumn<Transaction, Date> mTransactionDateColumn;
+    private TableColumn<Transaction, LocalDate> mTransactionDateColumn;
     @FXML
     private TableColumn<Transaction, String> mTransactionReferenceColumn;
     @FXML

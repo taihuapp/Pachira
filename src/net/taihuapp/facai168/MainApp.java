@@ -16,9 +16,11 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.prefs.Preferences;
 
 public class MainApp extends Application {
@@ -55,7 +57,6 @@ public class MainApp extends Application {
     private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
-
 
     private Account mCurrentAccount = null;
 
@@ -191,7 +192,7 @@ public class MainApp extends Application {
     //        3 insert and update
     // return true of operation successful
     //        false otherwise
-    public boolean insertUpdatePriceToDB(Integer securityID, Date date, BigDecimal p, int mode) {
+    public boolean insertUpdatePriceToDB(Integer securityID, LocalDate date, BigDecimal p, int mode) {
         boolean status = false;
         String sqlCmd;
         switch (mode) {
@@ -210,7 +211,7 @@ public class MainApp extends Application {
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setBigDecimal(1, p);
             preparedStatement.setInt(2, securityID);
-            preparedStatement.setDate(3, date);
+            preparedStatement.setDate(3, Date.valueOf(date));
             preparedStatement.executeUpdate();
             status = true;
         } catch (SQLException e) {
@@ -225,9 +226,11 @@ public class MainApp extends Application {
     // the name should be a category name or account name surrounded by []
     // return categoryID or negative accountID
     private int mapCategoryOrAccountNameToID(String name) {
+        if (name == null)
+            return 0;
         if (name.startsWith("[") && name.endsWith("]")) {
             int len = name.length();
-            Account a = getAccountByName(name.substring(1, len-1));
+            Account a = getAccountByName(name.substring(1, len - 1));
             if (a != null)
                 return -a.getID();
             return 0;
@@ -461,7 +464,9 @@ public class MainApp extends Application {
         mConnection.setAutoCommit(false);
 
         String sqlCmd = "insert into TRANSACTIONS " +
-                "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID) values (?, ?,?,?, ?)";
+                "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
+                "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION) " +
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
             preparedStatement.setInt(1, account.getID());
             preparedStatement.setDate(2, Date.valueOf(tt.getDate()));
@@ -474,6 +479,12 @@ public class MainApp extends Application {
                 securityID = getSecurityByName(name).getID();
             }
             preparedStatement.setInt(5, securityID);
+            preparedStatement.setInt(6, tt.getCleared());
+            preparedStatement.setInt(7, mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer()));
+            preparedStatement.setString(8, tt.getMemo());
+            preparedStatement.setBigDecimal(9, tt.getPrice());
+            preparedStatement.setBigDecimal(10, tt.getQuantity());
+            preparedStatement.setBigDecimal(11, tt.getCommission());
 
             preparedStatement.executeUpdate();
             try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
@@ -693,7 +704,7 @@ public class MainApp extends Application {
         mSecurityList.clear();
         if (mConnection == null) return;
 
-        try (Statement statement = mConnection.createStatement()){
+        try (Statement statement = mConnection.createStatement()) {
             String sqlCmd = "select ID, TICKER, NAME, TYPE from SECURITIES order by ID";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
@@ -724,7 +735,7 @@ public class MainApp extends Application {
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
-                Date date = resultSet.getDate("DATE");
+                LocalDate date = resultSet.getDate("DATE").toLocalDate();
                 String reference = resultSet.getString("REFERENCE");
                 String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
@@ -746,6 +757,8 @@ public class MainApp extends Application {
                     String name = "";
                     if (securityID > 0)
                         name = getSecurityByID(securityID).getName();
+                    if (quantity == null) quantity = BigDecimal.ZERO;
+                    if (commission == null) commission = BigDecimal.ZERO;
                     mTransactionList.add(new Transaction(id, accountID, date, tradeAction, name,
                             quantity, memo, commission, amount));
                 } else {
@@ -855,6 +868,55 @@ public class MainApp extends Application {
         }
     }
 
+    public void updateHoldingsList(LocalDate date) {
+        // empty the list first
+        mSecurityHoldingList.clear();
+
+        CashHolding cashHolding = new CashHolding();
+        cashHolding.setPrice(BigDecimal.ONE);
+        Map<String, Integer> indexMap = new HashMap<>();
+        for (Transaction t : mTransactionList) {
+            String name = t.getSecurityNameProperty().get();
+            cashHolding.addLot(t);
+            if (!name.isEmpty()) {
+                Integer index = indexMap.get(name);
+                if (index == null) {
+                    // first time
+                    indexMap.put(name, mSecurityHoldingList.size());
+                    mSecurityHoldingList.add(new SecurityHolding(name));
+                } else {
+                    mSecurityHoldingList.get(index).addLot(t);
+                }
+            }
+        }
+
+        for (SecurityHolding securityHolding : mSecurityHoldingList) {
+            String name = securityHolding.getSecurityNameProperty().get();
+            securityHolding.setPrice(getLatestSecurityPrice(name, date));
+        }
+        // put cash holding at the bottom
+        mSecurityHoldingList.add(cashHolding);
+    }
+
+    // retrieve the latest price no later than date
+    public BigDecimal getLatestSecurityPrice(String securityName, LocalDate date) {
+        BigDecimal price = null;
+        String sqlCmd = "select top 1 p.price from PRICES p inner join SECURITIES s " +
+                "where s.NAME = '" + securityName + "' and s.ID = p.SECURITYID " +
+                " and p.DATE <= '" + date.toString() + "' order by DATE desc";
+        System.out.println(sqlCmd);
+        try (Statement statement = mConnection.createStatement()) {
+            try (ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+                if (resultSet.next())
+                    price = resultSet.getBigDecimal(1);
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();;
+        }
+        return price;
+    }
+
     public void showAccountHoldings() {
         if (mCurrentAccount == null) {
             System.err.println("Can't show holdings for null account.");
@@ -878,6 +940,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             HoldingsDialogController controller = loader.getController();
+            System.out.println("setting mainApp");
             controller.setMainApp(this);
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -968,7 +1031,7 @@ public class MainApp extends Application {
             if (id == null) {
                 tickerIDMap.put(security, id = getSecurityID(security));
             }
-            if (!insertUpdatePriceToDB(id, Date.valueOf(p.getDate()), p.getPrice(), 3)) {
+            if (!insertUpdatePriceToDB(id, p.getDate(), p.getPrice(), 3)) {
                 System.err.println("Insert to PRICE failed with "
                         + security + "(" + id + ")," + p.getDate() + "," + p.getPrice());
             }
@@ -1262,7 +1325,7 @@ public class MainApp extends Application {
         sqlCmd = "create table LotInfo ("
                 + "TransID integer NOT NULL, "
                 + "MatchID integer NOT NULL, "
-                + "OpenQuantity decimal(20,6), "
+                + "MatchQuantity decimal(20,6), "
                 + "Constraint UniquePair unique (TransID, MatchID));";
         sqlCreateTable(sqlCmd);
 

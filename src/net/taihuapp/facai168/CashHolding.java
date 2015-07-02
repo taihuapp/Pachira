@@ -10,9 +10,25 @@ import java.math.BigDecimal;
 class CashHolding extends SecurityHolding {
     public CashHolding() {
         super("CASH");
-        super.setPrice(BigDecimal.ONE);
+        setPrice(BigDecimal.ONE);
     }
 
+    @Override
+    public void addLot(LotInfo lotInfo) {
+        BigDecimal total = lotInfo.getQuantity().add(getCostBasisProperty().get());
+        getCostBasisProperty().set(total);
+        getQuantityProperty().set(total);
+        getMarketValueProperty().set(total);
+    }
+
+
+    @Override
+    protected void updateAggregate() {
+        // no need to do anything
+    }
+
+
+/*
     @Override
     public void addLot(Transaction t) {
         BigDecimal total = t.getCashAmountProperty().get().add(getCostBasisProperty().get());
@@ -20,4 +36,5 @@ class CashHolding extends SecurityHolding {
         getQuantityProperty().set(total);
         updateAggregate();
     }
+*/
 }

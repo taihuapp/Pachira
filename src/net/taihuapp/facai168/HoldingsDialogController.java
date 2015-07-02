@@ -45,7 +45,6 @@ public class HoldingsDialogController {
 
         mSecurityHoldingsTableView.setItems(mMainApp.getSecurityHoldingList());
 
-
         mNameColumn.setCellValueFactory(cellData->cellData.getValue().getSecurityNameProperty());
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
         mQuantityColumn.setCellValueFactory(cellData->cellData.getValue().getQuantityProperty());

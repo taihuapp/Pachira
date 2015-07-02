@@ -1,10 +1,10 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Application;
-import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -16,12 +16,11 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
+import java.sql.Date;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 public class MainApp extends Application {
 
@@ -868,25 +867,81 @@ public class MainApp extends Application {
         }
     }
 
-    public void updateHoldingsList(LocalDate date) {
+/*
+    public void updateHoldingsList000(LocalDate date) {
         // empty the list first
         mSecurityHoldingList.clear();
 
         CashHolding cashHolding = new CashHolding();
         cashHolding.setPrice(BigDecimal.ONE);
         Map<String, Integer> indexMap = new HashMap<>();
-        for (Transaction t : mTransactionList) {
+        List<Transaction> sortedTransactionList = new SortedList<>(mTransactionList,
+                Comparator.comparing(Transaction::getDate).thenComparing(Transaction::getID));
+        for (Transaction t : sortedTransactionList) {
+        //for (Transaction t : mTransactionList) {
+            if (t.getDateProperty().get().isAfter(date))
+                continue;
             String name = t.getSecurityNameProperty().get();
             cashHolding.addLot(t);
             if (!name.isEmpty()) {
                 Integer index = indexMap.get(name);
                 if (index == null) {
                     // first time
-                    indexMap.put(name, mSecurityHoldingList.size());
+                    index = mSecurityHoldingList.size();
+                    indexMap.put(name, index);
                     mSecurityHoldingList.add(new SecurityHolding(name));
-                } else {
-                    mSecurityHoldingList.get(index).addLot(t);
                 }
+                //mSecurityHoldingList.get(index).addLot(t);
+                mSecurityHoldingList.get(index).addLot(t, getMatchInfoList(t.getID()));
+            }
+        }
+
+        for (SecurityHolding securityHolding : mSecurityHoldingList) {
+            String name = securityHolding.getSecurityNameProperty().get();
+            securityHolding.setPrice(getLatestSecurityPrice(name, date));
+        }
+        // put cash holding at the bottom
+        mSecurityHoldingList.add(cashHolding);
+    }
+*/
+
+    public void updateHoldingsList(LocalDate date) {
+        // maybe this (and other operations) should be moved to Account class
+
+        // empty the list first
+        mSecurityHoldingList.clear();
+
+        CashHolding cashHolding = new CashHolding();
+        cashHolding.setPrice(BigDecimal.ONE);
+        Map<String, Integer> indexMap = new HashMap<>();
+
+        // sort the transaction list first
+        SortedList<Transaction> sortedTransactionList = new SortedList<>(mTransactionList,
+                Comparator.comparing(Transaction::getDate).thenComparing(Transaction::getID));
+        for (Transaction t : sortedTransactionList) {
+            if (t.getDateProperty().get().isAfter(date))
+                break; // we are done
+
+            int tid = t.getID();
+            LocalDate tDate = t.getDate();
+            BigDecimal tCashAmt = t.getCashAmount();
+            cashHolding.addLot(new SecurityHolding.LotInfo(tid, tDate, tCashAmt, tCashAmt));
+
+            String name = t.getSecurityName();
+            if (!name.isEmpty()) {
+                // it's not cash transaction, add security lot
+                Integer index = indexMap.get(name);
+                if (index == null) {
+                    // first time seeing this security, add to the end
+                    index = mSecurityHoldingList.size();
+                    indexMap.put(name, index);
+                    mSecurityHoldingList.add(new SecurityHolding(name));
+                }
+                BigDecimal tQuantity = t.getQuantity();
+                BigDecimal tCostBasis = t.getCostBasis();
+                SecurityHolding.LotInfo lotInfo = new SecurityHolding.LotInfo(tid, tDate, tQuantity, tCostBasis);
+                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), t.getDate(),
+                        t.getQuantity(), t.getCostBasis()), getMatchInfoList(tid));
             }
         }
 
@@ -898,18 +953,40 @@ public class MainApp extends Application {
         mSecurityHoldingList.add(cashHolding);
     }
 
+    private List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) {
+        List<SecurityHolding.MatchInfo> lmList = new ArrayList<>();
+        if (mConnection == null) {
+            System.err.println("DB connection down?! ");
+            return lmList;
+        }
+
+        try (Statement statement = mConnection.createStatement()){
+            String sqlCmd = "select TRANSID, MATCHID, MATCHQUANTITY from LOTMATCH " +
+                    "where TRANSID = " + tid;
+            ResultSet rs = statement.executeQuery(sqlCmd);
+            while (rs.next()) {
+                int mid = rs.getInt("MATCHID");
+                BigDecimal quantity = rs.getBigDecimal("MATCHQUANTITY");
+                lmList.add(new SecurityHolding.MatchInfo(tid, mid, quantity));
+            }
+        } catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        }
+
+        return lmList;
+    }
+
     // retrieve the latest price no later than date
     public BigDecimal getLatestSecurityPrice(String securityName, LocalDate date) {
         BigDecimal price = null;
         String sqlCmd = "select top 1 p.price from PRICES p inner join SECURITIES s " +
                 "where s.NAME = '" + securityName + "' and s.ID = p.SECURITYID " +
                 " and p.DATE <= '" + date.toString() + "' order by DATE desc";
-        System.out.println(sqlCmd);
-        try (Statement statement = mConnection.createStatement()) {
-            try (ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
                 if (resultSet.next())
                     price = resultSet.getBigDecimal(1);
-            }
         } catch (SQLException e) {
             printSQLException(e);
             e.printStackTrace();;
@@ -1321,8 +1398,8 @@ public class MainApp extends Application {
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
-        // LotInfo table
-        sqlCmd = "create table LotInfo ("
+        // LotMATCH table
+        sqlCmd = "create table LOTMATCH ("
                 + "TransID integer NOT NULL, "
                 + "MatchID integer NOT NULL, "
                 + "MatchQuantity decimal(20,6), "
@@ -1381,6 +1458,28 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
+
+        List<Integer> aList = new ArrayList<>();
+        for (int i = 0; i < 10; i++)
+            aList.add(i);
+
+        aList = aList.stream().filter(p-> p % 2 == 0).collect(Collectors.toList());
+        for (Integer i : aList) {
+            System.out.println("i = " + i);
+        }
+
+
+/*
+        for (Iterator<Integer> iterator = aList.iterator(); iterator.hasNext(); ) {
+            //for (Integer i : aList) {
+            Integer i = iterator.next();
+            if (i % 2 == 0)
+                iterator.remove();
+            else
+                System.out.println("i = " + i);
+        }
+*/
+
         launch(args);
     }
 }

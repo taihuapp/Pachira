@@ -1,5 +1,6 @@
 package net.taihuapp.facai168;
 
+import com.sun.istack.internal.NotNull;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -13,6 +14,7 @@ import java.util.List;
 
 /**
  * Created by ghe on 6/22/15.
+ * SecurityHolding class
  */
 public class SecurityHolding {
 
@@ -60,6 +62,7 @@ public class SecurityHolding {
                         + matchAmt);
                 return false;
             }
+
             BigDecimal newQuantity, newCostBasis, openQuantity, openCostBasis;
             if (getQuantity().signum () > 0) {
                 newQuantity = getQuantity().subtract(matchAmt);
@@ -69,8 +72,13 @@ public class SecurityHolding {
                 newQuantity = getQuantity().add(matchAmt);
                 openQuantity = openLot.getQuantity().subtract(matchAmt);
             }
-            newCostBasis = getCostBasis().multiply(newQuantity).divide(getQuantity());
-            openCostBasis = openLot.getCostBasis().multiply(openQuantity).divide(openLot.getQuantity());
+
+            int scale = getQuantity().scale();
+
+            newCostBasis = getCostBasis().multiply(newQuantity).divide(getQuantity(),
+                    scale, BigDecimal.ROUND_HALF_UP);
+            openCostBasis = openLot.getCostBasis().multiply(openQuantity).divide(openLot.getQuantity(),
+                    scale, BigDecimal.ROUND_HALF_UP);
 
             openLot.setQuantity(openQuantity);
             openLot.setCostBasis(openCostBasis);
@@ -140,7 +148,15 @@ public class SecurityHolding {
         this(n, null);
     }
 
-    BigDecimal getPrice() { return mPriceProperty.get(); }
+    // getters
+    public StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
+    public ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
+    public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
+    public ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
+    public ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
+    public ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
+    public ObjectProperty<BigDecimal> getPctRetProperty() { return mPctRetProperty; }
+    public BigDecimal getPrice() { return mPriceProperty.get(); }
 
     private int getLotIndex(int tid) {
         for (int idx = 0; idx < mLotInfoList.size(); idx++) {
@@ -176,114 +192,6 @@ public class SecurityHolding {
             System.err.println("LotInfo::addLot: lotMatch not complete" + lotInfo.getTransactionID());
             mLotInfoList.add(lotInfo); // add to the end
         }
-    }
-
-    public void addLot000(Transaction t, List<MatchInfo> matchList) {
-        if (!t.getSecurityNameProperty().get().equals(getSecurityNameProperty().get())) {
-            System.err.println("Mismatch security name, expecting " + getSecurityNameProperty().get() +
-                    ", got " + t.getSecurityNameProperty().get() + ". shouldn't happen.  skip");
-            return;
-        }
-        BigDecimal quantity = t.getQuantityProperty().get();
-        if (quantity.compareTo(BigDecimal.ZERO) == 0)
-            return;  // zero quantity
-
-        BigDecimal costBasis = t.getInvestAmountProperty().get();
-        LocalDate date = t.getDateProperty().get();
-
-        for (MatchInfo matchPair : matchList) {
-            if (matchPair.getTransactionID() != t.getID()) {
-                System.err.println("Mismatch transaction ID.  Expecting " + t.getID() +
-                        ", got " + matchPair.getTransactionID() + ".  Skipping");
-                continue;
-            }
-            int mid = matchPair.getMatchTransactionID();
-            int index = getLotIndex(mid);
-            if (index < 0) {
-                System.err.println("Missing matching transaction " + matchPair.getMatchQuantity() + ".");
-                continue;
-            }
-            LotInfo matchingLot = mLotInfoList.get(index);
-            BigDecimal openQuantity = matchingLot.getQuantity();
-            BigDecimal openCostBasis = matchingLot.getCostBasis();
-            if (quantity.signum()*openQuantity.signum() > 0) {
-                System.err.println("Transaction " + matchPair.getTransactionID() + " and Matching Transaction " +
-                        matchPair.getMatchTransactionID() + " are not offsetting: " +
-                        quantity + " vs. " + openQuantity);
-                continue;
-            }
-
-            BigDecimal matchQuantity = matchPair.getMatchQuantity();
-            if (matchQuantity.abs().compareTo(quantity.abs()) > 0 ||
-                    matchQuantity.abs().compareTo(openQuantity.abs()) > 0) {
-                System.err.println("Inconsistent matching quantity: " +
-                        quantity + "/" + matchQuantity + "/" + openQuantity);
-                continue;
-            }
-
-            BigDecimal oldQuantity = quantity;
-            BigDecimal oldOpenQuantity = openQuantity;
-            if (quantity.signum() > 0) {
-                quantity = quantity.subtract(matchQuantity.abs());
-                openQuantity = openQuantity.add(matchQuantity.abs());
-            } else {
-                quantity = quantity.add(matchQuantity.abs());
-                openQuantity = openQuantity.subtract(matchQuantity.abs());
-            }
-            openCostBasis = openCostBasis.multiply(openQuantity).divide(oldOpenQuantity);
-            costBasis = costBasis.multiply(quantity).divide(oldQuantity);
-            matchingLot.setQuantity(openQuantity);
-            matchingLot.setCostBasis(openCostBasis);
-        }
-
-        if (quantity.compareTo(BigDecimal.ZERO) == 0) {
-            return; // completely matched
-        }
-
-        if (matchList.size() > 0) {
-            System.err.print("Transaction " + t.getID() + " matching residual: " + quantity);
-        }
-        mLotInfoList.add(new LotInfo(t.getID(), date, quantity, costBasis));
-        //updateAggregate(quantity, costBasis);
-    }
-
-    public void addLot000(Transaction t) {
-        if (!t.getSecurityNameProperty().get().equals(getSecurityNameProperty().get())) {
-            System.err.println("Mismatch security name, expecting " + getSecurityNameProperty().get() +
-                    ", got " + t.getSecurityNameProperty().get() + ". shouldn't happen.  skip");
-            return;
-        }
-        BigDecimal quantity = t.getQuantityProperty().get();
-        if (quantity == BigDecimal.ZERO)
-            return; // nothing to do
-        BigDecimal costBasis = t.getInvestAmountProperty().get();
-        LocalDate date = t.getDateProperty().get();
-
-        LotInfo newLot = new LotInfo(t.getID(), date, quantity, costBasis);
-        int index = mLotInfoList.size()-1;
-        while (index >= 0) {
-            //todo
-            // need to increment or de decrement index
-            System.err.println("More work here in while loop");
-            LotInfo l = mLotInfoList.get(index);
-            int lotCompare = newLot.compareTo(l);
-            if (lotCompare == 0) {
-                System.err.println("Duplicated Transaction: " + t.toString() + ". Skipped.");
-                return;
-            }
-
-            //
-            if (lotCompare > 0) {
-                // new lot should be after index
-                break;
-            }
-
-            index--;
-        }
-        mLotInfoList.add(++index, newLot);
-
-        // update aggregate
-       // updateAggregate(quantity, costBasis);
     }
 
     protected void updateAggregate() {
@@ -322,33 +230,6 @@ public class SecurityHolding {
         mCostBasisProperty.set(costBasis);
         mMarketValueProperty.set(quantity.multiply(getPrice()));
     }
-/*
-    private void updateAggregate(BigDecimal q, BigDecimal c, BigDecimal p) {
-        BigDecimal quantity = mQuantityProperty.get().add(q);
-        BigDecimal costBasis = mCostBasisProperty.get().add(c);
-        BigDecimal marketValue = quantity.multiply(p);
-        BigDecimal pnl = marketValue.subtract(costBasis);
-        BigDecimal ret = BigDecimal.ZERO;
-        if (costBasis.compareTo(BigDecimal.ZERO) != 0)
-            ret = pnl.multiply(BigDecimal.valueOf(100)).divide(costBasis.abs(), 2, BigDecimal.ROUND_HALF_UP);
-
-        mCostBasisProperty.set(costBasis);
-        mMarketValueProperty.set(marketValue);
-        mPctRetProperty.set(ret);
-        mPNLProperty.set(pnl);
-        mPriceProperty.set(p);
-        mQuantityProperty.set(quantity);
-    }
-
-    private void updateAggregate(BigDecimal q, BigDecimal c) {
-        updateAggregate(q, c, mPriceProperty.get());
-    }
-
-    protected void updateAggregate() {
-        updateAggregate(BigDecimal.ZERO, BigDecimal.ZERO);
-    }
-
-*/
 
     public void setPrice(BigDecimal p) {
         if (p == null)
@@ -356,14 +237,5 @@ public class SecurityHolding {
         mPriceProperty.set(p);
         updateAggregate();
     }
-
-    // getters
-    public StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
-    public ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
-    public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
-    public ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
-    public ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
-    public ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
-    public ObjectProperty<BigDecimal> getPctRetProperty() { return mPctRetProperty; }
 
 }

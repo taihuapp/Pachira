@@ -26,15 +26,4 @@ class CashHolding extends SecurityHolding {
     protected void updateAggregate() {
         // no need to do anything
     }
-
-
-/*
-    @Override
-    public void addLot(Transaction t) {
-        BigDecimal total = t.getCashAmountProperty().get().add(getCostBasisProperty().get());
-        getCostBasisProperty().set(total);
-        getQuantityProperty().set(total);
-        updateAggregate();
-    }
-*/
 }

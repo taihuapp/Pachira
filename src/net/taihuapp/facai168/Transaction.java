@@ -77,6 +77,7 @@ public class Transaction {
         mTradeActionProperty.set(ta.name());
         mSecurityNameProperty.set(securityName);
         mCommissionProperty.set(commission);
+        mMemoProperty.set(memo);
 
         switch (ta) {
             // todo

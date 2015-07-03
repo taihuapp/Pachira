@@ -68,9 +68,10 @@ public class MainApp extends Application {
             BigDecimal amount = t.getCashAmountProperty().get();
             if (amount == null) {
                 System.err.println(t.toString());
+            } else {
+                b = b.add(amount);
+                t.setBalance(b);
             }
-            b = b.add(amount);
-            t.setBalance(b);
         }
     }
 
@@ -867,44 +868,6 @@ public class MainApp extends Application {
         }
     }
 
-/*
-    public void updateHoldingsList000(LocalDate date) {
-        // empty the list first
-        mSecurityHoldingList.clear();
-
-        CashHolding cashHolding = new CashHolding();
-        cashHolding.setPrice(BigDecimal.ONE);
-        Map<String, Integer> indexMap = new HashMap<>();
-        List<Transaction> sortedTransactionList = new SortedList<>(mTransactionList,
-                Comparator.comparing(Transaction::getDate).thenComparing(Transaction::getID));
-        for (Transaction t : sortedTransactionList) {
-        //for (Transaction t : mTransactionList) {
-            if (t.getDateProperty().get().isAfter(date))
-                continue;
-            String name = t.getSecurityNameProperty().get();
-            cashHolding.addLot(t);
-            if (!name.isEmpty()) {
-                Integer index = indexMap.get(name);
-                if (index == null) {
-                    // first time
-                    index = mSecurityHoldingList.size();
-                    indexMap.put(name, index);
-                    mSecurityHoldingList.add(new SecurityHolding(name));
-                }
-                //mSecurityHoldingList.get(index).addLot(t);
-                mSecurityHoldingList.get(index).addLot(t, getMatchInfoList(t.getID()));
-            }
-        }
-
-        for (SecurityHolding securityHolding : mSecurityHoldingList) {
-            String name = securityHolding.getSecurityNameProperty().get();
-            securityHolding.setPrice(getLatestSecurityPrice(name, date));
-        }
-        // put cash holding at the bottom
-        mSecurityHoldingList.add(cashHolding);
-    }
-*/
-
     public void updateHoldingsList(LocalDate date) {
         // maybe this (and other operations) should be moved to Account class
 
@@ -937,9 +900,6 @@ public class MainApp extends Application {
                     indexMap.put(name, index);
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
-                BigDecimal tQuantity = t.getQuantity();
-                BigDecimal tCostBasis = t.getCostBasis();
-                SecurityHolding.LotInfo lotInfo = new SecurityHolding.LotInfo(tid, tDate, tQuantity, tCostBasis);
                 mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), t.getDate(),
                         t.getQuantity(), t.getCostBasis()), getMatchInfoList(tid));
             }
@@ -989,7 +949,7 @@ public class MainApp extends Application {
                     price = resultSet.getBigDecimal(1);
         } catch (SQLException e) {
             printSQLException(e);
-            e.printStackTrace();;
+            e.printStackTrace();
         }
         return price;
     }

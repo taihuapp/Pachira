@@ -1,12 +1,14 @@
 package net.taihuapp.facai168;
 
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 
 /**
  * Created by ghe on 6/21/15.
@@ -21,39 +23,89 @@ public class HoldingsDialogController {
     private DatePicker mDatePicker;
 
     @FXML
-    private TableView<SecurityHolding> mSecurityHoldingsTableView;
+    private TreeTableView<LotHolding> mSecurityHoldingTreeTableView;
+    @FXML
+    private TreeTableColumn<LotHolding, String> mNameColumn;
+    @FXML
+    private TreeTableColumn<LotHolding, BigDecimal> mPriceColumn;
+    @FXML
+    private TreeTableColumn<LotHolding, BigDecimal> mQuantityColumn;
+    @FXML
+    private TreeTableColumn<LotHolding, BigDecimal> mMarketValueColumn;
+    @FXML
+    private TreeTableColumn<LotHolding, BigDecimal> mCostBasisColumn;
+    @FXML
+    private TreeTableColumn<LotHolding, BigDecimal> mPNLColumn;
+    @FXML
+    private TreeTableColumn<LotHolding, BigDecimal> mPctReturnColumn;
 
-    @FXML
-    private TableColumn<SecurityHolding, String> mNameColumn;
-    @FXML
-    private TableColumn<SecurityHolding, BigDecimal> mPriceColumn;
-    @FXML
-    private TableColumn<SecurityHolding, BigDecimal> mQuantityColumn;
-    @FXML
-    private TableColumn<SecurityHolding, BigDecimal> mMarketValueColumn;
-    @FXML
-    private TableColumn<SecurityHolding, BigDecimal> mCostBasisColumn;
-    @FXML
-    private TableColumn<SecurityHolding, BigDecimal> mPNLColumn;
-    @FXML
-    private TableColumn<SecurityHolding, BigDecimal> mPctRetColumn;
+    private void populateTreeTable() {
+        for (LotHolding l : mMainApp.getSecurityHoldingList()) {
+            TreeItem<LotHolding> t = new TreeItem<>(l);
+            mSecurityHoldingTreeTableView.getRoot().getChildren().add(t);
+            for (LotHolding l1 : ((SecurityHolding) l).getLotInfoList()) {
+                t.getChildren().add(new TreeItem<LotHolding>(l1));
+            }
+        }
 
-
+    }
 
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
 
-        mSecurityHoldingsTableView.setItems(mMainApp.getSecurityHoldingList());
+        mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(mMainApp.getRootSecurityHolding()));
+        mSecurityHoldingTreeTableView.setShowRoot(false);
+        mSecurityHoldingTreeTableView.setSortMode(TreeSortMode.ONLY_FIRST_LEVEL);
 
+        mNameColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, String> p) ->
+                new ReadOnlyStringWrapper(p.getValue().getValue().getLabel()));
+        mNameColumn.setComparator(new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                if (mNameColumn.getSortType() == TreeTableColumn.SortType.ASCENDING)
+                    return (o1.equals("CASH") ? 1 : o2.equals("CASH") ? -1 : o1.compareTo(o2));
+                else
+                    return (o1.equals("CASH") ? -1 : o2.equals("CASH") ? 1 : o1.compareTo(o2));
+            }
+        });
+
+        mPriceColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
+                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getPrice()));
+        mPriceColumn.setComparator(null);
+
+        mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
+                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getQuantity()));
+        mQuantityColumn.setComparator(null);
+
+        mMarketValueColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
+                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getMarketValue()));
+        mMarketValueColumn.setComparator(null);
+
+        mCostBasisColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
+                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getCostBasis()));
+        mCostBasisColumn.setComparator(null);
+
+        mPNLColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
+                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getPNL()));
+        mPNLColumn.setComparator(null);
+
+        mPctReturnColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
+                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getPctReturn()));
+        mPctReturnColumn.setComparator(null);
+
+/*
         mNameColumn.setCellValueFactory(cellData->cellData.getValue().getSecurityNameProperty());
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
         mQuantityColumn.setCellValueFactory(cellData->cellData.getValue().getQuantityProperty());
         mMarketValueColumn.setCellValueFactory(cellData->cellData.getValue().getMarketValueProperty());
         mCostBasisColumn.setCellValueFactory(cellData->cellData.getValue().getCostBasisProperty());
         mPNLColumn.setCellValueFactory(cellData->cellData.getValue().getPNLProperty());
-        mPctRetColumn.setCellValueFactory(cellData -> cellData.getValue().getPctRetProperty());
+        mPctReturnColumn.setCellValueFactory(cellData -> cellData.getValue().getPctRetProperty());
+*/
 
-        mDatePicker.setOnAction(event -> { updateHoldings(); });
+        mDatePicker.setOnAction(event -> {
+            updateHoldings();
+        });
         mDatePicker.setValue(LocalDate.now());
         updateHoldings();// setValue doesn't trigger an event, call update mannually.
     }
@@ -61,7 +113,7 @@ public class HoldingsDialogController {
     private void updateHoldings() {
         LocalDate date = mDatePicker.getValue();
         mMainApp.updateHoldingsList(date);
-        System.out.println("Selected date: " + mDatePicker.getValue());
+        populateTreeTable();
     }
 
     @FXML

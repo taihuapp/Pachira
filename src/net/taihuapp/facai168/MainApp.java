@@ -56,6 +56,7 @@ public class MainApp extends Application {
     private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
+    private SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
 
     private Account mCurrentAccount = null;
 
@@ -93,6 +94,7 @@ public class MainApp extends Application {
     public ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
     public ObservableList<Security> getSecurityList() { return mSecurityList; }
     public ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
+    public SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
 
     public Account getAccountByName(String name) {
         for (Account a : getAccountList()) {
@@ -888,9 +890,9 @@ public class MainApp extends Application {
             int tid = t.getID();
             LocalDate tDate = t.getDate();
             BigDecimal tCashAmt = t.getCashAmount();
-            cashHolding.addLot(new SecurityHolding.LotInfo(tid, tDate, tCashAmt, tCashAmt));
-
             String name = t.getSecurityName();
+            cashHolding.addLot(new SecurityHolding.LotInfo(tid, name, tDate, tCashAmt, tCashAmt));
+
             if (!name.isEmpty()) {
                 // it's not cash transaction, add security lot
                 Integer index = indexMap.get(name);
@@ -900,7 +902,7 @@ public class MainApp extends Application {
                     indexMap.put(name, index);
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
-                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), t.getDate(),
+                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name, t.getDate(),
                         t.getQuantity(), t.getCostBasis()), getMatchInfoList(tid));
             }
         }
@@ -1418,28 +1420,6 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
-
-        List<Integer> aList = new ArrayList<>();
-        for (int i = 0; i < 10; i++)
-            aList.add(i);
-
-        aList = aList.stream().filter(p-> p % 2 == 0).collect(Collectors.toList());
-        for (Integer i : aList) {
-            System.out.println("i = " + i);
-        }
-
-
-/*
-        for (Iterator<Integer> iterator = aList.iterator(); iterator.hasNext(); ) {
-            //for (Integer i : aList) {
-            Integer i = iterator.next();
-            if (i % 2 == 0)
-                iterator.remove();
-            else
-                System.out.println("i = " + i);
-        }
-*/
-
         launch(args);
     }
 }

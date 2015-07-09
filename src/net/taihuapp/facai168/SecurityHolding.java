@@ -16,29 +16,32 @@ import java.util.List;
  * Created by ghe on 6/22/15.
  * SecurityHolding class
  */
-public class SecurityHolding {
+public class SecurityHolding extends LotHolding {
 
-    static class LotInfo implements Comparable<LotInfo> {
+    static class LotInfo extends LotHolding implements Comparable<LotInfo> {
 
         private int mTransactionID;
         private ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
-        private ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>();
-        private ObjectProperty<BigDecimal> mCostBasisProperty = new SimpleObjectProperty<>();
 
-        public LotInfo(int id, LocalDate date, BigDecimal quantity, BigDecimal costBasis) {
+        public LotInfo(int id, String n, LocalDate date, BigDecimal quantity, BigDecimal costBasis) {
+            super(n);
             mTransactionID = id;
             mDateProperty.set(date);
-            mQuantityProperty.set(quantity);
-            mCostBasisProperty.set(costBasis);
+
+            setQuantity(quantity);
+            setCostBasis(costBasis);
         }
 
         public LocalDate getDate() { return mDateProperty.get(); }
         public int getTransactionID() { return mTransactionID; }
-        public BigDecimal getQuantity() { return mQuantityProperty.get(); }
-        public BigDecimal getCostBasis() { return mCostBasisProperty.get(); }
 
-        public void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
-        public void setCostBasis(BigDecimal c) { mCostBasisProperty.set(c); }
+        @Override
+        public StringProperty getLabelProperty() {
+            return null;
+        }
+
+        @Override
+        public String getLabel() { return getDate().toString(); }
 
         // return true for success, false for failure
         public boolean lotMatch(LotInfo openLot, BigDecimal matchAmt) {
@@ -123,20 +126,9 @@ public class SecurityHolding {
 
     private ObservableList<LotInfo> mLotInfoList = FXCollections.observableArrayList();
 
-    private StringProperty mSecurityNameProperty = new SimpleStringProperty();
-    private ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>();
-    private ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>();
-    private ObjectProperty<BigDecimal> mMarketValueProperty = new SimpleObjectProperty<>();
-    private ObjectProperty<BigDecimal> mCostBasisProperty = new SimpleObjectProperty<>();
-    private ObjectProperty<BigDecimal> mPNLProperty = new SimpleObjectProperty<>();
-    private ObjectProperty<BigDecimal> mPctRetProperty = new SimpleObjectProperty<>();
-
     // constructor
     public SecurityHolding(String n, List<LotInfo> lList) {
-        mSecurityNameProperty.set(n);
-        mQuantityProperty.set(BigDecimal.ZERO);
-        mCostBasisProperty.set(BigDecimal.ZERO);
-        mPriceProperty.set(BigDecimal.ZERO);
+        super(n);
 
         if (lList == null)
             return;
@@ -149,14 +141,11 @@ public class SecurityHolding {
     }
 
     // getters
-    public StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
-    public ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
-    public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
-    public ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
-    public ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
-    public ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
-    public ObjectProperty<BigDecimal> getPctRetProperty() { return mPctRetProperty; }
-    public BigDecimal getPrice() { return mPriceProperty.get(); }
+    @Override
+    public StringProperty getLabelProperty() { return getSecurityNameProperty(); }
+
+    @Override
+    public String getLabel() { return getSecurityNameProperty().get(); }
 
     private int getLotIndex(int tid) {
         for (int idx = 0; idx < mLotInfoList.size(); idx++) {
@@ -165,6 +154,8 @@ public class SecurityHolding {
         }
         return -1;
     }
+
+    public ObservableList<LotInfo> getLotInfoList() { return mLotInfoList; }
 
     // add the lot at the end
     public void addLot(LotInfo lotInfo) {
@@ -194,6 +185,7 @@ public class SecurityHolding {
         }
     }
 
+    @Override
     protected void updateAggregate() {
         // start from fresh
         BigDecimal quantity = BigDecimal.ZERO;
@@ -226,16 +218,8 @@ public class SecurityHolding {
             lsSign = quantity.signum();
         }
 
-        mQuantityProperty.set(quantity);
-        mCostBasisProperty.set(costBasis);
-        mMarketValueProperty.set(quantity.multiply(getPrice()));
+        setQuantity(quantity);
+        setCostBasis(costBasis);
+        super.updateAggregate();
     }
-
-    public void setPrice(BigDecimal p) {
-        if (p == null)
-            p = BigDecimal.ZERO;
-        mPriceProperty.set(p);
-        updateAggregate();
-    }
-
 }

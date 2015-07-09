@@ -2,7 +2,6 @@ package net.taihuapp.facai168;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
@@ -40,11 +39,12 @@ public class HoldingsDialogController {
     private TreeTableColumn<LotHolding, BigDecimal> mPctReturnColumn;
 
     private void populateTreeTable() {
+        mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(mMainApp.getRootSecurityHolding()));
         for (LotHolding l : mMainApp.getSecurityHoldingList()) {
             TreeItem<LotHolding> t = new TreeItem<>(l);
             mSecurityHoldingTreeTableView.getRoot().getChildren().add(t);
             for (LotHolding l1 : ((SecurityHolding) l).getLotInfoList()) {
-                t.getChildren().add(new TreeItem<LotHolding>(l1));
+                t.getChildren().add(new TreeItem<>(l1));
             }
         }
 
@@ -53,7 +53,6 @@ public class HoldingsDialogController {
     public void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
 
-        mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(mMainApp.getRootSecurityHolding()));
         mSecurityHoldingTreeTableView.setShowRoot(false);
         mSecurityHoldingTreeTableView.setSortMode(TreeSortMode.ONLY_FIRST_LEVEL);
 
@@ -70,27 +69,27 @@ public class HoldingsDialogController {
         });
 
         mPriceColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getPrice()));
+                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPrice()));
         mPriceColumn.setComparator(null);
 
         mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getQuantity()));
+                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getQuantity()));
         mQuantityColumn.setComparator(null);
 
         mMarketValueColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getMarketValue()));
+                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getMarketValue()));
         mMarketValueColumn.setComparator(null);
 
         mCostBasisColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getCostBasis()));
+                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getCostBasis()));
         mCostBasisColumn.setComparator(null);
 
         mPNLColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getPNL()));
+                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPNL()));
         mPNLColumn.setComparator(null);
 
         mPctReturnColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<BigDecimal>(p.getValue().getValue().getPctReturn()));
+                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPctReturn()));
         mPctReturnColumn.setComparator(null);
 
 /*
@@ -103,9 +102,7 @@ public class HoldingsDialogController {
         mPctReturnColumn.setCellValueFactory(cellData -> cellData.getValue().getPctRetProperty());
 */
 
-        mDatePicker.setOnAction(event -> {
-            updateHoldings();
-        });
+        mDatePicker.setOnAction(event -> {updateHoldings(); });
         mDatePicker.setValue(LocalDate.now());
         updateHoldings();// setValue doesn't trigger an event, call update mannually.
     }

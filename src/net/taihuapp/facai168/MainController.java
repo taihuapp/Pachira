@@ -164,7 +164,6 @@ public class MainController {
             return;
         }
         mMainApp.initTransactionList(account);
-        System.out.println("Showing " + account.getName() + " transactions");
 
         boolean isTradingAccount = account.getType() == Account.Type.INVESTING;
 

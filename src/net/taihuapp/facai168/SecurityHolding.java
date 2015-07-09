@@ -36,11 +36,6 @@ public class SecurityHolding extends LotHolding {
         public int getTransactionID() { return mTransactionID; }
 
         @Override
-        public StringProperty getLabelProperty() {
-            return null;
-        }
-
-        @Override
         public String getLabel() { return getDate().toString(); }
 
         // return true for success, false for failure
@@ -142,9 +137,6 @@ public class SecurityHolding extends LotHolding {
 
     // getters
     @Override
-    public StringProperty getLabelProperty() { return getSecurityNameProperty(); }
-
-    @Override
     public String getLabel() { return getSecurityNameProperty().get(); }
 
     private int getLotIndex(int tid) {
@@ -182,6 +174,15 @@ public class SecurityHolding extends LotHolding {
         if (lotInfo.getQuantity().compareTo(BigDecimal.ZERO) != 0) {
             System.err.println("LotInfo::addLot: lotMatch not complete" + lotInfo.getTransactionID());
             mLotInfoList.add(lotInfo); // add to the end
+        }
+    }
+
+    @Override
+    public void setPrice(BigDecimal p) {
+        super.setPrice(p);
+
+        for (LotInfo li : getLotInfoList()) {
+            li.setPrice(p);
         }
     }
 

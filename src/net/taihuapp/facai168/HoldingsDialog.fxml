@@ -10,18 +10,7 @@
       <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <DatePicker fx:id="mDatePicker" />
-            <TableView fx:id="mSecurityHoldingsTableView">
-              <columns>
-                <TableColumn prefWidth="114.0" text="Security" />
-                <TableColumn prefWidth="55.0" text="Price" />
-                  <TableColumn prefWidth="97.0" text="Quantity" />
-                  <TableColumn prefWidth="112.0" text="Market Value" />
-                  <TableColumn prefWidth="97.0" text="Cost Basis" />
-                  <TableColumn prefWidth="62.0" text="P&amp;L" />
-                  <TableColumn prefWidth="87.0" text="Return (%)" />
-              </columns>
-            </TableView>
-            <TreeTableView fx:id="mSecurityHoldingTreeTableView" prefHeight="200.0" prefWidth="200.0">
+            <TreeTableView fx:id="mSecurityHoldingTreeTableView">
               <columns>
                 <TreeTableColumn fx:id="mNameColumn" prefWidth="150.0" text="Name" />
                 <TreeTableColumn fx:id="mPriceColumn" prefWidth="90.0" text="Price" />

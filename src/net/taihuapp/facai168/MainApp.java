@@ -20,7 +20,6 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.prefs.Preferences;
-import java.util.stream.Collectors;
 
 public class MainApp extends Application {
 
@@ -60,7 +59,6 @@ public class MainApp extends Application {
 
     private Account mCurrentAccount = null;
 
-    public Account getCurrentAccount() { return mCurrentAccount; }
     public void setCurrentAccount(Account a) { mCurrentAccount = a; }
 
     public void updateTransactionListBalance() {
@@ -361,7 +359,6 @@ public class MainApp extends Application {
     // return -1 if failed
     public int insertTransactionToDB(QIFParser.BankTransaction bt) throws SQLException {
         int rowID = -1;
-        System.out.println("Inserting " + bt.toString());
         String accountName = bt.getAccountName();
         Account account = getAccountByName(accountName);
         if (account == null) {
@@ -455,7 +452,6 @@ public class MainApp extends Application {
     // return -1 if failed
     public int insertTransactionToDB(QIFParser.TradeTransaction tt) throws SQLException {
         int rowID = -1;
-        System.out.println("Inserting " + tt.toString());
         Account account = getAccountByName(tt.getAccountName());
         if (account == null) {
             System.err.println("Account [" + tt.getAccountName() + "] not found, nothing inserted");
@@ -721,7 +717,6 @@ public class MainApp extends Application {
             printSQLException(e);
             e.printStackTrace();
         }
-        System.out.println("Security List: " + mSecurityList.size());
     }
 
     public void initTransactionList(Account account) {
@@ -819,10 +814,11 @@ public class MainApp extends Application {
             EditAccountDialogController controller = loader.getController();
             if (controller == null) {
                 System.err.println("Null controller?");
-            } else {
-                controller.setDialogStage(dialogStage);
-                controller.setAccount(account);
+                return false;
             }
+
+            controller.setDialogStage(dialogStage);
+            controller.setAccount(account);
             dialogStage.showAndWait();
             return controller.isOK();
         } catch (IOException e) {
@@ -966,8 +962,6 @@ public class MainApp extends Application {
             return;
         }
 
-        System.out.println("Showing holdings for " + mCurrentAccount.getName());
-
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("HoldingsDialog.fxml"));
@@ -979,7 +973,6 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             HoldingsDialogController controller = loader.getController();
-            System.out.println("setting mainApp");
             controller.setMainApp(this);
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1018,7 +1011,6 @@ public class MainApp extends Application {
                 System.err.println("Failed to parse " + file);
             }
         } catch (IOException e) {
-            System.err.println(e);
             e.printStackTrace();
         }
 
@@ -1079,14 +1071,11 @@ public class MainApp extends Application {
         for (QIFParser.Category c : qifParser.getCategoryList()) insertCategoryToDB(c);
         initCategoryList();
 
-        int cnt = 0;
         for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) {
             try {
                 int rowID = insertTransactionToDB(bt);
                 if (rowID < 0) {
                     System.err.println("Failed to insert transaction: " + bt.toString());
-                } else {
-                    cnt++;
                 }
             } catch (SQLException e) {
                 printSQLException(e);
@@ -1099,18 +1088,12 @@ public class MainApp extends Application {
                 int rowID = insertTransactionToDB(tt);
                 if (rowID < 0) {
                     System.err.println("Failed to insert transaction: " + tt.toString());
-                } else {
-                    cnt++;
                 }
             } catch (SQLException e) {
                 printSQLException(e);
                 e.printStackTrace();
             }
         }
-
-        System.out.println("Inserted " + cnt + " transactions");
-        System.out.println("Parse " + file.getAbsolutePath());
-        System.out.println("CategoryList length = " + qifParser.getCategoryList().size());
     }
 
     // create a new database

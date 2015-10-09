@@ -46,8 +46,8 @@
    <left>
       <TableView fx:id="mAccountTableView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
         <columns>
-          <TableColumn fx:id="mAccountColumn" editable="false" prefWidth="100.0" text="Account" />
-          <TableColumn fx:id="mAccountBalanceColumn" editable="false" prefWidth="100.0" text="Balance" />
+          <TableColumn fx:id="mAccountColumn" editable="false" prefWidth="120.0" text="Account" />
+          <TableColumn fx:id="mAccountBalanceColumn" editable="false" prefWidth="120.0" text="Balance" />
         </columns>
          <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
@@ -64,6 +64,7 @@
                         <Insets left="20.0" right="10.0" />
                      </padding>
                   </Label>
+                  <Button fx:id="mEnterTransactionButton" mnemonicParsing="false" onAction="#handleEnterTransaction" text="Enter Transaction" visible="false" />
                   <Button fx:id="mTransactionShowHoldingsButton" mnemonicParsing="false" onAction="#handleShowHoldings" text="Show Holdings" visible="false" />
                </children>
             </HBox>

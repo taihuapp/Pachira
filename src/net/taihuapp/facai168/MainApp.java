@@ -952,6 +952,38 @@ public class MainApp extends Application {
         return price;
     }
 
+    public void showEditTransactionDialog(Transaction transaction) {
+        if (mCurrentAccount == null) {
+            System.err.println("Can't show holdings for null account.");
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation((MainApp.class.getResource("EditTransactionDialog.fxml")));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Enter Transaction:");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+
+            EditTransactionDialogController controller = loader.getController();
+            controller.setMainApp(this);
+            dialogStage.showAndWait();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if (transaction == null) {
+            System.out.println("New Transaction");
+        } else {
+            System.out.println("Edit " + transaction.toString());
+        }
+
+    }
+
     public void showAccountHoldings() {
         if (mCurrentAccount == null) {
             System.err.println("Can't show holdings for null account.");

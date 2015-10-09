@@ -12,13 +12,14 @@ import java.time.LocalDate;
 
 public class Transaction {
 
-    public enum TradeAction { BUY, BUYX, CASH, CGLONG, CGLONGX, CGMID, CGMIDX,
+    public enum TradeAction {
+        BUY, BUYX, CASH, CGLONG, CGLONGX, CGMID, CGMIDX,
         CGSHORT, CGSHORTX, CVTSHRT, CVTSHRTX, DIV, DIVX, INTINC, INTINCX,
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
         SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX }
-
+        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX;
+    }
 
     private int mID = -1;
     private int mAccountID = -1;

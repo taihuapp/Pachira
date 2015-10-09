@@ -41,7 +41,9 @@ public class MainController {
     @FXML
     private Label mTransactionAccountNameLabel;
     @FXML
-    Button mTransactionShowHoldingsButton;
+    private Button mEnterTransactionButton;
+    @FXML
+    private Button mTransactionShowHoldingsButton;
 
     @FXML
     private TableView<Transaction> mTransactionTableView;
@@ -142,7 +144,7 @@ public class MainController {
             }
         };
         ObservableList<MenuItem> recentList = mRecentDBMenu.getItems();
-        recentList.remove(0, recentList.size()-2);
+        recentList.remove(0, recentList.size() - 2);
         List<String> newList = mMainApp.getOpenedDBNames();
         int n = newList.size();
         for (int i = 0; i < n; i++) {
@@ -153,8 +155,17 @@ public class MainController {
     }
 
     @FXML
+    private void handleEnterTransaction() {
+        mMainApp.showEditTransactionDialog(null);
+    }
+
+    @FXML
     private void handleShowHoldings() {
         mMainApp.showAccountHoldings();
+    }
+
+    private void showEditTransactionDialog(Transaction t) {
+        mMainApp.showEditTransactionDialog(t);
     }
 
     public void showAccountTransactions(Account account) {
@@ -169,6 +180,7 @@ public class MainController {
 
         mTransactionAccountNameLabel.setVisible(true);
         mTransactionAccountNameLabel.setText(account.getName());
+        mEnterTransactionButton.setVisible(true);
         mTransactionShowHoldingsButton.setVisible(isTradingAccount);
 
         mTransactionTableView.setVisible(true);
@@ -211,6 +223,9 @@ public class MainController {
 
         mAccountTableView.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> showAccountTransactions(newValue));
+
+        mTransactionTableView.getSelectionModel().selectedItemProperty().addListener(
+                (observable, oldValue, newValue) -> showEditTransactionDialog(newValue));
 
         // transactiontable
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());

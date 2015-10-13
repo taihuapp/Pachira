@@ -60,6 +60,7 @@ public class MainApp extends Application {
     private Account mCurrentAccount = null;
 
     public void setCurrentAccount(Account a) { mCurrentAccount = a; }
+    public Account getCurrentAccount() { return mCurrentAccount; }
 
     public void updateTransactionListBalance() {
         BigDecimal b = new BigDecimal(0);
@@ -970,6 +971,7 @@ public class MainApp extends Application {
 
             EditTransactionDialogController controller = loader.getController();
             controller.setMainApp(this);
+            controller.setDialogStage(dialogStage);
             dialogStage.showAndWait();
 
         } catch (IOException e) {

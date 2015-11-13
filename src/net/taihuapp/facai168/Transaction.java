@@ -4,6 +4,8 @@ import javafx.beans.property.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by ghe on 4/9/15.
@@ -37,6 +39,10 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>();
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>();
     private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>();
+    private int mMatchID = -1;
+    private int mMatchSplitID = -1;
+    // we use a Transaction object for holding a split transaction
+    private final List<Transaction> mSplitTransactionList = new ArrayList<>();
 
     // getters
     public int getID() { return mID; }
@@ -63,17 +69,27 @@ public class Transaction {
     public BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
     public String getSecurityName() { return mSecurityNameProperty.get();}
     public BigDecimal getCashAmount() { return mCashAmountProperty.get(); }
+    public List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
 
     // setters
     public void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
+    public void setCategoryProperty(String c) { mCategoryProperty.setValue(c); }
+    public void setSplitTransactionList(List<Transaction> stList) {
+        mSplitTransactionList.addAll(stList);
+        if (mSplitTransactionList.size() > 0)
+            setCategoryProperty("--Split--");
+    }
 
     // Trade Transaction constructor
     // for cash transactions, the amount can be either positive or negative
     // for other transactions, the amount is the notional amount, either 0 or positive
     public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String securityName,
-                       BigDecimal quantity, String memo, BigDecimal commission, BigDecimal amount) {
+                       BigDecimal quantity, String memo, BigDecimal commission, BigDecimal amount,
+                       int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
+        mMatchID = matchID;
+        mMatchSplitID = matchSplitID;
         mDateProperty.set(date);
         mTradeActionProperty.set(ta.name());
         mSecurityNameProperty.set(securityName);
@@ -166,9 +182,11 @@ public class Transaction {
 
     // Banking Transaction constructors
     public Transaction(int id, int accountID, LocalDate date, String reference, String payee, String memo,
-                       String category, BigDecimal amount) {
+                       String category, BigDecimal amount, int matchID, int MatchSplitID) {
         mID = id;
         mAccountID = accountID;
+        mMatchID = matchID;
+        mMatchSplitID = mMatchSplitID;
         mDateProperty.setValue(date);
         mReferenceProperty.setValue(reference);
         mPayeeProperty.setValue(payee);

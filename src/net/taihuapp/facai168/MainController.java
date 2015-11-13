@@ -224,6 +224,8 @@ public class MainController {
         mAccountTableView.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> showAccountTransactions(newValue));
 
+        // this line lead to showedittransactiondialog when a transaction is selected
+        // maybe should use double click to show instead of single click
         mTransactionTableView.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> showEditTransactionDialog(newValue));
 

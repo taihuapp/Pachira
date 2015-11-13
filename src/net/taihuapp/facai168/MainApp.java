@@ -720,6 +720,44 @@ public class MainApp extends Application {
         }
     }
 
+    private List<Transaction> loadSplitTransactions(int tID) {
+        List<Transaction> stList = new ArrayList<>();
+
+        String sqlCmd = "select *"
+                + " from SPLITTRANSACTIONS where TRANSACTIONID = " + tID
+                + " order by ID";
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                String categoryStr = mapCategoryOrAccountIDToName(resultSet.getInt("CATEGORYID"));
+                String memo = resultSet.getString("MEMO");
+                BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
+                if (amount == null) {
+                    amount = BigDecimal.ZERO;
+                }
+                // todo
+                // do we need percentage?
+                // ignore it for now
+                int matchID = resultSet.getInt("MATCHTRANSACTIONID");
+                int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
+                // we store split transaction id in the ID field
+                // ignore accountID, date, reference, payee,
+                int accountID = -1; // ignore accountID
+                LocalDate date = null; // ignore date
+                String reference = null; // ignore reference
+                String payee = null; // ignore payee
+
+                stList.add(new Transaction(id, accountID, date, reference, payee,
+                        memo, categoryStr, amount, matchID, matchSplitID));
+            }
+        }  catch (SQLException e) {
+            printSQLException(e);
+            e.printStackTrace();
+        }
+        return stList;
+    }
+
     public void initTransactionList(Account account) {
         mTransactionList.clear();
         if (mConnection == null)
@@ -750,6 +788,8 @@ public class MainApp extends Application {
                 int securityID = resultSet.getInt("SECURITYID");
                 BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
                 BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
+                int matchID = resultSet.getInt("MATCHTRANSACTIONID");
+                int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
 
                 if (account.getType() == Account.Type.INVESTING) {
                     String name = "";
@@ -758,10 +798,14 @@ public class MainApp extends Application {
                     if (quantity == null) quantity = BigDecimal.ZERO;
                     if (commission == null) commission = BigDecimal.ZERO;
                     mTransactionList.add(new Transaction(id, accountID, date, tradeAction, name,
-                            quantity, memo, commission, amount));
+                            quantity, memo, commission, amount, matchID, matchSplitID));
                 } else {
-                    mTransactionList.add(new Transaction(id, accountID, date, reference, payee,
-                            memo, categoryStr, amount));
+                    Transaction bt = new Transaction(id, accountID, date, reference, payee,
+                            memo, categoryStr, amount, matchID, matchSplitID);
+                    if (resultSet.getBoolean("SPLITFLAG")) {
+                        bt.setSplitTransactionList(loadSplitTransactions(id));
+                    }
+                    mTransactionList.add(bt);
                 }
             }
         } catch (SQLException e) {
@@ -1325,6 +1369,8 @@ public class MainApp extends Application {
                 + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
                 + "AMOUNT decimal(20,4), "
                 + "PERCENTAGE decimal(20,4), "
+                + "MATCHTRANSACTIONID integer, "
+                + "MATCHSPLITTRANSACTIONID integer, "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
@@ -1374,6 +1420,8 @@ public class MainApp extends Application {
                 + "TRANSFERREMINDER varchar(" + TRANSACTIONTRANSFERREMINDERLEN + "), "
                 + "COMMISSION decimal(20,4), "
                 + "AMOUNTTRANSFERRED decimal(20,4), "
+                + "MATCHTRANSACTIONID integer, "   // matching transfer transaction id
+                + "MATCHSPLITTRANSACTIONID integer, "  // matching split
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 

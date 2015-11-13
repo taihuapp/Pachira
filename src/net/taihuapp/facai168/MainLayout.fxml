@@ -68,7 +68,7 @@
                   <Button fx:id="mTransactionShowHoldingsButton" mnemonicParsing="false" onAction="#handleShowHoldings" text="Show Holdings" visible="false" />
                </children>
             </HBox>
-            <TableView fx:id="mTransactionTableView" prefHeight="200.0" prefWidth="200.0" visible="false">
+            <TableView fx:id="mTransactionTableView" prefWidth="600.0" visible="false" VBox.vgrow="ALWAYS">
               <columns>
                   <TableColumn fx:id="mTransactionDateColumn" prefWidth="120.0" text="Date" />
                   <TableColumn fx:id="mTransactionTradeActionColumn" prefWidth="75.0" text="Action" />

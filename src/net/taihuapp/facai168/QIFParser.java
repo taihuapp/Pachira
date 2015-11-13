@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -634,6 +635,24 @@ public class QIFParser {
     private List<MemorizedTransaction> mMemorizedTransactionList;
     private List<Price> mPriceList;
 
+    private void matchTransferTransaction() {
+        List<BankTransaction> btList = getBankTransactionList();
+        List<TradeTransaction> ttList = getTradeTransactionList();
+
+        Iterator<BankTransaction> btIterator = btList.iterator();
+        System.out.println("Number of bt = " + btList.size());
+        while (btIterator.hasNext()) {
+            System.out.println("bt " + btIterator.next());
+        }
+
+        Iterator<TradeTransaction> ttIterator = ttList.iterator();
+        System.out.println("Number of tt = " + ttList.size());
+        while (ttIterator.hasNext()) {
+            System.out.println("tt " + ttIterator.next());
+        }
+
+    }
+
     // public constructor
     public QIFParser() {
         mAccountList = new ArrayList<>();
@@ -815,6 +834,9 @@ public class QIFParser {
             }
             i++;
         }
+
+        // done with the file, now match Transfer Transactions
+        matchTransferTransaction();
         return 0;
     }
 

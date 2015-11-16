@@ -53,7 +53,7 @@
             <TextField fx:id="mSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="2" />
             <TextField fx:id="mPriceTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
             <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="5" />
-            <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="6" />
+            <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" editable="false" GridPane.columnIndex="3" GridPane.rowIndex="6" />
          </children>
       </GridPane>
    </center>

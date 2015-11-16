@@ -143,6 +143,69 @@ public class MainApp extends Application {
         return null;
     }
 
+    // return affected transaction id if success, 0 for failure.
+    public int insertUpDateTransactionToDB(Transaction t) {
+        String sqlCmd;
+        // be extra careful about the order of the columns
+        if (t.getID() <= 0) {
+            sqlCmd = "insert into TRANSACTIONS " +
+                    "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
+                    "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, " +
+                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        } else {
+            sqlCmd = "update TRANSACTIONS set " +
+                    "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
+                    "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, MEMO = ?, " +
+                    "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
+                    "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ? " +
+                    "where ID = ?";
+        }
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, t.getAccountID());
+            preparedStatement.setDate(2, Date.valueOf(t.getDate()));
+            preparedStatement.setBigDecimal(3, t.getAmount());
+            preparedStatement.setString(4, t.getTradeActionProperty().get());
+            preparedStatement.setInt(5, getSecurityByName(t.getSecurityName()).getID());
+            preparedStatement.setInt(6, 0); // cleared
+            preparedStatement.setInt(7, mapCategoryOrAccountNameToID(t.getCategoryProperty().get()));
+            preparedStatement.setString(8, t.getMemoProperty().get());
+            preparedStatement.setBigDecimal(9, t.getPrice());
+            preparedStatement.setBigDecimal(10, t.getQuantity());
+            preparedStatement.setBigDecimal(11, t.getCommission());
+            preparedStatement.setInt(12, 0); // matchTransactionID, ignore for now
+            preparedStatement.setInt(13, 0); // matchSplitTransactionID, ignore for now
+            if (t.getID() > 0)  {
+                preparedStatement.setInt(14, t.getID());
+            }
+
+            if (preparedStatement.executeUpdate() == 0) {
+                throw new SQLException("Insert/Update Transaction failed, no rows changed");
+            }
+
+            if (t.getID() > 0) {
+                return t.getID();
+            } else {
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    if (resultSet.next()) {
+                        return resultSet.getInt(1);
+                    }
+                } catch (SQLException e) {
+                    throw e;
+                }
+            }
+            // todo after dinner
+        } catch (SQLException e) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.initOwner(mPrimaryStage);
+            alert.setTitle("Database Error");
+            alert.setHeaderText("Unable to insert/update Transaction");
+            alert.setContentText(SQLExceptionToString(e));
+            alert.showAndWait();
+        }
+        return 0;
+    }
+
     public void insertUpdateSecurityToDB(Security security) {
         String sqlCmd;
         if (security.getID() < 0) {
@@ -173,7 +236,7 @@ public class MainApp extends Application {
                 headerText = "Security ticker/name " + security.getTicker() + "/"
                         + security.getName() + " is already taken.";
             } else {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
 
@@ -216,7 +279,7 @@ public class MainApp extends Application {
             preparedStatement.executeUpdate();
             status = true;
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         } catch (NullPointerException e) {
             e.printStackTrace();
@@ -280,7 +343,7 @@ public class MainApp extends Application {
                 cnt++;
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
         return cnt;
@@ -315,7 +378,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
         return rowID;
@@ -350,7 +413,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
         return rowID;
@@ -428,7 +491,7 @@ public class MainApp extends Application {
                     }
                 }
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
 
@@ -492,7 +555,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
 
@@ -531,7 +594,7 @@ public class MainApp extends Application {
                 headerText = "Category name " + category.getName() + " exists already.";
             }
 
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
 
             Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -559,7 +622,7 @@ public class MainApp extends Application {
             preparedStatement.setInt(1, account.getType().ordinal());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
-            if (account.getID() >= 0) {
+            if (account.getID() > 0) {
                 preparedStatement.setInt(4, account.getID());
             }
             if (preparedStatement.executeUpdate() == 0) {
@@ -578,7 +641,7 @@ public class MainApp extends Application {
                 title = "Duplicate Account Name";
                 headerText = "Account name " + account.getName() + " is already taken.";
             } else {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
 
@@ -598,7 +661,7 @@ public class MainApp extends Application {
                 if (resultSet != null)
                     resultSet.close();
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
         }
@@ -620,7 +683,7 @@ public class MainApp extends Application {
                 id = resultSet.getInt("ID");
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         } finally {
             try {
@@ -631,7 +694,7 @@ public class MainApp extends Application {
                     resultSet.close();
                 }
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
         }
@@ -665,14 +728,14 @@ public class MainApp extends Application {
                 mCategoryList.add(category);
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         } finally {
             try {
                 if (statement != null) statement.close();
                 if (resultSet != null) resultSet.close();
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
         }
@@ -682,7 +745,7 @@ public class MainApp extends Application {
         mAccountList.clear();
         if (mConnection == null) return;
 
-        try (Statement statement = mConnection.createStatement()){
+        try (Statement statement = mConnection.createStatement()) {
             String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION from ACCOUNTS order by TYPE, ID";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
@@ -694,7 +757,7 @@ public class MainApp extends Application {
                 mAccountList.add(new Account(id, type, name, description));
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
     }
@@ -715,7 +778,7 @@ public class MainApp extends Application {
                 mSecurityList.add(new Security(id, ticker, name, type));
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
     }
@@ -752,7 +815,7 @@ public class MainApp extends Application {
                         memo, categoryStr, amount, matchID, matchSplitID));
             }
         }  catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
         return stList;
@@ -788,6 +851,7 @@ public class MainApp extends Application {
                 int securityID = resultSet.getInt("SECURITYID");
                 BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
                 BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
+                BigDecimal price = resultSet.getBigDecimal("PRICE");
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
                 int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
 
@@ -797,8 +861,9 @@ public class MainApp extends Application {
                         name = getSecurityByID(securityID).getName();
                     if (quantity == null) quantity = BigDecimal.ZERO;
                     if (commission == null) commission = BigDecimal.ZERO;
+                    if (price == null) price = BigDecimal.ZERO;
                     mTransactionList.add(new Transaction(id, accountID, date, tradeAction, name,
-                            quantity, memo, commission, amount, matchID, matchSplitID));
+                            price, quantity, memo, commission, amount, matchID, matchSplitID));
                 } else {
                     Transaction bt = new Transaction(id, accountID, date, reference, payee,
                             memo, categoryStr, amount, matchID, matchSplitID);
@@ -809,7 +874,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
     }
@@ -973,7 +1038,7 @@ public class MainApp extends Application {
                 lmList.add(new SecurityHolding.MatchInfo(tid, mid, quantity));
             }
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
 
@@ -991,7 +1056,7 @@ public class MainApp extends Application {
                 if (resultSet.next())
                     price = resultSet.getBigDecimal(1);
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
         return price;
@@ -1016,18 +1081,12 @@ public class MainApp extends Application {
             EditTransactionDialogController controller = loader.getController();
             controller.setMainApp(this);
             controller.setDialogStage(dialogStage);
+            controller.setTransaction(transaction);
             dialogStage.showAndWait();
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        if (transaction == null) {
-            System.out.println("New Transaction");
-        } else {
-            System.out.println("Edit " + transaction.toString());
-        }
-
     }
 
     public void showAccountHoldings() {
@@ -1063,7 +1122,7 @@ public class MainApp extends Application {
             try {
                 mConnection.close();
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
             mConnection = null;
@@ -1156,7 +1215,7 @@ public class MainApp extends Application {
                     System.err.println("Failed to insert transaction: " + bt.toString());
                 }
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
         }
@@ -1168,7 +1227,7 @@ public class MainApp extends Application {
                     System.err.println("Failed to insert transaction: " + tt.toString());
                 }
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
         }
@@ -1271,14 +1330,14 @@ public class MainApp extends Application {
                 default:
                     alert.setTitle("SQL Error");
                     alert.setHeaderText("Error Code: " + errorCode);
-                    printSQLException(e);
+                    alert.setContentText(SQLExceptionToString(e));
                     e.printStackTrace();
                     break;
             }
             alert.showAndWait();
         }
 
-        // todo
+        // todo ???
         if (mConnection == null) {
             return;
         }
@@ -1306,14 +1365,14 @@ public class MainApp extends Application {
         } catch (NullPointerException e) {
             System.err.println("Null mConnection");
         } catch (SQLException e) {
-            printSQLException(e);
+            System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         } finally {
             try {
                 if (preparedStatement != null)
                     preparedStatement.close();
             } catch (SQLException e) {
-                printSQLException(e);
+                System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
             }
         }
@@ -1435,20 +1494,20 @@ public class MainApp extends Application {
 
     }
 
-    public static void printSQLException(SQLException e) {
-        // Unwraps the entire exception chain to unveil the real cause of the
-        // Exception.
-        while (e != null)
-        {
-            System.err.println("\n----- SQLException -----");
-            System.err.println("  SQL State:  " + e.getSQLState());
-            System.err.println("  Error Code: " + e.getErrorCode());
-            System.err.println("  Message:    " + e.getMessage());
-            // for stack traces, refer to derby.log or uncomment this:
-            //e.printStackTrace(System.err);
+    public static String SQLExceptionToString(SQLException e) {
+        String s = "";
+        while (e != null) {
+            s += ("--- SQLException ---" +
+                    "  SQL State: " + e.getSQLState() +
+                    "  Message:   " + e.getMessage()) + "\n";
             e = e.getNextException();
         }
+        return s;
     }
+
+//    public static void printSQLException(SQLException e) {
+//        System.err.print(SQLExceptionToString(e));
+//    }
 
     // init the main layout
     private void initMainLayout() {

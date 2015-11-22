@@ -1,6 +1,8 @@
 package net.taihuapp.facai168;
 
-import javafx.beans.property.StringProperty;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -11,6 +13,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import javafx.util.converter.BigDecimalStringConverter;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -38,6 +41,8 @@ public class EditTransactionDialogController {
             return mMainApp.getSecurityByName(s);
         }
         public String toString(Security security) {
+            if (security == null)
+                return null;
             return security.getName();
         }
     }
@@ -201,23 +206,39 @@ public class EditTransactionDialogController {
         });
     }
 
+/*
     public void setTransaction(Transaction t) {
-        mTransaction = t;
-        if (mTransaction != null && mTransaction.getID() > 0) {
+        if (t == null) {
+            mTransaction = new Transaction(mAccount.getID(), LocalDate.now());
+            System.out.println("New Transaction");
+        } else {
+            mTransaction = t;
             // need to setup the dialog according to the transaction
             System.out.println("Edit Transaction " + mTransaction.getID());
-        } else {
-            System.out.println("New Transaction");
         }
     }
+*/
 
     public void setDialogStage(Stage stage) {
         mDialogStage = stage;
     }
 
-    public void setMainApp(MainApp mainApp) {
+    public void setMainApp(MainApp mainApp, Transaction transaction, Stage stage) {
+        mDialogStage = stage;
         mMainApp = mainApp;
         mAccount = mMainApp.getCurrentAccount();
+
+        mSecurityChoiceBox.setConverter(new SecurityConverter());
+        mSecurityChoiceBox.setItems(mMainApp.getSecurityList());
+
+        if (transaction == null) {
+            mTransaction = new Transaction(mAccount.getID(), LocalDate.now());
+        } else {
+            mTransaction = transaction;
+        }
+        mTransferAccountChoiceBox.setConverter(new AccountConverter());
+        mTransferAccountChoiceBox.setItems(mMainApp.getAccountList());
+        mTransferAccountChoiceBox.getSelectionModel().select(mAccount);
 
         mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
                 .addListener((observable1, oldValue, newValue) -> {
@@ -240,12 +261,8 @@ public class EditTransactionDialogController {
 
         mTypeChoiceBox.getSelectionModel().selectFirst();
 
-        mTransferAccountChoiceBox.setConverter(new AccountConverter());
-        mTransferAccountChoiceBox.setItems(mMainApp.getAccountList());
-        mTransferAccountChoiceBox.getSelectionModel().select(mAccount);
+        // binding
 
-        mSecurityChoiceBox.setConverter(new SecurityConverter());
-        mSecurityChoiceBox.setItems(mMainApp.getSecurityList());
 
         addEventFilterAndChangeListener(mSharesTextField);
         addEventFilterAndChangeListener(mPriceTextField);
@@ -255,24 +272,8 @@ public class EditTransactionDialogController {
     // return true if enter worked
     // false if something is not quite right
     private boolean enterTransaction() {
-        TransactionType tt = TransactionType.fromString(mTypeChoiceBox.getValue());
-        if (mTransaction == null)
-            mTransaction = new Transaction(mAccount.getID(), mDatePicker.getValue());
-
-        boolean status;
-        switch (tt) {
-            case INVESTMENT:
-                status = enterInvestmentTransaction();
-                break;
-            case CASH:
-                status = enterCashTransaction();
-                break;
-            default:
-                status = false;
-                System.err.println("enterTransaction: unknown type: " + tt.toString());
-                break;
-        }
-
+        System.out.println("enterTransaction: only handling InvestmentTransaction for now");
+        boolean status = enterInvestmentTransaction();
         if (status)
             mMainApp.insertUpDateTransactionToDB(mTransaction);
         return status;
@@ -284,45 +285,14 @@ public class EditTransactionDialogController {
     }
 
     private boolean enterInvestmentTransaction() {
-        InvestmentTransaction it = InvestmentTransaction.fromString(mTransactionChoiceBox.getValue());
-
         Security security = mSecurityChoiceBox.getValue();
         if (security == null) {
             showWarningDialog("Warning", "Empty Security", "Please select a valid security");
             return false;
         }
 
-        Transaction.TradeAction ta;
-        switch (it) {
-            case BUY:
-                ta = Transaction.TradeAction.BUY;
-                System.out.println("do buy");
-                break;
-            case SELL:
-                ta = Transaction.TradeAction.BUY;
-                System.out.println("do sell");
-                break;
-            default:
-                System.out.println(it.toString() + " not implemented yet");
-                return false;
-        }
-
         // todo how to handle input data inconsistency
 
-        // set amount needs to be associated with trade action
-        BigDecimal price = getBigDecimalFromTextField(mPriceTextField);
-        BigDecimal quantity = getBigDecimalFromTextField(mSharesTextField);
-        BigDecimal commission = getBigDecimalFromTextField(mCommissionTextField);
-
-        mTransaction.setTradeDetails(ta, price, quantity, commission);
-        mTransaction.setSecurityNameProperty(security.getName());
-        mTransaction.setMemoProperty(mMemoTextField.getText());
-        if (mTransferAccountChoiceBox.getValue().getID() == mAccount.getID()) {
-            // no cash transfer
-            mTransaction.setCategoryProperty(""); // blank
-        } else {
-            mTransaction.setCategoryProperty("[" + mTransferAccountChoiceBox.getValue().getName()+"]");
-        }
         return true;
     }
 
@@ -383,6 +353,22 @@ public class EditTransactionDialogController {
         mTransactionLabel.setText(tValue);
         mAccountNameTextField.setText(mAccount.getName());
 
+        mTransaction.getTradeActionProperty().bind(new StringBinding() {
+            { super.bind(mTransferAccountChoiceBox.valueProperty(),
+                    mTransactionChoiceBox.valueProperty()); }
+            @Override
+            protected String computeValue() {
+
+                String t = InvestmentTransaction.fromString(mTransactionChoiceBox.valueProperty().get()).name();
+
+                if (mTransferAccountChoiceBox.valueProperty().get().getID() !=
+                        mAccount.getID()) {
+                    return t + "X";
+                } else {
+                    return t;
+                }
+            }
+        });
         switch (TransactionType.fromString(mTypeChoiceBox.getValue())) {
             case INVESTMENT:
                 setupInvestmentTransactionDialog(tValue);
@@ -399,6 +385,29 @@ public class EditTransactionDialogController {
 
     private void setupBuy() {
         mTransferAccountLabel.setText("Use Cash From:");
+        if (mTransaction.getQuantity() == null) {
+            mTransaction.setQuantity(BigDecimal.ZERO);
+        }
+        if (mTransaction.getPrice() == null) {
+            mTransaction.setPrice(BigDecimal.ZERO);
+        }
+        if (mTransaction.getCommission() == null) {
+            mTransaction.setCommission(BigDecimal.ZERO);
+        }
+        if (mTransaction.getSecurityName() == null) {
+            mTransaction.setSecurityName("");
+        }
+
+        Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(),
+                mSecurityChoiceBox.valueProperty(), mSecurityChoiceBox.getConverter());
+        mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),
+                new BigDecimalStringConverter());
+        mPriceTextField.textProperty().bindBidirectional(mTransaction.getPriceProperty(),
+                new BigDecimalStringConverter());
+        mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
+                new BigDecimalStringConverter());
+        mTotalTextField.textProperty().bindBidirectional(mTransaction.getInvestAmountProperty(),
+                new BigDecimalStringConverter());
         setTotal(); // make sure total is consistent
     }
 
@@ -419,10 +428,16 @@ public class EditTransactionDialogController {
             return;
 
         System.out.println("setTotal");
-        BigDecimal nShares = getBigDecimalFromTextField(mSharesTextField);
-        BigDecimal price = getBigDecimalFromTextField(mPriceTextField);
-        BigDecimal commission = getBigDecimalFromTextField(mCommissionTextField);
+//        BigDecimal nShares = getBigDecimalFromTextField(mSharesTextField);
+//        BigDecimal price = getBigDecimalFromTextField(mPriceTextField);
+//        BigDecimal commission = getBigDecimalFromTextField(mCommissionTextField);
 
+//        BigDecimal total = nShares.multiply(price);
+
+        System.out.println(mTransaction.getSecurityName());
+        BigDecimal nShares = mTransaction.getQuantity();
+        BigDecimal commission = mTransaction.getCommission();
+        BigDecimal price = mTransaction.getPrice();
         BigDecimal total = nShares.multiply(price);
         switch (InvestmentTransaction.fromString(mTransactionChoiceBox.getValue())) {
             case BUY:

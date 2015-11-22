@@ -25,21 +25,21 @@ public class Transaction {
 
     private int mID = -1;
     private int mAccountID = -1;
-    private final ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
-    private StringProperty mTradeActionProperty = new SimpleStringProperty();
+    private final ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>(LocalDate.now());
+    private StringProperty mTradeActionProperty = new SimpleStringProperty("BUY");
     private StringProperty mSecurityNameProperty = new SimpleStringProperty();
-    private final StringProperty mReferenceProperty = new SimpleStringProperty();
-    private final StringProperty mPayeeProperty = new SimpleStringProperty();
-    private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>();  // this is cash amount
-    private ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>();
-    private ObjectProperty<BigDecimal> mDepositeProperty = new SimpleObjectProperty<>();
-    private final StringProperty mMemoProperty = new SimpleStringProperty();
-    private final StringProperty mCategoryProperty = new SimpleStringProperty();
-    private final ObjectProperty<BigDecimal> mBalanceProperty = new SimpleObjectProperty<>();
-    private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>();
-    private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>();
-    private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>();
-    private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>();
+    private final StringProperty mReferenceProperty = new SimpleStringProperty("");
+    private final StringProperty mPayeeProperty = new SimpleStringProperty("");
+    private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  // this is cash amount
+    private ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private ObjectProperty<BigDecimal> mDepositeProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final StringProperty mMemoProperty = new SimpleStringProperty("");
+    private final StringProperty mCategoryProperty = new SimpleStringProperty("");
+    private final ObjectProperty<BigDecimal> mBalanceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
     private int mMatchID = -1;
     private int mMatchSplitID = -1;
@@ -143,8 +143,13 @@ public class Transaction {
     }
 
     // setters
+    public void setTradeAction(TradeAction ta) {
+        mTradeActionProperty.set(ta.name());
+    }
+
     public void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity,
                                 BigDecimal commission, BigDecimal amount) {
+        mTradeActionProperty.set(ta.name());
         switch (ta) {
             // todo
             // need to verify each
@@ -220,19 +225,21 @@ public class Transaction {
     }
 
     public void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity, BigDecimal commission) {
-
         mTradeActionProperty.set(ta.name());
         BigDecimal amount = computeTotalAmount(ta, price, quantity, commission);
         setTradeDetails(ta, price, quantity, commission, amount);
     }
-    public void setSecurityNameProperty(String securityName) { mSecurityNameProperty.set(securityName); }
-    public void setMemoProperty(String memo) { mMemoProperty.set(memo); }
+    public void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
+    public void setPrice(BigDecimal p) { mPriceProperty.set(p); }
+    public void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
+    public void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
+    public void setMemo(String memo) { mMemoProperty.set(memo); }
     public void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
-    public void setCategoryProperty(String c) { mCategoryProperty.setValue(c); }
+    public void setCategory(String c) { mCategoryProperty.setValue(c); }
     public void setSplitTransactionList(List<Transaction> stList) {
         mSplitTransactionList.addAll(stList);
         if (mSplitTransactionList.size() > 0)
-            setCategoryProperty("--Split--");
+            setCategory("--Split--");
     }
 
     // minimum constractor

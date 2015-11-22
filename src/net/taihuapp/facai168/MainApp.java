@@ -1079,11 +1079,8 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             EditTransactionDialogController controller = loader.getController();
-            controller.setMainApp(this);
-            controller.setDialogStage(dialogStage);
-            controller.setTransaction(transaction);
+            controller.setMainApp(this, transaction, dialogStage);
             dialogStage.showAndWait();
-
         } catch (IOException e) {
             e.printStackTrace();
         }

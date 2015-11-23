@@ -1,8 +1,6 @@
 package net.taihuapp.facai168;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.StringBinding;
+import javafx.beans.binding.*;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -198,12 +196,14 @@ public class EditTransactionDialogController {
         });
 
         // add a change listener to calculate total
+/*
         tf.textProperty().addListener(new ChangeListener<String>() {
             @Override
             public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
                 setTotal();
             }
         });
+*/
     }
 
 /*
@@ -408,7 +408,21 @@ public class EditTransactionDialogController {
                 new BigDecimalStringConverter());
         mTotalTextField.textProperty().bindBidirectional(mTransaction.getInvestAmountProperty(),
                 new BigDecimalStringConverter());
-        setTotal(); // make sure total is consistent
+
+        ObjectBinding<BigDecimal> investAmount = new ObjectBinding<BigDecimal>() {
+            { super.bind(mTransaction.getPriceProperty(), mTransaction.getQuantityProperty(),
+                    mTransaction.getCommissionProperty()); }
+            @Override
+            protected BigDecimal computeValue() {
+                if (mTransaction.getPriceProperty().get() == null
+                        || mTransaction.getQuantityProperty().get() == null
+                        || mTransaction.getCommissionProperty().get() == null) {
+                    return null;
+                }
+                return mTransaction.getQuantity().multiply(mTransaction.getPrice().add(mTransaction.getCommission()));
+            }
+        };
+        mTransaction.getInvestAmountProperty().bind(investAmount);
     }
 
     private void setupSell() {

@@ -44,11 +44,11 @@ public class EditTransactionDialogController {
         }
     }
 
-    static enum TransactionType {
+    enum TransactionType {
         INVESTMENT("Investment Transactions"), CASH("Cash Transactions");
 
         private final String mDesc;
-        private TransactionType(String d) { mDesc = d; }
+        TransactionType(String d) { mDesc = d; }
         @Override
         public String toString() { return mDesc; }
         public static TransactionType fromString(String s) {
@@ -70,11 +70,11 @@ public class EditTransactionDialogController {
         }
     }
 
-    static enum InvestmentTransaction {
+    enum InvestmentTransaction {
         BUY("Buy - Shares Bought"), SELL("Sell - Shares Sold");
 
         private final String mDesc;
-        private InvestmentTransaction(String d) { mDesc = d; }
+        InvestmentTransaction(String d) { mDesc = d; }
         @Override
         public String toString() { return mDesc; }
         public static InvestmentTransaction fromString(String s) {
@@ -96,12 +96,12 @@ public class EditTransactionDialogController {
         }
     }
 
-    static enum CashTransaction {
+    enum CashTransaction {
         CHECK("Write Check"), DEP("Deposit"), WITHDRAW("Withdraw"),
         ONLINE("Online Payment"), OTHER("Other Cash Transaction");
 
         private final String mDesc;
-        private CashTransaction(String d) { mDesc = d; }
+        CashTransaction(String d) { mDesc = d; }
         @Override
         public String toString() { return mDesc; }
         public static CashTransaction fromString(String s) {
@@ -245,25 +245,26 @@ public class EditTransactionDialogController {
     // false if something is not quite right
     private boolean enterTransaction() {
         System.out.println("enterTransaction: only handling InvestmentTransaction for now");
-        boolean status = enterInvestmentTransaction();
-        if (status)
+        if (validateTransaction()) {
             mMainApp.insertUpDateTransactionToDB(mTransaction);
-        return status;
+            mMainApp.initTransactionList(mAccount);
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    private boolean enterCashTransaction() {
-        System.out.println("enterCashTransaction not implemented yet");
-        return false;
-    }
+    private boolean validateTransaction() {
+        if (TransactionType.fromString(mTypeChoiceBox.getValue()) == TransactionType.CASH) {
+            System.err.println("CASH Transaction not implemented yet");
+            return false;
+        }
 
-    private boolean enterInvestmentTransaction() {
         Security security = mSecurityChoiceBox.getValue();
         if (security == null) {
             showWarningDialog("Warning", "Empty Security", "Please select a valid security");
             return false;
         }
-
-        // todo how to handle input data inconsistency
 
         return true;
     }
@@ -342,14 +343,15 @@ public class EditTransactionDialogController {
     }
 
     private void setupInvestmentTransactionDialog(InvestmentTransaction investType) {
-        BigDecimal commissionSign = BigDecimal.ONE;
+        final BigDecimal commissionSign;
         switch (investType) {
             case BUY:
                 mTransferAccountLabel.setText("Use Cash From:");
+                commissionSign = BigDecimal.ONE;
                 break;
             case SELL:
                 mTransferAccountLabel.setText("Put Cash Into:");
-                commissionSign = commissionSign.negate();
+                commissionSign = BigDecimal.ONE.negate();
                 break;
             default:
                 System.err.println("InvestmentTransaction " + investType + " not implemented yet.");
@@ -366,11 +368,19 @@ public class EditTransactionDialogController {
                         || mTransaction.getCommissionProperty().get() == null) {
                     return null;
                 }
-                return mTransaction.getQuantity().multiply(mTransaction.getPrice()).add(mTransaction.getCommission());
+                return mTransaction.getQuantity().multiply(mTransaction.getPrice()).add(mTransaction.getCommission()
+                        .multiply(commissionSign));
             }
         };
 
+        mTransaction.getInvestAmountProperty().unbind();
         mTransaction.getInvestAmountProperty().bind(investAmount);
+
+        mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityChoiceBox.valueProperty());
+        mSharesTextField.textProperty().unbindBidirectional(mTransaction.getQuantityProperty());
+        mPriceTextField.textProperty().unbindBidirectional(mTransaction.getPriceProperty());
+        mCommissionTextField.textProperty().unbindBidirectional(mTransaction.getCommissionProperty());
+        mTotalTextField.textProperty().unbindBidirectional(mTransaction.getInvestAmountProperty());
         Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(),
                 mSecurityChoiceBox.valueProperty(), mSecurityChoiceBox.getConverter());
         mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),

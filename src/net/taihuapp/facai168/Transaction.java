@@ -27,7 +27,7 @@ public class Transaction {
     private int mAccountID = -1;
     private final ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>(LocalDate.now());
     private StringProperty mTradeActionProperty = new SimpleStringProperty("BUY");
-    private StringProperty mSecurityNameProperty = new SimpleStringProperty();
+    private StringProperty mSecurityNameProperty = new SimpleStringProperty("");
     private final StringProperty mReferenceProperty = new SimpleStringProperty("");
     private final StringProperty mPayeeProperty = new SimpleStringProperty("");
     private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  // this is cash amount

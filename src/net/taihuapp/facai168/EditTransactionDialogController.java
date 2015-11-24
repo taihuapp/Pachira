@@ -308,7 +308,8 @@ public class EditTransactionDialogController {
 
     private void setupTransactionDialog(String tValue) {
 
-        mDatePicker.setValue(LocalDate.now());
+        //mDatePicker.setValue(LocalDate.now());
+        mDatePicker.valueProperty().bindBidirectional(mTransaction.getDateProperty());
         mTransactionLabel.setText(tValue);
         mAccountNameTextField.setText(mAccount.getName());
 
@@ -343,22 +344,24 @@ public class EditTransactionDialogController {
     }
 
     private void setupInvestmentTransactionDialog(InvestmentTransaction investType) {
-        final BigDecimal commissionSign;
+        final BigDecimal investAmountSign;
         switch (investType) {
             case BUY:
                 mTransferAccountLabel.setText("Use Cash From:");
-                commissionSign = BigDecimal.ONE;
+                mTotalLabel.setText("Total Cost:");
+                investAmountSign = BigDecimal.ONE;
                 break;
             case SELL:
                 mTransferAccountLabel.setText("Put Cash Into:");
-                commissionSign = BigDecimal.ONE.negate();
+                mTotalLabel.setText("Total Cost:");
+                investAmountSign = BigDecimal.ONE.negate();
                 break;
             default:
                 System.err.println("InvestmentTransaction " + investType + " not implemented yet.");
                 return;
         }
 
-        ObjectBinding<BigDecimal> investAmount = new ObjectBinding<BigDecimal>() {
+        ObjectBinding<BigDecimal> amount = new ObjectBinding<BigDecimal>() {
             { super.bind(mTransaction.getPriceProperty(), mTransaction.getQuantityProperty(),
                     mTransaction.getCommissionProperty()); }
             @Override
@@ -368,28 +371,33 @@ public class EditTransactionDialogController {
                         || mTransaction.getCommissionProperty().get() == null) {
                     return null;
                 }
-                return mTransaction.getQuantity().multiply(mTransaction.getPrice()).add(mTransaction.getCommission()
-                        .multiply(commissionSign));
+                return mTransaction.getQuantity().multiply(mTransaction.getPrice())
+                        .add(mTransaction.getCommission().multiply(investAmountSign));
             }
         };
 
-        mTransaction.getInvestAmountProperty().unbind();
-        mTransaction.getInvestAmountProperty().bind(investAmount);
+        if (mTransaction.getAmountProperty().isBound())
+            mTransaction.getAmountProperty().unbind();
+        mTransaction.getAmountProperty().bind(amount);
 
         mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityChoiceBox.valueProperty());
-        mSharesTextField.textProperty().unbindBidirectional(mTransaction.getQuantityProperty());
-        mPriceTextField.textProperty().unbindBidirectional(mTransaction.getPriceProperty());
-        mCommissionTextField.textProperty().unbindBidirectional(mTransaction.getCommissionProperty());
-        mTotalTextField.textProperty().unbindBidirectional(mTransaction.getInvestAmountProperty());
         Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(),
                 mSecurityChoiceBox.valueProperty(), mSecurityChoiceBox.getConverter());
+
+        mSharesTextField.textProperty().unbindBidirectional(mTransaction.getQuantityProperty());
         mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),
                 new BigDecimalStringConverter());
+
+        mPriceTextField.textProperty().unbindBidirectional(mTransaction.getPriceProperty());
         mPriceTextField.textProperty().bindBidirectional(mTransaction.getPriceProperty(),
                 new BigDecimalStringConverter());
+
+        mCommissionTextField.textProperty().unbindBidirectional(mTransaction.getCommissionProperty());
         mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
                 new BigDecimalStringConverter());
-        mTotalTextField.textProperty().bindBidirectional(mTransaction.getInvestAmountProperty(),
+
+        mTotalTextField.textProperty().unbindBidirectional(mTransaction.getAmountProperty());
+        mTotalTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
                 new BigDecimalStringConverter());
     }
 }

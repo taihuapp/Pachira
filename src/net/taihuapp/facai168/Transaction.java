@@ -30,12 +30,16 @@ public class Transaction {
     private StringProperty mSecurityNameProperty = new SimpleStringProperty("");
     private final StringProperty mReferenceProperty = new SimpleStringProperty("");
     private final StringProperty mPayeeProperty = new SimpleStringProperty("");
-    private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  // this is cash amount
+    // amount property,
+    private final ObjectProperty<BigDecimal> mAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  // this is amount
+    // cash amount, derived from total amount
+    private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private ObjectProperty<BigDecimal> mDepositeProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final StringProperty mCategoryProperty = new SimpleStringProperty("");
     private final ObjectProperty<BigDecimal> mBalanceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    // investment amount, derived from total amount
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -55,6 +59,7 @@ public class Transaction {
     public StringProperty getMemoProperty() { return mMemoProperty; }
     public StringProperty getCategoryProperty() { return mCategoryProperty; }
 
+    public ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
     public ObjectProperty<BigDecimal> getInvestAmountProperty() { return mInvestAmountProperty; }
     public ObjectProperty<BigDecimal> getCashAmountProperty() { return mCashAmountProperty; }
     public ObjectProperty<BigDecimal> getPaymentProperty() { return mPaymentProperty; }
@@ -76,7 +81,9 @@ public class Transaction {
     public String getSecurityName() { return mSecurityNameProperty.get();}
     public BigDecimal getCashAmount() { return mCashAmountProperty.get(); }
     public List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
-    public BigDecimal getAmount() {
+    public BigDecimal getAmount() { return mAmountProperty.get(); }
+
+/*
         switch (TradeAction.valueOf(mTradeActionProperty.get())) {
             case BUY:
             case BUYBOND:
@@ -128,6 +135,7 @@ public class Transaction {
                 return null;
         }
     }
+*/
 
     public static BigDecimal computeTotalAmount(TradeAction ta, BigDecimal price, BigDecimal quantity,
                                                 BigDecimal commission) {
@@ -150,6 +158,9 @@ public class Transaction {
     public void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity,
                                 BigDecimal commission, BigDecimal amount) {
         mTradeActionProperty.set(ta.name());
+        mAmountProperty.set(amount);
+        mCommissionProperty.set(commission);
+        mPriceProperty.set(price);
         switch (ta) {
             // todo
             // need to verify each
@@ -224,11 +235,6 @@ public class Transaction {
         }
     }
 
-    public void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity, BigDecimal commission) {
-        mTradeActionProperty.set(ta.name());
-        BigDecimal amount = computeTotalAmount(ta, price, quantity, commission);
-        setTradeDetails(ta, price, quantity, commission, amount);
-    }
     public void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
     public void setPrice(BigDecimal p) { mPriceProperty.set(p); }
     public void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
@@ -265,13 +271,6 @@ public class Transaction {
         mMemoProperty.set(memo);
 
         setTradeDetails(ta, price, quantity, commission, amount);
-
-        if (mCashAmountProperty.get() == null) {
-            if (amount == null)
-                System.err.println("Amount is null?" + id);
-            System.err.println("Null cash amount? " + id);
-            System.exit(1);
-        }
         // todo
         // need to finish here
     }

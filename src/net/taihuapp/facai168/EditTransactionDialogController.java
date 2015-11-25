@@ -380,9 +380,11 @@ public class EditTransactionDialogController {
             mTransaction.getAmountProperty().unbind();
         mTransaction.getAmountProperty().bind(amount);
 
+        Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
         mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityChoiceBox.valueProperty());
         Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(),
                 mSecurityChoiceBox.valueProperty(), mSecurityChoiceBox.getConverter());
+        mSecurityChoiceBox.getSelectionModel().select(currentSecurity);
 
         mSharesTextField.textProperty().unbindBidirectional(mTransaction.getQuantityProperty());
         mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),

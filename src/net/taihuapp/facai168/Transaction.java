@@ -82,6 +82,9 @@ public class Transaction {
     public BigDecimal getCashAmount() { return mCashAmountProperty.get(); }
     public List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
     public BigDecimal getAmount() { return mAmountProperty.get(); }
+    public String getTradeAction() { return getTradeActionProperty().get(); }
+    public int getMatchID() { return mMatchID; }
+    public int getMatchSplitID() { return mMatchSplitID; }
 
 /*
         switch (TradeAction.valueOf(mTradeActionProperty.get())) {
@@ -302,4 +305,23 @@ public class Transaction {
         System.out.println("Transaction constructor: " + "ID = " + id + "; Amount = " + mCashAmountProperty);
     }
 
+    // copy constructor
+    public Transaction(Transaction t0) {
+        // init the trade transaction part
+        this(t0.getID(), t0.getAccountID(), t0.getDate(), TradeAction.valueOf(t0.getTradeAction()),
+                t0.getSecurityName(), t0.getPrice(), t0.getQuantity(), t0.getMemo(), t0.getCommission(),
+                t0.getAmount(), t0.getMatchID(), t0.getMatchSplitID());
+
+        // set the banking transaction part
+        mReferenceProperty.set(t0.getReferenceProperty().get());
+        mPayeeProperty.set(t0.getPayeeProperty().get());
+        mCategoryProperty.set(t0.getCategoryProperty().get());
+
+        // // TODO: 11/24/15
+        // may need to fix this later
+        mInvestAmountProperty.set(t0.getInvestAmountProperty().get());
+        mCashAmountProperty.set(t0.getCashAmountProperty().get());
+        mDepositeProperty.set(t0.getDepositProperty().get());
+        mPaymentProperty.set(t0.getPaymentProperty().get());
+    }
 }

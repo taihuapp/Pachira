@@ -29,7 +29,18 @@ public class EditTransactionDialogController {
             return mMainApp.getAccountByName(accountName);
         }
         public String toString(Account account) {
+            if (account == null)
+                return null;
             return account.getName();
+        }
+    }
+
+    class AccountCategoryConverter extends StringConverter<Account> {
+        public Account fromString(String wrapedAccountName) {
+            return mMainApp.getAccountByWrapedName(wrapedAccountName);
+        }
+        public String toString(Account account) {
+            return mMainApp.getWrappedAccountName(account);
         }
     }
 
@@ -329,6 +340,7 @@ public class EditTransactionDialogController {
                 }
             }
         });
+
         switch (TransactionType.fromString(mTypeChoiceBox.getValue())) {
             case INVESTMENT:
                 setupInvestmentTransactionDialog(InvestmentTransaction.fromString(tValue));
@@ -379,6 +391,15 @@ public class EditTransactionDialogController {
         if (mTransaction.getAmountProperty().isBound())
             mTransaction.getAmountProperty().unbind();
         mTransaction.getAmountProperty().bind(amount);
+
+        // mapCategory return negative account id or positive category id
+        Account transferAccount = mMainApp.getAccountByWrapedName(mTransaction.getCategory());
+        if (transferAccount == null)
+            transferAccount = mAccount;
+        mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountChoiceBox.valueProperty());
+        Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
+                mTransferAccountChoiceBox.valueProperty(), new AccountCategoryConverter());
+        mTransferAccountChoiceBox.getSelectionModel().select(transferAccount);
 
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
         mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityChoiceBox.valueProperty());

@@ -83,6 +83,7 @@ public class Transaction {
     public List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
     public BigDecimal getAmount() { return mAmountProperty.get(); }
     public String getTradeAction() { return getTradeActionProperty().get(); }
+    public String getCategory() { return getCategoryProperty().get(); }
     public int getMatchID() { return mMatchID; }
     public int getMatchSplitID() { return mMatchSplitID; }
 
@@ -154,6 +155,7 @@ public class Transaction {
     }
 
     // setters
+    public void setID(int id) { mID = id; }
     public void setTradeAction(TradeAction ta) {
         mTradeActionProperty.set(ta.name());
     }
@@ -262,7 +264,7 @@ public class Transaction {
     // for other transactions, the amount is the notional amount, either 0 or positive
     public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String securityName,
                        BigDecimal price, BigDecimal quantity, String memo, BigDecimal commission,
-                       BigDecimal amount, int matchID, int matchSplitID) {
+                       BigDecimal amount, String categoryString, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -272,6 +274,7 @@ public class Transaction {
         mPriceProperty.set(price);
         mCommissionProperty.set(commission);
         mMemoProperty.set(memo);
+        mCategoryProperty.set(categoryString);
 
         setTradeDetails(ta, price, quantity, commission, amount);
         // todo
@@ -310,7 +313,7 @@ public class Transaction {
         // init the trade transaction part
         this(t0.getID(), t0.getAccountID(), t0.getDate(), TradeAction.valueOf(t0.getTradeAction()),
                 t0.getSecurityName(), t0.getPrice(), t0.getQuantity(), t0.getMemo(), t0.getCommission(),
-                t0.getAmount(), t0.getMatchID(), t0.getMatchSplitID());
+                t0.getAmount(), t0.getCategory(), t0.getMatchID(), t0.getMatchSplitID());
 
         // set the banking transaction part
         mReferenceProperty.set(t0.getReferenceProperty().get());

@@ -112,6 +112,14 @@ public class MainApp extends Application {
         return null;
     }
 
+    public Account getAccountByWrapedName(String wrapedName) {
+        // mapCategoryOrAccountNameToID unwraps a wraped account name and return a valid account
+        int id = -mapCategoryOrAccountNameToID(wrapedName);
+        if (id <= 0)
+            return null;
+        return getAccountByID(id);
+    }
+
     public Security getSecurityByID(int id) {
         for (Security s : getSecurityList()) {
             if (s.getID() == id)
@@ -188,7 +196,8 @@ public class MainApp extends Application {
             } else {
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                     if (resultSet.next()) {
-                        return resultSet.getInt(1);
+                        t.setID(resultSet.getInt(1));
+                        return t.getID();
                     }
                 } catch (SQLException e) {
                     throw e;
@@ -285,6 +294,14 @@ public class MainApp extends Application {
             e.printStackTrace();
         }
         return status;
+
+    }
+
+    // construct a wraped account name
+    public String getWrappedAccountName(Account a) {
+        if (a == null)
+            return "";
+        return "[" + a.getName() + "]";
     }
 
     // the name should be a category name or account name surrounded by []
@@ -313,10 +330,7 @@ public class MainApp extends Application {
                 return c.getName();
             return "";
         } else if (id < 0) {
-            Account a = getAccountByID(-id);
-            if (a != null)
-                return "[" + a.getName() + "]";
-            return "";
+            return getWrappedAccountName(getAccountByID(-id));
         } else {
             return "";
         }
@@ -863,7 +877,7 @@ public class MainApp extends Application {
                     if (commission == null) commission = BigDecimal.ZERO;
                     if (price == null) price = BigDecimal.ZERO;
                     mTransactionList.add(new Transaction(id, accountID, date, tradeAction, name,
-                            price, quantity, memo, commission, amount, matchID, matchSplitID));
+                            price, quantity, memo, commission, amount, categoryStr, matchID, matchSplitID));
                 } else {
                     Transaction bt = new Transaction(id, accountID, date, reference, payee,
                             memo, categoryStr, amount, matchID, matchSplitID);

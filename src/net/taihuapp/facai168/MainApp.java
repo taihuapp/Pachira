@@ -159,14 +159,15 @@ public class MainApp extends Application {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                     "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, " +
-                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
                     "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
-                    "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ? " +
+                    "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
+                    "PAYEE = ? " +
                     "where ID = ?";
         }
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
@@ -174,17 +175,22 @@ public class MainApp extends Application {
             preparedStatement.setDate(2, Date.valueOf(t.getDate()));
             preparedStatement.setBigDecimal(3, t.getAmount());
             preparedStatement.setString(4, t.getTradeActionProperty().get());
-            preparedStatement.setInt(5, getSecurityByName(t.getSecurityName()).getID());
+            Security security = getSecurityByName(t.getSecurityName());
+            int securityID = 0;
+            if (security != null)
+                securityID = security.getID();
+            preparedStatement.setInt(5, securityID);
             preparedStatement.setInt(6, 0); // cleared
             preparedStatement.setInt(7, mapCategoryOrAccountNameToID(t.getCategoryProperty().get()));
             preparedStatement.setString(8, t.getMemoProperty().get());
             preparedStatement.setBigDecimal(9, t.getPrice());
             preparedStatement.setBigDecimal(10, t.getQuantity());
             preparedStatement.setBigDecimal(11, t.getCommission());
-            preparedStatement.setInt(12, 0); // matchTransactionID, ignore for now
-            preparedStatement.setInt(13, 0); // matchSplitTransactionID, ignore for now
+            preparedStatement.setInt(12, t.getMatchID()); // matchTransactionID, ignore for now
+            preparedStatement.setInt(13, t.getMatchSplitID()); // matchSplitTransactionID, ignore for now
+            preparedStatement.setString(14, t.getPayeeProperty().get());
             if (t.getID() > 0)  {
-                preparedStatement.setInt(14, t.getID());
+                preparedStatement.setInt(15, t.getID());
             }
 
             if (preparedStatement.executeUpdate() == 0) {
@@ -789,6 +795,8 @@ public class MainApp extends Application {
                 String ticker = rs.getString("TICKER");
                 String name = rs.getString("NAME");
                 Security.Type type = Security.Type.values()[typeOrdinal];
+                if (type == Security.Type.INDEX)
+                    continue; // skip index
                 mSecurityList.add(new Security(id, ticker, name, type));
             }
         } catch (SQLException e) {
@@ -860,7 +868,7 @@ public class MainApp extends Application {
                 Transaction.TradeAction tradeAction = null;
                 String taStr = resultSet.getString("TRADEACTION");
 
-                if (taStr != null) tradeAction = Transaction.TradeAction.valueOf(taStr);
+                if (taStr != null && taStr.length() > 0) tradeAction = Transaction.TradeAction.valueOf(taStr);
 
                 int securityID = resultSet.getInt("SECURITYID");
                 BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");

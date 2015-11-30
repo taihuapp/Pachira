@@ -258,6 +258,39 @@ public class EditTransactionDialogController {
         System.out.println("enterTransaction: only handling InvestmentTransaction for now");
         if (validateTransaction()) {
             mMainApp.insertUpDateTransactionToDB(mTransaction);
+            Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
+            BigDecimal transferAmount = BigDecimal.ZERO;
+            switch (ta) {
+                case BUYX:
+                    transferAmount = mTransaction.getAmount().negate();
+                    break;
+                case SELLX:
+                    transferAmount = mTransaction.getAmount();
+                    break;
+                default:
+                    System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
+                    return false;
+            }
+            if (transferAmount == BigDecimal.ZERO)
+                return true;
+
+            int tID = mTransaction.getMatchID();
+            String wrappedTransferAccountName = mTransaction.getCategory();
+            Account transferAccount = mMainApp.getAccountByWrapedName(wrappedTransferAccountName);
+            if (transferAccount == null) {
+                System.err.println("Bad transfer account name: " + wrappedTransferAccountName);
+                return false;
+            }
+
+            Transaction linkedTransaction = new Transaction(tID, transferAccount.getID(), mTransaction.getDate(),
+                    "", mTransaction.getSecurityName(), mTransaction.getMemo(),
+                    mMainApp.getWrappedAccountName(mAccount), transferAmount, mTransaction.getID(), -1);
+            mMainApp.insertUpDateTransactionToDB(linkedTransaction);
+            if (mTransaction.getMatchID() != linkedTransaction.getID()) {
+                mTransaction.setMatchID(linkedTransaction.getID(), 0);
+                mMainApp.insertUpDateTransactionToDB(mTransaction);
+            }
+
             mMainApp.initTransactionList(mAccount);
             return true;
         } else {

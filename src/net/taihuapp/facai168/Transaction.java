@@ -63,7 +63,7 @@ public class Transaction {
     public ObjectProperty<BigDecimal> getInvestAmountProperty() { return mInvestAmountProperty; }
     public ObjectProperty<BigDecimal> getCashAmountProperty() { return mCashAmountProperty; }
     public ObjectProperty<BigDecimal> getPaymentProperty() { return mPaymentProperty; }
-    public ObjectProperty<BigDecimal> getDepositProperty() { return mDepositeProperty; }
+    public ObjectProperty<BigDecimal> getDepositeProperty() { return mDepositeProperty; }
     public ObjectProperty<BigDecimal> getCommissionProperty() { return mCommissionProperty; }
     public ObjectProperty<BigDecimal> getBalanceProperty() { return mBalanceProperty; }
     public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
@@ -156,8 +156,9 @@ public class Transaction {
 
     // setters
     public void setID(int id) { mID = id; }
-    public void setTradeAction(TradeAction ta) {
-        mTradeActionProperty.set(ta.name());
+    public void setMatchID(int mid, int mSplitID) {
+        mMatchID = mid;
+        mMatchSplitID = mSplitID;
     }
 
     public void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity,
@@ -284,15 +285,16 @@ public class Transaction {
 
     // Banking Transaction constructors
     public Transaction(int id, int accountID, LocalDate date, String reference, String payee, String memo,
-                       String category, BigDecimal amount, int matchID, int MatchSplitID) {
+                       String category, BigDecimal amount, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
-        mMatchSplitID = mMatchSplitID;
+        mMatchSplitID = matchSplitID;
         mDateProperty.setValue(date);
         mReferenceProperty.setValue(reference);
         mPayeeProperty.setValue(payee);
         mMemoProperty.setValue(memo);
+        mAmountProperty.set(amount);
         mCategoryProperty.setValue(category);
         mCashAmountProperty.setValue(amount);
         mTradeActionProperty.setValue("");
@@ -310,21 +312,26 @@ public class Transaction {
 
     // copy constructor
     public Transaction(Transaction t0) {
-        // init the trade transaction part
-        this(t0.getID(), t0.getAccountID(), t0.getDate(), TradeAction.valueOf(t0.getTradeAction()),
-                t0.getSecurityName(), t0.getPrice(), t0.getQuantity(), t0.getMemo(), t0.getCommission(),
-                t0.getAmount(), t0.getCategory(), t0.getMatchID(), t0.getMatchSplitID());
-
-        // set the banking transaction part
-        mReferenceProperty.set(t0.getReferenceProperty().get());
-        mPayeeProperty.set(t0.getPayeeProperty().get());
-        mCategoryProperty.set(t0.getCategoryProperty().get());
-
-        // // TODO: 11/24/15
-        // may need to fix this later
-        mInvestAmountProperty.set(t0.getInvestAmountProperty().get());
-        mCashAmountProperty.set(t0.getCashAmountProperty().get());
-        mDepositeProperty.set(t0.getDepositProperty().get());
-        mPaymentProperty.set(t0.getPaymentProperty().get());
+        mID = t0.mID;
+        mAccountID = t0.mAccountID;
+        mDateProperty.set(t0.mDateProperty.get());
+        mTradeActionProperty.set(t0.mTradeActionProperty.get());
+        mSecurityNameProperty.set(t0.mSecurityNameProperty.get());
+        mReferenceProperty.set(t0.mReferenceProperty.get());
+        mPayeeProperty.set(t0.mPayeeProperty.get());
+        mAmountProperty.set(t0.mAmountProperty.get());
+        mCashAmountProperty.set(t0.mCashAmountProperty.get());
+        mPaymentProperty.set(t0.mPaymentProperty.get());
+        mDepositeProperty.set(t0.mDepositeProperty.get());
+        mMemoProperty.set(t0.mMemoProperty.get());
+        mCategoryProperty.set(t0.mCategoryProperty.get());
+        mBalanceProperty.set(t0.mBalanceProperty.get());
+        mInvestAmountProperty.set(t0.mInvestAmountProperty.get());
+        mCommissionProperty.set(t0.mCommissionProperty.get());
+        mQuantityProperty.set(t0.mQuantityProperty.get());
+        mPriceProperty.set(t0.mPriceProperty.get());
+        mMatchID = t0.mMatchID;
+        mMatchSplitID = t0.mMatchSplitID;
+        mSplitTransactionList.addAll(t0.mSplitTransactionList);
     }
 }

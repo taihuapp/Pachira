@@ -6,7 +6,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.MainController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.MainController">
    <top>
       <MenuBar prefHeight="30.0" prefWidth="800.0" BorderPane.alignment="CENTER">
         <menus>
@@ -70,13 +70,14 @@
             </HBox>
             <TableView fx:id="mTransactionTableView" prefWidth="600.0" visible="false" VBox.vgrow="ALWAYS">
               <columns>
-                  <TableColumn fx:id="mTransactionDateColumn" prefWidth="120.0" text="Date" />
+                  <TableColumn fx:id="mTransactionDateColumn" prefWidth="100.0" text="Date" />
                   <TableColumn fx:id="mTransactionTradeActionColumn" prefWidth="75.0" text="Action" />
-                  <TableColumn fx:id="mTransactionSecurityNameColumn" prefWidth="75.0" text="Security" />
+                  <TableColumn fx:id="mTransactionSecurityNameColumn" prefWidth="120.0" text="Security" />
                   <TableColumn fx:id="mTransactionReferenceColumn" prefWidth="75.0" text="Check#" />
                   <TableColumn fx:id="mTransactionPayeeColumn" prefWidth="175.0" text="Payee" />
                   <TableColumn fx:id="mTransactionMemoColumn" prefWidth="175.0" text="Memo" />
                   <TableColumn fx:id="mTransactionCategoryColumn" prefWidth="175.0" text="Category" />
+                  <TableColumn fx:id="mTransactionDescriptionColumn" prefWidth="200.0" text="Description" />
                   <TableColumn fx:id="mTransactionInvestAmountColumn" prefWidth="100.0" text="Inv Amt" />
                   <TableColumn fx:id="mTransactionCashAmountColumn" prefWidth="100.0" text="Cash Amt" />
                   <TableColumn fx:id="mTransactionPaymentColumn" prefWidth="100.0" text="Payment" />

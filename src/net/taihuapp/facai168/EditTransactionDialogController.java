@@ -197,12 +197,9 @@ public class EditTransactionDialogController {
     // used for mSharesTextField, mPriceTextField, mCommissionTextField
     private void addEventFilter(TextField tf) {
         // add an event filter so only numerical values are permitted
-        tf.addEventFilter(KeyEvent.KEY_TYPED, new EventHandler<KeyEvent>() {
-            @Override
-            public void handle(KeyEvent event) {
-                if (!"0123456789.".contains(event.getCharacter()))
-                    event.consume();
-            }
+        tf.addEventFilter(KeyEvent.KEY_TYPED, event -> {
+            if (!"0123456789.".contains(event.getCharacter()))
+                event.consume();
         });
     }
 
@@ -271,7 +268,7 @@ public class EditTransactionDialogController {
                     System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
                     return false;
             }
-            if (transferAmount == BigDecimal.ZERO)
+            if (transferAmount.equals(BigDecimal.ZERO))
                 return true;
 
             int tID = mTransaction.getMatchID();
@@ -356,6 +353,9 @@ public class EditTransactionDialogController {
         mDatePicker.valueProperty().bindBidirectional(mTransaction.getDateProperty());
         mTransactionLabel.setText(tValue);
         mAccountNameTextField.setText(mAccount.getName());
+
+        mMemoTextField.textProperty().unbindBidirectional(mTransaction.getMemoProperty());
+        mMemoTextField.textProperty().bindBidirectional(mTransaction.getMemoProperty());
 
         mTransaction.getTradeActionProperty().bind(new StringBinding() {
             { super.bind(mTransferAccountChoiceBox.valueProperty(),

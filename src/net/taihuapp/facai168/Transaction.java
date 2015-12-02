@@ -20,7 +20,7 @@ public class Transaction {
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
         SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX;
+        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX
     }
 
     private int mID = -1;
@@ -44,7 +44,7 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-
+    private final StringProperty mDescriptionProperty = new SimpleStringProperty("");
     private int mMatchID = -1;
     private int mMatchSplitID = -1;
     // we use a Transaction object for holding a split transaction
@@ -71,6 +71,25 @@ public class Transaction {
 
     public StringProperty getTradeActionProperty() { return mTradeActionProperty; }
     public StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
+
+    public StringProperty getDescriptionProperty() {
+        switch (TradeAction.valueOf(mTradeActionProperty.get())) {
+            case BUY:
+            case BUYX:
+            case CVTSHRT:
+            case CVTSHRTX:
+            case SELL:
+            case SELLX:
+            case SHTSELL:
+            case SHTSELLX:
+                mDescriptionProperty.set("" + mQuantityProperty.get() + " @ " + mPriceProperty.get());
+                break;
+            default:
+                mDescriptionProperty.set("description for this type Transaction not implemented yet.");
+                break;
+        }
+        return mDescriptionProperty;
+    }
 
     public LocalDate getDate() { return mDateProperty.get(); }
     public String getMemo() { return mMemoProperty.get(); }

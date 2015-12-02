@@ -69,6 +69,8 @@ public class MainController {
     @FXML
     private TableColumn<Transaction, String> mTransactionSecurityNameColumn;
     @FXML
+    private TableColumn<Transaction, String> mTransactionDescriptionColumn;
+    @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionInvestAmountColumn;
     @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn;
@@ -115,7 +117,7 @@ public class MainController {
 
     @FXML
     private void handleClearList() {
-        mMainApp.putOpenedDBNames(new ArrayList<String>());
+        mMainApp.putOpenedDBNames(new ArrayList<>());
         updateRecentMenu();
     }
 
@@ -136,12 +138,10 @@ public class MainController {
     }
 
     public void updateRecentMenu() {
-        EventHandler<ActionEvent> menuAction = new EventHandler<ActionEvent> () {
-            public void handle(ActionEvent t) {
-                MenuItem mi = (MenuItem) t.getTarget();
-                mMainApp.openDatabase(false, mi.getText());
-                updateUI(mMainApp.isConnected());
-            }
+        EventHandler<ActionEvent> menuAction = t -> {
+            MenuItem mi = (MenuItem) t.getTarget();
+            mMainApp.openDatabase(false, mi.getText());
+            updateUI(mMainApp.isConnected());
         };
         ObservableList<MenuItem> recentList = mRecentDBMenu.getItems();
         recentList.remove(0, recentList.size() - 2);
@@ -195,6 +195,7 @@ public class MainController {
         mTransactionBalanceColumn.setText(isTradingAccount ? "Cash Bal" : "Balance");
 
         mTransactionSecurityNameColumn.setVisible(isTradingAccount);
+        mTransactionDescriptionColumn.setVisible(isTradingAccount);
         mTransactionInvestAmountColumn.setVisible(isTradingAccount);
         mTransactionCashAmountColumn.setVisible(isTradingAccount);
     }
@@ -204,21 +205,19 @@ public class MainController {
         mAccountColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());
         mAccountBalanceColumn.setCellValueFactory(cellData -> cellData.getValue().getCurrentBalanceProperty());
 
-        mAccountBalanceColumn.setCellFactory(column -> {
-            return new TableCell<Account, BigDecimal>() {
-                @Override
-                protected void updateItem(BigDecimal item, boolean empty) {
-                    super.updateItem(item, empty);
+        mAccountBalanceColumn.setCellFactory(column -> new TableCell<Account, BigDecimal>() {
+            @Override
+            protected void updateItem(BigDecimal item, boolean empty) {
+                super.updateItem(item, empty);
 
-                    if (item == null || empty) {
-                        setText("");
-                    } else {
-                        // format
-                        setText((new DecimalFormat("#0.00")).format(item));
-                    }
-                    setStyle("-fx-alignment: CENTER-RIGHT;");
+                if (item == null || empty) {
+                    setText("");
+                } else {
+                    // format
+                    setText((new DecimalFormat("#0.00")).format(item));
                 }
-            };
+                setStyle("-fx-alignment: CENTER-RIGHT;");
+            }
         });
 
         mAccountTableView.getSelectionModel().selectedItemProperty().addListener(
@@ -239,6 +238,7 @@ public class MainController {
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
         mTransactionTradeActionColumn.setCellValueFactory(cellData -> cellData.getValue().getTradeActionProperty());
         mTransactionSecurityNameColumn.setCellValueFactory(cellData -> cellData.getValue().getSecurityNameProperty());
+        mTransactionDescriptionColumn.setCellValueFactory(cellData -> cellData.getValue().getDescriptionProperty());
         mTransactionReferenceColumn.setCellValueFactory(cellData -> cellData.getValue().getReferenceProperty());
 
         mTransactionPayeeColumn.setCellValueFactory(cellData -> cellData.getValue().getPayeeProperty());

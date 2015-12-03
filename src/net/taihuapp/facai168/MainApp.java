@@ -1012,7 +1012,7 @@ public class MainApp extends Application {
         SortedList<Transaction> sortedTransactionList = new SortedList<>(mTransactionList,
                 Comparator.comparing(Transaction::getDate).thenComparing(Transaction::getID));
         for (Transaction t : sortedTransactionList) {
-            if (t.getDateProperty().get().isAfter(date))
+            if (t.getDate().isAfter(date))
                 break; // we are done
 
             int tid = t.getID();
@@ -1035,10 +1035,23 @@ public class MainApp extends Application {
             }
         }
 
+        for (Iterator<SecurityHolding> securityHoldingIterator = mSecurityHoldingList.iterator();
+             securityHoldingIterator.hasNext(); ) {
+            SecurityHolding securityHolding = securityHoldingIterator.next();
+            securityHolding.updateAggregate();
+            if (securityHolding.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
+                // remove security with zero quantity
+                securityHoldingIterator.remove();
+            }
+            securityHolding.setPrice(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
+        }
+
+/*
         for (SecurityHolding securityHolding : mSecurityHoldingList) {
             String name = securityHolding.getSecurityNameProperty().get();
             securityHolding.setPrice(getLatestSecurityPrice(name, date));
         }
+*/
         // put cash holding at the bottom
         mSecurityHoldingList.add(cashHolding);
     }

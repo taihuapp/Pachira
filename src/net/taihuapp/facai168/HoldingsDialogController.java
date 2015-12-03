@@ -92,16 +92,6 @@ public class HoldingsDialogController {
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPctReturn()));
         mPctReturnColumn.setComparator(null);
 
-/*
-        mNameColumn.setCellValueFactory(cellData->cellData.getValue().getSecurityNameProperty());
-        mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
-        mQuantityColumn.setCellValueFactory(cellData->cellData.getValue().getQuantityProperty());
-        mMarketValueColumn.setCellValueFactory(cellData->cellData.getValue().getMarketValueProperty());
-        mCostBasisColumn.setCellValueFactory(cellData->cellData.getValue().getCostBasisProperty());
-        mPNLColumn.setCellValueFactory(cellData->cellData.getValue().getPNLProperty());
-        mPctReturnColumn.setCellValueFactory(cellData -> cellData.getValue().getPctRetProperty());
-*/
-
         mDatePicker.setOnAction(event -> {updateHoldings(); });
         mDatePicker.setValue(LocalDate.now());
         updateHoldings();// setValue doesn't trigger an event, call update mannually.

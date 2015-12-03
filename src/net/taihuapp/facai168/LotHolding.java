@@ -23,11 +23,11 @@ public abstract class LotHolding {
 
     // getters
     public abstract String getLabel();
-    public StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
     public ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
     public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
     public ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
     public ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
+    public String getSecurityName() { return mSecurityNameProperty.get(); }
     public BigDecimal getPrice() { return mPriceProperty.get(); }
     public BigDecimal getQuantity() { return mQuantityProperty.get(); }
     public BigDecimal getCostBasis() { return mCostBasisProperty.get(); }

@@ -256,8 +256,12 @@ public class EditTransactionDialogController {
         if (validateTransaction()) {
             mMainApp.insertUpDateTransactionToDB(mTransaction);
             Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
-            BigDecimal transferAmount = BigDecimal.ZERO;
+            BigDecimal transferAmount;
             switch (ta) {
+                case BUY:
+                case SELL:
+                    transferAmount = BigDecimal.ZERO;
+                    break;
                 case BUYX:
                     transferAmount = mTransaction.getAmount().negate();
                     break;
@@ -268,7 +272,7 @@ public class EditTransactionDialogController {
                     System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
                     return false;
             }
-            if (transferAmount.equals(BigDecimal.ZERO))
+            if (transferAmount.compareTo(BigDecimal.ZERO) == 0)
                 return true;
 
             int tID = mTransaction.getMatchID();
@@ -287,8 +291,6 @@ public class EditTransactionDialogController {
                 mTransaction.setMatchID(linkedTransaction.getID(), 0);
                 mMainApp.insertUpDateTransactionToDB(mTransaction);
             }
-
-            mMainApp.initTransactionList(mAccount);
             return true;
         } else {
             return false;
@@ -330,13 +332,16 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleEnterDone() {
-        if (enterTransaction())
+        if (enterTransaction()) {
+            mMainApp.initTransactionList(mAccount);
             mDialogStage.close();
+        }
     }
 
     @FXML
     private void handleEnterNew() {
-        enterTransaction();
+        if (enterTransaction())
+            mMainApp.initTransactionList(mAccount);
     }
 
     @FXML

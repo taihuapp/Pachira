@@ -1,15 +1,13 @@
 package net.taihuapp.facai168;
 
-import com.sun.istack.internal.NotNull;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -137,7 +135,7 @@ public class SecurityHolding extends LotHolding {
 
     // getters
     @Override
-    public String getLabel() { return getSecurityNameProperty().get(); }
+    public String getLabel() { return getSecurityName(); }
 
     private int getLotIndex(int tid) {
         for (int idx = 0; idx < mLotInfoList.size(); idx++) {
@@ -192,6 +190,8 @@ public class SecurityHolding extends LotHolding {
         BigDecimal quantity = BigDecimal.ZERO;
         BigDecimal costBasis = BigDecimal.ZERO;
 
+        // todo
+        // merge the two loops
         int openIdx = 0;
         int lsSign = 0;
         for (int i = 0; i < mLotInfoList.size(); i++) {
@@ -217,6 +217,12 @@ public class SecurityHolding extends LotHolding {
             quantity = quantity.add(q);
             costBasis = costBasis.add(lotInfo.getCostBasis());
             lsSign = quantity.signum();
+        }
+
+        for (Iterator<LotInfo> iter = mLotInfoList.iterator(); iter.hasNext(); ) {
+            LotInfo li = iter.next();
+            if (li.getQuantity().compareTo(BigDecimal.ZERO) == 0)
+                iter.remove();
         }
 
         setQuantity(quantity);

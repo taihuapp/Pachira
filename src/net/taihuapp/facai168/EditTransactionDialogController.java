@@ -5,7 +5,6 @@ import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
@@ -180,6 +179,8 @@ public class EditTransactionDialogController {
     private TextField mTotalTextField;
 
     @FXML
+    private Button mSpecifyLotButton;
+    @FXML
     private Button mCancelButton;
     @FXML
     private Button mClearButton;
@@ -203,6 +204,7 @@ public class EditTransactionDialogController {
         });
     }
 
+    // transaction can either be null, or a copy of an existing transaction in the list
     public void setMainApp(MainApp mainApp, Transaction transaction, Stage stage) {
         mDialogStage = stage;
         mMainApp = mainApp;
@@ -321,6 +323,11 @@ public class EditTransactionDialogController {
     }
 
     @FXML
+    private void handleSpecifyLots() {
+        mMainApp.showSpecifyLotsDialog(mTransaction);
+    }
+
+    @FXML
     private void handleCancel() {
         mDialogStage.close();
     }
@@ -397,16 +404,19 @@ public class EditTransactionDialogController {
         final BigDecimal investAmountSign;
         switch (investType) {
             case BUY:
+                mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setText("Use Cash From:");
                 mTotalLabel.setText("Total Cost:");
                 investAmountSign = BigDecimal.ONE;
                 break;
             case SELL:
+                mSpecifyLotButton.setVisible(true);
                 mTransferAccountLabel.setText("Put Cash Into:");
                 mTotalLabel.setText("Total Cost:");
                 investAmountSign = BigDecimal.ONE.negate();
                 break;
             default:
+                mSpecifyLotButton.setVisible(false);
                 System.err.println("InvestmentTransaction " + investType + " not implemented yet.");
                 return;
         }

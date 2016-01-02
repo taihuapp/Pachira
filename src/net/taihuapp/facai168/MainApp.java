@@ -1038,7 +1038,7 @@ public class MainApp extends Application {
         for (Iterator<SecurityHolding> securityHoldingIterator = mSecurityHoldingList.iterator();
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
-            securityHolding.updateAggregate();
+
             if (securityHolding.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
@@ -1095,6 +1095,43 @@ public class MainApp extends Application {
             e.printStackTrace();
         }
         return price;
+    }
+
+    private void showWarningDialog(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    public void showSpecifyLotsDialog(Transaction t) {
+        System.out.println("Show Specify Lot window...");
+
+/*
+        Security security = mSecurityChoiceBox.getValue();
+        if (security == null) {
+            showWarningDialog("No Security Chosen", "No Security Chosen",
+                    "Please select a valid security first");
+            return;
+        }
+*/
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("SpecifyLotsDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Specify Lots...");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            SpecifyLotsDialogController controller = loader.getController();
+            controller.setMainApp(this, t);
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void showEditTransactionDialog(Transaction transaction) {

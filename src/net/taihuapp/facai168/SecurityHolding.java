@@ -149,10 +149,12 @@ public class SecurityHolding extends LotHolding {
 
     // add the lot at the end
     public void addLot(LotInfo lotInfo) {
+        setQuantity(getQuantity().add(lotInfo.getQuantity()));
         mLotInfoList.add(lotInfo);
     }
 
     public void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
+        setQuantity(getQuantity().add(lotInfo.getQuantity()));
         if (matchInfoList.size() == 0) {
             // no specific lot to offset, simply add to the end
             mLotInfoList.add(lotInfo);
@@ -184,6 +186,7 @@ public class SecurityHolding extends LotHolding {
         }
     }
 
+    // todo should move this into addLot (involves changing logic a little
     @Override
     protected void updateAggregate() {
         // start from fresh

@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.*?>
-<?import javafx.scene.layout.*?>
-<?import java.lang.*?>
 <?import javafx.scene.control.*?>
-
+<?import javafx.scene.layout.*?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditTransactionDialogController">
    <top>
       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
@@ -43,7 +40,7 @@
             <Label text="Number of Shares:" GridPane.columnIndex="2" GridPane.rowIndex="2" />
             <Label text="Price per Share:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
             <Label text="Commission:" GridPane.columnIndex="2" GridPane.rowIndex="5" />
-            <Label fx:id="mTotalLabel" text="Total Cost:" GridPane.columnIndex="2" GridPane.rowIndex="6" />
+            <Label fx:id="mTotalLabel" text="Total Cost:" GridPane.columnIndex="2" GridPane.rowIndex="7" />
             <Label fx:id="mTransferAccountLabel" text="Transfer Account:" GridPane.rowIndex="3" />
             <Label text="Memo:" GridPane.rowIndex="4" />
             <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="5" />
@@ -53,18 +50,17 @@
             <TextField fx:id="mSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="2" />
             <TextField fx:id="mPriceTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
             <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="5" />
-            <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" editable="false" GridPane.columnIndex="3" GridPane.rowIndex="6" />
+            <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" editable="false" GridPane.columnIndex="3" GridPane.rowIndex="7" />
+            <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="2" GridPane.rowIndex="6" />
          </children>
       </GridPane>
    </center>
    <bottom>
-      <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-        <items>
-          <Button fx:id="mCancelButton" mnemonicParsing="false" onAction="#handleCancel" text="Cancel" />
-            <Button fx:id="mClearButton" mnemonicParsing="false" onAction="#handleClear" text="Clear" />
-            <Button fx:id="mEnterNewButton" mnemonicParsing="false" onAction="#handleEnterNew" text="Enter/New" />
-            <Button fx:id="mEnterDoneButton" mnemonicParsing="false" onAction="#handleEnterDone" text="Enter/Done" />
-        </items>
-      </ToolBar>
+       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+           <Button fx:id="mCancelButton" mnemonicParsing="false" onAction="#handleCancel" text="Cancel"/>
+           <Button fx:id="mClearButton" mnemonicParsing="false" onAction="#handleClear" text="Clear"/>
+           <Button fx:id="mEnterNewButton" mnemonicParsing="false" onAction="#handleEnterNew" text="Enter/New"/>
+           <Button fx:id="mEnterDoneButton" mnemonicParsing="false" onAction="#handleEnterDone" text="Enter/Done"/>
+       </ToolBar>
    </bottom>
 </BorderPane>

@@ -54,16 +54,16 @@ public class EditTransactionDialogController {
         }
     }
 
-    enum TransactionType {
+    enum TransactionClass {
         INVESTMENT("Investment Transactions"), CASH("Cash Transactions");
 
         private final String mDesc;
-        TransactionType(String d) { mDesc = d; }
+        TransactionClass(String d) { mDesc = d; }
         @Override
         public String toString() { return mDesc; }
-        public static TransactionType fromString(String s) {
+        public static TransactionClass fromString(String s) {
             if (s != null) {
-                for (TransactionType tt : TransactionType.values()) {
+                for (TransactionClass tt : TransactionClass.values()) {
                     if (s.equals(tt.toString()))
                         return tt;
                 }
@@ -72,14 +72,15 @@ public class EditTransactionDialogController {
         }
         public static List<String> names() {
             List<String> names = new ArrayList<>();
-            TransactionType[] tts = values();
-            for (TransactionType tt : tts) {
+            TransactionClass[] tts = values();
+            for (TransactionClass tt : tts) {
                 names.add(tt.toString());
             }
             return names;
         }
     }
 
+    // Investment Transaction Types
     enum InvestmentTransaction {
         BUY("Buy - Shares Bought"), SELL("Sell - Shares Sold");
 
@@ -106,6 +107,7 @@ public class EditTransactionDialogController {
         }
     }
 
+    // Cash Transaction Types
     enum CashTransaction {
         CHECK("Write Check"), DEP("Deposit"), WITHDRAW("Withdraw"),
         ONLINE("Online Payment"), OTHER("Other Cash Transaction");
@@ -133,8 +135,51 @@ public class EditTransactionDialogController {
         }
     }
 
-    private final ObservableList<String> mTransactionTypeList = FXCollections.observableArrayList(
-            TransactionType.names()
+    class TransactionTypeCombo {
+        InvestmentTransaction mIT;
+        CashTransaction mCT;
+
+        public TransactionTypeCombo(InvestmentTransaction it) {
+            mIT = it;
+            mCT = null;
+        }
+
+        public TransactionTypeCombo(CashTransaction ct) {
+            mIT = null;
+            mCT = ct;
+        }
+
+        public TransactionClass getTransactionType() {
+            if (mIT != null)
+                return TransactionClass.INVESTMENT;
+            if (mCT != null)
+                return TransactionClass.CASH;
+            return null;
+        }
+
+        public InvestmentTransaction getIT() { return mIT; }
+        public CashTransaction getCT() { return mCT; }
+    }
+
+    TransactionTypeCombo mapTradeAction(Transaction.TradeAction ta) {
+        // todo need to complete all cases
+        switch (ta) {
+            case BUY:
+            case BUYX:
+                return new TransactionTypeCombo(InvestmentTransaction.BUY);
+            case SELL:
+            case SELLX:
+                return new TransactionTypeCombo((InvestmentTransaction.SELL));
+            case CASH:
+                return new TransactionTypeCombo(CashTransaction.OTHER);
+            default:
+                // more work is needed to added new cases
+                return null;
+        }
+    }
+
+    private final ObservableList<String> mTransactionClassList = FXCollections.observableArrayList(
+            TransactionClass.names()
             //"Investment Transactions", "Cash Transactions"
     );
     
@@ -149,7 +194,7 @@ public class EditTransactionDialogController {
     );
 
     @FXML
-    private ChoiceBox<String> mTypeChoiceBox;
+    private ChoiceBox<String> mClassChoiceBox;
     @FXML
     private ChoiceBox<String> mTransactionChoiceBox;
     @FXML
@@ -210,25 +255,24 @@ public class EditTransactionDialogController {
         mMainApp = mainApp;
         mAccount = mMainApp.getCurrentAccount();
 
-        mSecurityChoiceBox.setConverter(new SecurityConverter());
-        mSecurityChoiceBox.setItems(mMainApp.getSecurityList());
-
         if (transaction == null) {
             mTransaction = new Transaction(mAccount.getID(), LocalDate.now());
         } else {
             mTransaction = transaction;
         }
+
+        setupTransactionDialog();
+/*
+        mSecurityChoiceBox.setConverter(new SecurityConverter());
+        mSecurityChoiceBox.setItems(mMainApp.getSecurityList());
+
         mTransferAccountChoiceBox.setConverter(new AccountConverter());
         mTransferAccountChoiceBox.setItems(mMainApp.getAccountList());
         mTransferAccountChoiceBox.getSelectionModel().select(mAccount);
 
-        mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
-                .addListener((observable1, oldValue, newValue) -> {
-                    setupTransactionDialog(newValue);
-                });
-        mTypeChoiceBox.getItems().addAll(mTransactionTypeList);
-        mTypeChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            switch (TransactionType.fromString(newValue)) {
+        mClassChoiceBox.getItems().addAll(mTransactionClassList);
+        mClassChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            switch (TransactionClass.fromString(newValue)) {
                 case INVESTMENT:
                     mTransactionChoiceBox.getItems().setAll(mInvestmentTransactionList);
                     break;
@@ -241,14 +285,15 @@ public class EditTransactionDialogController {
             mTransactionChoiceBox.getSelectionModel().selectFirst();
         });
 
-        mTypeChoiceBox.getSelectionModel().selectFirst();
-
-        // binding
-
+        mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
+                .addListener((observable1, oldValue, newValue) -> {
+                    setupTransactionDialog(newValue);
+                });
 
         addEventFilter(mSharesTextField);
         addEventFilter(mPriceTextField);
         addEventFilter(mCommissionTextField);
+*/
     }
 
     // return true if enter worked
@@ -300,7 +345,7 @@ public class EditTransactionDialogController {
     }
 
     private boolean validateTransaction() {
-        if (TransactionType.fromString(mTypeChoiceBox.getValue()) == TransactionType.CASH) {
+        if (TransactionClass.fromString(mClassChoiceBox.getValue()) == TransactionClass.CASH) {
             System.err.println("CASH Transaction not implemented yet");
             return false;
         }
@@ -355,19 +400,69 @@ public class EditTransactionDialogController {
     private void initialize() {
     }
 
-    private void setupCashTransactionDialog(String tValue) {
-        System.err.println("CashTransactionDialog not implemented yet");
-    }
+    private void setupTransactionDialog() {
 
-    private void setupTransactionDialog(String tValue) {
+        mSecurityChoiceBox.setConverter(new SecurityConverter());
+        mSecurityChoiceBox.setItems(mMainApp.getSecurityList());
+
+        mTransferAccountChoiceBox.setConverter(new AccountConverter());
+        mTransferAccountChoiceBox.setItems(mMainApp.getAccountList());
+        mTransferAccountChoiceBox.getSelectionModel().select(mAccount);
+
+        mClassChoiceBox.getItems().setAll(mTransactionClassList);
+        mClassChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            switch (TransactionClass.fromString(newValue)) {
+                case INVESTMENT:
+                    mTransactionChoiceBox.getItems().setAll(mInvestmentTransactionList);
+                    break;
+                case CASH:
+                    mTransactionChoiceBox.getItems().setAll(mCashTransactionList);
+                    break;
+                default:
+                    System.err.println("Unknown choice " + newValue);
+            }
+        });
+
+        addEventFilter(mSharesTextField);
+        addEventFilter(mPriceTextField);
+        addEventFilter(mCommissionTextField);
 
         //mDatePicker.setValue(LocalDate.now());
         mDatePicker.valueProperty().bindBidirectional(mTransaction.getDateProperty());
-        mTransactionLabel.setText(tValue);
         mAccountNameTextField.setText(mAccount.getName());
 
         mMemoTextField.textProperty().unbindBidirectional(mTransaction.getMemoProperty());
         mMemoTextField.textProperty().bindBidirectional(mTransaction.getMemoProperty());
+
+        mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
+                .addListener((observable1, oldValue, newValue) -> {
+                    switch (TransactionClass.fromString(mClassChoiceBox.getSelectionModel().getSelectedItem())) {
+                        case INVESTMENT:
+                            setupInvestmentTransactionDialog(InvestmentTransaction.fromString(newValue));
+                            break;
+                        case CASH:
+                            setupCashTransactionDialog(CashTransaction.fromString(newValue));
+                            break;
+                        default:
+                            System.err.println("mTransactionChoiceBox listener: Unimplemented case: " + newValue);
+                    }
+                });
+
+        TransactionTypeCombo tc = mapTradeAction(Transaction.TradeAction.valueOf(mTransaction.getTradeAction()));
+        // select Investment or Cash according to mTransaction
+        mClassChoiceBox.getSelectionModel().select(tc.getTransactionType().toString());
+        switch (tc.getTransactionType()) {
+            case INVESTMENT:
+                mTransactionChoiceBox.getSelectionModel().select(tc.getIT().toString());
+                break;
+            case CASH:
+                mTransactionChoiceBox.getSelectionModel().select(tc.getCT().toString());
+                break;
+            default:
+                System.err.println("setupTransactionDialog: TransactionType " + tc
+                        + " not implemented");
+                return;
+        }
 
         mTransaction.getTradeActionProperty().bind(new StringBinding() {
             { super.bind(mTransferAccountChoiceBox.valueProperty(),
@@ -386,21 +481,30 @@ public class EditTransactionDialogController {
             }
         });
 
-        switch (TransactionType.fromString(mTypeChoiceBox.getValue())) {
+        /*
+        switch (TransactionType.fromString(mClassChoiceBox.getValue())) {
             case INVESTMENT:
-                setupInvestmentTransactionDialog(InvestmentTransaction.fromString(tValue));
+                //setupInvestmentTransactionDialog(InvestmentTransaction.fromString(tValue));
+                setupInvestmentTransactionDialog(mTransaction.getTradeAction());
                 return;
             case CASH:
                 setupCashTransactionDialog(tValue);
                 return;
             default:
-                System.err.println("setupTransactionDialog: " + mTypeChoiceBox.getValue()
+                System.err.println("setupTransactionDialog: " + mClassChoiceBox.getValue()
                         + " not implemented");
                 return;
         }
+*/
+    }
+
+    private void setupCashTransactionDialog(CashTransaction cashType) {
+        System.err.println("CashTransactionDialog not implemented yet");
     }
 
     private void setupInvestmentTransactionDialog(InvestmentTransaction investType) {
+        mTransactionLabel.setText(investType.name());
+
         final BigDecimal investAmountSign;
         switch (investType) {
             case BUY:
@@ -412,7 +516,7 @@ public class EditTransactionDialogController {
             case SELL:
                 mSpecifyLotButton.setVisible(true);
                 mTransferAccountLabel.setText("Put Cash Into:");
-                mTotalLabel.setText("Total Cost:");
+                mTotalLabel.setText("Total Sale:");
                 investAmountSign = BigDecimal.ONE.negate();
                 break;
             default:

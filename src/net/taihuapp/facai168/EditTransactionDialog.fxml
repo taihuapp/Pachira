@@ -6,7 +6,7 @@
    <top>
       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <items>
-            <ChoiceBox fx:id="mTypeChoiceBox" prefWidth="200.0" />
+            <ChoiceBox fx:id="mClassChoiceBox" prefWidth="200.0" />
             <ChoiceBox fx:id="mTransactionChoiceBox" prefWidth="200.0" />
          </items>
       </ToolBar>

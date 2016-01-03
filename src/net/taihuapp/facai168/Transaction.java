@@ -277,6 +277,7 @@ public class Transaction {
     public Transaction(int accountID, LocalDate date) {
         mAccountID = accountID;
         mDateProperty.set(date);
+        mTradeActionProperty.set(TradeAction.BUY.name());  // default buy
     }
 
     // Trade Transaction constructor

@@ -217,13 +217,13 @@ public class Transaction {
             case SHTSELL:
                 mInvestAmountProperty.setValue(amount.negate());
                 mCashAmountProperty.setValue(amount);
-                mQuantityProperty.set(quantity.negate());
+                mQuantityProperty.set(quantity);
                 break;
             case SELLX:
             case SHTSELLX:
                 mInvestAmountProperty.setValue(amount.negate());
                 mCashAmountProperty.setValue(BigDecimal.ZERO);
-                mQuantityProperty.set(quantity.negate());
+                mQuantityProperty.set(quantity);
                 break;
             case CASH:
             case CGLONG:

@@ -106,6 +106,33 @@ public class Transaction {
     public int getMatchID() { return mMatchID; }
     public int getMatchSplitID() { return mMatchSplitID; }
 
+    public BigDecimal getSignedQuantity() {
+        switch (TradeAction.valueOf(getTradeAction())) {
+            case SELL:
+            case SELLX:
+            case SHTSELL:
+            case SHTSELLX:
+            case SHRSOUT:
+                return getQuantity().negate();
+            case BUY:
+            case BUYX:
+            case CVTSHRT:
+            case CVTSHRTX:
+            case SHRSIN:
+            case DIV:
+            case DIVX:
+            case CGLONG:
+            case CGLONGX:
+            case CGMID:
+            case CGMIDX:
+            case CGSHORT:
+            case CGSHORTX:
+                return getQuantity();
+            default:
+                System.err.println("getSignedQuantity not implemented for " + getTradeAction());
+                return getQuantity();
+        }
+    }
 /*
         switch (TradeAction.valueOf(mTradeActionProperty.get())) {
             case BUY:

@@ -1007,7 +1007,7 @@ public class MainApp extends Application {
 
         CashHolding cashHolding = new CashHolding();
         cashHolding.setPrice(BigDecimal.ONE);
-        Map<String, Integer> indexMap = new HashMap<>();
+        Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
 
         // sort the transaction list first
         SortedList<Transaction> sortedTransactionList = new SortedList<>(mTransactionList,
@@ -1031,8 +1031,9 @@ public class MainApp extends Application {
                     indexMap.put(name, index);
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
+                BigDecimal q = t.getQuantity();
                 mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name, t.getDate(),
-                        t.getQuantity(), t.getCostBasis()), getMatchInfoList(tid));
+                        t.getSignedQuantity(), t.getCostBasis()), getMatchInfoList(tid));
             }
         }
 

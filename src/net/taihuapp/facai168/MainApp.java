@@ -999,6 +999,7 @@ public class MainApp extends Application {
     }
 
     public void updateHoldingsList(LocalDate date) {
+        System.out.println("updateHoldingsList called");
         // maybe this (and other operations) should be moved to Account class
 
         // empty the list first

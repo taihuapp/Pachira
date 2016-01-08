@@ -30,6 +30,7 @@ public class SecurityHolding extends LotHolding {
             setCostBasis(costBasis);
         }
 
+        public ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
         public LocalDate getDate() { return mDateProperty.get(); }
         public int getTransactionID() { return mTransactionID; }
 

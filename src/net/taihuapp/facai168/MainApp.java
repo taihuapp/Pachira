@@ -999,9 +999,6 @@ public class MainApp extends Application {
     }
 
     public void updateHoldingsList(LocalDate date) {
-        System.out.println("updateHoldingsList called");
-        // maybe this (and other operations) should be moved to Account class
-
         // empty the list first
         mSecurityHoldingList.clear();
 
@@ -1020,7 +1017,8 @@ public class MainApp extends Application {
             LocalDate tDate = t.getDate();
             BigDecimal tCashAmt = t.getCashAmount();
             String name = t.getSecurityName();
-            cashHolding.addLot(new SecurityHolding.LotInfo(tid, name, tDate, tCashAmt, tCashAmt));
+            cashHolding.addLot(new SecurityHolding.LotInfo(tid, name, t.getTradeAction(), tDate,
+                    BigDecimal.ONE, tCashAmt, tCashAmt));
 
             if (!name.isEmpty()) {
                 // it's not cash transaction, add security lot
@@ -1032,8 +1030,8 @@ public class MainApp extends Application {
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
                 BigDecimal q = t.getQuantity();
-                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name, t.getDate(),
-                        t.getSignedQuantity(), t.getCostBasis()), getMatchInfoList(tid));
+                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name, t.getTradeAction(),
+                        t.getDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()), getMatchInfoList(tid));
             }
         }
 
@@ -1045,7 +1043,9 @@ public class MainApp extends Application {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
             }
-            securityHolding.setPrice(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
+            //securityHolding.setPrice(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
+            securityHolding.updateMarketValue(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
+            securityHolding.updatePctRet();
         }
 
 /*

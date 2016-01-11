@@ -39,7 +39,7 @@
             <TableView fx:id="mLotInfoTableView" prefHeight="200.0" prefWidth="200.0" GridPane.columnSpan="2">
               <columns>
                 <TableColumn fx:id="mDateColumn" text="Date" />
-                <TableColumn text="Type" />
+                <TableColumn fx:id="mTypeColumn" text="Type" />
                   <TableColumn prefWidth="120.0" text="Holding Period" />
                   <TableColumn fx:id="mPriceColumn" text="Price" />
                   <TableColumn fx:id="mQuantityColumn" text="Available" />

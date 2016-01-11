@@ -2,6 +2,8 @@ package net.taihuapp.facai168;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
@@ -27,6 +29,7 @@ public class SpecifyLotsDialogController {
     static class SpecifyLotInfo {
         private int mTransactionID;
         private ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
+        private StringProperty mTradeActionProperty = new SimpleStringProperty();
         private ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
         private ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
         private ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -35,6 +38,7 @@ public class SpecifyLotsDialogController {
         SpecifyLotInfo(SecurityHolding.LotInfo sl) {
             mTransactionID = sl.getTransactionID();
             mDateProperty.set(sl.getDate());
+            mTradeActionProperty.set(sl.getTradeActionProperty().get());
             mPriceProperty.set(sl.getPrice());
             mQuantityProperty.set(sl.getQuantity());
             mSelectedSharesProperty.set(BigDecimal.ZERO);
@@ -43,6 +47,7 @@ public class SpecifyLotsDialogController {
 
         // getters
         ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
+        StringProperty getTradeActionProperty() { return mTradeActionProperty; }
         ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
         ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
         ObjectProperty<BigDecimal> getSelectedSharesProperty() { return mSelectedSharesProperty; }
@@ -71,6 +76,8 @@ public class SpecifyLotsDialogController {
     private TableView<SpecifyLotInfo> mLotInfoTableView;
     @FXML
     private TableColumn<SpecifyLotInfo, LocalDate> mDateColumn;
+    @FXML
+    private TableColumn<SpecifyLotInfo, String> mTypeColumn;
     @FXML
     private TableColumn<SpecifyLotInfo, BigDecimal> mPriceColumn;
     @FXML
@@ -128,6 +135,7 @@ public class SpecifyLotsDialogController {
         mLotInfoTableView.setItems(mSpecifyLotInfoList);
 
         mDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
+        mTypeColumn.setCellValueFactory(cellData->cellData.getValue().getTradeActionProperty());
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
         mQuantityColumn.setCellValueFactory(cellData->cellData.getValue().getQuantityProperty());
         mSelectedColumn.setCellValueFactory(cellData->cellData.getValue().getSelectedSharesProperty());

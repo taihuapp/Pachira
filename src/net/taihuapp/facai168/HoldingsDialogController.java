@@ -89,7 +89,7 @@ public class HoldingsDialogController {
         mPNLColumn.setComparator(null);
 
         mPctReturnColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPctReturn()));
+                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPctRet()));
         mPctReturnColumn.setComparator(null);
 
         mDatePicker.setOnAction(event -> {updateHoldings(); });

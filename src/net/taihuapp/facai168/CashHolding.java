@@ -13,17 +13,10 @@ class CashHolding extends SecurityHolding {
         setPrice(BigDecimal.ONE);
     }
 
-    @Override
     public void addLot(LotInfo lotInfo) {
         BigDecimal total = lotInfo.getQuantity().add(getCostBasisProperty().get());
         getCostBasisProperty().set(total);
         getQuantityProperty().set(total);
         getMarketValueProperty().set(total);
-    }
-
-
-    @Override
-    protected void updateAggregate() {
-        // no need to do anything
     }
 }

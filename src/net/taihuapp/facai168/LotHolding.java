@@ -27,13 +27,15 @@ public abstract class LotHolding {
     public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
     public ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
     public ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
+    public ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
+    public ObjectProperty<BigDecimal> getPctRetProperty() { return mPctRetProperty; }
     public String getSecurityName() { return mSecurityNameProperty.get(); }
     public BigDecimal getPrice() { return mPriceProperty.get(); }
     public BigDecimal getQuantity() { return mQuantityProperty.get(); }
     public BigDecimal getCostBasis() { return mCostBasisProperty.get(); }
     public BigDecimal getMarketValue() { return mMarketValueProperty.get(); }
     public BigDecimal getPNL() { return mPNLProperty.get(); }
-    public BigDecimal getPctReturn() { return mPctRetProperty.get(); }
+    public BigDecimal getPctRet() { return mPctRetProperty.get(); }
 
     // constructor
     public LotHolding(String n) { mSecurityNameProperty.set(n); }
@@ -46,15 +48,31 @@ public abstract class LotHolding {
             mPriceProperty.set(BigDecimal.ZERO);
         else
             mPriceProperty.set(p);
-
-        updateAggregate();
     }
 
+    protected abstract void updateMarketValue(BigDecimal p); // update market value for price p
+
+    // update PctRet, assume MarketValue, PNL, and cost basis are updated
+    protected void updatePctRet() {
+        BigDecimal c = getCostBasis();
+        if (c.compareTo(BigDecimal.ZERO) != 0) {
+            getPctRetProperty().set((new BigDecimal(100)).multiply(getPNL())
+                    .divide(c.abs(), 2, BigDecimal.ROUND_HALF_UP));
+        } else {
+            getPNLProperty().set(null);
+        }
+    }
+
+/*    protected void updatePNL(BigDecimal p) {
+        System.err.println("Extending class should override updatePNL method");
+    }
+ */
+
+/*
     // update Aggregate quantity
-    protected void updateAggregate() {
-        BigDecimal c = getCostBasisProperty().get();
-        BigDecimal p = getPriceProperty().get();
-        BigDecimal q = getQuantityProperty().get();
+    protected void updateAggregate(BigDecimal p) {
+        BigDecimal c = getCostBasis();
+        BigDecimal q = getQuantity();
         BigDecimal m = q.multiply(p);
         BigDecimal pnl = m.subtract(c);
         mMarketValueProperty.set(m);
@@ -65,5 +83,6 @@ public abstract class LotHolding {
             mPctRetProperty.set(null);
         }
     }
+*/
 
 }

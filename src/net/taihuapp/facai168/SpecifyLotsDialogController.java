@@ -2,23 +2,19 @@ package net.taihuapp.facai168;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
-import javafx.util.StringConverter;
+import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
-import javafx.util.converter.NumberStringConverter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by ghe on 12/4/15.
@@ -26,39 +22,40 @@ import java.time.LocalDate;
  */
 public class SpecifyLotsDialogController {
 
-    static class SpecifyLotInfo {
-        private int mTransactionID;
-        private ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
-        private StringProperty mTradeActionProperty = new SimpleStringProperty();
-        private ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-        private ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-        private ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-        private ObjectProperty<BigDecimal> mPNLProperty = new SimpleObjectProperty<>();
+    static class SpecifyLotInfo extends SecurityHolding.LotInfo {
 
-        SpecifyLotInfo(SecurityHolding.LotInfo sl) {
-            mTransactionID = sl.getTransactionID();
-            mDateProperty.set(sl.getDate());
-            mTradeActionProperty.set(sl.getTradeActionProperty().get());
-            mPriceProperty.set(sl.getPrice());
-            mQuantityProperty.set(sl.getQuantity());
-            mSelectedSharesProperty.set(BigDecimal.ZERO);
-            mPNLProperty.set(BigDecimal.ZERO);
+        private ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>();
+        private ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>();
+
+        // constructor
+        SpecifyLotInfo(SecurityHolding.LotInfo lotInfo) {
+            super(lotInfo);
         }
 
         // getters
-        ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
-        StringProperty getTradeActionProperty() { return mTradeActionProperty; }
-        ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
-        ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
         ObjectProperty<BigDecimal> getSelectedSharesProperty() { return mSelectedSharesProperty; }
-        ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
+        ObjectProperty<BigDecimal> getRealizedPNLProperty() { return mRealizedPNLProperty; }
+        BigDecimal getSelectedShares() { return getSelectedSharesProperty().get(); }
 
         // setters
         void setSelectedShares(BigDecimal s) { mSelectedSharesProperty.set(s); }
+
+        // update realized pnl against a trade
+        void updateRealizedPNL(Transaction t) {
+            int scale = getCostBasis().scale();
+            BigDecimal c0 = getCostBasis().multiply(getSelectedShares())
+                    .divide(getQuantity().abs(), scale, BigDecimal.ROUND_HALF_UP);
+            // t.getQuantity() is always positive
+            BigDecimal c1 = t.getCostBasis().multiply(getSelectedShares())
+                    .divide(t.getQuantity(), scale, BigDecimal.ROUND_HALF_UP);
+            getRealizedPNLProperty().set(c1.add(c0).negate());
+        }
     }
 
     private MainApp mMainApp;
     private Transaction mTransaction;
+    private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
+    private Stage mDialogStage;
     private ObservableList<SpecifyLotInfo> mSpecifyLotInfoList = FXCollections.observableArrayList();
 
     @FXML
@@ -89,22 +86,60 @@ public class SpecifyLotsDialogController {
 
     @FXML
     private void handleReset() {
-        System.out.println("Reset");
+        for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
+            sli.setSelectedShares(BigDecimal.ZERO);
+            sli.updateRealizedPNL(mTransaction);
+        }
     }
 
     @FXML
     private void handleOK() {
-        System.out.println("OK");
+        BigDecimal selectedQ = BigDecimal.ZERO;
+        boolean selected = false;
+        for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
+            if (sli.getSelectedShares() == null)
+                continue; // not set yet, skip
+            selected = true;
+            if (sli.getSelectedShares().compareTo(BigDecimal.ZERO) != 0) {
+                selectedQ = selectedQ.add(sli.getSelectedShares());
+            }
+        }
+
+        if (selected) {
+            if (selectedQ.compareTo(mTransaction.getQuantity().abs()) != 0) {
+                // show warning dialog and go back
+                String header = "";
+                if (selectedQ.compareTo(mTransaction.getQuantity().abs()) > 0)
+                    header = "Selected too many shares";
+                else
+                    header = "Selected too few shares";
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setHeaderText(header);
+                alert.setContentText("Selected number of shares should match traded shares");
+                alert.showAndWait();
+                return;
+            }
+
+            mMatchInfoList.clear();
+            for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
+                mMatchInfoList.add(new SecurityHolding.MatchInfo(mTransaction.getID(), sli.getTransactionID(),
+                        sli.getSelectedShares()));
+            }
+        }
+        mDialogStage.close();
     }
 
     @FXML
     private void handleCancel() {
-        System.out.println("Cancel");
+        mDialogStage.close();
     }
 
-    public void setMainApp(MainApp mainApp, Transaction t) {
+    public void setMainApp(MainApp mainApp, Transaction t,
+                           List<SecurityHolding.MatchInfo> matchInfoList, Stage stage) {
         mMainApp = mainApp;
+        mMatchInfoList = matchInfoList;  // a link point to the input list
         mTransaction = t;
+        mDialogStage = stage;
 
         String actionWord = "sold";
         mMainLabel0.setText("" + mTransaction.getQuantity() + " shares of "
@@ -112,7 +147,7 @@ public class SpecifyLotsDialogController {
                 + " at " + mTransaction.getPrice() + "/share");
         mMainLabel1.setText("Please select share(s) to be " + actionWord);
 
-        mMainApp.updateHoldingsList(mTransaction.getDate());
+        mMainApp.updateHoldingsList(mTransaction.getDate(), t.getID());
 
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
         for (SecurityHolding s : mMainApp.getSecurityHoldingList()) {
@@ -131,6 +166,20 @@ public class SpecifyLotsDialogController {
             return;
         }
 
+        int sliIdx = 0;  // index for running through
+        for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+            System.out.println("mMatchInfoList.size = " + mMatchInfoList.size());
+            while (sliIdx < mSpecifyLotInfoList.size()) {
+                SpecifyLotInfo sli = mSpecifyLotInfoList.get(sliIdx);
+                if (sli.getTransactionID() == mi.getMatchTransactionID()) {
+                    sli.setSelectedShares(mi.getMatchQuantity());
+                    sli.updateRealizedPNL(t);
+                    break;
+                }
+                sliIdx++;
+            }
+        }
+
         mLotInfoTableView.setEditable(true);
         mLotInfoTableView.setItems(mSpecifyLotInfoList);
 
@@ -139,19 +188,17 @@ public class SpecifyLotsDialogController {
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
         mQuantityColumn.setCellValueFactory(cellData->cellData.getValue().getQuantityProperty());
         mSelectedColumn.setCellValueFactory(cellData->cellData.getValue().getSelectedSharesProperty());
-        mPNLColumn.setCellValueFactory(cellData->cellData.getValue().getPNLProperty());
+        mPNLColumn.setCellValueFactory(cellData->cellData.getValue().getRealizedPNLProperty());
 
         mSelectedColumn.setCellFactory(TextFieldTableCell.<SpecifyLotInfo, BigDecimal>forTableColumn(
                 new BigDecimalStringConverter()));
         mSelectedColumn.setOnEditCommit(
-                new EventHandler<TableColumn.CellEditEvent<SpecifyLotInfo, BigDecimal>>() {
-                    @Override
-                    public void handle(TableColumn.CellEditEvent<SpecifyLotInfo, BigDecimal> event) {
-                        event.getTableView().getItems().get(event.getTablePosition().getRow())
-                                .setSelectedShares(event.getNewValue());
-                    }
+                event -> {
+                    event.getTableView().getItems().get(event.getTablePosition().getRow())
+                            .setSelectedShares(event.getNewValue());
+                    event.getTableView().getItems().get(event.getTablePosition().getRow())
+                            .updateRealizedPNL(mTransaction);
                 }
         );
     }
-
 }

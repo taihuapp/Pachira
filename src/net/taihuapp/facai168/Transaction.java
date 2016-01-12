@@ -103,7 +103,7 @@ public class Transaction {
     public BigDecimal getAmount() { return mAmountProperty.get(); }
     public String getTradeAction() { return getTradeActionProperty().get(); }
     public String getCategory() { return getCategoryProperty().get(); }
-    public int getMatchID() { return mMatchID; }
+    public int getMatchID() { return mMatchID; }  // this is for linked transactions
     public int getMatchSplitID() { return mMatchSplitID; }
 
     public BigDecimal getSignedQuantity() {

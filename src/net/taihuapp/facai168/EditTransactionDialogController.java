@@ -239,6 +239,7 @@ public class EditTransactionDialogController {
     private Stage mDialogStage;
 
     private Transaction mTransaction = null;
+    private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
 
     // used for mSharesTextField, mPriceTextField, mCommissionTextField
     private void addEventFilter(TextField tf) {
@@ -260,6 +261,7 @@ public class EditTransactionDialogController {
         } else {
             mTransaction = transaction;
         }
+        mMatchInfoList = mMainApp.getMatchInfoList(mTransaction.getID());
 
         setupTransactionDialog();
 /*
@@ -302,6 +304,9 @@ public class EditTransactionDialogController {
         System.out.println("enterTransaction: only handling InvestmentTransaction for now");
         if (validateTransaction()) {
             mMainApp.insertUpDateTransactionToDB(mTransaction);
+            if (mMatchInfoList.size() > 0) {
+                mMainApp.putMatchInfoList(mMatchInfoList);
+            }
             Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
             BigDecimal transferAmount;
             switch (ta) {
@@ -369,7 +374,7 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleSpecifyLots() {
-        mMainApp.showSpecifyLotsDialog(mTransaction);
+        mMainApp.showSpecifyLotsDialog(mTransaction, mMatchInfoList);
     }
 
     @FXML

@@ -998,7 +998,8 @@ public class MainApp extends Application {
         }
     }
 
-    public void updateHoldingsList(LocalDate date) {
+    // update HoldingsList to date but exclude transaction exTid
+    public void updateHoldingsList(LocalDate date, int exTid) {
         // empty the list first
         mSecurityHoldingList.clear();
 
@@ -1014,6 +1015,9 @@ public class MainApp extends Application {
                 break; // we are done
 
             int tid = t.getID();
+            if (tid == exTid)
+                continue;  // exclude exTid from the holdings list
+
             LocalDate tDate = t.getDate();
             BigDecimal tCashAmt = t.getCashAmount();
             String name = t.getSecurityName();
@@ -1030,8 +1034,9 @@ public class MainApp extends Application {
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
                 BigDecimal q = t.getQuantity();
-                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name, t.getTradeAction(),
-                        t.getDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()), getMatchInfoList(tid));
+                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
+                        t.getTradeAction(), t.getDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
+                        getMatchInfoList(tid));
             }
         }
 
@@ -1058,28 +1063,29 @@ public class MainApp extends Application {
         mSecurityHoldingList.add(cashHolding);
     }
 
-    private List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) {
-        List<SecurityHolding.MatchInfo> lmList = new ArrayList<>();
+    // load MatchInfoList from database
+    List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) {
+        List<SecurityHolding.MatchInfo> matchInfoList = new ArrayList<>();
+
         if (mConnection == null) {
             System.err.println("DB connection down?! ");
-            return lmList;
+            return matchInfoList;
         }
 
         try (Statement statement = mConnection.createStatement()){
             String sqlCmd = "select TRANSID, MATCHID, MATCHQUANTITY from LOTMATCH " +
-                    "where TRANSID = " + tid;
+                    "where TRANSID = " + tid + " order by MATCHID";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int mid = rs.getInt("MATCHID");
                 BigDecimal quantity = rs.getBigDecimal("MATCHQUANTITY");
-                lmList.add(new SecurityHolding.MatchInfo(tid, mid, quantity));
+                matchInfoList.add(new SecurityHolding.MatchInfo(tid, mid, quantity));
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
-
-        return lmList;
+        return matchInfoList;
     }
 
     // retrieve the latest price no later than date
@@ -1107,7 +1113,43 @@ public class MainApp extends Application {
         alert.showAndWait();
     }
 
-    public void showSpecifyLotsDialog(Transaction t) {
+    // take a list of MatchInfo, delete all MatchInfo in the database with same TransactionID
+    // save new MatchInfo
+    void putMatchInfoList(List<SecurityHolding.MatchInfo> matchInfoList) {
+        if (matchInfoList.size() == 0)
+            return;
+        if (mConnection == null) {
+            System.err.println("DB connection down?!");
+            return;
+        }
+
+        int tid = matchInfoList.get(0).getTransactionID();
+
+        // delete any existing
+        try (Statement statement = mConnection.createStatement()) {
+            statement.execute("delete from LOTMATCH where TRANSID = " + tid);
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+            e.printStackTrace();
+        }
+
+        // insert list
+        String sqlCmd = "insert into LOTMATCH (TRANSID, MATCHID, MATCHQUANTITY) values (?, ?, ?)";
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            for (SecurityHolding.MatchInfo matchInfo : matchInfoList) {
+                preparedStatement.setInt(1, matchInfo.getTransactionID());
+                preparedStatement.setInt(2, matchInfo.getMatchTransactionID());
+                preparedStatement.setBigDecimal(3, matchInfo.getMatchQuantity());
+
+                preparedStatement.executeUpdate();
+            }
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+            e.printStackTrace();
+        }
+    }
+
+    public void showSpecifyLotsDialog(Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
         System.out.println("Show Specify Lot window...");
 
 /*
@@ -1128,12 +1170,11 @@ public class MainApp extends Application {
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
             SpecifyLotsDialogController controller = loader.getController();
-            controller.setMainApp(this, t);
+            controller.setMainApp(this, t, matchInfoList, dialogStage);
             dialogStage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     public void showEditTransactionDialog(Transaction transaction) {

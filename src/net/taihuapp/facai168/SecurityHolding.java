@@ -24,6 +24,21 @@ public class SecurityHolding extends LotHolding {
         private ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
         private StringProperty mTradeActionProperty = new SimpleStringProperty();
 
+        // copy construcgtor
+        // how to chain constructor???
+        public LotInfo(LotInfo li0) {
+            super(li0.getSecurityName());
+            mTransactionID = li0.getTransactionID();
+            mDateProperty.set(li0.getDate());
+            mTradeActionProperty.set(li0.getTradeAction());
+
+            setQuantity(li0.getQuantity());
+            setCostBasis(li0.getCostBasis());
+            setPrice(li0.getPrice());
+        }
+
+
+        // constructor
         public LotInfo(int id, String n, String ta, LocalDate date,
                        BigDecimal price, BigDecimal quantity, BigDecimal costBasis) {
             super(n);
@@ -40,6 +55,7 @@ public class SecurityHolding extends LotHolding {
         public LocalDate getDate() { return mDateProperty.get(); }
         public int getTransactionID() { return mTransactionID; }
         public StringProperty getTradeActionProperty() { return mTradeActionProperty; }
+        public String getTradeAction() { return getTradeActionProperty().get(); }
 
         // compute market value and pnl
         @Override

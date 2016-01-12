@@ -99,7 +99,7 @@ public class HoldingsDialogController {
 
     private void updateHoldings() {
         LocalDate date = mDatePicker.getValue();
-        mMainApp.updateHoldingsList(date);
+        mMainApp.updateHoldingsList(date, 0);
         populateTreeTable();
     }
 

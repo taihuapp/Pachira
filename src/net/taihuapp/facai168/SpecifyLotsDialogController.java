@@ -168,7 +168,6 @@ public class SpecifyLotsDialogController {
 
         int sliIdx = 0;  // index for running through
         for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
-            System.out.println("mMatchInfoList.size = " + mMatchInfoList.size());
             while (sliIdx < mSpecifyLotInfoList.size()) {
                 SpecifyLotInfo sli = mSpecifyLotInfoList.get(sliIdx);
                 if (sli.getTransactionID() == mi.getMatchTransactionID()) {

@@ -4,7 +4,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
@@ -13,7 +12,6 @@ import javafx.util.converter.BigDecimalStringConverter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -147,7 +145,7 @@ public class SpecifyLotsDialogController {
                 + " at " + mTransaction.getPrice() + "/share");
         mMainLabel1.setText("Please select share(s) to be " + actionWord);
 
-        mMainApp.updateHoldingsList(mTransaction.getDate(), t.getID());
+        mMainApp.updateHoldingsList(mTransaction.getTDate(), t.getID());
 
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
         for (SecurityHolding s : mMainApp.getSecurityHoldingList()) {

@@ -159,20 +159,20 @@ public class MainApp extends Application {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                     "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, " +
-                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
                     "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
-                    "PAYEE = ? " +
+                    "PAYEE = ?, ADATE = ? " +
                     "where ID = ?";
         }
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setInt(1, t.getAccountID());
-            preparedStatement.setDate(2, Date.valueOf(t.getDate()));
+            preparedStatement.setDate(2, Date.valueOf(t.getTDate()));
             preparedStatement.setBigDecimal(3, t.getAmount());
             preparedStatement.setString(4, t.getTradeActionProperty().get());
             Security security = getSecurityByName(t.getSecurityName());
@@ -189,10 +189,14 @@ public class MainApp extends Application {
             preparedStatement.setInt(12, t.getMatchID()); // matchTransactionID, ignore for now
             preparedStatement.setInt(13, t.getMatchSplitID()); // matchSplitTransactionID, ignore for now
             preparedStatement.setString(14, t.getPayeeProperty().get());
-            if (t.getID() > 0)  {
-                preparedStatement.setInt(15, t.getID());
+            if (t.getADate() == null) {
+                preparedStatement.setNull(15, java.sql.Types.DATE);
+            } else {
+                preparedStatement.setDate(15, Date.valueOf(t.getADate()));
             }
-
+            if (t.getID() > 0)  {
+                preparedStatement.setInt(16, t.getID());
+            }
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert/Update Transaction failed, no rows changed");
             }
@@ -209,7 +213,6 @@ public class MainApp extends Application {
                     throw e;
                 }
             }
-            // todo after dinner
         } catch (SQLException e) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
@@ -856,7 +859,11 @@ public class MainApp extends Application {
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
-                LocalDate date = resultSet.getDate("DATE").toLocalDate();
+                LocalDate tDate = resultSet.getDate("DATE").toLocalDate();
+                Date sqlDate = resultSet.getDate("ADATE");
+                LocalDate aDate = tDate;
+                if (sqlDate != null)
+                    aDate = sqlDate.toLocalDate();
                 String reference = resultSet.getString("REFERENCE");
                 String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
@@ -884,10 +891,10 @@ public class MainApp extends Application {
                     if (quantity == null) quantity = BigDecimal.ZERO;
                     if (commission == null) commission = BigDecimal.ZERO;
                     if (price == null) price = BigDecimal.ZERO;
-                    mTransactionList.add(new Transaction(id, accountID, date, tradeAction, name,
+                    mTransactionList.add(new Transaction(id, accountID, tDate, aDate, tradeAction, name,
                             price, quantity, memo, commission, amount, categoryStr, matchID, matchSplitID));
                 } else {
-                    Transaction bt = new Transaction(id, accountID, date, reference, payee,
+                    Transaction bt = new Transaction(id, accountID, tDate, reference, payee,
                             memo, categoryStr, amount, matchID, matchSplitID);
                     if (resultSet.getBoolean("SPLITFLAG")) {
                         bt.setSplitTransactionList(loadSplitTransactions(id));
@@ -1009,16 +1016,16 @@ public class MainApp extends Application {
 
         // sort the transaction list first
         SortedList<Transaction> sortedTransactionList = new SortedList<>(mTransactionList,
-                Comparator.comparing(Transaction::getDate).thenComparing(Transaction::getID));
+                Comparator.comparing(Transaction::getTDate).thenComparing(Transaction::getID));
         for (Transaction t : sortedTransactionList) {
-            if (t.getDate().isAfter(date))
+            if (t.getTDate().isAfter(date))
                 break; // we are done
 
             int tid = t.getID();
             if (tid == exTid)
                 continue;  // exclude exTid from the holdings list
 
-            LocalDate tDate = t.getDate();
+            LocalDate tDate = t.getTDate();
             BigDecimal tCashAmt = t.getCashAmount();
             String name = t.getSecurityName();
             cashHolding.addLot(new SecurityHolding.LotInfo(tid, name, t.getTradeAction(), tDate,
@@ -1035,7 +1042,7 @@ public class MainApp extends Application {
                 }
                 BigDecimal q = t.getQuantity();
                 mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
-                        t.getTradeAction(), t.getDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
+                        t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
                         getMatchInfoList(tid));
             }
         }
@@ -1575,6 +1582,7 @@ public class MainApp extends Application {
                 + "ID integer NOT NULL AUTO_INCREMENT, "
                 + "ACCOUNTID integer NOT NULL, "
                 + "DATE date NOT NULL, "
+                + "ADATE date, "
                 + "AMOUNT decimal(20,4), "
                 + "CLEARED integer, "
                 + "CATEGORYID integer, "   // positive for category ID, negative for transfer account id

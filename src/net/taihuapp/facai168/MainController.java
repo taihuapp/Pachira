@@ -235,7 +235,7 @@ public class MainController {
         });
 
         // transactiontable
-        mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
+        mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getTDateProperty());
         mTransactionTradeActionColumn.setCellValueFactory(cellData -> cellData.getValue().getTradeActionProperty());
         mTransactionSecurityNameColumn.setCellValueFactory(cellData -> cellData.getValue().getSecurityNameProperty());
         mTransactionDescriptionColumn.setCellValueFactory(cellData -> cellData.getValue().getDescriptionProperty());

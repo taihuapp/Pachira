@@ -23,28 +23,27 @@ import java.util.prefs.Preferences;
 
 public class MainApp extends Application {
 
-    static int MAXOPENEDDBHIST = 5; // keep max 5 opened files
-    static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
-    static String DBOWNER = "FC168ADM";
-    static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
+    private static int MAXOPENEDDBHIST = 5; // keep max 5 opened files
+    private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
+    private static String DBOWNER = "FC168ADM";
+    private static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
 
-    static int ACCOUNTNAMELEN = 40;
-    static int ACCOUNTDESCLEN = 256;
-    static int SECURITYTICKERLEN = 16;
-    static int SECURITYNAMELEN = 32;
+    private static int ACCOUNTNAMELEN = 40;
+    private static int ACCOUNTDESCLEN = 256;
+    private static int SECURITYTICKERLEN = 16;
+    private static int SECURITYNAMELEN = 32;
 
-    static int CATEGORYNAMELEN = 40;
-    static int CATEGORYDESCLEN = 256;
+    private static int CATEGORYNAMELEN = 40;
+    private static int CATEGORYDESCLEN = 256;
 
-    static int TRANSACTIONMEMOLEN = 64;
-    static int TRANSACTIONREFLEN = 8;
-    static int TRANSACTIONPAYEELEN = 32;
-    static int TRANSACTIONTRACEACTIONLEN = 16;
-    static int TRANSACTIONTRANSFERREMINDERLEN = 40;
-    static int ADDRESSLINELEN = 32;
+    private static int TRANSACTIONMEMOLEN = 64;
+    private static int TRANSACTIONREFLEN = 8;
+    private static int TRANSACTIONPAYEELEN = 32;
+    private static int TRANSACTIONTRACEACTIONLEN = 16;
+    private static int TRANSACTIONTRANSFERREMINDERLEN = 40;
+    private static int ADDRESSLINELEN = 32;
 
-    static int AMORTLINELEN = 32;
-
+    private static int AMORTLINELEN = 32;
 
     private Preferences mPrefs;
     private Stage mPrimaryStage;
@@ -59,10 +58,10 @@ public class MainApp extends Application {
 
     private Account mCurrentAccount = null;
 
-    public void setCurrentAccount(Account a) { mCurrentAccount = a; }
-    public Account getCurrentAccount() { return mCurrentAccount; }
+    void setCurrentAccount(Account a) { mCurrentAccount = a; }
+    Account getCurrentAccount() { return mCurrentAccount; }
 
-    public void updateTransactionListBalance() {
+    private void updateTransactionListBalance() {
         BigDecimal b = new BigDecimal(0);
         for (Transaction t : getTransactionList()) {
             BigDecimal amount = t.getCashAmountProperty().get();
@@ -592,7 +591,7 @@ public class MainApp extends Application {
         return rowID;
     }
 
-    public void insertCategoryToDB(QIFParser.Category category) {
+    private void insertCategoryToDB(QIFParser.Category category) {
         String sqlCmd;
         sqlCmd = "insert into CATEGORIES (NAME, DESCRIPTION, INCOMEFLAG, TAXREFNUM, BUDGETAMOUNT) "
                 + "values (?,?,?, ?, ?)";
@@ -631,7 +630,7 @@ public class MainApp extends Application {
         }
     }
 
-    public void insertUpdateAccountToDB(Account account) {
+    void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
         if (account.getID() < 0) {
             sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION) values (?,?,?)";
@@ -724,7 +723,7 @@ public class MainApp extends Application {
         return id;
     }
 
-    public void initCategoryList() {
+    private void initCategoryList() {
         if (mConnection == null) return;
 
         mCategoryList.clear();
@@ -764,7 +763,7 @@ public class MainApp extends Application {
         }
     }
 
-    public void initAccountList() {
+    void initAccountList() {
         mAccountList.clear();
         if (mConnection == null) return;
 
@@ -785,7 +784,7 @@ public class MainApp extends Application {
         }
     }
 
-    public void initSecurityList() {
+    private void initSecurityList() {
         mSecurityList.clear();
         if (mConnection == null) return;
 
@@ -846,7 +845,7 @@ public class MainApp extends Application {
         return stList;
     }
 
-    public void initTransactionList(Account account) {
+    void initTransactionList(Account account) {
         mTransactionList.clear();
         if (mConnection == null)
             return;
@@ -1156,7 +1155,7 @@ public class MainApp extends Application {
         }
     }
 
-    public void showSpecifyLotsDialog(Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
+    void showSpecifyLotsDialog(Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
         System.out.println("Show Specify Lot window...");
 
 /*
@@ -1184,7 +1183,7 @@ public class MainApp extends Application {
         }
     }
 
-    public void showEditTransactionDialog(Transaction transaction) {
+    void showEditTransactionDialog(Transaction transaction) {
         if (mCurrentAccount == null) {
             System.err.println("Can't show holdings for null account.");
             return;
@@ -1208,7 +1207,7 @@ public class MainApp extends Application {
         }
     }
 
-    public void showAccountHoldings() {
+    void showAccountHoldings() {
         if (mCurrentAccount == null) {
             System.err.println("Can't show holdings for null account.");
             return;
@@ -1248,10 +1247,10 @@ public class MainApp extends Application {
         }
     }
 
-    public boolean isConnected() { return mConnection != null; }
+    boolean isConnected() { return mConnection != null; }
 
     // import data from QIF file
-    public void importQIF() {
+    void importQIF() {
         File file;
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("QIF", "*.QIF"));
@@ -1353,7 +1352,7 @@ public class MainApp extends Application {
     }
 
     // create a new database
-    public void openDatabase(boolean isNew, String dbName) {
+    void openDatabase(boolean isNew, String dbName) {
         File file;
         if (dbName != null) {
             if (!dbName.endsWith(DBPOSTFIX))
@@ -1614,7 +1613,7 @@ public class MainApp extends Application {
 
     }
 
-    public static String SQLExceptionToString(SQLException e) {
+    private static String SQLExceptionToString(SQLException e) {
         String s = "";
         while (e != null) {
             s += ("--- SQLException ---" +

@@ -8,12 +8,12 @@ import java.math.BigDecimal;
  */
 
 class CashHolding extends SecurityHolding {
-    public CashHolding() {
-        super("CASH");
+    CashHolding(String label) {
+        super(label);
         setPrice(BigDecimal.ONE);
     }
 
-    public void addLot(LotInfo lotInfo) {
+    void addLot(LotInfo lotInfo) {
         BigDecimal total = lotInfo.getQuantity().add(getCostBasisProperty().get());
         getCostBasisProperty().set(total);
         getQuantityProperty().set(total);

@@ -61,10 +61,29 @@ public class HoldingsDialogController {
         mNameColumn.setComparator(new Comparator<String>() {
             @Override
             public int compare(String o1, String o2) {
-                if (mNameColumn.getSortType() == TreeTableColumn.SortType.ASCENDING)
-                    return (o1.equals("CASH") ? 1 : o2.equals("CASH") ? -1 : o1.compareTo(o2));
-                else
-                    return (o1.equals("CASH") ? -1 : o2.equals("CASH") ? 1 : o1.compareTo(o2));
+                if (mNameColumn.getSortType() == TreeTableColumn.SortType.ASCENDING) {
+                    // sorting accending
+                    if (o1.equals("TOTAL"))
+                        return 1;
+                    if (o2.equals("TOTAL"))
+                        return -1;
+                    if (o1.equals("CASH"))
+                        return 1;
+                    if (o2.equals("CASH"))
+                        return -1;
+                    return o1.compareTo(o2);
+                }
+
+                // sorting decending
+                if (o1.equals("TOTAL"))
+                    return -1;
+                if (o2.equals("TOTAL"))
+                    return 1;
+                if (o1.equals("CASH"))
+                    return -1;
+                if (o2.equals("CASH"))
+                    return 1;
+                return o1.compareTo(o2);
             }
         });
 

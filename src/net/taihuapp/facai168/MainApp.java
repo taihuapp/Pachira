@@ -87,14 +87,14 @@ public class MainApp extends Application {
         return fileNameList;
     }
 
-    public ObservableList<Account> getAccountList() { return mAccountList; }
-    public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
-    public ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
-    public ObservableList<Security> getSecurityList() { return mSecurityList; }
-    public ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
-    public SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
+    ObservableList<Account> getAccountList() { return mAccountList; }
+    ObservableList<Transaction> getTransactionList() { return mTransactionList; }
+    private ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
+    ObservableList<Security> getSecurityList() { return mSecurityList; }
+    ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
+    SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
 
-    public Account getAccountByName(String name) {
+    Account getAccountByName(String name) {
         for (Account a : getAccountList()) {
             if (a.getName().equals(name)) {
                 return a;
@@ -103,7 +103,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    public Account getAccountByID(int id) {
+    private Account getAccountByID(int id) {
         for (Account a : getAccountList()) {
             if (a.getID() == id)
                 return a;
@@ -111,7 +111,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    public Account getAccountByWrapedName(String wrapedName) {
+    Account getAccountByWrapedName(String wrapedName) {
         // mapCategoryOrAccountNameToID unwraps a wraped account name and return a valid account
         int id = -mapCategoryOrAccountNameToID(wrapedName);
         if (id <= 0)
@@ -119,7 +119,7 @@ public class MainApp extends Application {
         return getAccountByID(id);
     }
 
-    public Security getSecurityByID(int id) {
+    private Security getSecurityByID(int id) {
         for (Security s : getSecurityList()) {
             if (s.getID() == id)
                 return s;
@@ -127,7 +127,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    public Security getSecurityByName(String name) {
+    Security getSecurityByName(String name) {
         for (Security s : getSecurityList()) {
             if (s.getName().equals(name))
                 return s;
@@ -135,7 +135,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    public QIFParser.Category getCategoryByID(int id) {
+    private QIFParser.Category getCategoryByID(int id) {
         for (QIFParser.Category c : getCategoryList()) {
             if (c.getID() == id)
                 return c;
@@ -143,7 +143,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    public QIFParser.Category getCategoryByName(String name) {
+    private QIFParser.Category getCategoryByName(String name) {
         for (QIFParser.Category c : getCategoryList()) {
             if (c.getName().equals(name)) return c;
         }
@@ -151,7 +151,7 @@ public class MainApp extends Application {
     }
 
     // return affected transaction id if success, 0 for failure.
-    public int insertUpDateTransactionToDB(Transaction t) {
+    int insertUpDateTransactionToDB(Transaction t) {
         String sqlCmd;
         // be extra careful about the order of the columns
         if (t.getID() <= 0) {
@@ -223,7 +223,7 @@ public class MainApp extends Application {
         return 0;
     }
 
-    public void insertUpdateSecurityToDB(Security security) {
+    private void insertUpdateSecurityToDB(Security security) {
         String sqlCmd;
         if (security.getID() < 0) {
             sqlCmd = "insert into SECURITIES (TICKER, NAME, TYPE) values (?,?,?)";
@@ -312,7 +312,7 @@ public class MainApp extends Application {
     }
 
     // construct a wraped account name
-    public String getWrappedAccountName(Account a) {
+    String getWrappedAccountName(Account a) {
         if (a == null)
             return "";
         return "[" + a.getName() + "]";
@@ -353,7 +353,7 @@ public class MainApp extends Application {
     // take a transaction id, and a list of split BT, insert the list of bt into database
     // return the number of splitBT inserted, which should be same as the length of
     // the input list
-    public int insertSplitBTToDB(int btID, List<QIFParser.BankTransaction.SplitBT> splitBTList) {
+    private int insertSplitBTToDB(int btID, List<QIFParser.BankTransaction.SplitBT> splitBTList) {
         int cnt = 0;
 
         String sqlCmd = "insert into SPLITTRANSACTIONS (TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, PERCENTAGE) "
@@ -378,7 +378,7 @@ public class MainApp extends Application {
     }
 
     // return the inserted rowID, -1 if error.
-    public int insertAddressToDB(List<String> address) {
+    private int insertAddressToDB(List<String> address) {
         int rowID = -1;
         int nLines = Math.min(6, address.size());  // max 6 lines
         String sqlCmd = "insert into ADDRESSES (";
@@ -413,7 +413,7 @@ public class MainApp extends Application {
     }
 
     // return inserted rowID or -1 for failure
-    public int insertAmortizationToDB(String[] amortLines) {
+    private int insertAmortizationToDB(String[] amortLines) {
         int rowID = -1;
         int nLines = 7;
         String sqlCmd = "insert into AMORTIZATIONLINES (";
@@ -449,7 +449,7 @@ public class MainApp extends Application {
 
     // insert transaction to database and returns rowID
     // return -1 if failed
-    public int insertTransactionToDB(QIFParser.BankTransaction bt) throws SQLException {
+    private int insertTransactionToDB(QIFParser.BankTransaction bt) throws SQLException {
         int rowID = -1;
         String accountName = bt.getAccountName();
         Account account = getAccountByName(accountName);
@@ -923,7 +923,7 @@ public class MainApp extends Application {
         }
     }
 
-    List<String> updateOpenedDBNames(List<String> openedDBNames, String fileName) {
+    private List<String> updateOpenedDBNames(List<String> openedDBNames, String fileName) {
         int idx = openedDBNames.indexOf(fileName);
         if (idx > -1) {
             openedDBNames.remove(idx);
@@ -938,7 +938,7 @@ public class MainApp extends Application {
         return openedDBNames;
     }
 
-    public boolean showEditAccountDialog(Account account) {
+    boolean showEditAccountDialog(Account account) {
         boolean isNew = account.getID() < 0;
         String title;
         if (isNew) {
@@ -1012,11 +1012,11 @@ public class MainApp extends Application {
     }
 
     // update HoldingsList to date but exclude transaction exTid
-    public void updateHoldingsList(LocalDate date, int exTid) {
+    void updateHoldingsList(LocalDate date, int exTid) {
         // empty the list first
         mSecurityHoldingList.clear();
 
-        CashHolding cashHolding = new CashHolding();
+        CashHolding cashHolding = new CashHolding("CASH");
         cashHolding.setPrice(BigDecimal.ONE);
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
 
@@ -1053,6 +1053,8 @@ public class MainApp extends Application {
             }
         }
 
+        BigDecimal totalMarketValue = cashHolding.getMarketValue();
+        BigDecimal totalCostBasis = cashHolding.getCostBasis();
         for (Iterator<SecurityHolding> securityHoldingIterator = mSecurityHoldingList.iterator();
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
@@ -1064,6 +1066,9 @@ public class MainApp extends Application {
             //securityHolding.setPrice(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
             securityHolding.updateMarketValue(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
             securityHolding.updatePctRet();
+
+            totalMarketValue = totalMarketValue.add(securityHolding.getMarketValue());
+            totalCostBasis = totalCostBasis.add(securityHolding.getCostBasis());
         }
 
 /*
@@ -1074,6 +1079,18 @@ public class MainApp extends Application {
 */
         // put cash holding at the bottom
         mSecurityHoldingList.add(cashHolding);
+
+        CashHolding totalHolding = new CashHolding("TOTAL");
+        // we don't really care about id, date, etc
+        totalHolding.addLot(new SecurityHolding.LotInfo(-1, "TOTAL", "CASH", LocalDate.now(),
+                BigDecimal.ONE, totalMarketValue, totalCostBasis));
+        //totalHolding.addLot(new SecurityHolding.LotInfo(-1, "TOTAL", "CASH",
+            //    LocalDate.now(), BigDecimal.ONE, totalMarketValue, totalCostBasis));
+
+        totalHolding.setPrice(BigDecimal.ONE);
+        totalHolding.setQuantity(totalMarketValue);
+        totalHolding.setCostBasis(totalCostBasis);
+        mSecurityHoldingList.add(totalHolding);
     }
 
     // load MatchInfoList from database
@@ -1102,7 +1119,7 @@ public class MainApp extends Application {
     }
 
     // retrieve the latest price no later than date
-    public BigDecimal getLatestSecurityPrice(String securityName, LocalDate date) {
+    private BigDecimal getLatestSecurityPrice(String securityName, LocalDate date) {
         BigDecimal price = null;
         String sqlCmd = "select top 1 p.price from PRICES p inner join SECURITIES s " +
                 "where s.NAME = '" + securityName + "' and s.ID = p.SECURITYID " +

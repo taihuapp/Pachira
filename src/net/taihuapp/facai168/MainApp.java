@@ -31,14 +31,14 @@ public class MainApp extends Application {
     private static int ACCOUNTNAMELEN = 40;
     private static int ACCOUNTDESCLEN = 256;
     private static int SECURITYTICKERLEN = 16;
-    private static int SECURITYNAMELEN = 32;
+    private static int SECURITYNAMELEN = 64;
 
     private static int CATEGORYNAMELEN = 40;
     private static int CATEGORYDESCLEN = 256;
 
     private static int TRANSACTIONMEMOLEN = 64;
     private static int TRANSACTIONREFLEN = 8;
-    private static int TRANSACTIONPAYEELEN = 32;
+    private static int TRANSACTIONPAYEELEN = 64;
     private static int TRANSACTIONTRACEACTIONLEN = 16;
     private static int TRANSACTIONTRANSFERREMINDERLEN = 40;
     private static int ADDRESSLINELEN = 32;
@@ -268,15 +268,17 @@ public class MainApp extends Application {
         }
     }
 
-    // mode = 1, insert
+    // mode = 0, insert and not print error
+    //        1, insert
     //        2  update
     //        3 insert and update
     // return true of operation successful
     //        false otherwise
-    public boolean insertUpdatePriceToDB(Integer securityID, LocalDate date, BigDecimal p, int mode) {
+    private boolean insertUpdatePriceToDB(Integer securityID, LocalDate date, BigDecimal p, int mode) {
         boolean status = false;
         String sqlCmd;
         switch (mode) {
+            case 0:
             case 1:
                 sqlCmd = "insert into PRICES (PRICE, SECURITYID, DATE) values (?, ?, ?)";
                 break;
@@ -284,7 +286,7 @@ public class MainApp extends Application {
                 sqlCmd = "update PRICES set PRICE = ? where SECURITYID = ? and DATE = ?";
                 break;
             case 3:
-                return insertUpdatePriceToDB(securityID, date, p, 1) || insertUpdatePriceToDB(securityID, date, p, 2);
+                return insertUpdatePriceToDB(securityID, date, p, 0) || insertUpdatePriceToDB(securityID, date, p, 2);
             default:
                 throw new IllegalArgumentException("insertUpdatePriceToDB called with bad mode = " + mode);
         }
@@ -296,10 +298,14 @@ public class MainApp extends Application {
             preparedStatement.executeUpdate();
             status = true;
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            if (mode != 0) {
+                System.err.println("insertUpdatePriceToDB error");
+                System.err.print(SQLExceptionToString(e));
+                e.printStackTrace();
+            }
         } catch (NullPointerException e) {
-            e.printStackTrace();
+            if (mode != 0)
+                e.printStackTrace();
         }
         return status;
 
@@ -496,7 +502,9 @@ public class MainApp extends Application {
                 if (categoryName != null) {
                     categoryID = getCategoryByName(categoryName).getID();
                 } else if (transferName != null) {
-                    transferID = getAccountByName(bt.getTransfer()).getID();
+                    Account transferAccount = getAccountByName(bt.getTransfer());
+                    if (transferAccount != null)
+                        transferID = transferAccount.getID();
                 }
                 preparedStatement.setInt(5, categoryID > 0 ? categoryID : -transferID);
                 preparedStatement.setString(6, bt.getMemo());
@@ -536,7 +544,7 @@ public class MainApp extends Application {
 
     // insert trade transaction to database and returns rowID
     // return -1 if failed
-    public int insertTransactionToDB(QIFParser.TradeTransaction tt) throws SQLException {
+    private int insertTransactionToDB(QIFParser.TradeTransaction tt) throws SQLException {
         int rowID = -1;
         Account account = getAccountByName(tt.getAccountName());
         if (account == null) {
@@ -559,7 +567,6 @@ public class MainApp extends Application {
             String name = tt.getSecurityName();
             int securityID = -1;
             if (name != null && name.length() > 0) {
-                System.err.println("name = " + name);
                 securityID = getSecurityByName(name).getID();
             }
             preparedStatement.setInt(5, securityID);
@@ -1335,6 +1342,9 @@ public class MainApp extends Application {
             } catch (SQLException e) {
                 System.err.print(SQLExceptionToString(e));
                 e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.err.println(bt);
             }
         }
 
@@ -1513,7 +1523,7 @@ public class MainApp extends Application {
         // Security Table
         sqlCmd = "create table SECURITIES ("
                 + "ID integer NOT NULL AUTO_INCREMENT, "
-                + "TICKER varchar(" + SECURITYTICKERLEN + ") UNIQUE NOT NULL, "
+                + "TICKER varchar(" + SECURITYTICKERLEN + ") NOT NULL, "
                 + "NAME varchar(" + SECURITYNAMELEN + ") UNIQUE NOT NULL, "
                 + "TYPE integer NOT NULL, "
                 + "primary key (ID));";

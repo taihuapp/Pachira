@@ -5,7 +5,7 @@ package net.taihuapp.facai168;
  * Security class
  */
 public class Security {
-    public enum Type {
+    enum Type {
         STOCK, BOND, MUTUALFUND, CD, INDEX, OTHER;
 
         public String toString() {
@@ -57,10 +57,10 @@ public class Security {
     }
 
     // getters and setters
-    public int getID() { return mID; }
-    public String getTicker() { return mTicker; }
-    public String getName() { return mName; }
-    public Type getType() { return mType; }
+    int getID() { return mID; }
+    String getTicker() { return mTicker; }
+    String getName() { return mName; }
+    Type getType() { return mType; }
 
-    public void setID(int id) { mID = id; }
+    void setID(int id) { mID = id; }
 }

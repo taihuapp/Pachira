@@ -14,11 +14,12 @@ import java.util.List;
 
 /**
  * Created by ghe on 3/22/15.
+ *
  */
-public class QIFParser {
+class QIFParser {
     // These are the exportable lists show in the QIF99 spec
     // CLASS and TEMPLATE are not being used
-    public enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT }
+    private enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT }
 
     static class Category {
         private int mID;
@@ -39,13 +40,13 @@ public class QIFParser {
             mIsIncome = true;
         }
 
-        public void setID(int id) { mID = id; }
-        public int getID() { return mID; }
+        void setID(int id) { mID = id; }
+        int getID() { return mID; }
         public void setName(String n) { mName = n; }
         public String getName() { return mName; }
-        public void setDescription(String d) { mDescription = d; }
-        public String getDescription() { return mDescription; }
-        public void setIsTaxRelated(boolean t) {
+        void setDescription(String d) { mDescription = d; }
+        String getDescription() { return mDescription; }
+        void setIsTaxRelated(boolean t) {
             if (t && (getTaxRefNum() < 0)) {
                 setTaxRefNum(0); // set it to be tax related
             } else if (!t) {
@@ -53,12 +54,12 @@ public class QIFParser {
             }
         }
         public boolean isTaxRelated() { return getTaxRefNum() >= 0; }
-        public void setTaxRefNum(int r) { mTaxRefNum = r; }
-        public int getTaxRefNum() { return mTaxRefNum; }
-        public void setIsIncome(boolean i) { mIsIncome = i;}
-        public boolean isIncome() { return mIsIncome; }
-        public void setBudgetAmount(BigDecimal b) { mBudgetAmount = b; }
-        public BigDecimal getBudgetAmount() { return mBudgetAmount; }
+        void setTaxRefNum(int r) { mTaxRefNum = r; }
+        int getTaxRefNum() { return mTaxRefNum; }
+        void setIsIncome(boolean i) { mIsIncome = i;}
+        boolean isIncome() { return mIsIncome; }
+        void setBudgetAmount(BigDecimal b) { mBudgetAmount = b; }
+        BigDecimal getBudgetAmount() { return mBudgetAmount; }
         static Category fromQIFLines(List<String> lines)  {
             Category category = new Category();
             for (String l : lines) {
@@ -97,7 +98,7 @@ public class QIFParser {
     // starting from lines.get(startIdx) seek the line number of the next line
     // equals match
     // if not found, -1 is returned
-    static int findNextMatch(List<String> lines, int startIdx, String match) {
+    private static int findNextMatch(List<String> lines, int startIdx, String match) {
         for (int i = startIdx; i < lines.size(); i++) {
             if (lines.get(i).equals(match)) {
                 return i;
@@ -254,42 +255,55 @@ public class QIFParser {
         private String[] mAmortizationLines;
 
         // default constructor
-        public BankTransaction() {
+        BankTransaction() {
             mCleared = ' ';
             mAddressList = new ArrayList<>();
             mSplitList = new ArrayList<>();
             mAmortizationLines = null;
         }
+
+        @Override
+        public String toString() {
+            return "BankTransaction{" +
+                    "mAccountName='" + mAccountName + '\'' +
+                    ", mDate=" + mDate +
+                    ", mTAmount=" + mTAmount +
+                    ", mPayee='" + mPayee + '\'' +
+                    ", mMemo='" + mMemo + '\'' +
+                    ", mCategory='" + mCategory + '\'' +
+                    '}';
+        }
+
         // setters
-        public void setAccountName(String a) { mAccountName = a; }
-        public void setDate(LocalDate d) { mDate = d; }
-        public void setTAmount(BigDecimal t) { mTAmount = t; }
-        public void setUAmount(BigDecimal u) { mUAmount = u; }
-        public void setCleared(char c) { mCleared = c; }
-        public void setReference(String r) { mCheckNumber = r; }
-        public void setPayee(String p) { mPayee = p; }
-        public void setMemo(String m) { mMemo = m; }
-        public void addAddress(String a) { mAddressList.add(a); }
-        public void setCategory(String c) { mCategory = c; }
-        public void addSplit(SplitBT s) { mSplitList.add(s); }
-        public void setAmortizationLine(int i, String l) {
+        void setAccountName(String a) { mAccountName = a; }
+        void setDate(LocalDate d) { mDate = d; }
+        void setTAmount(BigDecimal t) { mTAmount = t; }
+        void setUAmount(BigDecimal u) { mUAmount = u; }
+        void setCleared(char c) { mCleared = c; }
+        void setReference(String r) { mCheckNumber = r; }
+        void setPayee(String p) { mPayee = p; }
+        void setMemo(String m) { mMemo = m; }
+        void addAddress(String a) { mAddressList.add(a); }
+        void setCategory(String c) { mCategory = c; }
+        void addSplit(SplitBT s) { mSplitList.add(s); }
+        void setAmortizationLine(int i, String l) {
             if (mAmortizationLines == null) mAmortizationLines = new String[7];
             mAmortizationLines[i] = l;
         }
 
         // getters
-        public String getAccountName() { return mAccountName; }
-        public LocalDate getDate() { return mDate; }
-        public BigDecimal getTAmount() { return mTAmount; }
-        public int getCleared() { return mCleared; }
+        String getAccountName() { return mAccountName; }
+        LocalDate getDate() { return mDate; }
+        BigDecimal getTAmount() { return mTAmount; }
+        int getCleared() { return mCleared; }
         private boolean isCategory() {
             return !(mCategory != null && mCategory.startsWith("[") && mCategory.endsWith("]"));
         }
-        public String getCategory() {
+        String getCategory() {
             if (!isCategory()) return null;
             return mCategory;
         }
-        public String getTransfer() {
+        String getTransfer() {
             if (isCategory()) return null;
             return mCategory.substring(1, mCategory.length()-1);
         }
@@ -636,6 +650,8 @@ public class QIFParser {
     private List<Price> mPriceList;
 
     private void matchTransferTransaction() {
+        // TODO: 4/6/16
+        // seems more work is needed here
         List<BankTransaction> btList = getBankTransactionList();
         List<TradeTransaction> ttList = getTradeTransactionList();
 

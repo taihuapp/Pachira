@@ -1042,9 +1042,13 @@ public class MainApp extends Application {
                     indexMap.put(name, index);
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
-                mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
-                        t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
-                        getMatchInfoList(tid));
+                if (t.getTradeAction().equals(Transaction.TradeAction.STKSPLIT.name())) {
+                    mSecurityHoldingList.get(index).adjustStockSplit(t.getQuantity());
+                } else {
+                    mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
+                            t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
+                            getMatchInfoList(tid));
+                }
             }
         }
 

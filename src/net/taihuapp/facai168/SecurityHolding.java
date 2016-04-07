@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Iterator;
 import java.util.List;
@@ -37,7 +38,6 @@ public class SecurityHolding extends LotHolding {
             setPrice(li0.getPrice());
         }
 
-
         // constructor
         public LotInfo(int id, String n, String ta, LocalDate date,
                        BigDecimal price, BigDecimal quantity, BigDecimal costBasis) {
@@ -51,11 +51,11 @@ public class SecurityHolding extends LotHolding {
             setPrice(price);  // this is the trade price
         }
 
-        public ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
-        public LocalDate getDate() { return mDateProperty.get(); }
-        public int getTransactionID() { return mTransactionID; }
-        public StringProperty getTradeActionProperty() { return mTradeActionProperty; }
-        public String getTradeAction() { return getTradeActionProperty().get(); }
+        ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
+        LocalDate getDate() { return mDateProperty.get(); }
+        int getTransactionID() { return mTransactionID; }
+        StringProperty getTradeActionProperty() { return mTradeActionProperty; }
+        String getTradeAction() { return getTradeActionProperty().get(); }
 
         // compute market value and pnl
         @Override
@@ -68,6 +68,7 @@ public class SecurityHolding extends LotHolding {
         public String getLabel() { return getDate().toString(); }
 
         // return true for success, false for failure
+/*
         public boolean lotMatch(LotInfo openLot, BigDecimal matchAmt) {
             if (matchAmt.compareTo(BigDecimal.ZERO) == 0)
                 return true;  // nothing to match
@@ -115,6 +116,7 @@ public class SecurityHolding extends LotHolding {
 
             return true;
         }
+*/
 
         @Override
         public int compareTo(LotInfo l) {
@@ -136,7 +138,7 @@ public class SecurityHolding extends LotHolding {
         private final int mMatchTransactionID;
         private final BigDecimal mMatchQuantity;  // always positive
 
-        public MatchInfo(int tid, int mid, BigDecimal q) {
+        MatchInfo(int tid, int mid, BigDecimal q) {
             mTransactionID = tid;
             mMatchTransactionID = mid;
             mMatchQuantity = q;
@@ -180,7 +182,7 @@ public class SecurityHolding extends LotHolding {
         return -1;
     }
 
-    public ObservableList<LotInfo> getLotInfoList() { return mLotInfoList; }
+    ObservableList<LotInfo> getLotInfoList() { return mLotInfoList; }
 
     private BigDecimal scaleCostBasis(BigDecimal oldC, BigDecimal oldQ, BigDecimal newQ) {
         return oldC.multiply(newQ).divide(oldQ, oldC.scale(), BigDecimal.ROUND_HALF_UP);
@@ -208,7 +210,7 @@ public class SecurityHolding extends LotHolding {
     // add the lot and match off if necessary
     // if the lots are added with wrong order, the cost basis
     // calculation will be wrong
-    public void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
+    void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
         // Changing in quantity is independt of matching offsetting
         setQuantity(getQuantity().add(lotInfo.getQuantity()));
 
@@ -318,6 +320,17 @@ public class SecurityHolding extends LotHolding {
             newC = scaleCostBasis(oldC, oldQ, newQ);
             lotInfo.setQuantity(newQ);
             lotInfo.setCostBasis(newC);
+        }
+    }
+
+    void adjustStockSplit(BigDecimal newSharesPerTenOldShares) {
+        for (LotInfo li : getLotInfoList()) {
+            BigDecimal oldQ = li.getQuantity();
+            BigDecimal oldP = li.getPrice();
+            li.setQuantity(oldQ.multiply(newSharesPerTenOldShares).divide(BigDecimal.TEN, oldQ.scale(),
+                    RoundingMode.HALF_UP));
+            li.setPrice(li.getPrice().multiply(BigDecimal.TEN).divide(newSharesPerTenOldShares, oldP.scale(),
+                    RoundingMode.HALF_UP));
         }
     }
 

@@ -1016,8 +1016,7 @@ public class MainApp extends Application {
         // empty the list first
         mSecurityHoldingList.clear();
 
-        CashHolding cashHolding = new CashHolding("CASH");
-        cashHolding.setPrice(BigDecimal.ONE);
+        BigDecimal totalCash = BigDecimal.ZERO;
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
 
         // sort the transaction list first
@@ -1031,11 +1030,8 @@ public class MainApp extends Application {
             if (tid == exTid)
                 continue;  // exclude exTid from the holdings list
 
-            LocalDate tDate = t.getTDate();
-            BigDecimal tCashAmt = t.getCashAmount();
+            totalCash = totalCash.add(t.getCashAmount());
             String name = t.getSecurityName();
-            cashHolding.addLot(new SecurityHolding.LotInfo(tid, name, t.getTradeAction(), tDate,
-                    BigDecimal.ONE, tCashAmt, tCashAmt));
 
             if (!name.isEmpty()) {
                 // it's not cash transaction, add security lot
@@ -1046,15 +1042,14 @@ public class MainApp extends Application {
                     indexMap.put(name, index);
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
-                BigDecimal q = t.getQuantity();
                 mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
                         t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
                         getMatchInfoList(tid));
             }
         }
 
-        BigDecimal totalMarketValue = cashHolding.getMarketValue();
-        BigDecimal totalCostBasis = cashHolding.getCostBasis();
+        BigDecimal totalMarketValue = totalCash;
+        BigDecimal totalCostBasis = totalCash;
         for (Iterator<SecurityHolding> securityHoldingIterator = mSecurityHoldingList.iterator();
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
@@ -1071,25 +1066,17 @@ public class MainApp extends Application {
             totalCostBasis = totalCostBasis.add(securityHolding.getCostBasis());
         }
 
-/*
-        for (SecurityHolding securityHolding : mSecurityHoldingList) {
-            String name = securityHolding.getSecurityNameProperty().get();
-            securityHolding.setPrice(getLatestSecurityPrice(name, date));
-        }
-*/
-        // put cash holding at the bottom
-        mSecurityHoldingList.add(cashHolding);
+        CashHolding cashHolding = new CashHolding("CASH");
+        cashHolding.addLot(new SecurityHolding.LotInfo(-1, "CASH", "CASH", LocalDate.now(),
+                BigDecimal.ONE, totalCash, totalCash));
 
         CashHolding totalHolding = new CashHolding("TOTAL");
         // we don't really care about id, date, etc
         totalHolding.addLot(new SecurityHolding.LotInfo(-1, "TOTAL", "CASH", LocalDate.now(),
                 BigDecimal.ONE, totalMarketValue, totalCostBasis));
-        //totalHolding.addLot(new SecurityHolding.LotInfo(-1, "TOTAL", "CASH",
-            //    LocalDate.now(), BigDecimal.ONE, totalMarketValue, totalCostBasis));
 
-        totalHolding.setPrice(BigDecimal.ONE);
-        totalHolding.setQuantity(totalMarketValue);
-        totalHolding.setCostBasis(totalCostBasis);
+        // put cash holding at the bottom
+        mSecurityHoldingList.add(cashHolding);
         mSecurityHoldingList.add(totalHolding);
     }
 
@@ -1133,14 +1120,6 @@ public class MainApp extends Application {
             e.printStackTrace();
         }
         return price;
-    }
-
-    private void showWarningDialog(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     // take a list of MatchInfo, delete all MatchInfo in the database with same TransactionID

@@ -211,11 +211,13 @@ public class SecurityHolding extends LotHolding {
     // if the lots are added with wrong order, the cost basis
     // calculation will be wrong
     void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
-        // Changing in quantity is independt of matching offsetting
-        setQuantity(getQuantity().add(lotInfo.getQuantity()));
+        BigDecimal oldQuantity = getQuantity();
 
-        if ((getQuantity().signum() > 0) && (lotInfo.getQuantity().signum() > 0)
-            || ((getQuantity().signum() < 0) && (lotInfo.getQuantity().signum() < 0))) {
+        // update total quantity here
+        setQuantity(oldQuantity.add(lotInfo.getQuantity()));
+
+        if ((oldQuantity.signum() >= 0) && (lotInfo.getQuantity().signum() > 0)
+            || ((oldQuantity.signum() <= 0) && (lotInfo.getQuantity().signum() < 0))) {
             // same sign, nothing of offset
             if (matchInfoList.size() > 0) {
                 System.err.println("" + lotInfo.getTransactionID() + " can't find offset lots" );
@@ -226,14 +228,14 @@ public class SecurityHolding extends LotHolding {
         }
 
         // lotInfo quantity has opposite sign as current holding, need to match lots
-        if (lotInfo.getQuantity().abs().compareTo(getQuantity().abs()) > 0) {
+        if (lotInfo.getQuantity().abs().compareTo(oldQuantity.abs()) > 0) {
             // more than offset the current?  we shouldn't be here
             // probably something went wrong.  Issue a error message
             // and then match offset anyway
             System.err.println("" + lotInfo.getTransactionID()
                     + " can't find enough lots to offset.  Something is wrong");
 
-            BigDecimal newQuantity = lotInfo.getQuantity().add(getQuantity());
+            BigDecimal newQuantity = lotInfo.getQuantity().add(oldQuantity);
             lotInfo.setCostBasis(scaleCostBasis(lotInfo.getCostBasis(), lotInfo.getQuantity(), newQuantity));
             lotInfo.setQuantity(newQuantity);
 

@@ -48,6 +48,9 @@ public class HoldingsDialogController {
             }
         }
 
+        // set initial sort order
+        mNameColumn.setSortType(TreeTableColumn.SortType.ASCENDING);
+        mSecurityHoldingTreeTableView.getSortOrder().add(mNameColumn);
     }
 
     public void setMainApp(MainApp mainApp) {

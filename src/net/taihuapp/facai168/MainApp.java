@@ -1070,14 +1070,19 @@ public class MainApp extends Application {
             totalCostBasis = totalCostBasis.add(securityHolding.getCostBasis());
         }
 
-        CashHolding cashHolding = new CashHolding("CASH");
-        cashHolding.addLot(new SecurityHolding.LotInfo(-1, "CASH", "CASH", LocalDate.now(),
-                BigDecimal.ONE, totalCash, totalCash));
+        SecurityHolding cashHolding = new SecurityHolding("CASH");
+        cashHolding.getPriceProperty().set(null);
+        cashHolding.getQuantityProperty().set(null);
+        cashHolding.setCostBasis(totalCash);
+        cashHolding.getMarketValueProperty().set(totalCash);
 
-        CashHolding totalHolding = new CashHolding("TOTAL");
-        // we don't really care about id, date, etc
-        totalHolding.addLot(new SecurityHolding.LotInfo(-1, "TOTAL", "CASH", LocalDate.now(),
-                BigDecimal.ONE, totalMarketValue, totalCostBasis));
+        SecurityHolding totalHolding = new SecurityHolding("TOTAL");
+        totalHolding.getMarketValueProperty().set(totalMarketValue);
+        totalHolding.setQuantity(totalMarketValue);
+        totalHolding.setCostBasis(totalCostBasis);
+        totalHolding.getPNLProperty().set(totalMarketValue.subtract(totalCostBasis));
+        totalHolding.getPriceProperty().set(null); // don't want to display any price
+        totalHolding.updatePctRet();
 
         // put cash holding at the bottom
         mSecurityHoldingList.add(cashHolding);

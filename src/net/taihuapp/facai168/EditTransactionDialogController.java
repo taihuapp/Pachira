@@ -83,7 +83,9 @@ public class EditTransactionDialogController {
     // Investment Transaction Types
     private enum InvestmentTransaction {
         BUY("Buy - Shares Bought"), SELL("Sell - Shares Sold"),
-        SHTSELL("Short Sell"), SHRSIN("Shares Added"), SHRSOUT("Shares Removed");
+        SHTSELL("Short Sell"), SHRSIN("Shares Added"), SHRSOUT("Shares Removed"),
+        DIV("Dividend"), INTINC("Interest"),
+        CGLONG("Long-term Cap Gain"), CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain");
 
         private final String mDesc;
         InvestmentTransaction(String d) { mDesc = d; }
@@ -136,21 +138,21 @@ public class EditTransactionDialogController {
         }
     }
 
-    class TransactionTypeCombo {
+    private class TransactionTypeCombo {
         InvestmentTransaction mIT;
         CashTransaction mCT;
 
-        public TransactionTypeCombo(InvestmentTransaction it) {
+        TransactionTypeCombo(InvestmentTransaction it) {
             mIT = it;
             mCT = null;
         }
 
-        public TransactionTypeCombo(CashTransaction ct) {
+        TransactionTypeCombo(CashTransaction ct) {
             mIT = null;
             mCT = ct;
         }
 
-        public TransactionClass getTransactionType() {
+        TransactionClass getTransactionType() {
             if (mIT != null)
                 return TransactionClass.INVESTMENT;
             if (mCT != null)
@@ -158,11 +160,11 @@ public class EditTransactionDialogController {
             return null;
         }
 
-        public InvestmentTransaction getIT() { return mIT; }
-        public CashTransaction getCT() { return mCT; }
+        InvestmentTransaction getIT() { return mIT; }
+        CashTransaction getCT() { return mCT; }
     }
 
-    TransactionTypeCombo mapTradeAction(Transaction.TradeAction ta) {
+    private TransactionTypeCombo mapTradeAction(Transaction.TradeAction ta) {
         // todo need to complete all cases
         switch (ta) {
             case BUY:
@@ -180,6 +182,21 @@ public class EditTransactionDialogController {
                 return new TransactionTypeCombo(InvestmentTransaction.SHRSIN);
             case SHRSOUT:
                 return new TransactionTypeCombo(InvestmentTransaction.SHRSOUT);
+            case DIV:
+            case DIVX:
+                return new TransactionTypeCombo(InvestmentTransaction.DIV);
+            case INTINC:
+            case INTINCX:
+                return new TransactionTypeCombo(InvestmentTransaction.INTINC);
+            case CGLONG:
+            case CGLONGX:
+                return new TransactionTypeCombo(InvestmentTransaction.CGLONG);
+            case CGMID:
+            case CGMIDX:
+                return new TransactionTypeCombo(InvestmentTransaction.CGMID);
+            case CGSHORT:
+            case CGSHORTX:
+                return new TransactionTypeCombo(InvestmentTransaction.CGSHORT);
             default:
                 // more work is needed to added new cases
                 return null;
@@ -225,9 +242,19 @@ public class EditTransactionDialogController {
     @FXML
     private ChoiceBox<Security> mSecurityChoiceBox;
     @FXML
+    private Label mIncomeLabel;
+    @FXML
+    private TextField mIncomeTextField;
+    @FXML
+    private Label mSharesLabel;
+    @FXML
     private TextField mSharesTextField;
     @FXML
+    private Label mPriceLabel;
+    @FXML
     private TextField mPriceTextField;
+    @FXML
+    private Label mCommissionLabel;
     @FXML
     private TextField mCommissionTextField;
     @FXML
@@ -263,7 +290,7 @@ public class EditTransactionDialogController {
     }
 
     // transaction can either be null, or a copy of an existing transaction in the list
-    public void setMainApp(MainApp mainApp, Transaction transaction, Stage stage) {
+    void setMainApp(MainApp mainApp, Transaction transaction, Stage stage) {
         mDialogStage = stage;
         mMainApp = mainApp;
         mAccount = mMainApp.getCurrentAccount();
@@ -276,38 +303,6 @@ public class EditTransactionDialogController {
         mMatchInfoList = mMainApp.getMatchInfoList(mTransaction.getID());
 
         setupTransactionDialog();
-/*
-        mSecurityChoiceBox.setConverter(new SecurityConverter());
-        mSecurityChoiceBox.setItems(mMainApp.getSecurityList());
-
-        mTransferAccountChoiceBox.setConverter(new AccountConverter());
-        mTransferAccountChoiceBox.setItems(mMainApp.getAccountList());
-        mTransferAccountChoiceBox.getSelectionModel().select(mAccount);
-
-        mClassChoiceBox.getItems().addAll(mTransactionClassList);
-        mClassChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            switch (TransactionClass.fromString(newValue)) {
-                case INVESTMENT:
-                    mTransactionChoiceBox.getItems().setAll(mInvestmentTransactionList);
-                    break;
-                case CASH:
-                    mTransactionChoiceBox.getItems().setAll(mCashTransactionList);
-                    break;
-                default:
-                    System.err.println("Unknown choice " + newValue);
-            }
-            mTransactionChoiceBox.getSelectionModel().selectFirst();
-        });
-
-        mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
-                .addListener((observable1, oldValue, newValue) -> {
-                    setupTransactionDialog(newValue);
-                });
-
-        addEventFilter(mSharesTextField);
-        addEventFilter(mPriceTextField);
-        addEventFilter(mCommissionTextField);
-*/
     }
 
     // return true if enter worked
@@ -331,6 +326,11 @@ public class EditTransactionDialogController {
                 case SELL:
                 case SHTSELL:
                 case SHRSIN:
+                case DIV:
+                case INTINC:
+                case CGLONG:
+                case CGMID:
+                case CGSHORT:
                     transferAmount = BigDecimal.ZERO;
                     break;
                 case BUYX:
@@ -338,6 +338,11 @@ public class EditTransactionDialogController {
                     break;
                 case SELLX:
                 case SHTSELLX:
+                case DIVX:
+                case INTINCX:
+                case CGLONGX:
+                case CGMIDX:
+                case CGSHORTX:
                     transferAmount = mTransaction.getAmount();
                     break;
                 default:
@@ -506,22 +511,6 @@ public class EditTransactionDialogController {
                 }
             }
         });
-
-        /*
-        switch (TransactionType.fromString(mClassChoiceBox.getValue())) {
-            case INVESTMENT:
-                //setupInvestmentTransactionDialog(InvestmentTransaction.fromString(tValue));
-                setupInvestmentTransactionDialog(mTransaction.getTradeAction());
-                return;
-            case CASH:
-                setupCashTransactionDialog(tValue);
-                return;
-            default:
-                System.err.println("setupTransactionDialog: " + mClassChoiceBox.getValue()
-                        + " not implemented");
-                return;
-        }
-*/
     }
 
     private void setupCashTransactionDialog(CashTransaction cashType) {
@@ -532,13 +521,22 @@ public class EditTransactionDialogController {
         mTransactionLabel.setText(investType.name());
 
         final BigDecimal investAmountSign;
+        boolean isIncome = false;
         switch (investType) {
             case BUY:
+                mSharesLabel.setVisible(true);
+                mSharesTextField.setVisible(true);
+                mPriceLabel.setVisible(true);
+                mPriceTextField.setVisible(true);
+                mCommissionLabel.setVisible(true);
+                mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(true);
                 mTransferAccountChoiceBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
+                mIncomeLabel.setVisible(false);
+                mIncomeTextField.setVisible(false);
 
                 mTransferAccountLabel.setText("Use Cash From:");
                 mTotalLabel.setText("Total Cost:");
@@ -546,49 +544,98 @@ public class EditTransactionDialogController {
                 break;
             case SELL:
             case SHTSELL:
+                mSharesLabel.setVisible(true);
+                mSharesTextField.setVisible(true);
+                mPriceLabel.setVisible(true);
+                mPriceTextField.setVisible(true);
+                mCommissionLabel.setVisible(true);
+                mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(investType == InvestmentTransaction.SELL);
                 mTransferAccountLabel.setVisible(true);
                 mTransferAccountChoiceBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
+                mIncomeLabel.setVisible(false);
+                mIncomeTextField.setVisible(false);
 
                 mTransferAccountLabel.setText("Put Cash Into:");
                 mTotalLabel.setText("Total Sale:");
                 investAmountSign = BigDecimal.ONE.negate();
                 break;
             case SHRSIN:
+                mSharesLabel.setVisible(true);
+                mSharesTextField.setVisible(true);
+                mPriceLabel.setVisible(true);
+                mPriceTextField.setVisible(true);
+                mCommissionLabel.setVisible(true);
+                mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(false);
                 mTransferAccountChoiceBox.setVisible(false);
                 mADatePickerLabel.setVisible(true);
                 mADatePicker.setVisible(true);
+                mIncomeLabel.setVisible(false);
+                mIncomeTextField.setVisible(false);
 
                 mTotalLabel.setText("Total Cost:");
                 investAmountSign = BigDecimal.ONE;
+                break;
+            case DIV:
+            case INTINC:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
+                isIncome = true;
+                mSharesLabel.setVisible(false);
+                mSharesTextField.setVisible(false);
+                mPriceLabel.setVisible(false);
+                mPriceTextField.setVisible(false);
+                mCommissionLabel.setVisible(false);
+                mCommissionTextField.setVisible(false);
+                mSpecifyLotButton.setVisible(false);
+                mTransferAccountLabel.setVisible(true);
+                mTransferAccountChoiceBox.setVisible(true);
+                mADatePickerLabel.setVisible(false);
+                mADatePicker.setVisible(false);
+                mIncomeLabel.setVisible(true);
+                mIncomeTextField.setVisible(true);
+
+                mTotalLabel.setText("Total Income");
+                investAmountSign = BigDecimal.ONE;
+
+                mIncomeLabel.setText(investType.toString());
                 break;
             default:
                 System.err.println("InvestmentTransaction " + investType + " not implemented yet.");
                 return;
         }
 
-        ObjectBinding<BigDecimal> amount = new ObjectBinding<BigDecimal>() {
-            { super.bind(mTransaction.getPriceProperty(), mTransaction.getQuantityProperty(),
-                    mTransaction.getCommissionProperty()); }
-            @Override
-            protected BigDecimal computeValue() {
-                if (mTransaction.getPriceProperty().get() == null
-                        || mTransaction.getQuantityProperty().get() == null
-                        || mTransaction.getCommissionProperty().get() == null) {
-                    return null;
-                }
-                return mTransaction.getQuantity().multiply(mTransaction.getPrice())
-                        .add(mTransaction.getCommission().multiply(investAmountSign));
-            }
-        };
+        // make sure it is not bind
+        mTransaction.getAmountProperty().unbind();
 
-        if (mTransaction.getAmountProperty().isBound())
-            mTransaction.getAmountProperty().unbind();
-        mTransaction.getAmountProperty().bind(amount);
+        if (isIncome)
+            mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
+                    new BigDecimalStringConverter());
+        else {
+            ObjectBinding<BigDecimal> amount = new ObjectBinding<BigDecimal>() {
+                {
+                    super.bind(mTransaction.getPriceProperty(), mTransaction.getQuantityProperty(),
+                            mTransaction.getCommissionProperty());
+                }
+
+                @Override
+                protected BigDecimal computeValue() {
+                    if (mTransaction.getPriceProperty().get() == null
+                            || mTransaction.getQuantityProperty().get() == null
+                            || mTransaction.getCommissionProperty().get() == null)
+                        return null;
+
+                    return mTransaction.getQuantity().multiply(mTransaction.getPrice())
+                            .add(mTransaction.getCommission().multiply(investAmountSign));
+                }
+            };
+            mTransaction.getAmountProperty().bind(amount);
+        }
 
         // mapCategory return negative account id or positive category id
         Account transferAccount = mMainApp.getAccountByWrapedName(mTransaction.getCategory());

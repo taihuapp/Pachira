@@ -84,8 +84,10 @@ public class EditTransactionDialogController {
     private enum InvestmentTransaction {
         BUY("Buy - Shares Bought"), SELL("Sell - Shares Sold"),
         SHTSELL("Short Sell"), SHRSIN("Shares Added"), SHRSOUT("Shares Removed"),
-        DIV("Dividend"), INTINC("Interest"),
-        CGLONG("Long-term Cap Gain"), CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain");
+        DIV("Dividend"), INTINC("Interest"), CGLONG("Long-term Cap Gain"),
+        CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain"),
+        REINVDIV("Reinvest Dividend"), REINVINT("Reinvest Interest"),  REINVLG("Reinvest Long-term Cap Gain"),
+        REINVMD("Reinvest Mid-term Cap Gain"), REINVSH("Reinvest Short-term Cap Gain");
 
         private final String mDesc;
         InvestmentTransaction(String d) { mDesc = d; }
@@ -197,6 +199,16 @@ public class EditTransactionDialogController {
             case CGSHORT:
             case CGSHORTX:
                 return new TransactionTypeCombo(InvestmentTransaction.CGSHORT);
+            case REINVDIV:
+                return new TransactionTypeCombo(InvestmentTransaction.REINVDIV);
+            case REINVINT:
+                return new TransactionTypeCombo(InvestmentTransaction.REINVINT);
+            case REINVLG:
+                return new TransactionTypeCombo(InvestmentTransaction.REINVLG);
+            case REINVMD:
+                return new TransactionTypeCombo(InvestmentTransaction.REINVMD);
+            case REINVSH:
+                return new TransactionTypeCombo(InvestmentTransaction.REINVSH);
             default:
                 // more work is needed to added new cases
                 return null;
@@ -331,6 +343,11 @@ public class EditTransactionDialogController {
                 case CGLONG:
                 case CGMID:
                 case CGSHORT:
+                case REINVDIV:
+                case REINVINT:
+                case REINVLG:
+                case REINVMD:
+                case REINVSH:
                     transferAmount = BigDecimal.ZERO;
                     break;
                 case BUYX:
@@ -514,7 +531,7 @@ public class EditTransactionDialogController {
     }
 
     private void setupCashTransactionDialog(CashTransaction cashType) {
-        System.err.println("CashTransactionDialog not implemented yet");
+        System.err.println("CashTransactionDialog not implemented yet, Transaction type = " + cashType.name());
     }
 
     private void setupInvestmentTransactionDialog(InvestmentTransaction investType) {
@@ -522,6 +539,7 @@ public class EditTransactionDialogController {
 
         final BigDecimal investAmountSign;
         boolean isIncome = false;
+        boolean isReinvest = false;
         switch (investType) {
             case BUY:
                 mSharesLabel.setVisible(true);
@@ -580,21 +598,29 @@ public class EditTransactionDialogController {
                 mTotalLabel.setText("Total Cost:");
                 investAmountSign = BigDecimal.ONE;
                 break;
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
+                isReinvest = true;
+                // fall through here
             case DIV:
             case INTINC:
             case CGLONG:
             case CGMID:
             case CGSHORT:
                 isIncome = true;
-                mSharesLabel.setVisible(false);
-                mSharesTextField.setVisible(false);
-                mPriceLabel.setVisible(false);
-                mPriceTextField.setVisible(false);
-                mCommissionLabel.setVisible(false);
-                mCommissionTextField.setVisible(false);
+                mSharesLabel.setVisible(isReinvest);
+                mSharesTextField.setVisible(isReinvest);
+                mPriceLabel.setVisible(isReinvest);
+                mPriceTextField.setVisible(isReinvest);
+                mPriceTextField.setEditable(!isReinvest);  // calculated price when Reinvest
+                mCommissionLabel.setVisible(isReinvest);
+                mCommissionTextField.setVisible(isReinvest);
                 mSpecifyLotButton.setVisible(false);
-                mTransferAccountLabel.setVisible(true);
-                mTransferAccountChoiceBox.setVisible(true);
+                mTransferAccountLabel.setVisible(!isReinvest);
+                mTransferAccountChoiceBox.setVisible(!isReinvest);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(true);
@@ -612,11 +638,31 @@ public class EditTransactionDialogController {
 
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();
+        mTransaction.getPriceProperty().unbind();
 
-        if (isIncome)
+        if (isIncome) {
             mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
                     new BigDecimalStringConverter());
-        else {
+            if (isReinvest) {
+                ObjectBinding<BigDecimal> price = new ObjectBinding<BigDecimal>() {
+                    {
+                        super.bind(mTransaction.getAmountProperty(), mTransaction.getQuantityProperty(),
+                                mTransaction.getCommissionProperty());
+                    }
+
+                    @Override
+                    protected BigDecimal computeValue() {
+                        if (mTransaction.getAmount() == null || mTransaction.getQuantity() == null
+                                || mTransaction.getCommission() == null)
+                            return null;
+
+                        return mTransaction.getAmount().subtract(mTransaction.getCommission())
+                                .divide(mTransaction.getQuantity(), 6, BigDecimal.ROUND_HALF_UP);
+                    }
+                };
+                mTransaction.getPriceProperty().bind(price);
+            }
+        } else {
             ObjectBinding<BigDecimal> amount = new ObjectBinding<BigDecimal>() {
                 {
                     super.bind(mTransaction.getPriceProperty(), mTransaction.getQuantityProperty(),

@@ -87,7 +87,8 @@ public class EditTransactionDialogController {
         DIV("Dividend"), INTINC("Interest"), CGLONG("Long-term Cap Gain"),
         CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain"),
         REINVDIV("Reinvest Dividend"), REINVINT("Reinvest Interest"),  REINVLG("Reinvest Long-term Cap Gain"),
-        REINVMD("Reinvest Mid-term Cap Gain"), REINVSH("Reinvest Short-term Cap Gain");
+        REINVMD("Reinvest Mid-term Cap Gain"), REINVSH("Reinvest Short-term Cap Gain"),
+        XIN("Cash Transferred In"), XOUT("Cash Transferred Out");
 
         private final String mDesc;
         InvestmentTransaction(String d) { mDesc = d; }
@@ -209,6 +210,10 @@ public class EditTransactionDialogController {
                 return new TransactionTypeCombo(InvestmentTransaction.REINVMD);
             case REINVSH:
                 return new TransactionTypeCombo(InvestmentTransaction.REINVSH);
+            case XIN:
+                return new TransactionTypeCombo(InvestmentTransaction.XIN);
+            case XOUT:
+                return new TransactionTypeCombo(InvestmentTransaction.XOUT);
             default:
                 // more work is needed to added new cases
                 return null;
@@ -250,7 +255,8 @@ public class EditTransactionDialogController {
     private ChoiceBox<Account> mTransferAccountChoiceBox;
     @FXML
     private TextField mMemoTextField;
-
+    @FXML
+    private Label mSecurityNameLabel;
     @FXML
     private ChoiceBox<Security> mSecurityChoiceBox;
     @FXML
@@ -351,6 +357,7 @@ public class EditTransactionDialogController {
                     transferAmount = BigDecimal.ZERO;
                     break;
                 case BUYX:
+                case XIN:
                     transferAmount = mTransaction.getAmount().negate();
                     break;
                 case SELLX:
@@ -360,6 +367,7 @@ public class EditTransactionDialogController {
                 case CGLONGX:
                 case CGMIDX:
                 case CGSHORTX:
+                case XOUT:
                     transferAmount = mTransaction.getAmount();
                     break;
                 default:
@@ -497,6 +505,7 @@ public class EditTransactionDialogController {
                 });
 
         TransactionTypeCombo tc = mapTradeAction(Transaction.TradeAction.valueOf(mTransaction.getTradeAction()));
+        // todo:  tc == null???
         // select Investment or Cash according to mTransaction
         mClassChoiceBox.getSelectionModel().select(tc.getTransactionType().toString());
         switch (tc.getTransactionType()) {
@@ -540,8 +549,37 @@ public class EditTransactionDialogController {
         final BigDecimal investAmountSign;
         boolean isIncome = false;
         boolean isReinvest = false;
+        boolean isCashTransfer = false;
         switch (investType) {
+            case XIN:
+            case XOUT:
+                isCashTransfer = true;
+                mSecurityNameLabel.setVisible(false);
+                mSecurityChoiceBox.setVisible(false);
+                mSharesLabel.setVisible(false);
+                mSharesTextField.setVisible(false);
+                mPriceLabel.setVisible(false);
+                mPriceTextField.setVisible(false);
+                mCommissionLabel.setVisible(false);
+                mCommissionTextField.setVisible(false);
+                mSpecifyLotButton.setVisible(false);
+                mTransferAccountLabel.setVisible(true);
+                mTransferAccountChoiceBox.setVisible(true);
+                mADatePickerLabel.setVisible(false);
+                mADatePicker.setVisible(false);
+                mIncomeLabel.setVisible(false);
+                mIncomeTextField.setVisible(false);
+                if (investType == InvestmentTransaction.XIN)
+                    mTransferAccountLabel.setText("Transfer Cash From:");
+                else
+                    mTransferAccountLabel.setText("Transfer Cash To:");
+                mTotalLabel.setText("Transfer Amount:");
+                mTotalTextField.setEditable(true);
+                investAmountSign = BigDecimal.ONE;
+                break;
             case BUY:
+                mSecurityNameLabel.setVisible(true);
+                mSecurityChoiceBox.setVisible(true);
                 mSharesLabel.setVisible(true);
                 mSharesTextField.setVisible(true);
                 mPriceLabel.setVisible(true);
@@ -558,10 +596,13 @@ public class EditTransactionDialogController {
 
                 mTransferAccountLabel.setText("Use Cash From:");
                 mTotalLabel.setText("Total Cost:");
+                mTotalTextField.setEditable(false);
                 investAmountSign = BigDecimal.ONE;
                 break;
             case SELL:
             case SHTSELL:
+                mSecurityNameLabel.setVisible(true);
+                mSecurityChoiceBox.setVisible(true);
                 mSharesLabel.setVisible(true);
                 mSharesTextField.setVisible(true);
                 mPriceLabel.setVisible(true);
@@ -578,9 +619,12 @@ public class EditTransactionDialogController {
 
                 mTransferAccountLabel.setText("Put Cash Into:");
                 mTotalLabel.setText("Total Sale:");
+                mTotalTextField.setEditable(false);
                 investAmountSign = BigDecimal.ONE.negate();
                 break;
             case SHRSIN:
+                mSecurityNameLabel.setVisible(true);
+                mSecurityChoiceBox.setVisible(true);
                 mSharesLabel.setVisible(true);
                 mSharesTextField.setVisible(true);
                 mPriceLabel.setVisible(true);
@@ -596,6 +640,7 @@ public class EditTransactionDialogController {
                 mIncomeTextField.setVisible(false);
 
                 mTotalLabel.setText("Total Cost:");
+                mTotalTextField.setEditable(false);
                 investAmountSign = BigDecimal.ONE;
                 break;
             case REINVDIV:
@@ -611,6 +656,8 @@ public class EditTransactionDialogController {
             case CGMID:
             case CGSHORT:
                 isIncome = true;
+                mSecurityNameLabel.setVisible(true);
+                mSecurityChoiceBox.setVisible(true);
                 mSharesLabel.setVisible(isReinvest);
                 mSharesTextField.setVisible(isReinvest);
                 mPriceLabel.setVisible(isReinvest);
@@ -627,6 +674,7 @@ public class EditTransactionDialogController {
                 mIncomeTextField.setVisible(true);
 
                 mTotalLabel.setText("Total Income");
+                mTotalTextField.setEditable(false);
                 investAmountSign = BigDecimal.ONE;
 
                 mIncomeLabel.setText(investType.toString());
@@ -662,7 +710,7 @@ public class EditTransactionDialogController {
                 };
                 mTransaction.getPriceProperty().bind(price);
             }
-        } else {
+        } else if (!isCashTransfer) {
             ObjectBinding<BigDecimal> amount = new ObjectBinding<BigDecimal>() {
                 {
                     super.bind(mTransaction.getPriceProperty(), mTransaction.getQuantityProperty(),

@@ -40,7 +40,7 @@
              <Label text="Account:" GridPane.rowIndex="3" />
              <DatePicker fx:id="mTDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="1" />
              <DatePicker fx:id="mADatePicker" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-             <Label text="Security Name:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+             <Label fx:id="mSecurityNameLabel" text="Security Name:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
              <Label fx:id="mSharesLabel" text="Number of Shares:" GridPane.columnIndex="2" GridPane.rowIndex="3" />
              <Label fx:id="mPriceLabel" text="Price per Share:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
              <Label fx:id="mCommissionLabel" text="Commission:" GridPane.columnIndex="2" GridPane.rowIndex="5" />

@@ -258,7 +258,7 @@ public class EditTransactionDialogController {
     @FXML
     private Label mSecurityNameLabel;
     @FXML
-    private ChoiceBox<Security> mSecurityChoiceBox;
+    private ComboBox<Security> mSecurityComboBox;
     @FXML
     private Label mIncomeLabel;
     @FXML
@@ -405,7 +405,7 @@ public class EditTransactionDialogController {
             return false;
         }
 
-        Security security = mSecurityChoiceBox.getValue();
+        Security security = mSecurityComboBox.getValue();
         if (security == null) {
             showWarningDialog("Warning", "Empty Security", "Please select a valid security");
             return false;
@@ -457,8 +457,10 @@ public class EditTransactionDialogController {
 
     private void setupTransactionDialog() {
 
-        mSecurityChoiceBox.setConverter(new SecurityConverter());
-        mSecurityChoiceBox.setItems(mMainApp.getSecurityList());
+        mSecurityComboBox.setConverter(new SecurityConverter());
+        //mSecurityComboBox.setItems(mMainApp.getSecurityList());
+        mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
+        mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
 
         mTransferAccountChoiceBox.setConverter(new AccountConverter());
         mTransferAccountChoiceBox.setItems(mMainApp.getAccountList());
@@ -555,7 +557,7 @@ public class EditTransactionDialogController {
             case XOUT:
                 isCashTransfer = true;
                 mSecurityNameLabel.setVisible(false);
-                mSecurityChoiceBox.setVisible(false);
+                mSecurityComboBox.setVisible(false);
                 mSharesLabel.setVisible(false);
                 mSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(false);
@@ -579,7 +581,7 @@ public class EditTransactionDialogController {
                 break;
             case BUY:
                 mSecurityNameLabel.setVisible(true);
-                mSecurityChoiceBox.setVisible(true);
+                mSecurityComboBox.setVisible(true);
                 mSharesLabel.setVisible(true);
                 mSharesTextField.setVisible(true);
                 mPriceLabel.setVisible(true);
@@ -602,7 +604,7 @@ public class EditTransactionDialogController {
             case SELL:
             case SHTSELL:
                 mSecurityNameLabel.setVisible(true);
-                mSecurityChoiceBox.setVisible(true);
+                mSecurityComboBox.setVisible(true);
                 mSharesLabel.setVisible(true);
                 mSharesTextField.setVisible(true);
                 mPriceLabel.setVisible(true);
@@ -624,7 +626,7 @@ public class EditTransactionDialogController {
                 break;
             case SHRSIN:
                 mSecurityNameLabel.setVisible(true);
-                mSecurityChoiceBox.setVisible(true);
+                mSecurityComboBox.setVisible(true);
                 mSharesLabel.setVisible(true);
                 mSharesTextField.setVisible(true);
                 mPriceLabel.setVisible(true);
@@ -652,12 +654,11 @@ public class EditTransactionDialogController {
                 // fall through here
             case DIV:
             case INTINC:
-            case CGLONG:
             case CGMID:
             case CGSHORT:
                 isIncome = true;
                 mSecurityNameLabel.setVisible(true);
-                mSecurityChoiceBox.setVisible(true);
+                mSecurityComboBox.setVisible(true);
                 mSharesLabel.setVisible(isReinvest);
                 mSharesTextField.setVisible(isReinvest);
                 mPriceLabel.setVisible(isReinvest);
@@ -741,10 +742,10 @@ public class EditTransactionDialogController {
         mTransferAccountChoiceBox.getSelectionModel().select(transferAccount);
 
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
-        mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityChoiceBox.valueProperty());
+        mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityComboBox.valueProperty());
         Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(),
-                mSecurityChoiceBox.valueProperty(), mSecurityChoiceBox.getConverter());
-        mSecurityChoiceBox.getSelectionModel().select(currentSecurity);
+                mSecurityComboBox.valueProperty(), mSecurityComboBox.getConverter());
+        mSecurityComboBox.getSelectionModel().select(currentSecurity);
 
         mSharesTextField.textProperty().unbindBidirectional(mTransaction.getQuantityProperty());
         mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),

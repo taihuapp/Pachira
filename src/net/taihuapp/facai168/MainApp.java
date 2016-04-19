@@ -175,10 +175,10 @@ public class MainApp extends Application {
             preparedStatement.setBigDecimal(3, t.getAmount());
             preparedStatement.setString(4, t.getTradeActionProperty().get());
             Security security = getSecurityByName(t.getSecurityName());
-            int securityID = 0;
             if (security != null)
-                securityID = security.getID();
-            preparedStatement.setInt(5, securityID);
+                preparedStatement.setObject(5, security.getID());
+            else
+                preparedStatement.setObject(5, null);
             preparedStatement.setInt(6, 0); // cleared
             preparedStatement.setInt(7, mapCategoryOrAccountNameToID(t.getCategoryProperty().get()));
             preparedStatement.setString(8, t.getMemoProperty().get());
@@ -209,6 +209,7 @@ public class MainApp extends Application {
                         return t.getID();
                     }
                 } catch (SQLException e) {
+                    System.err.println(e.getMessage());
                     throw e;
                 }
             }
@@ -225,9 +226,11 @@ public class MainApp extends Application {
 
     private void insertUpdateSecurityToDB(Security security) {
         String sqlCmd;
-        if (security.getID() < 0) {
+        if (security.getID() <= 0) {
+            // this security has not have a ID yet, insert and retrieve an ID
             sqlCmd = "insert into SECURITIES (TICKER, NAME, TYPE) values (?,?,?)";
         } else {
+            // update
             sqlCmd = "update SECURITIES set TICKER = ?, NAME = ?, TYPE = ? where ID = ?";
         }
 
@@ -235,7 +238,7 @@ public class MainApp extends Application {
             preparedStatement.setString(1, security.getTicker());
             preparedStatement.setString(2, security.getName());
             preparedStatement.setInt(3, security.getType().ordinal());
-            if (security.getID() >= 0) {
+            if (security.getID() > 0) {
                 preparedStatement.setInt(4, security.getID());
             }
             preparedStatement.executeUpdate();
@@ -502,7 +505,7 @@ public class MainApp extends Application {
                 if (categoryName != null) {
                     categoryID = getCategoryByName(categoryName).getID();
                 } else if (transferName != null) {
-                    Account transferAccount = getAccountByName(bt.getTransfer());
+                    Account transferAccount = getAccountByName(transferName);
                     if (transferAccount != null)
                         transferID = transferAccount.getID();
                 }
@@ -565,11 +568,12 @@ public class MainApp extends Application {
             preparedStatement.setBigDecimal(3, tt.getTAmount());
             preparedStatement.setString(4, tt.getAction().name());
             String name = tt.getSecurityName();
-            int securityID = -1;
             if (name != null && name.length() > 0) {
-                securityID = getSecurityByName(name).getID();
+                //preparedStatement.setInt(5, getSecurityByName(name).getID());
+                preparedStatement.setObject(5, getSecurityByName(name).getID());
+            } else {
+                preparedStatement.setObject(5, null);
             }
-            preparedStatement.setInt(5, securityID);
             preparedStatement.setInt(6, tt.getCleared());
             preparedStatement.setInt(7, mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer()));
             preparedStatement.setString(8, tt.getMemo());
@@ -1335,7 +1339,7 @@ public class MainApp extends Application {
             }
         }
 
-        for (QIFParser.Category c : qifParser.getCategoryList()) insertCategoryToDB(c);
+        qifParser.getCategoryList().forEach(this::insertCategoryToDB);
         initCategoryList();
 
         for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) {
@@ -1517,8 +1521,9 @@ public class MainApp extends Application {
             return;
 
         // Accounts table
+        // ID starts from 1
         String sqlCmd = "create table ACCOUNTS ("
-                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "ID integer NOT NULL AUTO_INCREMENT (1), "
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
@@ -1526,8 +1531,9 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // Security Table
+        // ID starts from 1
         sqlCmd = "create table SECURITIES ("
-                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure starts with 1
                 + "TICKER varchar(" + SECURITYTICKERLEN + ") NOT NULL, "
                 + "NAME varchar(" + SECURITYNAMELEN + ") UNIQUE NOT NULL, "
                 + "TYPE integer NOT NULL, "
@@ -1543,8 +1549,9 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // Category Table
+        // ID starts from 1
         sqlCmd = "create table CATEGORIES ("
-                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "ID integer NOT NULL AUTO_INCREMENT (1), "
                 + "NAME varchar(" + CATEGORYNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + CATEGORYDESCLEN + ") NOT NULL, "
                 + "INCOMEFLAG boolean, "
@@ -1554,8 +1561,9 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // SplitTransaction
+        // ID starts from 1
         sqlCmd = "create table SPLITTRANSACTIONS ("
-                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "ID integer NOT NULL AUTO_INCREMENT (1), "
                 + "TRANSACTIONID integer NOT NULL, "
                 + "CATEGORYID integer, "
                 + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
@@ -1567,8 +1575,9 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // Addresses table
+        // ID starts from 1
         sqlCmd = "create table ADDRESSES ("
-                + "ID integer not null auto_increment, "
+                + "ID integer not null auto_increment (1), "
                 + "LINE0 varchar(" + ADDRESSLINELEN + "), "
                 + "LINE1 varchar(" + ADDRESSLINELEN + "), "
                 + "LINE2 varchar(" + ADDRESSLINELEN + "), "
@@ -1579,8 +1588,9 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // amortlines table
+        // ID starts from 1
         sqlCmd = "create table AMORTIZATIONLINES ("
-                + "ID integer not null auto_increment, "
+                + "ID integer not null auto_increment (1), "
                 + "LINE0 varchar(" + AMORTLINELEN + "), "
                 + "LINE1 varchar(" + AMORTLINELEN + "), "
                 + "LINE2 varchar(" + AMORTLINELEN + "), "
@@ -1592,8 +1602,9 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // Transactions
+        // ID starts from 1
         sqlCmd = "create table TRANSACTIONS ("
-                + "ID integer NOT NULL AUTO_INCREMENT, "
+                + "ID integer NOT NULL AUTO_INCREMENT (1), "
                 + "ACCOUNTID integer NOT NULL, "
                 + "DATE date NOT NULL, "
                 + "ADATE date, "

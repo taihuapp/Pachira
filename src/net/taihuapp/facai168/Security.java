@@ -45,7 +45,7 @@ public class Security {
 
     // default constructor
     public Security() {
-        mID = -1;
+        mID = 0;  // 0 is not a legit security ID
         mType = Type.STOCK;
     }
 

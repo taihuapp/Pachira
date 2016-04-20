@@ -406,12 +406,21 @@ public class EditTransactionDialogController {
         }
 
         Security security = mSecurityComboBox.getValue();
-        if (security == null) {
-            showWarningDialog("Warning", "Empty Security", "Please select a valid security");
-            return false;
+        if (security != null && security.getID() > 0)  // has a valid security
+            return true;
+
+        // empty securiy here
+        // for cash related transaction, return true
+        if (mTransaction.getTradeAction().equals("DIV") || mTransaction.getTradeAction().equals("DIVX")
+                || mTransaction.getTradeAction().equals("INTINC") || mTransaction.getTradeAction().equals("INTINCX")
+                || mTransaction.getTradeAction().equals("XIN") || mTransaction.getTradeAction().equals("XOUT")
+                || mTransaction.getTradeAction().equals("CASH")) {
+            return true;
         }
 
-        return true;
+        // return false for all other transactions without security
+        showWarningDialog("Warning", "Empty Security", "Please select a valid security");
+        return false;
     }
 
     private void showWarningDialog(String title, String header, String content) {
@@ -449,10 +458,6 @@ public class EditTransactionDialogController {
     private void handleEnterNew() {
         if (enterTransaction())
             mMainApp.initTransactionList(mAccount);
-    }
-
-    @FXML
-    private void initialize() {
     }
 
     private void setupTransactionDialog() {

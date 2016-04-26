@@ -400,11 +400,11 @@ class QIFParser {
 
     static class TradeTransaction {
 
-        public enum Action { BUY, BUYX, CASH, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
+        public enum Action { BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
             CONTRIB, CONTRIBX, DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
             MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
             RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
-            STKSPLIT, WITHDRWX, XIN, XOUT }
+            STKSPLIT, WITHDRWX, XIN, XOUT, DEPOSIT, WITHDRAW }
 
         private String mAccountName;
         private LocalDate mDate;
@@ -456,13 +456,14 @@ class QIFParser {
 
         public static TradeTransaction fromQIFLines(List<String> lines) {
             TradeTransaction tt = new TradeTransaction();
+            String actionStr = null;
             for (String l : lines) {
                 switch (l.charAt(0)) {
                     case 'D':
                         tt.setDate(parseDate(l.substring(1)));
                         break;
                     case 'N':
-                        tt.setAction(Action.valueOf(l.substring(1).toUpperCase()));
+                        actionStr = l.substring(1).toUpperCase();
                         break;
                     case 'Y':
                         tt.setSecurityName(l.substring(1));
@@ -503,12 +504,18 @@ class QIFParser {
 
                 }
             }
+            if (actionStr.equals("CASH")) {
+                // transform CASH to either DEPOSIT or WITHDRAW
+                BigDecimal tAmount = tt.getTAmount();
+                actionStr = (tAmount != null && tAmount.signum() < 0) ? "WITHDRAW" : "DEPOSIT";
+            }
+            tt.setAction(Action.valueOf(actionStr));
             return tt;
         }
     }
 
     static class MemorizedTransaction {
-        public enum Type { INVESTMENT, EPAYMENT, CHECK, PAYMENT, DEPOSIT }
+        enum Type { INVESTMENT, EPAYMENT, CHECK, PAYMENT, DEPOSIT }
 
         private Type mType;
         private BigDecimal mQQuantity; // number of new shares for a split

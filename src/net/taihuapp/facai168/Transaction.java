@@ -20,7 +20,7 @@ public class Transaction {
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
         SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX
+        XFRSHRS, XIN, XOUT, DEPOSIT, WITHDRAW, BUYBOND, BUYBONDX
     }
 
     private int mID = -1;
@@ -273,6 +273,8 @@ public class Transaction {
             case RTRNCAP:
             case XIN:
             case XOUT:
+            case DEPOSIT:
+            case WITHDRAW:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount);
                 mQuantityProperty.set(quantity);
@@ -321,7 +323,7 @@ public class Transaction {
     // for cash transactions, the amount can be either positive or negative
     // for other transactions, the amount is the notional amount, either 0 or positive
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
-                       BigDecimal price, BigDecimal quantity, String memo, BigDecimal commission,
+                       String payee, BigDecimal price, BigDecimal quantity, String memo, BigDecimal commission,
                        BigDecimal amount, String categoryString, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
@@ -334,7 +336,7 @@ public class Transaction {
         mCommissionProperty.set(commission);
         mMemoProperty.set(memo);
         mCategoryProperty.set(categoryString);
-
+        mPayeeProperty.set(payee);
         setTradeDetails(ta, price, quantity, commission, amount);
     }
 

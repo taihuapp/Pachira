@@ -58,6 +58,10 @@
             <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
             <TextField fx:id="mIncomeTextField" GridPane.columnIndex="3" GridPane.rowIndex="2" />
             <ComboBox fx:id="mSecurityComboBox" prefWidth="150.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+            <TextField fx:id="mPayeeTextField" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+            <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+            <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+            <Label fx:id="mCategoryLabel" text="Category" GridPane.rowIndex="4" />
          </children>
       </GridPane>
    </center>

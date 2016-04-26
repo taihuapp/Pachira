@@ -503,7 +503,9 @@ public class MainApp extends Application {
                 int transferID = 0;
 
                 if (categoryName != null) {
-                    categoryID = getCategoryByName(categoryName).getID();
+                    QIFParser.Category category = getCategoryByName(categoryName);
+                    if (category != null)
+                        categoryID = category.getID();
                 } else if (transferName != null) {
                     Account transferAccount = getAccountByName(transferName);
                     if (transferAccount != null)
@@ -896,12 +898,15 @@ public class MainApp extends Application {
 
                 if (account.getType() == Account.Type.INVESTING) {
                     String name = "";
-                    if (securityID > 0)
-                        name = getSecurityByID(securityID).getName();
+                    if (securityID > 0) {
+                        Security security = getSecurityByID(securityID);
+                        if (security != null)
+                            name = security.getName();
+                    }
                     if (quantity == null) quantity = BigDecimal.ZERO;
                     if (commission == null) commission = BigDecimal.ZERO;
                     if (price == null) price = BigDecimal.ZERO;
-                    mTransactionList.add(new Transaction(id, accountID, tDate, aDate, tradeAction, name,
+                    mTransactionList.add(new Transaction(id, accountID, tDate, aDate, tradeAction, name, payee,
                             price, quantity, memo, commission, amount, categoryStr, matchID, matchSplitID));
                 } else {
                     Transaction bt = new Transaction(id, accountID, tDate, reference, payee,
@@ -1474,7 +1479,6 @@ public class MainApp extends Application {
             alert.showAndWait();
         }
 
-        // todo ???
         if (mConnection == null) {
             return;
         }

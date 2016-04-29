@@ -295,6 +295,7 @@ class QIFParser {
         String getAccountName() { return mAccountName; }
         LocalDate getDate() { return mDate; }
         BigDecimal getTAmount() { return mTAmount; }
+        BigDecimal getUAmount() { return mUAmount; }
         int getCleared() { return mCleared; }
         private boolean isCategory() {
             return !(mCategory != null && mCategory.startsWith("[") && mCategory.endsWith("]"));
@@ -308,14 +309,14 @@ class QIFParser {
             return mCategory.substring(1, mCategory.length()-1);
         }
 
-        public String getReference() { return mCheckNumber; }
-        public String getMemo() { return mMemo; }
-        public String getPayee() { return mPayee; }
-        public List<SplitBT> getSplitList() { return mSplitList; }
-        public List<String> getAddressList() { return mAddressList; }
-        public String[] getAmortizationLines() { return mAmortizationLines; }
+        String getReference() { return mCheckNumber; }
+        String getMemo() { return mMemo; }
+        String getPayee() { return mPayee; }
+        List<SplitBT> getSplitList() { return mSplitList; }
+        List<String> getAddressList() { return mAddressList; }
+        String[] getAmortizationLines() { return mAmortizationLines; }
 
-        public static BankTransaction fromQIFLines(List<String> lines) {
+        static BankTransaction fromQIFLines(List<String> lines) {
             BankTransaction bt = new BankTransaction();
             SplitBT splitBT = null;
             for (String l : lines) {
@@ -400,7 +401,7 @@ class QIFParser {
 
     static class TradeTransaction {
 
-        public enum Action { BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
+        enum Action { BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
             CONTRIB, CONTRIBX, DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
             MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
             RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
@@ -421,40 +422,41 @@ class QIFParser {
         private BigDecimal mUAmount; // T and U amounts
         private BigDecimal mAmountTransferred; // $ line
 
-        public TradeTransaction() {
+        TradeTransaction() {
             mCleared = ' ';
         }
 
         // setters
-        public void setAccountName(String a) { mAccountName = a;}
-        public void setDate(LocalDate d) { mDate = d; }
-        public void setAction(Action action) { mAction = action; }
-        public void setSecurityName(String n) { mSecurityName = n; }
-        public void setPrice(BigDecimal p) { mPrice = p; }
-        public void setQuantity(BigDecimal q) { mQuantity = q; }
-        public void setCleared(char c) { mCleared = c; }
-        public void setTransferReminderText(String t) { mTransferReminderText = t; }
-        public void setMemo(String m) { mMemo = m; }
-        public void setCommission(BigDecimal c) { mCommission = c; }
-        public void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
-        public void setTAmount(BigDecimal t) { mTAmount = t; }
-        public void setUAmount(BigDecimal u) { mUAmount = u; }
-        public void setAmountTransferred(BigDecimal a) { mAmountTransferred = a; }
+        void setAccountName(String a) { mAccountName = a;}
+        void setDate(LocalDate d) { mDate = d; }
+        void setAction(Action action) { mAction = action; }
+        void setSecurityName(String n) { mSecurityName = n; }
+        void setPrice(BigDecimal p) { mPrice = p; }
+        void setQuantity(BigDecimal q) { mQuantity = q; }
+        void setCleared(char c) { mCleared = c; }
+        void setTransferReminderText(String t) { mTransferReminderText = t; }
+        void setMemo(String m) { mMemo = m; }
+        void setCommission(BigDecimal c) { mCommission = c; }
+        void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
+        void setTAmount(BigDecimal t) { mTAmount = t; }
+        void setUAmount(BigDecimal u) { mUAmount = u; }
+        void setAmountTransferred(BigDecimal a) { mAmountTransferred = a; }
 
         // getters
-        public String getAccountName() { return mAccountName; }
-        public LocalDate getDate() { return mDate; }
-        public BigDecimal getTAmount() { return mTAmount; }
-        public Action getAction() { return mAction; }
-        public String getSecurityName() { return mSecurityName; }
-        public int getCleared() { return mCleared; }
-        public String getCategoryOrTransfer() { return mCategoryOrTransfer; }
-        public String getMemo() { return mMemo; }
-        public BigDecimal getPrice() { return mPrice; }
-        public BigDecimal getQuantity() { return mQuantity; }
-        public BigDecimal getCommission() { return mCommission; }
+        String getAccountName() { return mAccountName; }
+        LocalDate getDate() { return mDate; }
+        BigDecimal getTAmount() { return mTAmount; }
+        BigDecimal getUAmount() { return mUAmount; }
+        Action getAction() { return mAction; }
+        String getSecurityName() { return mSecurityName; }
+        int getCleared() { return mCleared; }
+        String getCategoryOrTransfer() { return mCategoryOrTransfer; }
+        String getMemo() { return mMemo; }
+        BigDecimal getPrice() { return mPrice; }
+        BigDecimal getQuantity() { return mQuantity; }
+        BigDecimal getCommission() { return mCommission; }
 
-        public static TradeTransaction fromQIFLines(List<String> lines) {
+        static TradeTransaction fromQIFLines(List<String> lines) {
             TradeTransaction tt = new TradeTransaction();
             String actionStr = null;
             for (String l : lines) {
@@ -504,12 +506,22 @@ class QIFParser {
 
                 }
             }
-            if (actionStr.equals("CASH")) {
-                // transform CASH to either DEPOSIT or WITHDRAW
-                BigDecimal tAmount = tt.getTAmount();
-                actionStr = (tAmount != null && tAmount.signum() < 0) ? "WITHDRAW" : "DEPOSIT";
+            if (actionStr != null) {
+                if (actionStr.equals("CASH")) {
+                    // transform CASH to either DEPOSIT or WITHDRAW
+                    BigDecimal tAmount = tt.getTAmount();
+                    if (tAmount != null && tAmount.signum() < 0) {
+                        actionStr = "WITHDRAW";
+                        tt.setTAmount(tAmount.negate());
+                        BigDecimal uAmount = tt.getUAmount();
+                        if (uAmount != null)
+                            tt.setUAmount(uAmount.negate());
+                    } else {
+                        actionStr = "DEPOSIT";
+                    }
+                }
+                tt.setAction(Action.valueOf(actionStr));
             }
-            tt.setAction(Action.valueOf(actionStr));
             return tt;
         }
     }
@@ -863,10 +875,10 @@ class QIFParser {
         return 0;
     }
 
-    public List<Account> getAccountList() { return mAccountList; }
-    public List<Security> getSecurityList() { return mSecurityList; }
-    public List<Category> getCategoryList() { return mCategoryList; }
-    public List<Price> getPriceList() { return mPriceList; }
-    public List<BankTransaction> getBankTransactionList() { return mBankTransactionList; }
-    public List<TradeTransaction> getTradeTransactionList() { return mTradeTransactionList; }
+    List<Account> getAccountList() { return mAccountList; }
+    List<Security> getSecurityList() { return mSecurityList; }
+    List<Category> getCategoryList() { return mCategoryList; }
+    List<Price> getPriceList() { return mPriceList; }
+    List<BankTransaction> getBankTransactionList() { return mBankTransactionList; }
+    List<TradeTransaction> getTradeTransactionList() { return mTradeTransactionList; }
 }

@@ -180,8 +180,6 @@ public class EditTransactionDialogController {
             case SHTSELL:
             case SHTSELLX:
                 return new TransactionTypeCombo((InvestmentTransaction.SHTSELL));
-            case CASH:
-                return new TransactionTypeCombo(CashTransaction.OTHER);
             case SHRSIN:
                 return new TransactionTypeCombo(InvestmentTransaction.SHRSIN);
             case SHRSOUT:
@@ -472,8 +470,10 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleEnterNew() {
-        if (enterTransaction())
+        if (enterTransaction()) {
+            mTransaction.setID(0); // a new transaction
             mMainApp.initTransactionList(mAccount);
+        }
     }
 
     private void setupTransactionDialog() {

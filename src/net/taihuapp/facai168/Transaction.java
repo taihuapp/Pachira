@@ -15,7 +15,7 @@ import java.util.List;
 public class Transaction {
 
     enum TradeAction {
-        BUY, BUYX, CASH, CGLONG, CGLONGX, CGMID, CGMIDX,
+        BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX,
         CGSHORT, CGSHORTX, CVTSHRT, CVTSHRTX, DIV, DIVX, INTINC, INTINCX,
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
@@ -261,7 +261,6 @@ public class Transaction {
                 mCashAmountProperty.setValue(BigDecimal.ZERO);
                 mQuantityProperty.set(quantity);
                 break;
-            case CASH:
             case CGLONG:
             case CGMID:
             case CGSHORT:
@@ -272,12 +271,16 @@ public class Transaction {
             case MISCINC:
             case RTRNCAP:
             case XIN:
-            case XOUT:
             case DEPOSIT:
-            case WITHDRAW:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount);
-                mQuantityProperty.set(quantity);
+                mQuantityProperty.set(null);
+                break;
+            case XOUT:
+            case WITHDRAW:
+                mInvestAmountProperty.setValue(BigDecimal.ZERO);
+                mCashAmountProperty.setValue(amount.negate());
+                mQuantityProperty.set(null);
                 break;
             case CGLONGX:
             case CGMIDX:

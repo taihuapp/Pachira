@@ -8,6 +8,7 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ChoiceDialog;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -844,11 +845,9 @@ public class MainApp extends Application {
                 // we store split transaction id in the ID field
                 // ignore accountID, date, reference, payee,
                 int accountID = -1; // ignore accountID
-                LocalDate date = null; // ignore date
-                String reference = null; // ignore reference
-                String payee = null; // ignore payee
 
-                stList.add(new Transaction(id, accountID, date, reference, payee,
+                // set input date, reference, payee to be null
+                stList.add(new Transaction(id, accountID, null, null, null,
                         memo, categoryStr, amount, matchID, matchSplitID));
             }
         }  catch (SQLException e) {
@@ -1272,6 +1271,17 @@ public class MainApp extends Application {
 
     // import data from QIF file
     void importQIF() {
+        ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
+        accountChoiceDialog.getItems().add("");
+        for (Account account : getAccountList())
+            accountChoiceDialog.getItems().add(account.getName());
+        accountChoiceDialog.setSelectedItem("");
+        accountChoiceDialog.setTitle("Importing...");
+        accountChoiceDialog.setHeaderText("Default account for transactions:");
+        accountChoiceDialog.setContentText("Select default account");
+        Optional<String> result = accountChoiceDialog.showAndWait();
+        result.ifPresent(accountName -> System.out.println("Default account is " + accountName));
+
         File file;
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("QIF", "*.QIF"));
@@ -1281,7 +1291,7 @@ public class MainApp extends Application {
             return;
         }
 
-        QIFParser qifParser = new QIFParser();
+        QIFParser qifParser = new QIFParser(result.isPresent() ? result.get() : "");
         try {
             if (qifParser.parseFile(file) < 0) {
                 System.err.println("Failed to parse " + file);

@@ -121,14 +121,14 @@ class QIFParser {
             mGoal = "";
         }
 
-        public void setName(String n) { mName = n; }
-        public String getName() { return mName; }
-        public void setSymbol(String s) { mSymbol = s; }
-        public String getSymbol() { return mSymbol; }
-        public void setType(String t) { mType = t; }
-        public String getType() { return mType; }
-        public void setGoal(String g) { mGoal = g; }
-        public String getGoal() { return mGoal; }
+        void setName(String n) { mName = n; }
+        String getName() { return mName; }
+        void setSymbol(String s) { mSymbol = s; }
+        String getSymbol() { return mSymbol; }
+        void setType(String t) { mType = t; }
+        String getType() { return mType; }
+        void setGoal(String g) { mGoal = g; }
+        String getGoal() { return mGoal; }
 
         static Security fromQIFLines(List<String> lines) {
             Security security = new Security();
@@ -163,9 +163,9 @@ class QIFParser {
         private BigDecimal mBalance; // account balance
 
         // default constructor set members to default values
-        public Account() {
-            mName = "";
-            mType = "";
+        public Account(String name, String type) {
+            mName = name;
+            mType = type;
             mSalesTaxRate = BigDecimal.ZERO;
             mDescription = "";
             mCreditLimit = BigDecimal.ZERO;
@@ -173,21 +173,21 @@ class QIFParser {
         }
 
         // setters and getters
-        public void setName(String n) { mName = n; }
-        public String getName() { return mName; }
-        public void setType(String t) { mType = t; }
-        public String getType() { return mType; }
-        public void setSalesTaxRate(BigDecimal r) { mSalesTaxRate = r; }
-        public BigDecimal getSalesTaxRate() { return mSalesTaxRate; }
-        public void setDescription(String d) { mDescription = d; }
-        public String getDescription() { return mDescription; }
-        public void setCreditLimit(BigDecimal c) { mCreditLimit = c; }
-        public BigDecimal getCreditLimit() { return mCreditLimit; }
-        public void setBalance(BigDecimal b) { mBalance = b; }
-        public BigDecimal getBalance() { return mBalance; }
+        void setName(String n) { mName = n; }
+        String getName() { return mName; }
+        void setType(String t) { mType = t; }
+        String getType() { return mType; }
+        void setSalesTaxRate(BigDecimal r) { mSalesTaxRate = r; }
+        BigDecimal getSalesTaxRate() { return mSalesTaxRate; }
+        void setDescription(String d) { mDescription = d; }
+        String getDescription() { return mDescription; }
+        void setCreditLimit(BigDecimal c) { mCreditLimit = c; }
+        BigDecimal getCreditLimit() { return mCreditLimit; }
+        void setBalance(BigDecimal b) { mBalance = b; }
+        BigDecimal getBalance() { return mBalance; }
 
         static Account fromQIFLines(List<String> lines) {
-            Account account = new Account();
+            Account account = new Account("", "");
             for (String l : lines) {
                 switch (l.charAt(0)) {
                     case 'N':
@@ -223,7 +223,7 @@ class QIFParser {
             private BigDecimal mPercentage; // % of split if % is used
 
             // public constructor
-            public SplitBT() {
+            SplitBT() {
                 mCategory = "";
                 mMemo = "";
                 mAmount = BigDecimal.ZERO;
@@ -231,14 +231,14 @@ class QIFParser {
             }
 
             // setters and getters
-            public void setCategory(String c) { mCategory = c; }
-            public String getCategory() { return mCategory; }
-            public void setMemo(String m) { mMemo = m; }
-            public String getMemo() { return mMemo; }
-            public void setAmount(BigDecimal a) { mAmount = a; }
-            public BigDecimal getAmount() { return mAmount; }
-            public void setPercentage(BigDecimal p) { mPercentage = p; }
-            public BigDecimal getPercentage() { return mPercentage; }
+            void setCategory(String c) { mCategory = c; }
+            String getCategory() { return mCategory; }
+            void setMemo(String m) { mMemo = m; }
+            String getMemo() { return mMemo; }
+            void setAmount(BigDecimal a) { mAmount = a; }
+            BigDecimal getAmount() { return mAmount; }
+            void setPercentage(BigDecimal p) { mPercentage = p; }
+            BigDecimal getPercentage() { return mPercentage; }
         }
 
         private String mAccountName;
@@ -536,7 +536,7 @@ class QIFParser {
         private TradeTransaction mTT;
 
 
-        public MemorizedTransaction() {
+        MemorizedTransaction() {
             mBT = null;
             mTT = null;
         }
@@ -545,7 +545,7 @@ class QIFParser {
         public Type getType() { return mType; }
 
         //setters
-        public void setType(char t) {
+        void setType(char t) {
             switch (t) {
                 case 'I':
                     mType = Type.INVESTMENT;
@@ -566,9 +566,9 @@ class QIFParser {
                     throw new IllegalArgumentException("Unknown type [" + t + "] for MemorizedType");
             }
         }
-        public void setQQuantity(BigDecimal q) { mQQuantity = q; }
-        public void setRQuantity(BigDecimal r) { mRQuantity = r; }
-        public void setTransactionDetails(List<String> lines) {
+        void setQQuantity(BigDecimal q) { mQQuantity = q; }
+        void setRQuantity(BigDecimal r) { mRQuantity = r; }
+        void setTransactionDetails(List<String> lines) {
             if (getType() == Type.INVESTMENT) {
                 mTT = TradeTransaction.fromQIFLines(lines);
             } else {
@@ -576,7 +576,7 @@ class QIFParser {
             }
         }
 
-        public static MemorizedTransaction fromQIFLines(List<String> lines) {
+        static MemorizedTransaction fromQIFLines(List<String> lines) {
             List<String> unParsedLines = new ArrayList<>();
             MemorizedTransaction mt = new MemorizedTransaction();
             for (String l : lines) {
@@ -609,15 +609,15 @@ class QIFParser {
         private BigDecimal mPrice;
 
         // setters
-        public void setSecurity(String s) { mSecurity = s; }
-        public void setDate(LocalDate d) { mDate = d; }
-        public void setPrice(BigDecimal p) { mPrice = p; }
-        public String getSecurity() { return mSecurity; }
-        public LocalDate getDate() { return mDate; }
-        public BigDecimal getPrice() { return mPrice; }
+        void setSecurity(String s) { mSecurity = s; }
+        void setDate(LocalDate d) { mDate = d; }
+        void setPrice(BigDecimal p) { mPrice = p; }
+        String getSecurity() { return mSecurity; }
+        LocalDate getDate() { return mDate; }
+        BigDecimal getPrice() { return mPrice; }
 
 
-        public static Price fromQIFLines(List<String> lines) {
+        static Price fromQIFLines(List<String> lines) {
             if (lines.size() > 1) {
                 System.err.println("Price record, expected 1 line, got " + lines.size());
                 return null;
@@ -654,12 +654,14 @@ class QIFParser {
                     whole = Integer.valueOf(tokens[1].substring(0, idx1));
                     num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
                 }
-                price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den))));
+                price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den),
+                        BigDecimal.ROUND_HALF_DOWN)));
             }
             return price;
         }
     }
 
+    private String mDefaultAccountName;
     private List<Account> mAccountList;
     private List<Category> mCategoryList;
     private List<Security> mSecurityList;
@@ -689,7 +691,8 @@ class QIFParser {
     }
 
     // public constructor
-    public QIFParser() {
+    QIFParser(String dan) {
+        mDefaultAccountName = dan;
         mAccountList = new ArrayList<>();
         mCategoryList = new ArrayList<>();
         mSecurityList = new ArrayList<>();
@@ -710,12 +713,15 @@ class QIFParser {
 
     // return -1 for some sort of failure
     //         0 for success
-    public int parseFile(File qif) throws IOException {
+    int parseFile(File qif) throws IOException {
         List<String> allLines = Files.readAllLines(qif.toPath());
         int nLines = allLines.size();
         if (nLines == 0)
             return 0;
-        if (!allLines.get(nLines-1).equals("^")) {
+
+        // last line should either be "^" or "!Clear:AutoSwitch"
+        String lastLine = allLines.get(nLines-1);
+        if (!lastLine.equals("^") && !lastLine.equals("!Clear:AutoSwitch")) {
             throw new IOException("Bad formatted file");
         }
 
@@ -736,7 +742,7 @@ class QIFParser {
         boolean autoSwitch = true;
         RecordType currentRecordType = null;
         int i = 0;
-        Account account = new Account();
+        Account account = null;
         while (i < nLines) {
             String line = allLines.get(i);
             switch (line) {
@@ -820,6 +826,8 @@ class QIFParser {
                             if (bt != null) {
                                 if (account != null) {
                                     bt.setAccountName(account.getName());
+                                } else {
+                                    bt.setAccountName(getDefaultAccountName());
                                 }
                                 mBankTransactionList.add(bt);
                             } else {
@@ -833,6 +841,8 @@ class QIFParser {
                             if (tt != null) {
                                 if (account != null) {
                                     tt.setAccountName(account.getName());
+                                } else {
+                                    tt.setAccountName(getDefaultAccountName());
                                 }
                                 mTradeTransactionList.add(tt);
                             } else {
@@ -881,4 +891,5 @@ class QIFParser {
     List<Price> getPriceList() { return mPriceList; }
     List<BankTransaction> getBankTransactionList() { return mBankTransactionList; }
     List<TradeTransaction> getTradeTransactionList() { return mTradeTransactionList; }
+    private String getDefaultAccountName() { return mDefaultAccountName; }
 }

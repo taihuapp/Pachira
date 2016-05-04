@@ -17,6 +17,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static net.taihuapp.facai168.Transaction.TradeAction.XIN;
+import static net.taihuapp.facai168.Transaction.TradeAction.XOUT;
+
 /**
  * Created by ghe on 7/10/15.
  * Controller for EditTransactionDialog
@@ -337,81 +340,84 @@ public class EditTransactionDialogController {
     // return true if enter worked
     // false if something is not quite right
     private boolean enterTransaction() {
-        System.out.println("enterTransaction: only handling InvestmentTransaction for now");
-        if (validateTransaction()) {
-            mMainApp.insertUpDateTransactionToDB(mTransaction);
-            Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
-            if ((ta != Transaction.TradeAction.SELL &&
-                    ta != Transaction.TradeAction.SELLX &&
-                    ta != Transaction.TradeAction.CVTSHRT &&
-                    ta != Transaction.TradeAction.CVTSHRTX)) {
-                // only SELL or CVTSHORT needs the MatchInfoList
-                mMatchInfoList.clear();
-            }
-            mMainApp.putMatchInfoList(mMatchInfoList);
-            BigDecimal transferAmount;
-            switch (ta) {
-                case BUY:
-                case SELL:
-                case SHTSELL:
-                case SHRSIN:
-                case DIV:
-                case INTINC:
-                case CGLONG:
-                case CGMID:
-                case CGSHORT:
-                case REINVDIV:
-                case REINVINT:
-                case REINVLG:
-                case REINVMD:
-                case REINVSH:
-                case DEPOSIT:  // deposit and withdraw are not transfered from known account
-                case WITHDRAW:
-                    transferAmount = BigDecimal.ZERO;
-                    break;
-                case BUYX:
-                case XIN:
-                    transferAmount = mTransaction.getAmount().negate();
-                    break;
-                case SELLX:
-                case SHTSELLX:
-                case DIVX:
-                case INTINCX:
-                case CGLONGX:
-                case CGMIDX:
-                case CGSHORTX:
-                case XOUT:
-                    transferAmount = mTransaction.getAmount();
-                    break;
-                default:
-                    System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
-                    return false;
-            }
-            if (transferAmount.compareTo(BigDecimal.ZERO) == 0)
-                return true;
+        if (!validateTransaction())
+            return false;  // invalid transaction
 
-            int tID = mTransaction.getMatchID();
-            String wrappedTransferAccountName = mTransaction.getCategory();
-            Account transferAccount = mMainApp.getAccountByWrapedName(wrappedTransferAccountName);
-            if (transferAccount == null) {
-                System.err.println("Bad transfer account name: " + wrappedTransferAccountName);
+        mMainApp.insertUpDateTransactionToDB(mTransaction);
+        Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
+        if ((ta != Transaction.TradeAction.SELL &&
+                ta != Transaction.TradeAction.SELLX &&
+                ta != Transaction.TradeAction.CVTSHRT &&
+                ta != Transaction.TradeAction.CVTSHRTX)) {
+            // only SELL or CVTSHORT needs the MatchInfoList
+            mMatchInfoList.clear();
+        }
+        mMainApp.putMatchInfoList(mMatchInfoList);
+        String xferTAStr;
+        BigDecimal transferAmount;
+        switch (ta) {
+            case BUY:
+            case SELL:
+            case SHTSELL:
+            case SHRSIN:
+            case DIV:
+            case INTINC:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
+            case DEPOSIT:  // deposit and withdraw are not transfered from known account
+            case WITHDRAW:
+                transferAmount = BigDecimal.ZERO;
+                xferTAStr = null;
+                break;
+            case BUYX:
+            case XIN:
+                transferAmount = mTransaction.getAmount().negate();
+                xferTAStr = XOUT.name();
+                break;
+            case SELLX:
+            case SHTSELLX:
+            case DIVX:
+            case INTINCX:
+            case CGLONGX:
+            case CGMIDX:
+            case CGSHORTX:
+            case XOUT:
+                transferAmount = mTransaction.getAmount();
+                xferTAStr = XIN.name();
+                break;
+            default:
+                System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
                 return false;
-            }
-
-            Transaction linkedTransaction = new Transaction(tID, transferAccount.getID(), mTransaction.getTDate(),
-                    "", mTransaction.getSecurityName(), mTransaction.getMemo(),
-                    mMainApp.getWrappedAccountName(mAccount), transferAmount, mTransaction.getID(), -1);
-            mMainApp.insertUpDateTransactionToDB(linkedTransaction);
-            if (mTransaction.getMatchID() != linkedTransaction.getID()) {
-                mTransaction.setMatchID(linkedTransaction.getID(), 0);
-                mMainApp.insertUpDateTransactionToDB(mTransaction);
-            }
+        }
+        if (transferAmount.compareTo(BigDecimal.ZERO) == 0)
             return true;
-        } else {
+
+        int tID = mTransaction.getMatchID();
+        String wrappedTransferAccountName = mTransaction.getCategory();
+        Account transferAccount = mMainApp.getAccountByWrapedName(wrappedTransferAccountName);
+        if (transferAccount == null) {
+            System.err.println("Bad transfer account name: " + wrappedTransferAccountName);
             return false;
         }
+
+        Transaction linkedTransaction = new Transaction(tID, transferAccount.getID(), mTransaction.getTDate(),
+                xferTAStr, mTransaction.getSecurityName(), mTransaction.getMemo(),
+                mMainApp.getWrappedAccountName(mAccount), transferAmount, mTransaction.getID(), -1);
+        mMainApp.insertUpDateTransactionToDB(linkedTransaction);
+        if (mTransaction.getMatchID() != linkedTransaction.getID()) {
+            mTransaction.setMatchID(linkedTransaction.getID(), 0);
+            mMainApp.insertUpDateTransactionToDB(mTransaction);
+        }
+        return true;
     }
 
+    // return true if the transaction is validated, false otherwise
     private boolean validateTransaction() {
         if (TransactionClass.fromString(mClassChoiceBox.getValue()) == TransactionClass.CASH) {
             System.err.println("CASH Transaction not implemented yet");
@@ -479,7 +485,6 @@ public class EditTransactionDialogController {
     private void setupTransactionDialog() {
 
         mSecurityComboBox.setConverter(new SecurityConverter());
-        //mSecurityComboBox.setItems(mMainApp.getSecurityList());
         mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
         mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
 

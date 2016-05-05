@@ -67,57 +67,6 @@ public class SecurityHolding extends LotHolding {
         @Override
         public String getLabel() { return getDate().toString(); }
 
-        // return true for success, false for failure
-/*
-        public boolean lotMatch(LotInfo openLot, BigDecimal matchAmt) {
-            if (matchAmt.compareTo(BigDecimal.ZERO) == 0)
-                return true;  // nothing to match
-
-            if ((getQuantity().abs().compareTo(matchAmt) < 0) ||
-                    (openLot.getQuantity().abs().compareTo(matchAmt) < 0)) {
-                // matchAmt bigger than quantity, can't be
-                System.err.println("LotInfo::lotMatch inconsistent quantity: "
-                        + getTransactionID() + " (" + getQuantity() + ")/"
-                        + openLot.getTransactionID() + " (" + openLot.getQuantity() + ")/"
-                        + matchAmt);
-                return false;
-            }
-
-            if (getQuantity().signum()*openLot.getQuantity().signum() > 0) {
-                System.err.println("LotInfo::lotMatch lots not offsetting: "
-                        + getTransactionID() + " (" + getQuantity() + ")/"
-                        + openLot.getTransactionID() + " (" + openLot.getQuantity() + ")/"
-                        + matchAmt);
-                return false;
-            }
-
-            BigDecimal newQuantity, newCostBasis, openQuantity, openCostBasis;
-            if (getQuantity().signum () > 0) {
-                newQuantity = getQuantity().subtract(matchAmt);
-                openQuantity = openLot.getQuantity().add(matchAmt);
-
-            } else {
-                newQuantity = getQuantity().add(matchAmt);
-                openQuantity = openLot.getQuantity().subtract(matchAmt);
-            }
-
-            int scale = getQuantity().scale();
-
-            newCostBasis = getCostBasis().multiply(newQuantity).divide(getQuantity(),
-                    scale, BigDecimal.ROUND_HALF_UP);
-            openCostBasis = openLot.getCostBasis().multiply(openQuantity).divide(openLot.getQuantity(),
-                    scale, BigDecimal.ROUND_HALF_UP);
-
-            openLot.setQuantity(openQuantity);
-            openLot.setCostBasis(openCostBasis);
-
-            setQuantity(newQuantity);
-            setCostBasis(newCostBasis);
-
-            return true;
-        }
-*/
-
         @Override
         public int compareTo(LotInfo l) {
             // a bit optimization here, if IDs are equal, then must be equal
@@ -151,19 +100,6 @@ public class SecurityHolding extends LotHolding {
     }
 
     private ObservableList<LotInfo> mLotInfoList = FXCollections.observableArrayList();
-
-    // constructor
-/*
-    public SecurityHolding(String n, List<LotInfo> lList) {
-        super(n);
-
-        if (lList == null)
-            return;
-
-        // we really don't need the price here
-        updateAggregate(BigDecimal.ZERO);
-    }
-*/
 
     public SecurityHolding(String n) {
         super(n);
@@ -326,106 +262,17 @@ public class SecurityHolding extends LotHolding {
     }
 
     void adjustStockSplit(BigDecimal newSharesPerTenOldShares) {
+        BigDecimal newQTotal = BigDecimal.ZERO;
         for (LotInfo li : getLotInfoList()) {
             BigDecimal oldQ = li.getQuantity();
             BigDecimal oldP = li.getPrice();
-            li.setQuantity(oldQ.multiply(newSharesPerTenOldShares).divide(BigDecimal.TEN, oldQ.scale(),
-                    RoundingMode.HALF_UP));
+            BigDecimal newQ = oldQ.multiply(newSharesPerTenOldShares).divide(BigDecimal.TEN, oldQ.scale(),
+                    BigDecimal.ROUND_HALF_UP);
+            newQTotal = newQTotal.add(newQ);
+            li.setQuantity(newQ);
             li.setPrice(li.getPrice().multiply(BigDecimal.TEN).divide(newSharesPerTenOldShares, oldP.scale(),
                     RoundingMode.HALF_UP));
         }
+        setQuantity(newQTotal);
     }
-
-    // add the lot at the end
-/*
-    public void addLot(LotInfo lotInfo) {
-        setQuantity(getQuantity().add(lotInfo.getQuantity()));
-        mLotInfoList.add(lotInfo);
-    }
-
-    public void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
-        setQuantity(getQuantity().add(lotInfo.getQuantity()));
-        if (matchInfoList.size() == 0) {
-            // no specific lot to offset, simply add to the end
-            mLotInfoList.add(lotInfo);
-            return;
-        }
-
-        for (MatchInfo matchInfo : matchInfoList) {
-            int index = getLotIndex(matchInfo.getMatchTransactionID());
-            if (index < 0) {
-                System.err.println("Missing matching transaction " + matchInfo.getMatchTransactionID());
-                continue;
-            }
-            LotInfo matchingLot = mLotInfoList.get(index);
-            lotInfo.lotMatch(matchingLot, matchInfo.getMatchQuantity());
-        }
-
-        if (lotInfo.getQuantity().compareTo(BigDecimal.ZERO) != 0) {
-            System.err.println("LotInfo::addLot: lotMatch not complete" + lotInfo.getTransactionID());
-            mLotInfoList.add(lotInfo); // add to the end
-        }
-    }
-*/
-
-/*    @Override
-    public void setPrice(BigDecimal p) {
-        super.setPrice(p);
-
-        for (LotInfo li : getLotInfoList()) {
-            //li.setPrice(p);
-            li.updateAggregate(p);
-        }
-    }
-*/
-
-    // todo should move this into addLot (involves changing logic a little
-/*    @Override
-    protected void updateAggregate(BigDecimal p) {
-        // start from fresh
-        BigDecimal quantity = BigDecimal.ZERO;
-        BigDecimal costBasis = BigDecimal.ZERO;
-
-        // todo
-        // merge the two loops
-        int openIdx = 0;
-        int lsSign = 0;
-        for (int i = 0; i < mLotInfoList.size(); i++) {
-            LotInfo lotInfo = mLotInfoList.get(i);
-            BigDecimal q = lotInfo.getQuantity();
-            int lotSign = q.signum();
-            if (lsSign*lotSign < 0) {
-                // lotInfo has the opposite sign as previous lot
-                while (openIdx < i) {
-                    LotInfo openLot = mLotInfoList.get(openIdx);
-                    BigDecimal oldQuantity = openLot.getQuantity();
-                    BigDecimal oldCostBasis = openLot.getCostBasis();
-                    lotInfo.lotMatch(openLot, lotInfo.getQuantity().abs().min(oldQuantity.abs()));
-                    // update costBasis
-                    costBasis = costBasis.subtract(oldCostBasis.subtract(openLot.getCostBasis()));
-                    if (lotInfo.getQuantity().compareTo(BigDecimal.ZERO) == 0)
-                        break;  // we
-
-                    openIdx++;
-                }
-            }
-
-            quantity = quantity.add(q);
-            costBasis = costBasis.add(lotInfo.getCostBasis());
-            lsSign = quantity.signum();
-        }
-
-        for (Iterator<LotInfo> iter = mLotInfoList.iterator(); iter.hasNext(); ) {
-            LotInfo li = iter.next();
-            if (li.getQuantity().compareTo(BigDecimal.ZERO) == 0)
-                iter.remove();
-        }
-
-        setQuantity(quantity);
-        setCostBasis(costBasis);
-
-        // todo hack here
-        super.updateAggregate(BigDecimal.ZERO);
-    }
-    */
 }

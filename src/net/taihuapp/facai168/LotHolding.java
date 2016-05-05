@@ -11,7 +11,7 @@ import java.math.BigDecimal;
  * Created by ghe on 7/7/15.
  * Base class for holdings and lot information
  */
-public abstract class LotHolding {
+abstract class LotHolding {
 
     private StringProperty mSecurityNameProperty = new SimpleStringProperty("");
     private ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -22,28 +22,28 @@ public abstract class LotHolding {
     private ObjectProperty<BigDecimal> mPctRetProperty = new SimpleObjectProperty<>();
 
     // getters
-    public abstract String getLabel();
-    public ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
-    public ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
-    public ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
-    public ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
-    public ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
-    public ObjectProperty<BigDecimal> getPctRetProperty() { return mPctRetProperty; }
-    public String getSecurityName() { return mSecurityNameProperty.get(); }
-    public BigDecimal getPrice() { return mPriceProperty.get(); }
-    public BigDecimal getQuantity() { return mQuantityProperty.get(); }
-    public BigDecimal getCostBasis() { return mCostBasisProperty.get(); }
-    public BigDecimal getMarketValue() { return mMarketValueProperty.get(); }
-    public BigDecimal getPNL() { return mPNLProperty.get(); }
-    public BigDecimal getPctRet() { return mPctRetProperty.get(); }
+    abstract String getLabel();
+    ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
+    ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
+    ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
+    ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
+    ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
+    private ObjectProperty<BigDecimal> getPctRetProperty() { return mPctRetProperty; }
+    String getSecurityName() { return mSecurityNameProperty.get(); }
+    BigDecimal getPrice() { return mPriceProperty.get(); }
+    BigDecimal getQuantity() { return mQuantityProperty.get(); }
+    BigDecimal getCostBasis() { return mCostBasisProperty.get(); }
+    BigDecimal getMarketValue() { return mMarketValueProperty.get(); }
+    BigDecimal getPNL() { return mPNLProperty.get(); }
+    BigDecimal getPctRet() { return mPctRetProperty.get(); }
 
     // constructor
-    public LotHolding(String n) { mSecurityNameProperty.set(n); }
+    LotHolding(String n) { mSecurityNameProperty.set(n); }
 
     // setters
-    protected void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
-    protected void setCostBasis(BigDecimal c) { mCostBasisProperty.set(c); }
-    public void setPrice(BigDecimal p) {
+    void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
+    void setCostBasis(BigDecimal c) { mCostBasisProperty.set(c); }
+    void setPrice(BigDecimal p) {
         if (p == null)
             mPriceProperty.set(BigDecimal.ZERO);
         else
@@ -62,27 +62,4 @@ public abstract class LotHolding {
             getPNLProperty().set(null);
         }
     }
-
-/*    protected void updatePNL(BigDecimal p) {
-        System.err.println("Extending class should override updatePNL method");
-    }
- */
-
-/*
-    // update Aggregate quantity
-    protected void updateAggregate(BigDecimal p) {
-        BigDecimal c = getCostBasis();
-        BigDecimal q = getQuantity();
-        BigDecimal m = q.multiply(p);
-        BigDecimal pnl = m.subtract(c);
-        mMarketValueProperty.set(m);
-        mPNLProperty.set(pnl);
-        if (c.compareTo(BigDecimal.ZERO) != 0) {
-            mPctRetProperty.set((new BigDecimal(100)).multiply(pnl).divide(c.abs(), 2, BigDecimal.ROUND_HALF_UP));
-        } else {
-            mPctRetProperty.set(null);
-        }
-    }
-*/
-
 }

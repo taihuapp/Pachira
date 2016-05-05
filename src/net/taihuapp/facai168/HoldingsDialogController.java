@@ -7,7 +7,6 @@ import javafx.scene.control.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Comparator;
 
 /**
  * Created by ghe on 6/21/15.
@@ -53,7 +52,7 @@ public class HoldingsDialogController {
         mSecurityHoldingTreeTableView.getSortOrder().add(mNameColumn);
     }
 
-    public void setMainApp(MainApp mainApp) {
+    void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
 
         mSecurityHoldingTreeTableView.setShowRoot(false);
@@ -61,33 +60,30 @@ public class HoldingsDialogController {
 
         mNameColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, String> p) ->
                 new ReadOnlyStringWrapper(p.getValue().getValue().getLabel()));
-        mNameColumn.setComparator(new Comparator<String>() {
-            @Override
-            public int compare(String o1, String o2) {
-                if (mNameColumn.getSortType() == TreeTableColumn.SortType.ASCENDING) {
-                    // sorting accending
-                    if (o1.equals("TOTAL"))
-                        return 1;
-                    if (o2.equals("TOTAL"))
-                        return -1;
-                    if (o1.equals("CASH"))
-                        return 1;
-                    if (o2.equals("CASH"))
-                        return -1;
-                    return o1.compareTo(o2);
-                }
-
-                // sorting decending
+        mNameColumn.setComparator((o1, o2) -> {
+            if (mNameColumn.getSortType() == TreeTableColumn.SortType.ASCENDING) {
+                // sorting accending
                 if (o1.equals("TOTAL"))
-                    return -1;
+                    return 1;
                 if (o2.equals("TOTAL"))
-                    return 1;
-                if (o1.equals("CASH"))
                     return -1;
-                if (o2.equals("CASH"))
+                if (o1.equals("CASH"))
                     return 1;
+                if (o2.equals("CASH"))
+                    return -1;
                 return o1.compareTo(o2);
             }
+
+            // sorting decending
+            if (o1.equals("TOTAL"))
+                return -1;
+            if (o2.equals("TOTAL"))
+                return 1;
+            if (o1.equals("CASH"))
+                return -1;
+            if (o2.equals("CASH"))
+                return 1;
+            return o1.compareTo(o2);
         });
 
         mPriceColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
@@ -114,7 +110,7 @@ public class HoldingsDialogController {
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPctRet()));
         mPctReturnColumn.setComparator(null);
 
-        mDatePicker.setOnAction(event -> {updateHoldings(); });
+        mDatePicker.setOnAction(event -> updateHoldings());
         mDatePicker.setValue(LocalDate.now());
         updateHoldings();// setValue doesn't trigger an event, call update mannually.
     }

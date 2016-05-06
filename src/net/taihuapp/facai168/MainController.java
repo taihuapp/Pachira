@@ -25,6 +25,8 @@ public class MainController {
     @FXML
     private Menu mEditMenu;
     @FXML
+    private Menu mEditAccountMenu;
+    @FXML
     private MenuItem mBackupMenuItem;
     @FXML
     private MenuItem mImportQIFMenuItem;
@@ -76,7 +78,7 @@ public class MainController {
     private TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn;
 
 
-    public void setMainApp(MainApp mainApp) {
+    void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
@@ -123,21 +125,42 @@ public class MainController {
 
     @FXML
     private void handleNewAccount() {
-        Account account = new Account();
+        handleEditAccount(new Account());
+    }
+
+    private void handleEditAccount(Account account) {
         if (mMainApp.showEditAccountDialog(account)) {
             mMainApp.insertUpdateAccountToDB(account);
             mMainApp.initAccountList();
+            updateEditAccountMenu();
+        }
+    }
+
+    private void updateEditAccountMenu() {
+        // clear account list first, keeping item 0 and 1 which are 'New' and 'Separator'.
+        ObservableList<MenuItem> editAccountMenuItems = mEditAccountMenu.getItems();
+        editAccountMenuItems.remove(2, editAccountMenuItems.size());
+
+        for (Account account : mMainApp.getAccountList()) {
+            MenuItem mi = new MenuItem(account.getName());
+            mi.setOnAction(event -> {
+                MenuItem mi1 = (MenuItem) event.getTarget();
+                handleEditAccount(mMainApp.getAccountByName(mi1.getText()));
+            });
+            editAccountMenuItems.add(mi);
         }
     }
 
     private void updateUI(boolean isConnected) {
+        if (isConnected)
+            updateEditAccountMenu();
         mEditMenu.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);
         mImportQIFMenuItem.setVisible(isConnected);
         mAccountTableView.setVisible(isConnected);
     }
 
-    public void updateRecentMenu() {
+    private void updateRecentMenu() {
         EventHandler<ActionEvent> menuAction = t -> {
             MenuItem mi = (MenuItem) t.getTarget();
             mMainApp.openDatabase(false, mi.getText());
@@ -168,7 +191,7 @@ public class MainController {
         mMainApp.showEditTransactionDialog(t);
     }
 
-    public void showAccountTransactions(Account account) {
+    private void showAccountTransactions(Account account) {
         mMainApp.setCurrentAccount(account);
 
         if (account == null) {

@@ -5,12 +5,10 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
-
-import java.util.List;
 
 /**
  * Created by ghe on 3/19/15.
+ *
  */
 public class EditAccountDialogController {
 
@@ -36,16 +34,18 @@ public class EditAccountDialogController {
         mDescriptionTextArea.setText(account.getDescription());
     }
 
-    public void setDialogStage(Stage stage) { mDialogStage = stage; }
+    void setDialogStage(Stage stage) { mDialogStage = stage; }
 
-    public boolean isOK() { return mIsOK; }
+    boolean isOK() { return mIsOK; }
 
     @FXML
     private void handleOK() {
-        try {
-            mAccount.setType(mTypeChoiceBox.getValue());
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (mAccount.getID() <= 0) {
+            try {
+                mAccount.setType(mTypeChoiceBox.getValue());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         mAccount.setName(mNameTextField.getText());
         mAccount.setDescription(mDescriptionTextArea.getText());

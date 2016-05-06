@@ -646,15 +646,13 @@ public class MainApp extends Application {
 
     void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
-        if (account.getID() < 0) {
+        if (account.getID() <= 0) {
             sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION) values (?,?,?)";
         } else {
             sqlCmd = "update ACCOUNTS set TYPE = ?, NAME = ?, DESCRIPTION = ? where ID = ?";
         }
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-        try {
-            preparedStatement = mConnection.prepareStatement(sqlCmd);
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setInt(1, account.getType().ordinal());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
@@ -664,11 +662,18 @@ public class MainApp extends Application {
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert Account failed, no rows affected");
             }
-            resultSet = preparedStatement.getGeneratedKeys();
-            if (resultSet.next()) {
-                account.setID(resultSet.getInt(1));
-            } else {
+            if (account.getID() >= 0)
+                return;  // we are done
+
+            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                if (resultSet.next()) {
+                    account.setID(resultSet.getInt(1));
+                    return;
+                }
                 throw new SQLException("Insert Account failed, no ID obtained");
+            } catch (SQLException e) {
+                System.err.println(e.getMessage());
+                throw e;
             }
         } catch (SQLException e) {
             String title = "Database Error";
@@ -690,16 +695,6 @@ public class MainApp extends Application {
         } catch (NullPointerException e) {
             System.err.println("mConnection is null");
             e.printStackTrace();
-        } finally {
-            try {
-                if (preparedStatement != null)
-                    preparedStatement.close();
-                if (resultSet != null)
-                    resultSet.close();
-            } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
-            }
         }
     }
 

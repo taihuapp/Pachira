@@ -150,9 +150,12 @@ public class SecurityHolding extends LotHolding {
         BigDecimal oldQuantity = getQuantity();
 
         // update total quantity here
-        setQuantity(oldQuantity.add(lotInfo.getQuantity()));
+        BigDecimal lotInfoQuantity = lotInfo.getQuantity();
+        if (lotInfoQuantity == null)
+            return;  // nothing todo here
+        setQuantity(oldQuantity.add(lotInfoQuantity));
 
-        if ((oldQuantity.signum() >= 0) && (lotInfo.getQuantity().signum() > 0)
+        if ((oldQuantity.signum() >= 0) && (lotInfoQuantity.signum() > 0)
             || ((oldQuantity.signum() <= 0) && (lotInfo.getQuantity().signum() < 0))) {
             // same sign, nothing of offset
             if (matchInfoList.size() > 0) {
@@ -164,7 +167,7 @@ public class SecurityHolding extends LotHolding {
         }
 
         // lotInfo quantity has opposite sign as current holding, need to match lots
-        if (lotInfo.getQuantity().abs().compareTo(oldQuantity.abs()) > 0) {
+        if (lotInfoQuantity.abs().compareTo(oldQuantity.abs()) > 0) {
             // more than offset the current?  we shouldn't be here
             // probably something went wrong.  Issue a error message
             // and then match offset anyway

@@ -6,10 +6,11 @@ import java.math.BigDecimal;
 
 /**
  * Created by ghe on 3/19/15.
+ *
  */
 public class Account {
 
-    public enum Type { SPENDING, INVESTING, PROPERTY, DEBT }
+    enum Type { SPENDING, INVESTING, PROPERTY, DEBT }
 
     private Type mType;
 
@@ -42,21 +43,21 @@ public class Account {
         mType = t;
     }
 
-    public IntegerProperty getIDProperty() { return mID; }
-    public int getID() { return mID.get(); }
-    public void setID(int id) { mID.set(id); }
+    IntegerProperty getIDProperty() { return mID; }
+    int getID() { return mID.get(); }
+    void setID(int id) { mID.set(id); }
 
-    public StringProperty getNameProperty() { return mName; }
-    public String getName() { return mName.get(); }
-    public void setName(String name) { mName.set(name); }
+    StringProperty getNameProperty() { return mName; }
+    String getName() { return mName.get(); }
+    void setName(String name) { mName.set(name); }
 
-    public StringProperty getDescriptionProperty() { return mDescription; }
-    public String getDescription() { return mDescription.get(); }
-    public void setDescription(String d) { mDescription.set(d); }
+    StringProperty getDescriptionProperty() { return mDescription; }
+    String getDescription() { return mDescription.get(); }
+    void setDescription(String d) { mDescription.set(d); }
 
-    public ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
-    public BigDecimal getCurrentBalance() { return mCurrentBalance.get(); }
-    public void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
+    ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
+    BigDecimal getCurrentBalance() { return mCurrentBalance.get(); }
+    void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
 
     public String toString() {
         return "mID:" + mID.get() + ";mType:" + mType.name()

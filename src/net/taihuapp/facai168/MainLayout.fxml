@@ -27,7 +27,7 @@
           </Menu>
           <Menu fx:id="mEditMenu" mnemonicParsing="false" text="Edit" visible="false">
                <items>
-                  <Menu mnemonicParsing="false" text="Account">
+                  <Menu fx:id="mEditAccountMenu" mnemonicParsing="false" text="Account">
                     <items>
                       <MenuItem mnemonicParsing="false" onAction="#handleNewAccount" text="New" />
                         <SeparatorMenuItem mnemonicParsing="false" />

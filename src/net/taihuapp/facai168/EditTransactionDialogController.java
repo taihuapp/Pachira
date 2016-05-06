@@ -17,9 +17,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-import static net.taihuapp.facai168.Transaction.TradeAction.XIN;
-import static net.taihuapp.facai168.Transaction.TradeAction.XOUT;
-
 /**
  * Created by ghe on 7/10/15.
  * Controller for EditTransactionDialog
@@ -86,7 +83,7 @@ public class EditTransactionDialogController {
     // Investment Transaction Types
     private enum InvestmentTransaction {
         BUY("Buy - Shares Bought"), SELL("Sell - Shares Sold"),
-        SHTSELL("Short Sell"), SHRSIN("Shares Added"), SHRSOUT("Shares Removed"),
+        SHTSELL("Short Sell"), CVTSHRT("Cover Short Sale"), SHRSIN("Shares Added"), SHRSOUT("Shares Removed"),
         DIV("Dividend"), INTINC("Interest"), CGLONG("Long-term Cap Gain"),
         CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain"),
         REINVDIV("Reinvest Dividend"), REINVINT("Reinvest Interest"),  REINVLG("Reinvest Long-term Cap Gain"),
@@ -353,7 +350,7 @@ public class EditTransactionDialogController {
             mMatchInfoList.clear();
         }
         mMainApp.putMatchInfoList(mMatchInfoList);
-        String xferTAStr;
+        Transaction.TradeAction xferTA = null;
         BigDecimal transferAmount;
         switch (ta) {
             case BUY:
@@ -373,12 +370,11 @@ public class EditTransactionDialogController {
             case DEPOSIT:  // deposit and withdraw are not transfered from known account
             case WITHDRAW:
                 transferAmount = BigDecimal.ZERO;
-                xferTAStr = null;
                 break;
             case BUYX:
             case XIN:
-                transferAmount = mTransaction.getAmount().negate();
-                xferTAStr = XOUT.name();
+                transferAmount = mTransaction.getAmount();
+                xferTA = Transaction.TradeAction.XOUT;
                 break;
             case SELLX:
             case SHTSELLX:
@@ -389,16 +385,21 @@ public class EditTransactionDialogController {
             case CGSHORTX:
             case XOUT:
                 transferAmount = mTransaction.getAmount();
-                xferTAStr = XIN.name();
+                xferTA = Transaction.TradeAction.XIN;
                 break;
             default:
                 System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
                 return false;
         }
-        if (transferAmount.compareTo(BigDecimal.ZERO) == 0)
-            return true;
 
         int tID = mTransaction.getMatchID();
+        if (transferAmount.compareTo(BigDecimal.ZERO) == 0) {
+            if (tID > 0) {
+                mMainApp.deleteTransactionFromDB(tID);
+            }
+            return true;
+        }
+
         String wrappedTransferAccountName = mTransaction.getCategory();
         Account transferAccount = mMainApp.getAccountByWrapedName(wrappedTransferAccountName);
         if (transferAccount == null) {
@@ -406,9 +407,17 @@ public class EditTransactionDialogController {
             return false;
         }
 
-        Transaction linkedTransaction = new Transaction(tID, transferAccount.getID(), mTransaction.getTDate(),
-                xferTAStr, mTransaction.getSecurityName(), mTransaction.getMemo(),
-                mMainApp.getWrappedAccountName(mAccount), transferAmount, mTransaction.getID(), -1);
+        Transaction linkedTransaction = new Transaction(transferAccount.getID(), mTransaction.getTDate());
+        linkedTransaction.setID(tID);
+        linkedTransaction.setMemo(mTransaction.getMemo());
+        linkedTransaction.setMatchID(mTransaction.getID(), 0);
+        if (transferAccount.getType() == Account.Type.INVESTING) {
+            linkedTransaction.getTradeActionProperty().set(xferTA.name());
+            linkedTransaction.getAmountProperty().set(transferAmount);
+        } else {
+            linkedTransaction.getTradeActionProperty().set(null);
+            linkedTransaction.getAmountProperty().set(transferAmount.negate());
+        }
         mMainApp.insertUpDateTransactionToDB(linkedTransaction);
         if (mTransaction.getMatchID() != linkedTransaction.getID()) {
             mTransaction.setMatchID(linkedTransaction.getID(), 0);
@@ -552,19 +561,44 @@ public class EditTransactionDialogController {
                 return;
         }
 
+        mTransaction.getTradeActionProperty().unbind();
         mTransaction.getTradeActionProperty().bind(new StringBinding() {
             { super.bind(mTransferAccountChoiceBox.valueProperty(),
                     mTransactionChoiceBox.valueProperty()); }
             @Override
             protected String computeValue() {
+                InvestmentTransaction it
+                        = InvestmentTransaction.fromString(mTransactionChoiceBox.valueProperty().get());
+                Account xferAccount = mTransferAccountChoiceBox.valueProperty().get();
+                if (xferAccount != null && xferAccount.getID() == mAccount.getID())
+                    return it.name();
 
-                String t = InvestmentTransaction.fromString(mTransactionChoiceBox.valueProperty().get()).name();
-
-                if (mTransferAccountChoiceBox.valueProperty().get().getID() !=
-                        mAccount.getID()) {
-                    return t + "X";
-                } else {
-                    return t;
+                switch (it) {
+                    case SHRSIN:
+                    case SHRSOUT:
+                    case REINVDIV:
+                    case REINVINT:
+                    case REINVLG:
+                    case REINVMD:
+                    case REINVSH:
+                    case XIN:
+                    case XOUT:
+                    case DEPOSIT:
+                    case WITHDRAW:
+                        return it.name();
+                    case BUY:
+                    case SELL:
+                    case SHTSELL:
+                    case CVTSHRT:
+                    case DIV:
+                    case INTINC:
+                    case CGLONG:
+                    case CGMID:
+                    case CGSHORT:
+                        return it.name() + "X";
+                    default:
+                        System.err.println("Unhandled InvestmentTransaction type " + it.name());
+                        return null;
                 }
             }
         });
@@ -809,8 +843,7 @@ public class EditTransactionDialogController {
 
         // mapCategory return negative account id or positive category id
         Account transferAccount = mMainApp.getAccountByWrapedName(mTransaction.getCategory());
-        if (transferAccount == null)
-            transferAccount = mAccount;
+
         mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountChoiceBox.valueProperty());
         Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
                 mTransferAccountChoiceBox.valueProperty(), new AccountCategoryConverter());

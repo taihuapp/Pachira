@@ -151,6 +151,22 @@ public class MainApp extends Application {
         return null;
     }
 
+    void deleteTransactionFromDB(int tid) {
+        String sqlCmd = "delete from TRANSACTIONS where ID = ?";
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, tid);
+
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.initOwner(mPrimaryStage);
+            alert.setTitle("Database Error");
+            alert.setHeaderText("Unable to delete Transactions, id = " + tid);
+            alert.setContentText(SQLExceptionToString(e));
+            alert.showAndWait();
+        }
+    }
+
     // return affected transaction id if success, 0 for failure.
     int insertUpDateTransactionToDB(Transaction t) {
         String sqlCmd;

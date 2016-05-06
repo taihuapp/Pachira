@@ -142,72 +142,6 @@ public class Transaction {
                 return getQuantity();
         }
     }
-/*
-        switch (TradeAction.valueOf(mTradeActionProperty.get())) {
-            case BUY:
-            case BUYBOND:
-            case CVTSHRT:
-            case BUYX:
-            case BUYBONDX:
-            case CVTSHRTX:
-            case REINVDIV:
-            case REINVINT:
-            case REINVLG:
-            case REINVMD:
-            case REINVSH:
-            case STKSPLIT:
-            case SHRSIN:
-            case SHRSOUT:
-            case STOCKDIV:
-            case XFRSHRS:
-                return mInvestAmountProperty.get();
-            case SELL:
-            case SHTSELL:
-            case SELLX:
-            case SHTSELLX:
-                return mInvestAmountProperty.get().negate();
-            case CASH:
-            case CGLONG:
-            case CGMID:
-            case CGSHORT:
-            case DIV:
-            case INTINC:
-            case MARGINT:
-            case MISCEXP:
-            case MISCINC:
-            case RTRNCAP:
-            case XIN:
-            case XOUT:
-                return mCashAmountProperty.get();
-            case CGLONGX:
-            case CGMIDX:
-            case CGSHORTX:
-            case DIVX:
-            case INTINCX:
-            case MARGINTX:
-            case MISCEXPX:
-            case MISCINCX:
-            case RTRNCAPX:
-                return BigDecimal.ZERO;
-            default:
-                System.err.println("TradingAction " + mTradeActionProperty.get() + " not implement yet");
-                return null;
-        }
-    }
-*/
-
-    public static BigDecimal computeTotalAmount(TradeAction ta, BigDecimal price, BigDecimal quantity,
-                                                BigDecimal commission) {
-        switch (ta) {
-            case BUY:
-                return quantity.multiply(price).add(commission);
-            case SELL:
-                return quantity.multiply(price).subtract(commission);
-            default:
-                System.err.println("computeTotalAmount: case " + ta.toString() + " not implemented yet");
-                return null;
-        }
-    }
 
     // setters
     void setID(int id) { mID = id; }
@@ -301,11 +235,11 @@ public class Transaction {
         }
     }
 
-    public void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
-    public void setPrice(BigDecimal p) { mPriceProperty.set(p); }
-    public void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
-    public void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
-    public void setMemo(String memo) { mMemoProperty.set(memo); }
+    void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
+    void setPrice(BigDecimal p) { mPriceProperty.set(p); }
+    void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
+    void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
+    void setMemo(String memo) { mMemoProperty.set(memo); }
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     private void setCategory(String c) { mCategoryProperty.setValue(c); }
     void setSplitTransactionList(List<Transaction> stList) {
@@ -345,9 +279,8 @@ public class Transaction {
 
 
     // Banking Transaction constructors
-    public Transaction(int id, int accountID, LocalDate date, String reference, String payee, String memo,
-                       String category, BigDecimal amount, int matchID, int matchSplitID) {
-        System.out.println("Banking Transaction constructor called");
+    public Transaction(int id, int accountID, LocalDate date, String reference, String payee,
+                       String memo, String category, BigDecimal amount, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -369,7 +302,7 @@ public class Transaction {
             mPaymentProperty.setValue(amount.negate());
         }
 
-        System.out.println("Transaction constructor: " + "ID = " + id + "; Amount = " + mCashAmountProperty);
+        System.out.println("Banking Transaction constructor: " + "ID = " + id + "; Amount = " + mCashAmountProperty);
     }
 
     // copy constructor

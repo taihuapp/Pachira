@@ -28,7 +28,7 @@ public class EditAccountDialogController {
 
         // todo more initialization
         mTypeChoiceBox.getSelectionModel().select(account.getType());
-        mTypeChoiceBox.setDisable(account.getID() >= 0); // disable type for existing
+        mTypeChoiceBox.setDisable(account.getID() > 0); // disable type for existing
 
         mNameTextField.setText(account.getName());
         mDescriptionTextArea.setText(account.getDescription());

@@ -49,7 +49,6 @@
              <Label text="Memo:" GridPane.rowIndex="5" />
              <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="6" />
              <TextField fx:id="mAccountNameTextField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-             <ChoiceBox fx:id="mTransferAccountChoiceBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
              <TextField fx:id="mSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="3" />
              <TextField fx:id="mPriceTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
              <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="5" />
@@ -62,6 +61,7 @@
             <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="1" />
             <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
             <Label fx:id="mCategoryLabel" text="Category" GridPane.rowIndex="4" />
+            <ComboBox fx:id="mTransferAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
          </children>
       </GridPane>
    </center>

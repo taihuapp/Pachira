@@ -678,7 +678,7 @@ public class MainApp extends Application {
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert Account failed, no rows affected");
             }
-            if (account.getID() >= 0)
+            if (account.getID() > 0)
                 return;  // we are done
 
             try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {

@@ -22,7 +22,7 @@ public class Account {
 
     // default constructor
     public Account() {
-        this(-1, Type.SPENDING, "", "");
+        this(0, Type.SPENDING, "", "");
     }
 
     public Account(int id, Type type, String name, String description) {
@@ -37,7 +37,7 @@ public class Account {
     // getters and setters
     public Type getType() { return mType; }
     public void setType(Type t) throws Exception {
-        if (mID.get() >= 0) {
+        if (mID.get() > 0) {
             throw new Exception("Can't change account type for an exiting account");
         }
         mType = t;

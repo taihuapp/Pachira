@@ -255,7 +255,7 @@ public class EditTransactionDialogController {
     @FXML
     private Label mTransferAccountLabel;
     @FXML
-    private ChoiceBox<Account> mTransferAccountChoiceBox;
+    private ComboBox<Account> mTransferAccountComboBox;
     @FXML
     private Label mCategoryLabel;
     @FXML
@@ -401,6 +401,9 @@ public class EditTransactionDialogController {
         }
 
         String wrappedTransferAccountName = mTransaction.getCategory();
+        if (wrappedTransferAccountName.equals(""))
+            return true;  // probably transfer from an unknown account
+
         Account transferAccount = mMainApp.getAccountByWrapedName(wrappedTransferAccountName);
         if (transferAccount == null) {
             System.err.println("Bad transfer account name: " + wrappedTransferAccountName);
@@ -497,10 +500,6 @@ public class EditTransactionDialogController {
         mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
         mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
 
-        mTransferAccountChoiceBox.setConverter(new AccountConverter());
-        mTransferAccountChoiceBox.setItems(mMainApp.getAccountList());
-        mTransferAccountChoiceBox.getSelectionModel().select(mAccount);
-
         mClassChoiceBox.getItems().setAll(mTransactionClassList);
         mClassChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             switch (TransactionClass.fromString(newValue)) {
@@ -563,13 +562,13 @@ public class EditTransactionDialogController {
 
         mTransaction.getTradeActionProperty().unbind();
         mTransaction.getTradeActionProperty().bind(new StringBinding() {
-            { super.bind(mTransferAccountChoiceBox.valueProperty(),
+            { super.bind(mTransferAccountComboBox.valueProperty(),
                     mTransactionChoiceBox.valueProperty()); }
             @Override
             protected String computeValue() {
                 InvestmentTransaction it
                         = InvestmentTransaction.fromString(mTransactionChoiceBox.valueProperty().get());
-                Account xferAccount = mTransferAccountChoiceBox.valueProperty().get();
+                Account xferAccount = mTransferAccountComboBox.valueProperty().get();
                 if (xferAccount != null && xferAccount.getID() == mAccount.getID())
                     return it.name();
 
@@ -633,7 +632,7 @@ public class EditTransactionDialogController {
                 mCommissionTextField.setVisible(false);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(false);
-                mTransferAccountChoiceBox.setVisible(false);
+                mTransferAccountComboBox.setVisible(false);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(false);
@@ -659,7 +658,7 @@ public class EditTransactionDialogController {
                 mCommissionTextField.setVisible(false);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(true);
-                mTransferAccountChoiceBox.setVisible(true);
+                mTransferAccountComboBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(false);
@@ -687,7 +686,7 @@ public class EditTransactionDialogController {
                 mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(true);
-                mTransferAccountChoiceBox.setVisible(true);
+                mTransferAccountComboBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(false);
@@ -714,7 +713,7 @@ public class EditTransactionDialogController {
                 mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(investType == InvestmentTransaction.SELL);
                 mTransferAccountLabel.setVisible(true);
-                mTransferAccountChoiceBox.setVisible(true);
+                mTransferAccountComboBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(false);
@@ -740,7 +739,7 @@ public class EditTransactionDialogController {
                 mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(false);
-                mTransferAccountChoiceBox.setVisible(false);
+                mTransferAccountComboBox.setVisible(false);
                 mADatePickerLabel.setVisible(true);
                 mADatePicker.setVisible(true);
                 mIncomeLabel.setVisible(false);
@@ -777,7 +776,7 @@ public class EditTransactionDialogController {
                 mCommissionTextField.setVisible(isReinvest);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(!isReinvest);
-                mTransferAccountChoiceBox.setVisible(!isReinvest);
+                mTransferAccountComboBox.setVisible(!isReinvest);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(true);
@@ -793,6 +792,16 @@ public class EditTransactionDialogController {
                 System.err.println("InvestmentTransaction " + investType + " not implemented yet.");
                 return;
         }
+
+        mTransferAccountComboBox.setConverter(new AccountConverter());
+        mTransferAccountComboBox.getItems().clear();
+        mTransferAccountComboBox.getItems().add(new Account()); // a blank account
+        System.out.println("setupInvestmentTransactionDialog");
+        for (Account account : mMainApp.getAccountList()) {
+            if (account.getID() != mAccount.getID() || !isCashTransfer)
+                mTransferAccountComboBox.getItems().add(account);
+        }
+        mTransferAccountComboBox.getSelectionModel().select(isCashTransfer ? new Account() : mAccount);
 
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();
@@ -844,10 +853,10 @@ public class EditTransactionDialogController {
         // mapCategory return negative account id or positive category id
         Account transferAccount = mMainApp.getAccountByWrapedName(mTransaction.getCategory());
 
-        mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountChoiceBox.valueProperty());
+        mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountComboBox.valueProperty());
         Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
-                mTransferAccountChoiceBox.valueProperty(), new AccountCategoryConverter());
-        mTransferAccountChoiceBox.getSelectionModel().select(transferAccount);
+                mTransferAccountComboBox.valueProperty(), new AccountCategoryConverter());
+        mTransferAccountComboBox.getSelectionModel().select(transferAccount);
 
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
         mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityComboBox.valueProperty());

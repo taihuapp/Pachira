@@ -87,6 +87,9 @@ public class Transaction {
             case SHRSIN:
                 mDescriptionProperty.set("" + mQuantityProperty.get() + " @ " + mPriceProperty.get());
                 break;
+            case XIN:
+            case XOUT:
+                break;  // do nothing here
             default:
                 mDescriptionProperty.set("description for this type Transaction not implemented yet.");
                 break;

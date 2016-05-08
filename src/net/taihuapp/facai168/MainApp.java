@@ -1430,10 +1430,10 @@ public class MainApp extends Application {
         }
         // we have enough information to open a new db, close the current db now
         closeConnection();
+        setCurrentAccount(null);
         initAccountList();  // empty it
         initTransactionList(null); // empty it
         initSecurityList(); // empty it
-
 
         // Trying to create a new db, but unable to delete existing same name db
         if (isNew && file.exists() && !file.delete()) {

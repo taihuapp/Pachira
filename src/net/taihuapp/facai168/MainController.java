@@ -158,6 +158,7 @@ public class MainController {
         mBackupMenuItem.setVisible(isConnected);
         mImportQIFMenuItem.setVisible(isConnected);
         mAccountTableView.setVisible(isConnected);
+        mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
     }
 
     private void updateRecentMenu() {
@@ -193,6 +194,8 @@ public class MainController {
 
     private void showAccountTransactions(Account account) {
         mMainApp.setCurrentAccount(account);
+
+        mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
 
         if (account == null) {
             return;

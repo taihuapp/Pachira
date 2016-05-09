@@ -85,10 +85,23 @@ public class Transaction {
             case SHTSELL:
             case SHTSELLX:
             case SHRSIN:
+            case REINVDIV:
                 mDescriptionProperty.set("" + mQuantityProperty.get() + " @ " + mPriceProperty.get());
                 break;
             case XIN:
             case XOUT:
+            case DEPOSIT:
+            case WITHDRAW:
+            case DIV:
+            case DIVX:
+            case CGLONG:
+            case CGLONGX:
+            case CGMID:
+            case CGMIDX:
+            case CGSHORT:
+            case CGSHORTX:
+            case INTINC:
+            case INTINCX:
                 break;  // do nothing here
             default:
                 mDescriptionProperty.set("description for this type Transaction not implemented yet.");

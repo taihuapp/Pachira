@@ -394,15 +394,26 @@ public class EditTransactionDialogController {
 
         int tID = mTransaction.getMatchID();
         if (transferAmount.compareTo(BigDecimal.ZERO) == 0) {
-            if (tID > 0) {
+            // no transfer
+            if (tID > 0)
                 mMainApp.deleteTransactionFromDB(tID);
-            }
+
             return true;
         }
 
+        if (xferTA == null) {
+            System.err.println("Null xferTA??");
+            return false;
+        }
+
         String wrappedTransferAccountName = mTransaction.getCategory();
-        if (wrappedTransferAccountName.equals(""))
-            return true;  // probably transfer from an unknown account
+        if (wrappedTransferAccountName.equals("") || wrappedTransferAccountName.equals("[]")) {
+            // blank account name, probably transfer from an unknown account
+            if (tID > 0)
+                mMainApp.deleteTransactionFromDB(tID);  // delete the matching transaction
+
+            return true;
+        }
 
         Account transferAccount = mMainApp.getAccountByWrapedName(wrappedTransferAccountName);
         if (transferAccount == null) {

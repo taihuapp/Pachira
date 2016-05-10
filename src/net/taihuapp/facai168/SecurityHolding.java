@@ -264,16 +264,16 @@ public class SecurityHolding extends LotHolding {
         }
     }
 
-    void adjustStockSplit(BigDecimal newSharesPerTenOldShares) {
+    void adjustStockSplit(BigDecimal newQuantity, BigDecimal oldQuantity) {
         BigDecimal newQTotal = BigDecimal.ZERO;
         for (LotInfo li : getLotInfoList()) {
             BigDecimal oldQ = li.getQuantity();
             BigDecimal oldP = li.getPrice();
-            BigDecimal newQ = oldQ.multiply(newSharesPerTenOldShares).divide(BigDecimal.TEN, oldQ.scale(),
+            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, oldQ.scale(),
                     BigDecimal.ROUND_HALF_UP);
             newQTotal = newQTotal.add(newQ);
             li.setQuantity(newQ);
-            li.setPrice(li.getPrice().multiply(BigDecimal.TEN).divide(newSharesPerTenOldShares, oldP.scale(),
+            li.setPrice(li.getPrice().multiply(oldQuantity).divide(newQuantity, oldP.scale(),
                     RoundingMode.HALF_UP));
         }
         setQuantity(newQTotal);

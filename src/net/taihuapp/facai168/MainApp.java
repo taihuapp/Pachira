@@ -175,15 +175,15 @@ public class MainApp extends Application {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                     "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, " +
-                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
                     "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
-                    "PAYEE = ?, ADATE = ? " +
+                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ? " +
                     "where ID = ?";
         }
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
@@ -205,17 +205,17 @@ public class MainApp extends Application {
             preparedStatement.setInt(12, t.getMatchID()); // matchTransactionID, ignore for now
             preparedStatement.setInt(13, t.getMatchSplitID()); // matchSplitTransactionID, ignore for now
             preparedStatement.setString(14, t.getPayeeProperty().get());
-            if (t.getADate() == null) {
+            if (t.getADate() == null)
                 preparedStatement.setNull(15, java.sql.Types.DATE);
-            } else {
+            else
                 preparedStatement.setDate(15, Date.valueOf(t.getADate()));
-            }
-            if (t.getID() > 0)  {
-                preparedStatement.setInt(16, t.getID());
-            }
-            if (preparedStatement.executeUpdate() == 0) {
+            preparedStatement.setBigDecimal(16, t.getOldQuantity());
+
+            if (t.getID() > 0)
+                preparedStatement.setInt(17, t.getID());
+
+            if (preparedStatement.executeUpdate() == 0)
                 throw new SQLException("Insert/Update Transaction failed, no rows changed");
-            }
 
             if (t.getID() > 0) {
                 return t.getID();
@@ -579,8 +579,8 @@ public class MainApp extends Application {
 
         String sqlCmd = "insert into TRANSACTIONS " +
                 "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
-                "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION) " +
-                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY) " +
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
             preparedStatement.setInt(1, account.getID());
             preparedStatement.setDate(2, Date.valueOf(tt.getDate()));
@@ -599,7 +599,10 @@ public class MainApp extends Application {
             preparedStatement.setBigDecimal(9, tt.getPrice());
             preparedStatement.setBigDecimal(10, tt.getQuantity());
             preparedStatement.setBigDecimal(11, tt.getCommission());
-
+            if (tt.getAction() == QIFParser.TradeTransaction.Action.STKSPLIT)
+                preparedStatement.setBigDecimal(12, BigDecimal.TEN);
+            else
+                preparedStatement.setBigDecimal(12, null);
             preparedStatement.executeUpdate();
             try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                 if (resultSet.next()) {
@@ -903,6 +906,7 @@ public class MainApp extends Application {
                 BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
                 BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
                 BigDecimal price = resultSet.getBigDecimal("PRICE");
+                BigDecimal oldQuantity = resultSet.getBigDecimal("OLDQUANTITY");
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
                 int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
 
@@ -917,7 +921,7 @@ public class MainApp extends Application {
                     if (commission == null) commission = BigDecimal.ZERO;
                     if (price == null) price = BigDecimal.ZERO;
                     mTransactionList.add(new Transaction(id, accountID, tDate, aDate, tradeAction, name, payee,
-                            price, quantity, memo, commission, amount, categoryStr, matchID, matchSplitID));
+                            price, quantity, oldQuantity, memo, commission, amount, categoryStr, matchID, matchSplitID));
                 } else {
                     Transaction bt = new Transaction(id, accountID, tDate, reference, payee,
                             memo, categoryStr, amount, matchID, matchSplitID);
@@ -1062,7 +1066,7 @@ public class MainApp extends Application {
                     mSecurityHoldingList.add(new SecurityHolding(name));
                 }
                 if (t.getTradeAction().equals(Transaction.TradeAction.STKSPLIT.name())) {
-                    mSecurityHoldingList.get(index).adjustStockSplit(t.getQuantity());
+                    mSecurityHoldingList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
                 } else {
                     mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
                             t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
@@ -1097,7 +1101,7 @@ public class MainApp extends Application {
 
         SecurityHolding totalHolding = new SecurityHolding("TOTAL");
         totalHolding.getMarketValueProperty().set(totalMarketValue);
-        totalHolding.setQuantity(totalMarketValue);
+        totalHolding.setQuantity(null);
         totalHolding.setCostBasis(totalCostBasis);
         totalHolding.getPNLProperty().set(totalMarketValue.subtract(totalCostBasis));
         totalHolding.getPriceProperty().set(null); // don't want to display any price
@@ -1394,6 +1398,8 @@ public class MainApp extends Application {
                 e.printStackTrace();
             }
         }
+
+        System.out.println("Imported " + file);
     }
 
     // create a new database
@@ -1646,6 +1652,7 @@ public class MainApp extends Application {
                 + "SECURITYID integer, "
                 + "PRICE decimal(20,6), "
                 + "QUANTITY decimal(20,6), "
+                + "OLDQUANTITY decimal(20,6), "  // used in stock split transactions
                 + "TRANSFERREMINDER varchar(" + TRANSACTIONTRANSFERREMINDERLEN + "), "
                 + "COMMISSION decimal(20,4), "
                 + "AMOUNTTRANSFERRED decimal(20,4), "

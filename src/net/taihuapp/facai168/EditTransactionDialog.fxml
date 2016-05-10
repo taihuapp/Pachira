@@ -62,6 +62,8 @@
             <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
             <Label fx:id="mCategoryLabel" text="Category" GridPane.rowIndex="4" />
             <ComboBox fx:id="mTransferAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+            <Label fx:id="mOldSharesLabel" text="Old shares:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
+            <TextField fx:id="mOldSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
          </children>
       </GridPane>
    </center>

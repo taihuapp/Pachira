@@ -44,6 +44,7 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mDescriptionProperty = new SimpleStringProperty("");
     private int mMatchID = -1;
@@ -69,6 +70,7 @@ public class Transaction {
     ObjectProperty<BigDecimal> getCommissionProperty() { return mCommissionProperty; }
     ObjectProperty<BigDecimal> getBalanceProperty() { return mBalanceProperty; }
     ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
+    ObjectProperty<BigDecimal> getOldQuantityProperty() { return mOldQuantityProperty; }
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
     StringProperty getTradeActionProperty() { return mTradeActionProperty; }
@@ -86,7 +88,12 @@ public class Transaction {
             case SHTSELLX:
             case SHRSIN:
             case REINVDIV:
-                mDescriptionProperty.set("" + mQuantityProperty.get() + " @ " + mPriceProperty.get());
+                mDescriptionProperty.set(mQuantityProperty.get().stripTrailingZeros().toPlainString()
+                        + " shares @ " + mPriceProperty.get().stripTrailingZeros().toPlainString());
+                break;
+            case STKSPLIT:
+                mDescriptionProperty.set(getQuantity().stripTrailingZeros().toPlainString() + " for "
+                        + getOldQuantity().stripTrailingZeros().toPlainString() + " split");
                 break;
             case XIN:
             case XOUT:
@@ -115,6 +122,7 @@ public class Transaction {
     String getMemo() { return mMemoProperty.get(); }
     BigDecimal getPrice() { return mPriceProperty.get(); }
     BigDecimal getQuantity() { return mQuantityProperty.get(); }
+    BigDecimal getOldQuantity() { return getOldQuantityProperty().get(); }
     BigDecimal getCommission() { return mCommissionProperty.get(); }
     BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
     String getSecurityName() { return mSecurityNameProperty.get();}
@@ -276,8 +284,8 @@ public class Transaction {
     // for cash transactions, the amount can be either positive or negative
     // for other transactions, the amount is the notional amount, either 0 or positive
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
-                       String payee, BigDecimal price, BigDecimal quantity, String memo, BigDecimal commission,
-                       BigDecimal amount, String categoryString, int matchID, int matchSplitID) {
+                       String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity, String memo,
+                       BigDecimal commission, BigDecimal amount, String categoryString, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -290,6 +298,7 @@ public class Transaction {
         mMemoProperty.set(memo);
         mCategoryProperty.set(categoryString);
         mPayeeProperty.set(payee);
+        mOldQuantityProperty.set(oldQuantity);
         setTradeDetails(ta, price, quantity, commission, amount);
     }
 
@@ -345,5 +354,6 @@ public class Transaction {
         mMatchID = t0.mMatchID;
         mMatchSplitID = t0.mMatchSplitID;
         mSplitTransactionList.addAll(t0.mSplitTransactionList);
+        mOldQuantityProperty.set(t0.getOldQuantity());
     }
 }

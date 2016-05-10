@@ -332,7 +332,8 @@ public class EditTransactionDialogController {
         mAccount = mMainApp.getCurrentAccount();
 
         if (transaction == null) {
-            mTransaction = new Transaction(mAccount.getID(), LocalDate.now());
+            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(),
+                    Transaction.TradeAction.BUY);
         } else {
             mTransaction = transaction;
         }
@@ -429,12 +430,10 @@ public class EditTransactionDialogController {
             return false;
         }
 
-        Transaction linkedTransaction = new Transaction(transferAccount.getID(), mTransaction.getTDate());
-        linkedTransaction.setID(tID);
+        Transaction linkedTransaction = new Transaction(tID, mTransaction.getTDate(), xferTA);
         linkedTransaction.setMemo(mTransaction.getMemo());
         linkedTransaction.setMatchID(mTransaction.getID(), 0);
         if (transferAccount.getType() == Account.Type.INVESTING) {
-            linkedTransaction.getTradeActionProperty().set(xferTA.name());
             linkedTransaction.getAmountProperty().set(transferAmount);
         } else {
             linkedTransaction.getTradeActionProperty().set(null);

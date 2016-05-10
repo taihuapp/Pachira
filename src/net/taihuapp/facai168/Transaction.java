@@ -273,11 +273,11 @@ public class Transaction {
     }
 
     // minimum constractor
-    public Transaction(int accountID, LocalDate date) {
+    public Transaction(int accountID, LocalDate date, TradeAction ta) {
         System.out.println("Transaction minimum constructor called");
         mAccountID = accountID;
         mTDateProperty.set(date);
-        mTradeActionProperty.set(TradeAction.BUY.name());  // default buy
+        mTradeActionProperty.set(ta.name());
     }
 
     // Trade Transaction constructor

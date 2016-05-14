@@ -477,6 +477,10 @@ public class MainApp extends Application {
             System.err.println("Account [" + accountName + "] not found, nothing inserted");
             return -1;
         }
+        if (account.getType() != Account.Type.SPENDING) {
+            System.err.println("Account " + account.getName() + " is not a spending account");
+            return -1;
+        }
 
         boolean success = true;
 
@@ -1300,7 +1304,10 @@ public class MainApp extends Application {
         File file;
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("QIF", "*.QIF"));
-        fileChooser.setTitle("Import QIF file...");
+        if (result.isPresent())
+            fileChooser.setTitle("Import QIF file for default account: " + result.get());
+        else
+            fileChooser.setTitle("Import QIF file...");
         file = fileChooser.showOpenDialog(mPrimaryStage);
         if (file == null) {
             return;

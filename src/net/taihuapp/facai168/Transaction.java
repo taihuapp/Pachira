@@ -36,7 +36,7 @@ public class Transaction {
     // cash amount, derived from total amount
     private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private ObjectProperty<BigDecimal> mDepositeProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final StringProperty mCategoryProperty = new SimpleStringProperty("");
     private final ObjectProperty<BigDecimal> mBalanceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -66,7 +66,7 @@ public class Transaction {
     ObjectProperty<BigDecimal> getInvestAmountProperty() { return mInvestAmountProperty; }
     ObjectProperty<BigDecimal> getCashAmountProperty() { return mCashAmountProperty; }
     ObjectProperty<BigDecimal> getPaymentProperty() { return mPaymentProperty; }
-    ObjectProperty<BigDecimal> getDepositeProperty() { return mDepositeProperty; }
+    ObjectProperty<BigDecimal> getDepositeProperty() { return mDepositProperty; }
     ObjectProperty<BigDecimal> getCommissionProperty() { return mCommissionProperty; }
     ObjectProperty<BigDecimal> getBalanceProperty() { return mBalanceProperty; }
     ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
@@ -277,7 +277,8 @@ public class Transaction {
         System.out.println("Transaction minimum constructor called");
         mAccountID = accountID;
         mTDateProperty.set(date);
-        mTradeActionProperty.set(ta.name());
+        if (ta != null)
+            mTradeActionProperty.set(ta.name());
     }
 
     // Trade Transaction constructor
@@ -319,10 +320,10 @@ public class Transaction {
         mCashAmountProperty.setValue(amount);
         mTradeActionProperty.setValue("");
 
-        mDepositeProperty.setValue(null);
+        mDepositProperty.setValue(null);
         mPaymentProperty.setValue(null);
         if (amount.compareTo(BigDecimal.ZERO) > 0) {
-            mDepositeProperty.setValue(amount);
+            mDepositProperty.setValue(amount);
         } else if (amount.compareTo(BigDecimal.ZERO) < 0) {
             mPaymentProperty.setValue(amount.negate());
         }
@@ -343,7 +344,7 @@ public class Transaction {
         mAmountProperty.set(t0.mAmountProperty.get());
         mCashAmountProperty.set(t0.mCashAmountProperty.get());
         mPaymentProperty.set(t0.mPaymentProperty.get());
-        mDepositeProperty.set(t0.mDepositeProperty.get());
+        mDepositProperty.set(t0.mDepositProperty.get());
         mMemoProperty.set(t0.mMemoProperty.get());
         mCategoryProperty.set(t0.mCategoryProperty.get());
         mBalanceProperty.set(t0.mBalanceProperty.get());

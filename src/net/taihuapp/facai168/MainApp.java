@@ -112,9 +112,9 @@ public class MainApp extends Application {
         return null;
     }
 
-    Account getAccountByWrapedName(String wrapedName) {
+    Account getAccountByWrappedName(String wrappedName) {
         // mapCategoryOrAccountNameToID unwraps a wraped account name and return a valid account
-        int id = -mapCategoryOrAccountNameToID(wrapedName);
+        int id = -mapCategoryOrAccountNameToID(wrappedName);
         if (id <= 0)
             return null;
         return getAccountByID(id);
@@ -331,11 +331,20 @@ public class MainApp extends Application {
 
     }
 
-    // construct a wraped account name
-    String getWrappedAccountName(Account a) {
+    // construct a wrapped account name
+    static String getWrappedAccountName(Account a) {
         if (a == null)
             return "";
         return "[" + a.getName() + "]";
+    }
+
+    // return 1 for category, -1 for account, 0 for neither
+    static int categoryOrTransferTest(String categoryOrTransferStr) {
+        if (categoryOrTransferStr == null || categoryOrTransferStr.length() == 0)
+            return 0;  // empty, return 0
+        if (categoryOrTransferStr.startsWith("[") && categoryOrTransferStr.endsWith("]"))
+            return 1;  // is category
+        return -1;
     }
 
     // the name should be a category name or account name surrounded by []
@@ -509,37 +518,24 @@ public class MainApp extends Application {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, CLEARED, CATEGORYID, " +
                     "MEMO, REFERENCE, " +
-                    "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID" +
-                    ") values (?,?,?,?,?,?,?,?,?,?,?)";
+                    "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID, TRADEACTION" +
+                    ") values (?,?,?,?,?,?,?,?,?,?,?,?)";
 
             try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
-
+                String categoryOrTransferStr = bt.getCategoryOrTransfer();
                 preparedStatement.setInt(1, account.getID());
                 preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
-                preparedStatement.setBigDecimal(3, bt.getTAmount());
+                preparedStatement.setBigDecimal(3, bt.getTAmount().abs());
                 preparedStatement.setInt(4, bt.getCleared());
-                String categoryName = bt.getCategory();
-                String transferName = bt.getTransfer();
-                int categoryID = 0;
-                int transferID = 0;
-
-                if (categoryName != null) {
-                    QIFParser.Category category = getCategoryByName(categoryName);
-                    if (category != null)
-                        categoryID = category.getID();
-                } else if (transferName != null) {
-                    Account transferAccount = getAccountByName(transferName);
-                    if (transferAccount != null)
-                        transferID = transferAccount.getID();
-                }
-                preparedStatement.setInt(5, categoryID > 0 ? categoryID : -transferID);
+                preparedStatement.setInt(5, mapCategoryOrAccountNameToID(categoryOrTransferStr));
                 preparedStatement.setString(6, bt.getMemo());
                 preparedStatement.setString(7, bt.getReference());
                 preparedStatement.setString(8, bt.getPayee());
                 preparedStatement.setBoolean(9, !splitList.isEmpty());
                 preparedStatement.setInt(10, addressID);
                 preparedStatement.setInt(11, amortID);
-
+                preparedStatement.setString(12,
+                        Transaction.mapBankingTransactionTA(categoryOrTransferStr, bt.getTAmount()).name());
                 preparedStatement.executeUpdate();
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                     if (resultSet.next()) {
@@ -865,8 +861,11 @@ public class MainApp extends Application {
                 int accountID = -1; // ignore accountID
 
                 // set input date, reference, payee to be null
-                stList.add(new Transaction(id, accountID, null, null, null,
-                        memo, categoryStr, amount, matchID, matchSplitID));
+                // split transaction table doesn't keep trade action, but
+                // keeps category/transfer and signed amount.
+                stList.add(new Transaction(id, accountID, null,
+                        Transaction.mapBankingTransactionTA(categoryStr, amount), null, null,
+                        memo, categoryStr, amount.abs(), matchID, matchSplitID));
             }
         }  catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -877,8 +876,19 @@ public class MainApp extends Application {
 
     void initTransactionList(Account account) {
         mTransactionList.clear();
+
+        if (account == null)
+            return;
+
+        Account.Type acctType = account.getType();
+        if (acctType != Account.Type.SPENDING && acctType != Account.Type.INVESTING) {
+            System.err.println("Account Type: " + acctType.name() + " not implemented");
+            return;
+        }
+
         if (mConnection == null)
             return;
+
         int accountID = account.getID();
 
         String sqlCmd = "select * "
@@ -905,7 +915,10 @@ public class MainApp extends Application {
                 String taStr = resultSet.getString("TRADEACTION");
 
                 if (taStr != null && taStr.length() > 0) tradeAction = Transaction.TradeAction.valueOf(taStr);
-
+                if (tradeAction == null) {
+                    System.err.println("Bad trade action value in transaction " + id);
+                    continue;
+                }
                 int securityID = resultSet.getInt("SECURITYID");
                 BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
                 BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
@@ -914,26 +927,19 @@ public class MainApp extends Application {
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
                 int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
 
-                if (account.getType() == Account.Type.INVESTING) {
-                    String name = "";
-                    if (securityID > 0) {
-                        Security security = getSecurityByID(securityID);
-                        if (security != null)
-                            name = security.getName();
-                    }
-                    if (quantity == null) quantity = BigDecimal.ZERO;
-                    if (commission == null) commission = BigDecimal.ZERO;
-                    if (price == null) price = BigDecimal.ZERO;
-                    mTransactionList.add(new Transaction(id, accountID, tDate, aDate, tradeAction, name, payee,
-                            price, quantity, oldQuantity, memo, commission, amount, categoryStr, matchID, matchSplitID));
-                } else {
-                    Transaction bt = new Transaction(id, accountID, tDate, reference, payee,
-                            memo, categoryStr, amount, matchID, matchSplitID);
-                    if (resultSet.getBoolean("SPLITFLAG")) {
-                        bt.setSplitTransactionList(loadSplitTransactions(id));
-                    }
-                    mTransactionList.add(bt);
+                String name = null;
+                if (securityID > 0) {
+                    Security security = getSecurityByID(securityID);
+                    if (security != null)
+                        name = security.getName();
                 }
+                Transaction transaction = new Transaction(id, accountID, tDate, aDate, tradeAction, name, payee,
+                        price, quantity, oldQuantity, memo, commission, amount, categoryStr, matchID, matchSplitID);
+
+                if (acctType == Account.Type.SPENDING && resultSet.getBoolean("SPLITFLAG"))
+                    transaction.setSplitTransactionList(loadSplitTransactions(id));
+
+                mTransactionList.add(transaction);
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -1060,7 +1066,7 @@ public class MainApp extends Application {
             totalCash = totalCash.add(t.getCashAmount());
             String name = t.getSecurityName();
 
-            if (!name.isEmpty()) {
+            if (name != null && !name.isEmpty()) {
                 // it's not cash transaction, add security lot
                 Integer index = indexMap.get(name);
                 if (index == null) {

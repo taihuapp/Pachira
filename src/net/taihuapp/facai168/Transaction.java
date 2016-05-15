@@ -189,6 +189,8 @@ public class Transaction {
                 mInvestAmountProperty.setValue(amount);
                 mCashAmountProperty.setValue(amount.negate());
                 mQuantityProperty.set(quantity);
+                mDepositProperty.set(null);
+                mPaymentProperty.set(null);
                 break;
             case BUYX:
             case BUYBONDX:
@@ -206,18 +208,24 @@ public class Transaction {
                 mInvestAmountProperty.setValue(amount);
                 mCashAmountProperty.setValue(BigDecimal.ZERO);
                 mQuantityProperty.set(quantity);
+                mDepositProperty.set(null);
+                mPaymentProperty.set(null);
                 break;
             case SELL:
             case SHTSELL:
                 mInvestAmountProperty.setValue(amount.negate());
                 mCashAmountProperty.setValue(amount);
                 mQuantityProperty.set(quantity);
+                mDepositProperty.set(null);
+                mPaymentProperty.set(null);
                 break;
             case SELLX:
             case SHTSELLX:
                 mInvestAmountProperty.setValue(amount.negate());
                 mCashAmountProperty.setValue(BigDecimal.ZERO);
                 mQuantityProperty.set(quantity);
+                mDepositProperty.set(null);
+                mPaymentProperty.set(null);
                 break;
             case CGLONG:
             case CGMID:
@@ -233,12 +241,16 @@ public class Transaction {
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount);
                 mQuantityProperty.set(null);
+                mDepositProperty.set(amount);
+                mPaymentProperty.set(null);
                 break;
             case XOUT:
             case WITHDRAW:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount.negate());
                 mQuantityProperty.set(null);
+                mDepositProperty.set(null);
+                mPaymentProperty.set(amount);
                 break;
             case CGLONGX:
             case CGMIDX:
@@ -252,6 +264,8 @@ public class Transaction {
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(BigDecimal.ZERO);
                 mQuantityProperty.set(quantity);
+                mDepositProperty.set(null);
+                mPaymentProperty.set(null);
                 break;
             default:
                 System.err.println("TradingAction " + ta.name() + " not implement yet");
@@ -282,8 +296,8 @@ public class Transaction {
     }
 
     // Trade Transaction constructor
-    // for cash transactions, the amount can be either positive or negative
-    // for other transactions, the amount is the notional amount, either 0 or positive
+    // for all transactions, the amount is the notional amount, either 0 or positive
+    // tradeAction can not be null
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
                        String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity, String memo,
                        BigDecimal commission, BigDecimal amount, String categoryString, int matchID, int matchSplitID) {
@@ -303,9 +317,15 @@ public class Transaction {
         setTradeDetails(ta, price, quantity, commission, amount);
     }
 
+    static TradeAction mapBankingTransactionTA(String category, BigDecimal signedAmount) {
+        if (MainApp.categoryOrTransferTest(category) >= 0)
+            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
+
+        return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
+    }
 
     // Banking Transaction constructors
-    public Transaction(int id, int accountID, LocalDate date, String reference, String payee,
+    public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String reference, String payee,
                        String memo, String category, BigDecimal amount, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
@@ -317,17 +337,28 @@ public class Transaction {
         mMemoProperty.setValue(memo);
         mAmountProperty.set(amount);
         mCategoryProperty.setValue(category);
-        mCashAmountProperty.setValue(amount);
-        mTradeActionProperty.setValue("");
 
-        mDepositProperty.setValue(null);
-        mPaymentProperty.setValue(null);
-        if (amount.compareTo(BigDecimal.ZERO) > 0) {
-            mDepositProperty.setValue(amount);
-        } else if (amount.compareTo(BigDecimal.ZERO) < 0) {
-            mPaymentProperty.setValue(amount.negate());
+        mTradeActionProperty.setValue(ta.name());
+
+        switch (ta) {
+            case XIN:
+            case DEPOSIT:
+                mDepositProperty.setValue(amount);
+                mPaymentProperty.setValue(null);
+                mCashAmountProperty.setValue(amount);
+                break;
+            case XOUT:
+            case WITHDRAW:
+                mDepositProperty.setValue(null);
+                mPaymentProperty.setValue(amount);
+                mCashAmountProperty.setValue(amount);
+                break;
+            default:
+                mDepositProperty.setValue(null);
+                mPaymentProperty.setValue(null);
+                mCashAmountProperty.setValue(null);
+                break;
         }
-
         System.out.println("Banking Transaction constructor: " + "ID = " + id + "; Amount = " + mCashAmountProperty);
     }
 

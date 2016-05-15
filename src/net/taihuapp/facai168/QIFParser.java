@@ -297,18 +297,7 @@ class QIFParser {
         BigDecimal getTAmount() { return mTAmount; }
         BigDecimal getUAmount() { return mUAmount; }
         int getCleared() { return mCleared; }
-        private boolean isCategory() {
-            return !(mCategory != null && mCategory.startsWith("[") && mCategory.endsWith("]"));
-        }
-        String getCategory() {
-            if (!isCategory()) return null;
-            return mCategory;
-        }
-        String getTransfer() {
-            if (isCategory()) return null;
-            return mCategory.substring(1, mCategory.length()-1);
-        }
-
+        String getCategoryOrTransfer() { return mCategory; }
         String getReference() { return mCheckNumber; }
         String getMemo() { return mMemo; }
         String getPayee() { return mPayee; }

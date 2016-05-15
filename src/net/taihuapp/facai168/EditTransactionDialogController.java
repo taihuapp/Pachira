@@ -36,7 +36,7 @@ public class EditTransactionDialogController {
 
     private class AccountCategoryConverter extends StringConverter<Account> {
         public Account fromString(String wrapedAccountName) {
-            return mMainApp.getAccountByWrapedName(wrapedAccountName);
+            return mMainApp.getAccountByWrappedName(wrapedAccountName);
         }
         public String toString(Account account) {
             return mMainApp.getWrappedAccountName(account);
@@ -424,7 +424,7 @@ public class EditTransactionDialogController {
             return true;
         }
 
-        Account transferAccount = mMainApp.getAccountByWrapedName(wrappedTransferAccountName);
+        Account transferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
         if (transferAccount == null) {
             System.err.println("Bad transfer account name: " + wrappedTransferAccountName);
             return false;
@@ -922,7 +922,7 @@ public class EditTransactionDialogController {
         }
 
         // mapCategory return negative account id or positive category id
-        Account transferAccount = mMainApp.getAccountByWrapedName(mTransaction.getCategory());
+        Account transferAccount = mMainApp.getAccountByWrappedName(mTransaction.getCategory());
 
         mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountComboBox.valueProperty());
         Bindings.bindBidirectional(mTransaction.getCategoryProperty(),

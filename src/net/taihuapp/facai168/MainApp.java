@@ -51,7 +51,6 @@ public class MainApp extends Application {
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
 
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
-    private ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
     private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
@@ -89,7 +88,10 @@ public class MainApp extends Application {
     }
 
     ObservableList<Account> getAccountList() { return mAccountList; }
-    ObservableList<Transaction> getTransactionList() { return mTransactionList; }
+    ObservableList<Transaction> getTransactionList() {
+        return mCurrentAccount == null ? null : mCurrentAccount.getTransactionList();
+    }
+
     private ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
     ObservableList<Security> getSecurityList() { return mSecurityList; }
     ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
@@ -804,7 +806,9 @@ public class MainApp extends Application {
                 Account.Type type = Account.Type.values()[typeOrdinal];
                 String name = rs.getString("NAME");
                 String description = rs.getString("DESCRIPTION");
-                mAccountList.add(new Account(id, type, name, description));
+                Account account = new Account(id, type, name, description);
+                account.setTransactionList(loadAccountTransactions(id));
+                mAccountList.add(account);
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -874,22 +878,16 @@ public class MainApp extends Application {
         return stList;
     }
 
-    void initTransactionList(Account account) {
-        mTransactionList.clear();
+    void initTransactionList0(Account account) {
+    }
 
-        if (account == null)
-            return;
-
-        Account.Type acctType = account.getType();
-        if (acctType != Account.Type.SPENDING && acctType != Account.Type.INVESTING) {
-            System.err.println("Account Type: " + acctType.name() + " not implemented");
-            return;
-        }
-
+    // load transactions for given accountID, and put in a list in
+    // the order of DATE and then TransactionID
+    List<Transaction> loadAccountTransactions(int accountID) {
         if (mConnection == null)
-            return;
+            return null;
 
-        int accountID = account.getID();
+        List<Transaction> transactionList = new ArrayList<>();
 
         String sqlCmd = "select * "
                 + " from TRANSACTIONS where ACCOUNTID = " + accountID
@@ -936,15 +934,16 @@ public class MainApp extends Application {
                 Transaction transaction = new Transaction(id, accountID, tDate, aDate, tradeAction, name, payee,
                         price, quantity, oldQuantity, memo, commission, amount, categoryStr, matchID, matchSplitID);
 
-                if (acctType == Account.Type.SPENDING && resultSet.getBoolean("SPLITFLAG"))
+                if (resultSet.getBoolean("SPLITFLAG"))
                     transaction.setSplitTransactionList(loadSplitTransactions(id));
 
-                mTransactionList.add(transaction);
+                transactionList.add(transaction);
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
+        return transactionList;
     }
 
     void putOpenedDBNames(List<String> openedDBNames) {
@@ -1053,7 +1052,7 @@ public class MainApp extends Application {
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
 
         // sort the transaction list first
-        SortedList<Transaction> sortedTransactionList = new SortedList<>(mTransactionList,
+        SortedList<Transaction> sortedTransactionList = new SortedList<>(getTransactionList(),
                 Comparator.comparing(Transaction::getTDate).thenComparing(Transaction::getID));
         for (Transaction t : sortedTransactionList) {
             if (t.getTDate().isAfter(date))
@@ -1451,7 +1450,6 @@ public class MainApp extends Application {
         closeConnection();
         setCurrentAccount(null);
         initAccountList();  // empty it
-        initTransactionList(null); // empty it
         initSecurityList(); // empty it
 
         // Trying to create a new db, but unable to delete existing same name db
@@ -1718,12 +1716,7 @@ public class MainApp extends Application {
     }
 
     @Override
-    public void init() {
-        mPrefs = Preferences.userNodeForPackage(MainApp.class);
-
-        // add a change listener to update Balance
-        mTransactionList.addListener((ListChangeListener<Transaction>) c -> updateTransactionListBalance());
-    }
+    public void init() { mPrefs = Preferences.userNodeForPackage(MainApp.class); }
 
     @Override
     public void start(final Stage stage) throws Exception {

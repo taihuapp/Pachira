@@ -83,7 +83,6 @@ public class MainController {
         updateUI(mMainApp.isConnected());
 
         mAccountTableView.setItems(mMainApp.getAccountList());
-        mTransactionTableView.setItems(mMainApp.getTransactionList());
     }
 
     @FXML
@@ -199,7 +198,6 @@ public class MainController {
         if (account == null) {
             return;
         }
-        mMainApp.initTransactionList(account);
 
         boolean isTradingAccount = account.getType() == Account.Type.INVESTING;
 
@@ -209,6 +207,7 @@ public class MainController {
         mTransactionShowHoldingsButton.setVisible(isTradingAccount);
 
         mTransactionTableView.setVisible(true);
+        mTransactionTableView.setItems(account.getTransactionList());
 
         mTransactionTradeActionColumn.setVisible(isTradingAccount);
         mTransactionReferenceColumn.setVisible(!isTradingAccount);

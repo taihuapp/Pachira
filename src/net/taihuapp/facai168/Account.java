@@ -1,8 +1,12 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.property.*;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Created by ghe on 3/19/15.
@@ -17,8 +21,8 @@ public class Account {
     private final IntegerProperty mID;
     private final StringProperty mName;
     private final StringProperty mDescription;
-
     private final ObjectProperty<BigDecimal> mCurrentBalance;
+    private final ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
 
     // default constructor
     public Account() {
@@ -30,7 +34,6 @@ public class Account {
         mType = type;
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
-
         mCurrentBalance = new SimpleObjectProperty<>(BigDecimal.ZERO);
     }
 
@@ -55,9 +58,42 @@ public class Account {
     String getDescription() { return mDescription.get(); }
     void setDescription(String d) { mDescription.set(d); }
 
+    void setTransactionList(List<Transaction> tList) {
+        mTransactionList.setAll(tList);
+        updateTransactionListBalance();
+    }
+    ObservableList<Transaction> getTransactionList() { return mTransactionList; }
+
     ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
     BigDecimal getCurrentBalance() { return mCurrentBalance.get(); }
     void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
+
+    // update balance field for each transaction for SPENDING account
+    // no-op for other types of accounts
+    private void updateTransactionListBalance() {
+        if (getType() != Type.SPENDING)
+            return;  // don't do anything for non-SPENDING account
+
+        BigDecimal b = new BigDecimal(0);
+        boolean accountBalanceIsSet = false;
+        for (Transaction t : getTransactionList()) {
+            if (getType() == Type.SPENDING  // this approach is only for SPENDING account
+                    && !accountBalanceIsSet && t.getTDateProperty().get().isAfter(LocalDate.now())) {
+                // this is a future transaction.  if account current balance is not set
+                // set it before process this future transaction
+                setCurrentBalance(b);
+                accountBalanceIsSet = true;
+            }
+            BigDecimal amount = t.getCashAmountProperty().get();
+            if (amount != null) {
+                b = b.add(amount);
+                t.setBalance(b);
+            }
+        }
+        // at the end of the list, if the account balance still not set, set it now.
+        if (getType() == Type.SPENDING && !accountBalanceIsSet)
+            setCurrentBalance(b);
+    }
 
     public String toString() {
         return "mID:" + mID.get() + ";mType:" + mType.name()

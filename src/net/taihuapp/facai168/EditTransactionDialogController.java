@@ -39,7 +39,7 @@ public class EditTransactionDialogController {
             return mMainApp.getAccountByWrappedName(wrapedAccountName);
         }
         public String toString(Account account) {
-            return mMainApp.getWrappedAccountName(account);
+            return MainApp.getWrappedAccountName(account);
         }
     }
 
@@ -499,7 +499,7 @@ public class EditTransactionDialogController {
     @FXML
     private void handleEnterDone() {
         if (enterTransaction()) {
-            mMainApp.initTransactionList(mAccount);
+            mAccount.setTransactionList(mMainApp.loadAccountTransactions(mAccount.getID()));
             mDialogStage.close();
         }
     }
@@ -508,7 +508,7 @@ public class EditTransactionDialogController {
     private void handleEnterNew() {
         if (enterTransaction()) {
             mTransaction.setID(0); // a new transaction
-            mMainApp.initTransactionList(mAccount);
+            mAccount.setTransactionList(mMainApp.loadAccountTransactions(mAccount.getID()));
         }
     }
 

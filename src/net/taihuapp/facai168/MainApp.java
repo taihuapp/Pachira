@@ -1528,9 +1528,9 @@ public class MainApp extends Application {
             initDBStructure();
         }
         // initialize
-        initAccountList();
         initCategoryList();
         initSecurityList();
+        initAccountList();  // this should be done after securitylist and categorylist are loaded
 
         mPrimaryStage.setTitle("FaCai168 " + dbName);
     }

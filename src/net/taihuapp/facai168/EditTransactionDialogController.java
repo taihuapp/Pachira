@@ -348,7 +348,10 @@ public class EditTransactionDialogController {
         if (!validateTransaction())
             return false;  // invalid transaction
 
+        // update database for the main transaction and update account balance
         mMainApp.insertUpDateTransactionToDB(mTransaction);
+        mMainApp.updateAccountBalance(mTransaction.getAccountID());
+
         Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
         if ((ta != Transaction.TradeAction.SELL &&
                 ta != Transaction.TradeAction.SELLX &&
@@ -401,39 +404,36 @@ public class EditTransactionDialogController {
                 return false;
         }
 
-        int tID = mTransaction.getMatchID();
-        if (transferAmount.compareTo(BigDecimal.ZERO) == 0) {
-            // no transfer
-            if (tID > 0)
-                mMainApp.deleteTransactionFromDB(tID);
-
-            return true;
-        }
-
         if (xferTA == null) {
             System.err.println("Null xferTA??");
             return false;
         }
 
+        int tID = mTransaction.getMatchID();
         String wrappedTransferAccountName = mTransaction.getCategory();
-        if (wrappedTransferAccountName.equals("") || wrappedTransferAccountName.equals("[]")) {
+        Account xferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
+        if (xferAccount == null) {
             // blank account name, probably transfer from an unknown account
+            // no need to have a match transaction
             if (tID > 0)
-                mMainApp.deleteTransactionFromDB(tID);  // delete the matching transaction
+                mMainApp.deleteTransactionFromDB(tID);  // delete the orphan matching transaction
 
             return true;
         }
 
-        Account transferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
-        if (transferAccount == null) {
-            System.err.println("Bad transfer account name: " + wrappedTransferAccountName);
-            return false;
+        if (transferAmount.compareTo(BigDecimal.ZERO) == 0) {
+            // no transfer
+            if (tID > 0) {
+                mMainApp.deleteTransactionFromDB(tID);
+                mMainApp.updateAccountBalance(xferAccount.getID());
+            }
+            return true;
         }
 
         Transaction linkedTransaction = new Transaction(tID, mTransaction.getTDate(), xferTA);
         linkedTransaction.setMemo(mTransaction.getMemo());
         linkedTransaction.setMatchID(mTransaction.getID(), 0);
-        if (transferAccount.getType() == Account.Type.INVESTING) {
+        if (xferAccount.getType() == Account.Type.INVESTING) {
             linkedTransaction.getAmountProperty().set(transferAmount);
         } else {
             linkedTransaction.getTradeActionProperty().set(null);
@@ -444,6 +444,7 @@ public class EditTransactionDialogController {
             mTransaction.setMatchID(linkedTransaction.getID(), 0);
             mMainApp.insertUpDateTransactionToDB(mTransaction);
         }
+        mMainApp.updateAccountBalance(xferAccount.getID());
         return true;
     }
 

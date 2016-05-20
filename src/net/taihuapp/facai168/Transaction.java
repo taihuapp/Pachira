@@ -299,8 +299,9 @@ public class Transaction {
     // for all transactions, the amount is the notional amount, either 0 or positive
     // tradeAction can not be null
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
-                       String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity, String memo,
-                       BigDecimal commission, BigDecimal amount, String categoryString, int matchID, int matchSplitID) {
+                       String reference, String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity,
+                       String memo, BigDecimal commission, BigDecimal amount, String categoryString, int matchID,
+                       int matchSplitID) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -308,6 +309,7 @@ public class Transaction {
         mTDateProperty.set(tDate);
         mADateProperty.set(aDate);
         mSecurityNameProperty.set(securityName);
+        mReferenceProperty.set(reference);
         mPriceProperty.set(price);
         mCommissionProperty.set(commission);
         mMemoProperty.set(memo);

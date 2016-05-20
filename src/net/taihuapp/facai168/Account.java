@@ -65,7 +65,6 @@ public class Account {
     ObservableList<Transaction> getTransactionList() { return mTransactionList; }
 
     ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
-    BigDecimal getCurrentBalance() { return mCurrentBalance.get(); }
     void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
 
     // update balance field for each transaction for SPENDING account

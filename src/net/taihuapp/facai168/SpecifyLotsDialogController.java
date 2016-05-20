@@ -144,7 +144,7 @@ public class SpecifyLotsDialogController {
     }
 
     void setMainApp(MainApp mainApp, Transaction t,
-                           List<SecurityHolding.MatchInfo> matchInfoList, Stage stage) {
+                    List<SecurityHolding.MatchInfo> matchInfoList, Stage stage) {
         mMainApp = mainApp;
         mMatchInfoList = matchInfoList;  // a link point to the input list
         mTransaction = t;
@@ -157,7 +157,7 @@ public class SpecifyLotsDialogController {
         mMainLabel1.setText("Please select share(s) to be " + actionWord);
         mTotalSharesLabel.setText(""+mTransaction.getQuantity());
 
-        mMainApp.updateHoldingsList(mTransaction.getTDate(), t.getID());
+        mMainApp.setCurrentAccountSecurityHoldingList(mTransaction.getTDate(), t.getID());
 
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
         for (SecurityHolding s : mMainApp.getSecurityHoldingList()) {

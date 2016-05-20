@@ -2,7 +2,6 @@ package net.taihuapp.facai168;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
@@ -61,19 +60,6 @@ public class MainApp extends Application {
     void setCurrentAccount(Account a) { mCurrentAccount = a; }
     Account getCurrentAccount() { return mCurrentAccount; }
 
-    private void updateTransactionListBalance() {
-        BigDecimal b = new BigDecimal(0);
-        for (Transaction t : getTransactionList()) {
-            BigDecimal amount = t.getCashAmountProperty().get();
-            if (amount == null) {
-                System.err.println(t.toString());
-            } else {
-                b = b.add(amount);
-                t.setBalance(b);
-            }
-        }
-    }
-
     // get opened named from pref
     List<String> getOpenedDBNames() {
         List<String> fileNameList = new ArrayList<>();
@@ -88,13 +74,13 @@ public class MainApp extends Application {
     }
 
     ObservableList<Account> getAccountList() { return mAccountList; }
-    ObservableList<Transaction> getTransactionList() {
-        return mCurrentAccount == null ? null : mCurrentAccount.getTransactionList();
-    }
 
     private ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
     ObservableList<Security> getSecurityList() { return mSecurityList; }
     ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
+    void setCurrentAccountSecurityHoldingList(LocalDate date, int exID) {
+        mSecurityHoldingList.setAll(updateAccountSecurityHoldingList(getCurrentAccount(), date, exID));
+    }
     SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
 
     Account getAccountByName(String name) {
@@ -793,6 +779,29 @@ public class MainApp extends Application {
         }
     }
 
+    void updateAccountBalance(int accountID) {
+        Account account = getAccountByID(accountID);
+        if (account == null) {
+            System.err.println("Invalid account ID: " + accountID);
+            return;
+        }
+
+        // load transaction list
+        // this method will set account balance for SPENDING account
+        account.setTransactionList(loadAccountTransactions(accountID));
+
+        // update holdings and balance for INVESTING account
+        if (account.getType() == Account.Type.INVESTING) {
+            List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
+            SecurityHolding totalHolding = shList.get(shList.size()-1);
+            if (totalHolding.getSecurityName().equals("TOTAL")) {
+                account.setCurrentBalance(totalHolding.getMarketValue());
+            } else {
+                System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
+            }
+        }
+    }
+
     void initAccountList() {
         mAccountList.clear();
         if (mConnection == null) return;
@@ -806,14 +815,16 @@ public class MainApp extends Application {
                 Account.Type type = Account.Type.values()[typeOrdinal];
                 String name = rs.getString("NAME");
                 String description = rs.getString("DESCRIPTION");
-                Account account = new Account(id, type, name, description);
-                account.setTransactionList(loadAccountTransactions(id));
-                mAccountList.add(account);
+                mAccountList.add(new Account(id, type, name, description));
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
+
+        // load transactions and set account balance
+        for (Account account : getAccountList())
+            updateAccountBalance(account.getID());
     }
 
     private void initSecurityList() {
@@ -878,9 +889,6 @@ public class MainApp extends Application {
         return stList;
     }
 
-    void initTransactionList0(Account account) {
-    }
-
     // load transactions for given accountID, and put in a list in
     // the order of DATE and then TransactionID
     List<Transaction> loadAccountTransactions(int accountID) {
@@ -931,8 +939,9 @@ public class MainApp extends Application {
                     if (security != null)
                         name = security.getName();
                 }
-                Transaction transaction = new Transaction(id, accountID, tDate, aDate, tradeAction, name, payee,
-                        price, quantity, oldQuantity, memo, commission, amount, categoryStr, matchID, matchSplitID);
+                Transaction transaction = new Transaction(id, accountID, tDate, aDate, tradeAction, name, reference,
+                        payee, price, quantity, oldQuantity, memo, commission, amount, categoryStr, matchID,
+                        matchSplitID);
 
                 if (resultSet.getBoolean("SPLITFLAG"))
                     transaction.setSplitTransactionList(loadSplitTransactions(id));
@@ -1044,15 +1053,18 @@ public class MainApp extends Application {
     }
 
     // update HoldingsList to date but exclude transaction exTid
-    void updateHoldingsList(LocalDate date, int exTid) {
+    // an empty list is returned if the account is not an investing account
+    private List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
         // empty the list first
-        mSecurityHoldingList.clear();
+        List<SecurityHolding> securityHoldingList = new ArrayList<>();
+        if (account.getType() != Account.Type.INVESTING)
+            return securityHoldingList;
 
         BigDecimal totalCash = BigDecimal.ZERO;
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
 
         // sort the transaction list first
-        SortedList<Transaction> sortedTransactionList = new SortedList<>(getTransactionList(),
+        SortedList<Transaction> sortedTransactionList = new SortedList<>(account.getTransactionList(),
                 Comparator.comparing(Transaction::getTDate).thenComparing(Transaction::getID));
         for (Transaction t : sortedTransactionList) {
             if (t.getTDate().isAfter(date))
@@ -1070,14 +1082,14 @@ public class MainApp extends Application {
                 Integer index = indexMap.get(name);
                 if (index == null) {
                     // first time seeing this security, add to the end
-                    index = mSecurityHoldingList.size();
+                    index = securityHoldingList.size();
                     indexMap.put(name, index);
-                    mSecurityHoldingList.add(new SecurityHolding(name));
+                    securityHoldingList.add(new SecurityHolding(name));
                 }
                 if (t.getTradeAction().equals(Transaction.TradeAction.STKSPLIT.name())) {
-                    mSecurityHoldingList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
+                    securityHoldingList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
                 } else {
-                    mSecurityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
+                    securityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
                             t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
                             getMatchInfoList(tid));
                 }
@@ -1086,7 +1098,7 @@ public class MainApp extends Application {
 
         BigDecimal totalMarketValue = totalCash;
         BigDecimal totalCostBasis = totalCash;
-        for (Iterator<SecurityHolding> securityHoldingIterator = mSecurityHoldingList.iterator();
+        for (Iterator<SecurityHolding> securityHoldingIterator = securityHoldingList.iterator();
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
 
@@ -1117,8 +1129,11 @@ public class MainApp extends Application {
         totalHolding.updatePctRet();
 
         // put cash holding at the bottom
-        mSecurityHoldingList.add(cashHolding);
-        mSecurityHoldingList.add(totalHolding);
+        if (totalCash.signum() != 0)
+            securityHoldingList.add(cashHolding);
+        securityHoldingList.add(totalHolding);
+
+        return securityHoldingList;
     }
 
     // load MatchInfoList from database

@@ -34,6 +34,11 @@ public class EditTransactionDialogController {
         }
     }
 
+    private class CategoryConverter extends StringConverter<Category> {
+        public Category fromString(String categoryName) { return mMainApp.getCategoryByName(categoryName); }
+        public String toString(Category category) { return (category == null ? null : category.getName()); }
+    }
+
     private class AccountCategoryConverter extends StringConverter<Account> {
         public Account fromString(String wrapedAccountName) {
             return mMainApp.getAccountByWrappedName(wrapedAccountName);
@@ -262,7 +267,7 @@ public class EditTransactionDialogController {
     @FXML
     private Label mCategoryLabel;
     @FXML
-    private ComboBox mCategoryComboBox;
+    private ComboBox<Category> mCategoryComboBox;
     @FXML
     private TextField mMemoTextField;
     @FXML
@@ -526,6 +531,7 @@ public class EditTransactionDialogController {
         addEventFilter(mOldSharesTextField);
         addEventFilter(mPriceTextField);
         addEventFilter(mCommissionTextField);
+        addEventFilter(mTotalTextField);
 
         mTDatePicker.valueProperty().bindBidirectional(mTransaction.getTDateProperty());
 
@@ -864,6 +870,12 @@ public class EditTransactionDialogController {
         }
         mTransferAccountComboBox.getSelectionModel().select(isCashTransfer ? new Account() : mAccount);
 
+        mCategoryComboBox.setConverter(new CategoryConverter());
+        mCategoryComboBox.getItems().clear();
+        mCategoryComboBox.getItems().add(new Category());
+        for (Category c : mMainApp.getCategoryList())
+            mCategoryComboBox.getItems().add(c);
+
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();
         mTransaction.getPriceProperty().unbind();
@@ -911,13 +923,18 @@ public class EditTransactionDialogController {
             mTransaction.getAmountProperty().bind(amount);
         }
 
-        // mapCategory return negative account id or positive category id
-        Account transferAccount = mMainApp.getAccountByWrappedName(mTransaction.getCategory());
-
         mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountComboBox.valueProperty());
-        Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
-                mTransferAccountComboBox.valueProperty(), new AccountCategoryConverter());
-        mTransferAccountComboBox.getSelectionModel().select(transferAccount);
+        mTransaction.getCategoryProperty().unbindBidirectional(mCategoryComboBox.valueProperty());
+        if (mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())
+                || mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())) {
+            Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
+                    mCategoryComboBox.valueProperty(), new CategoryConverter());
+        } else {
+            Account transferAccount = mMainApp.getAccountByWrappedName(mTransaction.getCategory());
+            Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
+                    mTransferAccountComboBox.valueProperty(), new AccountCategoryConverter());
+            mTransferAccountComboBox.getSelectionModel().select(transferAccount);
+        }
 
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
         mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityComboBox.valueProperty());

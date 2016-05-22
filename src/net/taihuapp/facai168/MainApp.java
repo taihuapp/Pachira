@@ -50,7 +50,7 @@ public class MainApp extends Application {
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
 
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
-    private ObservableList<QIFParser.Category> mCategoryList = FXCollections.observableArrayList();
+    private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
     private SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
@@ -75,7 +75,7 @@ public class MainApp extends Application {
 
     ObservableList<Account> getAccountList() { return mAccountList; }
 
-    private ObservableList<QIFParser.Category> getCategoryList() { return mCategoryList; }
+    ObservableList<Category> getCategoryList() { return mCategoryList; }
     ObservableList<Security> getSecurityList() { return mSecurityList; }
     ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
     void setCurrentAccountSecurityHoldingList(LocalDate date, int exID) {
@@ -124,16 +124,16 @@ public class MainApp extends Application {
         return null;
     }
 
-    private QIFParser.Category getCategoryByID(int id) {
-        for (QIFParser.Category c : getCategoryList()) {
+    private Category getCategoryByID(int id) {
+        for (Category c : getCategoryList()) {
             if (c.getID() == id)
                 return c;
         }
         return null;
     }
 
-    private QIFParser.Category getCategoryByName(String name) {
-        for (QIFParser.Category c : getCategoryList()) {
+    Category getCategoryByName(String name) {
+        for (Category c : getCategoryList()) {
             if (c.getName().equals(name)) return c;
         }
         return null;
@@ -347,7 +347,7 @@ public class MainApp extends Application {
                 return -a.getID();
             return 0;
         } else {
-            QIFParser.Category c = getCategoryByName(name);
+            Category c = getCategoryByName(name);
             if (c != null)
                 return c.getID();
             return 0;
@@ -356,7 +356,7 @@ public class MainApp extends Application {
 
     private String mapCategoryOrAccountIDToName(int id) {
         if (id > 0) {
-            QIFParser.Category c = getCategoryByID(id);
+            Category c = getCategoryByID(id);
             if (c != null)
                 return c.getName();
             return "";
@@ -756,7 +756,7 @@ public class MainApp extends Application {
                 boolean incomeFlag = resultSet.getBoolean("INCOMEFLAG");
                 int taxRefNum = resultSet.getInt("TAXREFNUM");
                 BigDecimal budgetAmount = resultSet.getBigDecimal("BUDGETAMOUNT");
-                QIFParser.Category category = new QIFParser.Category();
+                Category category = new Category();
                 category.setID(id);
                 category.setName(name);
                 category.setDescription(description);

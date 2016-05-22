@@ -314,7 +314,7 @@ public class EditTransactionDialogController {
     private Stage mDialogStage;
 
     private Transaction mTransaction = null;
-    private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
+    private List<SecurityHolding.MatchInfo> mMatchInfoList = null;  // lot match list
 
     // used for mSharesTextField, mPriceTextField, mCommissionTextField, mOldSharesTextField
     private void addEventFilter(TextField tf) {
@@ -333,7 +333,7 @@ public class EditTransactionDialogController {
 
         if (transaction == null) {
             mTransaction = new Transaction(mAccount.getID(), LocalDate.now(),
-                    Transaction.TradeAction.BUY, mMainApp.getWrappedAccountName(mAccount));
+                    Transaction.TradeAction.BUY, MainApp.getWrappedAccountName(mAccount));
         } else {
             mTransaction = transaction;
         }
@@ -348,10 +348,6 @@ public class EditTransactionDialogController {
         if (!validateTransaction())
             return false;  // invalid transaction
 
-        // update database for the main transaction and update account balance
-        mMainApp.insertUpDateTransactionToDB(mTransaction);
-        mMainApp.updateAccountBalance(mTransaction.getAccountID());
-
         Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
         if ((ta != Transaction.TradeAction.SELL &&
                 ta != Transaction.TradeAction.SELLX &&
@@ -360,9 +356,9 @@ public class EditTransactionDialogController {
             // only SELL or CVTSHORT needs the MatchInfoList
             mMatchInfoList.clear();
         }
-        mMainApp.putMatchInfoList(mMatchInfoList);
+
+        // setup transfer Transaction if needed
         Transaction.TradeAction xferTA = null;
-        BigDecimal transferAmount;
         switch (ta) {
             case BUY:
             case SELL:
@@ -381,11 +377,11 @@ public class EditTransactionDialogController {
             case DEPOSIT:  // deposit and withdraw are not transfered from known account
             case WITHDRAW:
             case STKSPLIT:
-                transferAmount = BigDecimal.ZERO;
+                // no transfer, do nothing
                 break;
             case BUYX:
+            case CVTSHRTX:
             case XIN:
-                transferAmount = mTransaction.getAmount();
                 xferTA = Transaction.TradeAction.XOUT;
                 break;
             case SELLX:
@@ -396,7 +392,6 @@ public class EditTransactionDialogController {
             case CGMIDX:
             case CGSHORTX:
             case XOUT:
-                transferAmount = mTransaction.getAmount();
                 xferTA = Transaction.TradeAction.XIN;
                 break;
             default:
@@ -404,48 +399,41 @@ public class EditTransactionDialogController {
                 return false;
         }
 
-        if (xferTA == null) {
-            System.err.println("Null xferTA??");
+        int xferTID = mTransaction.getMatchID();
+        String wrappedTransferAccountName = mTransaction.getCategory();
+        Account xferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
+        BigDecimal xferAmount = mTransaction.getAmount();
+
+        Transaction linkedTransaction = null;
+        if (xferAccount != null && xferTA != null && xferAccount.getID() != mAccount.getID()
+                && xferAmount.compareTo(BigDecimal.ZERO) != 0) {
+            // we need a transfer transaction
+            linkedTransaction = new Transaction(xferAccount.getID(), mTransaction.getTDate(), xferTA,
+                    MainApp.getWrappedAccountName(mAccount));
+            linkedTransaction.setID(xferTID);
+            linkedTransaction.getAmountProperty().set(xferAmount);
+            linkedTransaction.setMemo(mTransaction.getMemo());
+        }
+
+        // update database for the main transaction and update account balance
+        int tid = mMainApp.insertUpDateTransactionToDB(mTransaction);
+        if (tid == 0) {
+            // insertion/updating failed
+            System.err.println("Failed insert/update transaction, ID = " + mTransaction.getID());
             return false;
         }
 
-        int tID = mTransaction.getMatchID();
-        String wrappedTransferAccountName = mTransaction.getCategory();
-        Account xferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
-        if (xferAccount == null) {
-            // blank account name, probably transfer from an unknown account
-            // no need to have a match transaction
-            if (tID > 0)
-                mMainApp.deleteTransactionFromDB(tID);  // delete the orphan matching transaction
+        mMainApp.putMatchInfoList(mMatchInfoList);
+        if (linkedTransaction != null) {
+            linkedTransaction.setMatchID(tid, 0);
+            mTransaction.setMatchID(mMainApp.insertUpDateTransactionToDB(linkedTransaction), 0);
+        } else
+            mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 
-            return true;
-        }
+        mMainApp.updateAccountBalance(mTransaction.getAccountID());
+        if (xferAccount != null)
+            mMainApp.updateAccountBalance(xferAccount.getID());
 
-        if (transferAmount.compareTo(BigDecimal.ZERO) == 0) {
-            // no transfer
-            if (tID > 0) {
-                mMainApp.deleteTransactionFromDB(tID);
-                mMainApp.updateAccountBalance(xferAccount.getID());
-            }
-            return true;
-        }
-
-        Transaction linkedTransaction = new Transaction(tID, mTransaction.getTDate(), xferTA,
-                mMainApp.getWrappedAccountName(mAccount));
-        linkedTransaction.setMemo(mTransaction.getMemo());
-        linkedTransaction.setMatchID(mTransaction.getID(), 0);
-        if (xferAccount.getType() == Account.Type.INVESTING) {
-            linkedTransaction.getAmountProperty().set(transferAmount);
-        } else {
-            linkedTransaction.getTradeActionProperty().set(null);
-            linkedTransaction.getAmountProperty().set(transferAmount.negate());
-        }
-        mMainApp.insertUpDateTransactionToDB(linkedTransaction);
-        if (mTransaction.getMatchID() != linkedTransaction.getID()) {
-            mTransaction.setMatchID(linkedTransaction.getID(), 0);
-            mMainApp.insertUpDateTransactionToDB(mTransaction);
-        }
-        mMainApp.updateAccountBalance(xferAccount.getID());
         return true;
     }
 

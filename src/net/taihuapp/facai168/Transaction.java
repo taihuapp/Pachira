@@ -47,7 +47,7 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mDescriptionProperty = new SimpleStringProperty("");
-    private int mMatchID = -1;
+    private int mMatchID = -1; // transfer transaction id
     private int mMatchSplitID = -1;
     // we use a Transaction object for holding a split transaction
     private final List<Transaction> mSplitTransactionList = new ArrayList<>();

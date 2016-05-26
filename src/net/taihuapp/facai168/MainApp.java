@@ -979,6 +979,29 @@ public class MainApp extends Application {
         return openedDBNames;
     }
 
+    void showSecurityListDialog() {
+        System.out.println("Showing Security List Dialog");
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("SecurityListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Security List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            SecurityListDialogController controller = loader.getController();
+            if (controller == null) {
+                System.err.println("Null controller for SecurityListDialog");
+                return;
+            }
+            controller.setMainApp(this);
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     boolean showEditAccountDialog(Account account) {
         boolean isNew = account.getID() < 0;
         String title;

@@ -1,5 +1,10 @@
 package net.taihuapp.facai168;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
 /**
  * Created by ghe on 4/2/15.
  * Security class
@@ -39,28 +44,34 @@ public class Security {
 
     // should "property" should be used?
     private int mID;
-    private String mTicker;
-    private String mName;
-    private Type mType;
+    private final StringProperty mTickerProperty;
+    private final StringProperty mNameProperty;
+    private ObjectProperty<Type> mTypeProperty;
 
     // default constructor
     public Security() {
-        mID = 0;  // 0 is not a legit security ID
-        mType = Type.STOCK;
+        // 0 is not a legit security ID in database
+        this(0, null, null, Type.STOCK);
     }
 
     public Security(int id, String ticker, String name, Type type) {
         mID = id;
-        mTicker = ticker;
-        mName = name;
-        mType = type;
+        mTickerProperty = new SimpleStringProperty(ticker);
+        mNameProperty = new SimpleStringProperty(name);
+        mTypeProperty = new SimpleObjectProperty<>(type);
     }
 
     // getters and setters
     int getID() { return mID; }
-    String getTicker() { return mTicker; }
-    String getName() { return mName; }
-    Type getType() { return mType; }
-
     void setID(int id) { mID = id; }
+
+    StringProperty getTickerProperty() { return mTickerProperty; }
+    String getTicker() { return getTickerProperty().get(); }
+    void setTicker(String ticker) { getTickerProperty().set(ticker); }
+
+    StringProperty getNameProperty() { return mNameProperty; }
+    String getName() { return getNameProperty().get(); }
+
+    ObjectProperty<Type> getTypeProperty() { return mTypeProperty; }
+    Type getType() { return getTypeProperty().get(); }
 }

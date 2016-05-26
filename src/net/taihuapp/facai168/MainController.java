@@ -134,6 +134,11 @@ public class MainController {
         }
     }
 
+    @FXML
+    private void handleEditSecurityList() {
+        mMainApp.showSecurityListDialog();
+    }
+
     private void updateEditAccountMenu() {
         // clear account list first, keeping item 0 and 1 which are 'New' and 'Separator'.
         ObservableList<MenuItem> editAccountMenuItems = mEditAccountMenu.getItems();

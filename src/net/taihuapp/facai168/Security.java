@@ -61,6 +61,10 @@ public class Security {
         mTypeProperty = new SimpleObjectProperty<>(type);
     }
 
+    Security(Security s) {
+        this(s.getID(), s.getTicker(), s.getName(), s.getType());
+    }
+
     // getters and setters
     int getID() { return mID; }
     void setID(int id) { mID = id; }
@@ -71,7 +75,14 @@ public class Security {
 
     StringProperty getNameProperty() { return mNameProperty; }
     String getName() { return getNameProperty().get(); }
+    void setName(String name) { getNameProperty().set(name); }
 
     ObjectProperty<Type> getTypeProperty() { return mTypeProperty; }
     Type getType() { return getTypeProperty().get(); }
+    void setType(Type type) { getTypeProperty().set(type); }
+
+    public String toString() {
+        return "ID = " + getID() + ", Name = '" + getName() + "', Ticker = '" + getTicker()
+                + "', Type = '" + getType() + "'";
+    }
 }

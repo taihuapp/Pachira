@@ -229,7 +229,7 @@ public class MainApp extends Application {
         return 0;
     }
 
-    private void insertUpdateSecurityToDB(Security security) {
+    void insertUpdateSecurityToDB(Security security) {
         String sqlCmd;
         if (security.getID() <= 0) {
             // this security has not have a ID yet, insert and retrieve an ID
@@ -996,6 +996,7 @@ public class MainApp extends Application {
                 return;
             }
             controller.setMainApp(this);
+            dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();

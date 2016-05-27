@@ -14,7 +14,7 @@
             <TableView fx:id="mSecurityTableView" prefHeight="200.0" prefWidth="200.0">
               <columns>
                 <TableColumn fx:id="mSecurityNameColumn" prefWidth="250.0" text="Security Name" />
-                <TableColumn fx:id="mSecurityTickerColumn" minWidth="0.0" text="Ticker" />
+                <TableColumn fx:id="mSecurityTickerColumn" minWidth="0.0" prefWidth="100.0" text="Ticker" />
                   <TableColumn fx:id="mSecurityTypeColumn" minWidth="3.0" prefWidth="120.0" text="Type" />
               </columns>
             </TableView>

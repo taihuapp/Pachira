@@ -229,7 +229,9 @@ public class MainApp extends Application {
         return 0;
     }
 
-    void insertUpdateSecurityToDB(Security security) {
+    // return true for DB operation success
+    // false otherwise
+    boolean insertUpdateSecurityToDB(Security security) {
         String sqlCmd;
         if (security.getID() <= 0) {
             // this security has not have a ID yet, insert and retrieve an ID
@@ -270,10 +272,13 @@ public class MainApp extends Application {
             alert.setTitle(title);
             alert.setHeaderText(headerText);
             alert.showAndWait();
+            return false;
         } catch (NullPointerException e) {
             System.err.println("mConnection is null");
             e.printStackTrace();
+            return false;
         }
+        return true;
     }
 
     // mode = 0, insert and not print error
@@ -827,7 +832,7 @@ public class MainApp extends Application {
             updateAccountBalance(account.getID());
     }
 
-    private void initSecurityList() {
+    void initSecurityList() {
         mSecurityList.clear();
         if (mConnection == null) return;
 
@@ -980,7 +985,6 @@ public class MainApp extends Application {
     }
 
     void showSecurityListDialog() {
-        System.out.println("Showing Security List Dialog");
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("SecurityListDialog.fxml"));
@@ -995,7 +999,7 @@ public class MainApp extends Application {
                 System.err.println("Null controller for SecurityListDialog");
                 return;
             }
-            controller.setMainApp(this);
+            controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {

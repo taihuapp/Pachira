@@ -1,24 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.*?>
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.SecurityListDialogController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="500.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.SecurityListDialogController">
    <center>
-      <VBox prefHeight="200.0" prefWidth="100.0" BorderPane.alignment="CENTER">
-         <children>
-            <Button mnemonicParsing="false" text="New" />
-            <TableView fx:id="mSecurityTableView" prefHeight="200.0" prefWidth="200.0">
-              <columns>
-                <TableColumn fx:id="mSecurityNameColumn" prefWidth="250.0" text="Security Name" />
-                <TableColumn fx:id="mSecurityTickerColumn" minWidth="0.0" prefWidth="100.0" text="Ticker" />
-                  <TableColumn fx:id="mSecurityTypeColumn" minWidth="3.0" prefWidth="120.0" text="Type" />
-              </columns>
-            </TableView>
-         </children>
-      </VBox>
+      <TableView fx:id="mSecurityTableView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <columns>
+          <TableColumn fx:id="mSecurityNameColumn" prefWidth="250.0" text="Security Name" />
+          <TableColumn fx:id="mSecurityTickerColumn" minWidth="0.0" prefWidth="100.0" text="Ticker" />
+            <TableColumn fx:id="mSecurityTypeColumn" minWidth="3.0" prefWidth="120.0" text="Type" />
+        </columns>
+         <BorderPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </BorderPane.margin>
+      </TableView>
    </center>
+   <bottom>
+      <HBox fillHeight="false" prefWidth="200.0" BorderPane.alignment="CENTER">
+         <children>
+            <Button mnemonicParsing="false" onAction="#handleNew" text="New">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="mEditButton" disable="true" mnemonicParsing="false" onAction="#handleEdit" text="Edit">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="mDeleteButton" disable="true" mnemonicParsing="false" onAction="#handleDelete" text="Delete">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+            <Button mnemonicParsing="false" onAction="#handleClose" text="Close">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+         </children>
+      </HBox>
+   </bottom>
 </BorderPane>

@@ -1,12 +1,13 @@
 package net.taihuapp.facai168;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.cell.ChoiceBoxTableCell;
-import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+
+import java.io.IOException;
 
 /**
  * Created by ghe on 5/24/16.
@@ -14,8 +15,8 @@ import javafx.scene.control.cell.TextFieldTableCell;
  */
 public class SecurityListDialogController {
     private MainApp mMainApp = null;
+    private Stage mDialogStage = null;
 
-    private Security mSavedCopy = null;
     @FXML
     private TableView<Security> mSecurityTableView;
     @FXML
@@ -24,65 +25,69 @@ public class SecurityListDialogController {
     private TableColumn<Security, String> mSecurityTickerColumn;
     @FXML
     private TableColumn<Security, Security.Type> mSecurityTypeColumn;
+    @FXML
+    private Button mEditButton;
+    @FXML
+    private Button mDeleteButton;
 
-    void setMainApp(MainApp mainApp) {
+    void setMainApp(MainApp mainApp, Stage stage) {
         mMainApp = mainApp;
+        mDialogStage = stage;
 
-        mSecurityTableView.setEditable(true);
         mSecurityTableView.setItems(mainApp.getSecurityList());
 
         mSecurityNameColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());
         mSecurityTickerColumn.setCellValueFactory(cellData->cellData.getValue().getTickerProperty());
         mSecurityTypeColumn.setCellValueFactory(cellData->cellData.getValue().getTypeProperty());
 
-        mSecurityNameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-        mSecurityNameColumn.setOnEditCommit(e -> {
-            if (mSavedCopy == null) mSavedCopy = new Security(e.getRowValue()); // save a backup copy
-            e.getRowValue().setName(e.getNewValue());
-        });
-
-        mSecurityTickerColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-        mSecurityTickerColumn.setOnEditCommit(e -> {
-            if (mSavedCopy == null) mSavedCopy = new Security(e.getRowValue()); // save a backup copy
-            e.getRowValue().setTicker(e.getNewValue());
-        });
-
-        mSecurityTypeColumn.setCellFactory(ChoiceBoxTableCell.forTableColumn(Security.Type.values()));
-        mSecurityTypeColumn.setOnEditCommit(e -> {
-            if (mSavedCopy == null) mSavedCopy = new Security(e.getRowValue()); // save a backup copy
-            e.getRowValue().setType(e.getNewValue());
-        });
-
-        mSecurityTableView.getSelectionModel().selectedItemProperty().addListener(
-                (observable, oldValue, newValue) -> syncEditedEntry(oldValue));
-    }
-
-    private boolean syncEditedEntry(Security security) {
-        if (mSavedCopy == null)
-            return false;  // no saved copy, there is no editing.
-
-        System.out.println("Old Row Index = " + mSecurityTableView.getItems().indexOf(security));
-        // check confirmation
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Save Changes?");
-        alert.setHeaderText("You have unsaved changed in Security:" + "\n" + security.getName());
-        alert.setContentText("Do want to save the change?");
-
-        alert.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK)
-                mMainApp.insertUpdateSecurityToDB(security);
-            else {
-                mSavedCopy.setName(mSavedCopy.getName() + " Copy");
-                int index = mSecurityTableView.getItems().indexOf(security);
-                // for some reason, use set(index, mSavedCopy) causes an indexOutOfBoundsException
-                // but use separate remove and add works.
-                mSecurityTableView.getItems().remove(index);
-                mSecurityTableView.getItems().add(index, mSavedCopy);
+        mSecurityTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                mEditButton.setDisable(false);
+                //mDeleteButton.setDisable(false);  leave it disabled for now.
             }
         });
-        mSavedCopy = null;
-        return true;
     }
 
-    void close() { syncEditedEntry(mSecurityTableView.getSelectionModel().getSelectedItem()); }
+    void close() { mDialogStage.close(); }
+
+    private void showEditSecurityDialog(Security security) {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("EditSecurityDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Edit Security:");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mDialogStage);
+            dialogStage.setScene(new Scene(loader.load()));
+
+            EditSecurityDialogController controller = loader.getController();
+            controller.setMainApp(mMainApp, security, dialogStage);
+            dialogStage.showAndWait();
+            // need to check selection here and enable/disable edit button
+            mEditButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void handleNew() {
+        showEditSecurityDialog(new Security());
+    }
+
+    @FXML
+    private void handleEdit() {
+        // edit a copy of selected item
+        showEditSecurityDialog(new Security(mSecurityTableView.getSelectionModel().getSelectedItem()));
+    }
+
+    @FXML
+    private void handleDelete() {
+        System.out.println("Delete, to be implemented");
+    }
+
+    @FXML
+    private void handleClose() { mDialogStage.close(); }
+
 }

@@ -4,9 +4,13 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.TextFieldTreeTableCell;
+import javafx.util.Callback;
+import javafx.util.StringConverter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 
 /**
  * Created by ghe on 6/21/15.
@@ -57,6 +61,7 @@ public class HoldingsDialogController {
 
         mSecurityHoldingTreeTableView.setShowRoot(false);
         mSecurityHoldingTreeTableView.setSortMode(TreeSortMode.ONLY_FIRST_LEVEL);
+        mSecurityHoldingTreeTableView.setEditable(true);
 
         mNameColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, String> p) ->
                 new ReadOnlyStringWrapper(p.getValue().getValue().getLabel()));
@@ -86,9 +91,102 @@ public class HoldingsDialogController {
             return o1.compareTo(o2);
         });
 
-        mPriceColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPrice()));
+        mPriceColumn.setCellValueFactory(p -> p.getValue().getValue().getPriceProperty());
         mPriceColumn.setComparator(null);
+
+        mPriceColumn.setCellFactory(new Callback<TreeTableColumn<LotHolding, BigDecimal>,
+                TreeTableCell<LotHolding, BigDecimal>>() {
+            @Override
+            public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding,
+                    BigDecimal> paramTreeTableColumn) {
+                return new TextFieldTreeTableCell<LotHolding, BigDecimal>(new StringConverter<BigDecimal>() {
+                    @Override
+                    public String toString(BigDecimal object) {
+                        if (object == null)
+                            return null;
+                        return object.toString();
+                    }
+
+                    @Override
+                    public BigDecimal fromString(String string) {
+                        BigDecimal result;
+                        try {
+                            result = new BigDecimal(string);
+                        } catch (NumberFormatException | NullPointerException e) {
+                            result = null;
+                        }
+                        return result;
+                    }
+                }) {
+                    @Override
+                    public void updateItem(BigDecimal item, boolean empty) {
+                        super.updateItem(item, empty);
+                        TreeTableRow<LotHolding> treeTableRow = getTreeTableRow();
+                        if (treeTableRow != null) {
+                            TreeItem<LotHolding> treeItem = treeTableRow.getTreeItem();
+                            if (treeItem != null) {
+                                String label = treeItem.getValue().getLabel();
+                                if (mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) > 1
+                                    || label.equals("TOTAL") || label.equals("CASH")) {
+                                    setEditable(false); // it seems the setEditable need to be called again and again
+                                } else {
+                                    setEditable(true);
+                                }
+                            }
+                        }
+                    }
+                };
+            }
+        });
+
+        mPriceColumn.setOnEditCommit(e -> {
+            Security security = mMainApp.getSecurityByName(e.getRowValue().getValue().getSecurityName());
+            if (security == null)
+                return;
+            LocalDate date = mDatePicker.getValue();
+            BigDecimal newPrice = e.getNewValue();
+            if (newPrice == null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning!");
+                alert.setHeaderText("Bad Input Price, change discarded!");
+                alert.setContentText(""
+                        + "Security Name  : " + security.getName() + "\n"
+                        + "Security Ticker: " + security.getTicker() + "\n"
+                        + "Security ID    : " + security.getID() + "\n"
+                        + "Date           : " + date);
+                alert.showAndWait();
+                return; // don't do anything
+            }
+            if (newPrice.signum() < 0)
+                return; // we don't want to anything with bad input (negative price)
+            if (newPrice.signum() == 0) {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation Dialog");
+                alert.setHeaderText("Do you want to save zero price to database?");
+                alert.setContentText(""
+                        + "Security Name  : " + security.getName() + "\n"
+                        + "Security Ticker: " + security.getTicker() + "\n"
+                        + "Security ID    : " + security.getID() + "\n"
+                        + "Date           : " + date + "\n"
+                        + "Price          : " + newPrice + "?");
+                Optional<ButtonType> result = alert.showAndWait();
+                if (!result.isPresent() || result.get() != ButtonType.OK)
+                    return; // don't save, go back
+            }
+
+            if (!mMainApp.insertUpdatePriceToDB(security.getID(), date, newPrice, 3)) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setHeaderText("Failed to insert/update price:");
+                alert.setContentText("Security Name: " + security.getName() + "\n"
+                        + "Security Ticker: " + security.getTicker() + "\n"
+                        + "Security ID    : " + security.getID() + "\n"
+                        + "Date           : " + date + "\n"
+                        + "Price          : " + newPrice);
+                alert.showAndWait();
+            } else {
+                updateHoldings();
+            }
+        });
 
         mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getQuantity()));
@@ -119,7 +217,4 @@ public class HoldingsDialogController {
         mMainApp.setCurrentAccountSecurityHoldingList(mDatePicker.getValue(), 0);
         populateTreeTable();
     }
-
-    @FXML
-    private void initialize() {}
 }

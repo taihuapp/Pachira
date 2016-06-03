@@ -72,9 +72,13 @@ public class EditSecurityPriceDialogController {
 
             @Override
             public BigDecimal fromString(String string) {
-                if (string == null)
-                    return BigDecimal.ZERO;
-                return new BigDecimal(string);
+                BigDecimal result;
+                try {
+                    result = new BigDecimal(string);
+                } catch (NumberFormatException | NullPointerException e){
+                    result = null;
+                }
+                return result;
             }
         }));
         mPricePriceTableColumn.setOnEditCommit(e -> {
@@ -83,8 +87,20 @@ public class EditSecurityPriceDialogController {
                 dbMode = 1; // new price, insert
             else
                 dbMode = 2; // update
-            BigDecimal newPrice = e.getNewValue();
             LocalDate date = e.getRowValue().getDate();
+            BigDecimal newPrice = e.getNewValue();
+            if (newPrice == null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning!");
+                alert.setHeaderText("Bad Input Price, change discarded!");
+                alert.setContentText(""
+                        + "Security Name  : " + mSecurity.getName() + "\n"
+                        + "Security Ticker: " + mSecurity.getTicker() + "\n"
+                        + "Security ID    : " + mSecurity.getID() + "\n"
+                        + "Date           : " + date);
+                alert.showAndWait();
+                return;  // bad price, send user back
+            }
             if (newPrice.signum() < 0)
                 return; // we don't want to anything with bad input (negative price)
             if (newPrice.signum() == 0) {
@@ -110,8 +126,7 @@ public class EditSecurityPriceDialogController {
                         + "Date           : " + date + "\n"
                         + "Price          : " + newPrice);
                 alert.showAndWait();
-            } else
-                e.getRowValue().setPrice(newPrice);
+            }
         });
         // scroll to the last row
         // if size == 0, scrollTo(-1) will do nothing.

@@ -13,7 +13,7 @@
             <TreeTableView fx:id="mSecurityHoldingTreeTableView">
               <columns>
                 <TreeTableColumn fx:id="mNameColumn" prefWidth="150.0" text="Name" />
-                <TreeTableColumn fx:id="mPriceColumn" prefWidth="90.0" text="Price" />
+                <TreeTableColumn fx:id="mPriceColumn" prefWidth="100.0" sortable="false" text="Price" />
                   <TreeTableColumn fx:id="mQuantityColumn" prefWidth="120.0" text="Quantity" />
                   <TreeTableColumn fx:id="mMarketValueColumn" prefWidth="120.0" text="Market Value" />
                   <TreeTableColumn fx:id="mCostBasisColumn" prefWidth="120.0" text="Cost Basis" />

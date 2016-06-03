@@ -5,13 +5,13 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
-import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.Optional;
 
 /**
  * Created by ghe on 6/1/16.
@@ -72,31 +72,46 @@ public class EditSecurityPriceDialogController {
 
             @Override
             public BigDecimal fromString(String string) {
+                if (string == null)
+                    return BigDecimal.ZERO;
                 return new BigDecimal(string);
             }
         }));
-        mPricePriceTableColumn.addEventHandler(KeyEvent.KEY_TYPED, event -> {
-            if (!"0123456789.".contains(event.getCharacter()))
-                event.consume();
-        });
         mPricePriceTableColumn.setOnEditCommit(e -> {
             int dbMode;
             if (e.getOldValue() == null)
                 dbMode = 1; // new price, insert
             else
                 dbMode = 2; // update
-            e.getRowValue().setPrice(e.getNewValue());
-            Price p = e.getRowValue();
-            if (!mMainApp.insertUpdatePriceToDB(mSecurity.getID(), p.getDate(), p.getPrice(), dbMode)) {
+            BigDecimal newPrice = e.getNewValue();
+            LocalDate date = e.getRowValue().getDate();
+            if (newPrice.signum() < 0)
+                return; // we don't want to anything with bad input (negative price)
+            if (newPrice.signum() == 0) {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation Dialog");
+                alert.setHeaderText("Do you want to save zero price to database?");
+                alert.setContentText(""
+                        + "Security Name  : " + mSecurity.getName() + "\n"
+                        + "Security Ticker: " + mSecurity.getTicker() + "\n"
+                        + "Security ID    : " + mSecurity.getID() + "\n"
+                        + "Date           : " + date + "\n"
+                        + "Price          : " + newPrice + "?");
+                Optional<ButtonType> result = alert.showAndWait();
+                if (!result.isPresent() || result.get() != ButtonType.OK)
+                    return; // don't save, go back
+            }
+            if (!mMainApp.insertUpdatePriceToDB(mSecurity.getID(), date, newPrice, dbMode)) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setHeaderText("Failed to insert/update price:");
                 alert.setContentText("Security Name: " + mSecurity.getName() + "\n"
                         + "Security Ticker: " + mSecurity.getTicker() + "\n"
                         + "Security ID    : " + mSecurity.getID() + "\n"
-                        + "Date           : " + p.getDate().toString() + "\n"
-                        + "Price          : " + p.getPrice());
+                        + "Date           : " + date + "\n"
+                        + "Price          : " + newPrice);
                 alert.showAndWait();
-            }
+            } else
+                e.getRowValue().setPrice(newPrice);
         });
         // scroll to the last row
         // if size == 0, scrollTo(-1) will do nothing.

@@ -5,6 +5,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
@@ -54,6 +55,9 @@ public class EditSecurityPriceDialogController {
 
         mPriceTableView.setItems(mPriceList);
         mPriceTableView.setEditable(true); // make it editable
+        mPriceTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            mDeleteButton.setDisable(newValue == null);
+        });
 
         mPriceDateTableColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
 
@@ -71,6 +75,10 @@ public class EditSecurityPriceDialogController {
                 return new BigDecimal(string);
             }
         }));
+        mPricePriceTableColumn.addEventHandler(KeyEvent.KEY_TYPED, event -> {
+            if (!"0123456789.".contains(event.getCharacter()))
+                event.consume();
+        });
         mPricePriceTableColumn.setOnEditCommit(e -> {
             int dbMode;
             if (e.getOldValue() == null)
@@ -126,7 +134,11 @@ public class EditSecurityPriceDialogController {
     }
 
     @FXML
-    private void handleDelete() { System.out.println("Delete"); }
+    private void handleDelete() {
+        int index = mPriceTableView.getSelectionModel().getSelectedIndex();
+        if (index >= 0 && mMainApp.deleteSecurityPriceFromDB(mSecurity.getID(), mPriceList.get(index).getDate()))
+            mPriceList.remove(index);
+    }
 
     @FXML
     private void handleClose() { mDialogStage.close(); }

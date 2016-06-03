@@ -281,6 +281,27 @@ public class MainApp extends Application {
         return true;
     }
 
+    // return true for DB operation success
+    // false otherwise
+    boolean deleteSecurityPriceFromDB(int securityID, LocalDate date) {
+        String sqlCmd = "delete from PRICES where SECURITYID = ? and DATE = ?";
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, securityID);
+            preparedStatement.setDate(2, Date.valueOf(date));
+            preparedStatement.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.initOwner(mPrimaryStage);
+            alert.setTitle("Database Fail Warning");
+            alert.setHeaderText("Failed deleting price:");
+            alert.setContentText("Security ID: " + securityID + "\n"
+                               + "Date:        " + date + "\n");
+            alert.showAndWait();
+            return false;
+        }
+    }
+
     // mode = 0, insert and not print error
     //        1, insert
     //        2  update

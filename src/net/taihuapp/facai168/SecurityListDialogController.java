@@ -28,6 +28,8 @@ public class SecurityListDialogController {
     @FXML
     private Button mEditButton;
     @FXML
+    private Button mEditPriceButton;
+    @FXML
     private Button mDeleteButton;
 
     void setMainApp(MainApp mainApp, Stage stage) {
@@ -43,6 +45,7 @@ public class SecurityListDialogController {
         mSecurityTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 mEditButton.setDisable(false);
+                mEditPriceButton.setDisable(false);
                 //mDeleteButton.setDisable(false);  leave it disabled for now.
             }
         });
@@ -66,9 +69,33 @@ public class SecurityListDialogController {
             dialogStage.showAndWait();
             // need to check selection here and enable/disable edit button
             mEditButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
+            mEditPriceButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void showEditSecurityPriceDialog(Security security) {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("EditSecurityPriceDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Edit Security Price:");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mDialogStage);
+            dialogStage.setScene(new Scene(loader.load()));
+
+            EditSecurityPriceDialogController controller = loader.getController();
+            controller.setMainApp(mMainApp, security, dialogStage);
+            dialogStage.showAndWait();
+            // need to check selection here and enable/disable edit button
+            mEditButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
+            mEditPriceButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     @FXML
@@ -80,6 +107,11 @@ public class SecurityListDialogController {
     private void handleEdit() {
         // edit a copy of selected item
         showEditSecurityDialog(new Security(mSecurityTableView.getSelectionModel().getSelectedItem()));
+    }
+
+    @FXML
+    private void handleEditPrice() {
+        showEditSecurityPriceDialog(mSecurityTableView.getSelectionModel().getSelectedItem());
     }
 
     @FXML

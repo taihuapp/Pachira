@@ -287,7 +287,7 @@ public class MainApp extends Application {
     //        3 insert and update
     // return true of operation successful
     //        false otherwise
-    private boolean insertUpdatePriceToDB(Integer securityID, LocalDate date, BigDecimal p, int mode) {
+    boolean insertUpdatePriceToDB(Integer securityID, LocalDate date, BigDecimal p, int mode) {
         boolean status = false;
         String sqlCmd;
         switch (mode) {
@@ -1187,6 +1187,25 @@ public class MainApp extends Application {
             e.printStackTrace();
         }
         return matchInfoList;
+    }
+
+    // return all the prices in a list, sorted ascending by date.
+    List<Price> getSecurityPrice(int securityID) {
+        List<Price> priceList = new ArrayList<>();
+
+        String sqlCmd = "select DATE, PRICE from PRICES where SECURITYID = " + securityID
+                + " order by DATE asc";
+        try (Statement statement = mConnection.createStatement()) {
+            ResultSet resultSet = statement.executeQuery(sqlCmd);
+            while (resultSet.next()) {
+                priceList.add(new Price(resultSet.getDate(1).toLocalDate(), resultSet.getBigDecimal(2)));
+            }
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+            e.printStackTrace();
+        }
+
+        return priceList;
     }
 
     // retrieve the latest price no later than date

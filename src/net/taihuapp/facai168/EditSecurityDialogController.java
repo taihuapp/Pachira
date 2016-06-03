@@ -31,7 +31,6 @@ public class EditSecurityDialogController {
         mNameTextField.textProperty().bindBidirectional(mSecurity.getNameProperty());
         mTickerTextField.textProperty().bindBidirectional(mSecurity.getTickerProperty());
 
-        //mTypeChoiceBox.setConverter(new TypeConverter());
         mTypeChoiceBox.setConverter(new StringConverter<Security.Type>() {
             public Security.Type fromString(String s) { return Security.Type.fromString(s); }
             public String toString(Security.Type type) { return type.toString(); }

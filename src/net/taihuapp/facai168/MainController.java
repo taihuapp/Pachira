@@ -26,6 +26,8 @@ public class MainController {
     @FXML
     private Menu mEditAccountMenu;
     @FXML
+    private MenuItem mChangePasswordMenuItem;
+    @FXML
     private MenuItem mBackupMenuItem;
     @FXML
     private MenuItem mImportQIFMenuItem;
@@ -92,16 +94,21 @@ public class MainController {
 
     @FXML
     private void handleOpen() {
-        mMainApp.openDatabase(false, null);
+        mMainApp.openDatabase(false, null, null);
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
     }
 
     @FXML
     private void handleNew() {
-        mMainApp.openDatabase(true, null);
+        mMainApp.openDatabase(true, null, null);
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
+    }
+
+    @FXML
+    private void handleChangePassword() {
+        mMainApp.changePassword();
     }
 
     @FXML
@@ -111,9 +118,7 @@ public class MainController {
     }
 
     @FXML
-    private void handleBackup() {
-        System.out.println("Backup");
-    }
+    private void handleBackup() { mMainApp.doBackup(); }
 
     @FXML
     private void handleClearList() {
@@ -158,6 +163,7 @@ public class MainController {
         if (isConnected)
             updateEditAccountMenu();
         mEditMenu.setVisible(isConnected);
+        mChangePasswordMenuItem.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);
         mImportQIFMenuItem.setVisible(isConnected);
         mAccountTableView.setVisible(isConnected);
@@ -167,7 +173,7 @@ public class MainController {
     private void updateRecentMenu() {
         EventHandler<ActionEvent> menuAction = t -> {
             MenuItem mi = (MenuItem) t.getTarget();
-            mMainApp.openDatabase(false, mi.getText());
+            mMainApp.openDatabase(false, mi.getText(), null);
             updateUI(mMainApp.isConnected());
         };
         ObservableList<MenuItem> recentList = mRecentDBMenu.getItems();

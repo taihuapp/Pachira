@@ -6,18 +6,24 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.h2.tools.ChangeFileEncryption;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.sql.Date;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.prefs.Preferences;
 
@@ -27,6 +33,10 @@ public class MainApp extends Application {
     private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     private static String DBOWNER = "FC168ADM";
     private static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
+    private static String URLPREFIX = "jdbc:h2:";
+    private static String CIPHERCLAUSE="CIPHER=AES;";
+    private static String IFEXISTCLAUSE="IFEXISTS=TRUE;";
+
 
     private static int ACCOUNTNAMELEN = 40;
     private static int ACCOUNTDESCLEN = 256;
@@ -153,6 +163,38 @@ public class MainApp extends Application {
             alert.setContentText(SQLExceptionToString(e));
             alert.showAndWait();
         }
+    }
+
+    // http://code.makery.ch/blog/javafx-dialogs-official/
+    private void showExceptionDialog(String title, String header, String content, Exception e) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+
+        if (e != null) {
+            StringWriter stringWriter = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(stringWriter);
+            e.printStackTrace(printWriter);
+
+            Label label = new Label("The exception stacktrace was:");
+            TextArea textArea = new TextArea(stringWriter.toString());
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+
+            textArea.setMaxWidth(Double.MAX_VALUE);
+            textArea.setMaxHeight(Double.MAX_VALUE);
+            GridPane.setVgrow(textArea, Priority.ALWAYS);
+            GridPane.setHgrow(textArea, Priority.ALWAYS);
+
+            GridPane expContent = new GridPane();
+            expContent.setMaxWidth(Double.MAX_VALUE);
+            expContent.add(label, 0, 0);
+            expContent.add(textArea, 0, 1);
+
+            alert.getDialogPane().setExpandableContent(expContent);
+        }
+        alert.showAndWait();
     }
 
     // return affected transaction id if success, 0 for failure.
@@ -1062,8 +1104,11 @@ public class MainApp extends Application {
         }
     }
 
-    // returns a password or null
-    private String showPasswordDialog(PasswordDialogController.MODE mode) {
+    // returns a list of passwords, the length of list can be 0, 1, or 2.
+    // length 0 means some exception happened
+    // length 1 means normal situation (for creation db or normal login)
+    // length 2 means old password and new password (for changing password)
+    private List<String> showPasswordDialog(PasswordDialogController.MODE mode) {
         String title;
         switch (mode) {
             case ENTER:
@@ -1094,7 +1139,7 @@ public class MainApp extends Application {
             controller.setMode(mode);
             dialogStage.showAndWait();
 
-            return controller.getPassword();
+            return controller.getPasswords();
         } catch (IOException e) {
             e.printStackTrace();
             return null;
@@ -1497,8 +1542,109 @@ public class MainApp extends Application {
         System.out.println("Imported " + file);
     }
 
+    // todo need to handle error gracefully
+    String doBackup() {
+        if (mConnection == null) {
+            showExceptionDialog("Exception Dialog", "Null pointer exception", "mConnection is null", null);
+            return null;
+        }
+
+        String backupFileName = null;
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement("Backup to ?")) {
+            backupFileName = getBackupDBFileName();
+            preparedStatement.setString(1, backupFileName);
+            preparedStatement.execute();
+        } catch (SQLException e) {
+            showExceptionDialog("Exception Dialog", "SQLException", "Backup failed", e);
+        }
+        return backupFileName;
+    }
+
+    void changePassword() {
+        if (mConnection == null) {
+            showExceptionDialog("Exception Dialog", "Null pointer exception", "mConnection is null", null);
+            return;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirmation");
+        alert.setHeaderText("Changing password will close current database file.");
+        alert.setContentText("Do you want to proceed?");
+        Optional<ButtonType> result = alert.showAndWait();
+        if (!(result.isPresent() && (result.get() == ButtonType.OK)))
+            return;  // do nothing
+
+        List<String> passwords = showPasswordDialog(PasswordDialogController.MODE.CHANGE);
+        if (passwords == null || passwords.size() != 2) {
+            // action cancelled
+            return;
+        }
+
+        String backupFileName = null; // if later this is not null, that means we have a backup
+        int passwordChanged = 0;
+        PreparedStatement preparedStatement = null;
+        try {
+            String url = mConnection.getMetaData().getURL();
+            File dbFile = new File(getDBFileNameFromURL(url));
+            // backup database first
+            backupFileName = doBackup();
+            mConnection.close();
+            mConnection = null;
+            // change encryption password first
+            ChangeFileEncryption.execute(dbFile.getParent(), dbFile.getName(), "AES", passwords.get(1).toCharArray(),
+                    passwords.get(0).toCharArray(), true);
+            passwordChanged++;  // changed 1
+            // DBOWNER password has not changed yet.
+            url += ";"+CIPHERCLAUSE+IFEXISTCLAUSE;
+            mConnection = DriverManager.getConnection(url, DBOWNER, passwords.get(0) + " " + passwords.get(1));
+            preparedStatement = mConnection.prepareStatement("Alter User " + DBOWNER + " set password ?");
+            preparedStatement.setString(1, passwords.get(0));
+            preparedStatement.execute();
+            passwordChanged++;
+        } catch (SQLException e) {
+            showExceptionDialog("Exception", "SQLException", e.getMessage(), e);
+        } catch (IllegalArgumentException e) {
+            showExceptionDialog("Exception", "IllegalArgumentException", e.getMessage(), e);
+        } finally {
+            try {
+                if (preparedStatement != null)
+                    preparedStatement.close();
+            } catch (SQLException e) {
+                showExceptionDialog("Exception", "SQLException", e.getMessage(), e);
+            }
+            if (passwordChanged == 1) {
+                showExceptionDialog("Exception", "Change password failed!",
+                        "Quit now and restore database:\nunzip " + backupFileName, null);
+            }
+        }
+    }
+
+    // return the backup DBFileName
+    // return null if mConnection is null or mConnection has a bad formatted url.
+    // TODO: 6/7/16  need to add functionality to change backup settings
+    //   backup location
+    //   filename pattern
+    private String getBackupDBFileName() throws SQLException {
+        return getDBFileNameFromURL(mConnection.getMetaData().getURL()) + "Backup"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm")) + ".zip";
+    }
+
+    // return the file path of current open connection (without .h2.db postfix)
+    // null is returned if connection is null, or url doesn't parse correctly
+    // url is in the format of jdbc:h2:filename;key=value...
+    private String getDBFileNameFromURL(String url) throws IllegalArgumentException {
+        int index = url.indexOf(';');
+        if (index > 0)
+            url = url.substring(0, index);  // remove anything on and after first ';'
+        if (!url.startsWith(URLPREFIX)) {
+            throw new IllegalArgumentException("Bad formatted url: " + url
+                    + ". Url should start with '" + URLPREFIX + "'");
+        }
+        return url.substring(URLPREFIX.length());
+    }
+
     // create a new database
-    void openDatabase(boolean isNew, String dbName) {
+    void openDatabase(boolean isNew, String dbName, String password) {
         File file;
         if (dbName != null) {
             if (!dbName.endsWith(DBPOSTFIX))
@@ -1549,26 +1695,30 @@ public class MainApp extends Application {
             dbName = dbName.substring(0, dbName.length()-DBPOSTFIX.length());
         }
 
-        String password = showPasswordDialog(
-                isNew ? PasswordDialogController.MODE.NEW : PasswordDialogController.MODE.ENTER);
         if (password == null) {
-            if (isNew) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.initOwner(mPrimaryStage);
-                alert.setTitle("Password not set");
-                alert.setHeaderText("Need a password to continue...");
-                alert.showAndWait();
+            List<String> passwords = showPasswordDialog(
+                    isNew ? PasswordDialogController.MODE.NEW : PasswordDialogController.MODE.ENTER);
+            if (passwords == null || passwords.size() == 0 || passwords.get(0) == null) {
+                if (isNew) {
+                    Alert alert = new Alert(Alert.AlertType.WARNING);
+                    alert.initOwner(mPrimaryStage);
+                    alert.setTitle("Password not set");
+                    alert.setHeaderText("Need a password to continue...");
+                    alert.showAndWait();
+                }
+                return;
             }
-            return;
+            password = passwords.get(0);
         }
 
         try {
-            String url = "jdbc:h2:"+dbName+";CIPHER=AES;";
+            String url = URLPREFIX+dbName+";"+CIPHERCLAUSE;
             if (!isNew) {
                 // open existing
-                url += "IFEXISTS=TRUE;";
+                url += IFEXISTCLAUSE;
             }
-            mConnection = DriverManager.getConnection(url, DBOWNER, password + " " + password);
+            // we use same password for file encryption and admin user
+            mConnection = DriverManager.getConnection(url, DBOWNER, password + ' ' + password);
         } catch (SQLException e) {
             int errorCode = e.getErrorCode();
             // 90049 -- bad encryption password

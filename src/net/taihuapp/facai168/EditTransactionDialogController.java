@@ -455,17 +455,21 @@ public class EditTransactionDialogController {
 
         // empty securiy here
         // for cash related transaction, return true
-        if (mTransaction.getTradeAction().equals("DIV") || mTransaction.getTradeAction().equals("DIVX")
-                || mTransaction.getTradeAction().equals("INTINC") || mTransaction.getTradeAction().equals("INTINCX")
-                || mTransaction.getTradeAction().equals("XIN") || mTransaction.getTradeAction().equals("XOUT")
-                || mTransaction.getTradeAction().equals("DEPOSIT") || mTransaction.getTradeAction().equals("WITHDRAW")
-                || mTransaction.getTradeAction().equals("CASH")) {
-            return true;
+        switch (Transaction.TradeAction.valueOf(mTransaction.getTradeAction())) {
+            case DIV:
+            case DIVX:
+            case INTINC:
+            case INTINCX:
+            case XIN:
+            case XOUT:
+            case DEPOSIT:
+            case WITHDRAW:
+                return true;
+            default:
+                // return false for all other transactions without security
+                showWarningDialog("Warning", "Empty Security", "Please select a valid security");
+                return false;
         }
-
-        // return false for all other transactions without security
-        showWarningDialog("Warning", "Empty Security", "Please select a valid security");
-        return false;
     }
 
     private void showWarningDialog(String title, String header, String content) {
@@ -893,7 +897,7 @@ public class EditTransactionDialogController {
                     @Override
                     protected BigDecimal computeValue() {
                         if (mTransaction.getAmount() == null || mTransaction.getQuantity() == null
-                                || mTransaction.getCommission() == null)
+                                || mTransaction.getQuantity().signum() == 0 || mTransaction.getCommission() == null)
                             return null;
 
                         return mTransaction.getAmount().subtract(mTransaction.getCommission())

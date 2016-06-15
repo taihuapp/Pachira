@@ -219,7 +219,7 @@ public class MainController {
 
         mTransactionTableView.setVisible(true);
         mTransactionTableView.setItems(account.getTransactionList());
-
+        mTransactionTableView.scrollTo(account.getTransactionList().size()-1);
         mTransactionTradeActionColumn.setVisible(isTradingAccount);
         mTransactionReferenceColumn.setVisible(!isTradingAccount);
         mTransactionPayeeColumn.setVisible(!isTradingAccount);

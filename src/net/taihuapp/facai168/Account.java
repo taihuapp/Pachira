@@ -70,7 +70,7 @@ public class Account {
     // update balance field for each transaction for SPENDING account
     // no-op for other types of accounts
     private void updateTransactionListBalance() {
-        if (getType() != Type.SPENDING)
+        if (getType() != Type.SPENDING && getType() != Type.INVESTING)
             return;  // don't do anything for non-SPENDING account
 
         BigDecimal b = new BigDecimal(0);

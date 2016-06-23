@@ -1159,7 +1159,7 @@ public class MainApp extends Application {
 
         // sort the transaction list first
         SortedList<Transaction> sortedTransactionList = new SortedList<>(account.getTransactionList(),
-                Comparator.comparing(Transaction::getTDate).thenComparing(Transaction::getID));
+                Comparator.comparing(Transaction::getTDate).thenComparing(Transaction::getTradeActionEnum));
         for (Transaction t : sortedTransactionList) {
             if (t.getTDate().isAfter(date))
                 break; // we are done
@@ -1532,6 +1532,13 @@ public class MainApp extends Application {
                 int rowID = insertTransactionToDB(tt);
                 if (rowID < 0) {
                     System.err.println("Failed to insert transaction: " + tt.toString());
+                } else {
+                    // insert transaction successful, insert price is it has one.
+                    BigDecimal p = tt.getPrice();
+                    if (p != null && p.signum() > 0) {
+                        System.out.println(tt.getSecurityName() + " " + tt.getDate() + " " + p);
+                        insertUpdatePriceToDB(getSecurityByName(tt.getSecurityName()).getID(), tt.getDate(), p, 0);
+                    }
                 }
             } catch (SQLException e) {
                 System.err.print(SQLExceptionToString(e));

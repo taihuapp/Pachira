@@ -14,13 +14,16 @@ import java.util.List;
 
 public class Transaction {
 
+    // the order in enum matters.  we need to process closing transactions (sell, sellx,
+    // cvtshrt, cvtshrtx) after the openning trasactions (BUY, ...)
     enum TradeAction {
         BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX,
-        CGSHORT, CGSHORTX, CVTSHRT, CVTSHRTX, DIV, DIVX, INTINC, INTINCX,
+        CGSHORT, CGSHORTX, DIV, DIVX, INTINC, INTINCX,
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
-        SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, DEPOSIT, WITHDRAW, BUYBOND, BUYBONDX
+        SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
+        XFRSHRS, XIN, XOUT, DEPOSIT, WITHDRAW, BUYBOND, BUYBONDX,
+        SELL, SELLX, CVTSHRT, CVTSHRTX
     }
 
     private int mID = -1;
@@ -73,6 +76,7 @@ public class Transaction {
     ObjectProperty<BigDecimal> getOldQuantityProperty() { return mOldQuantityProperty; }
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
+    TradeAction getTradeActionEnum() { return TradeAction.valueOf(getTradeAction()); }
     StringProperty getTradeActionProperty() { return mTradeActionProperty; }
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
 

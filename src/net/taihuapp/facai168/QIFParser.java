@@ -667,15 +667,15 @@ class QIFParser {
 
         Iterator<BankTransaction> btIterator = btList.iterator();
         System.out.println("Number of bt = " + btList.size());
-        while (btIterator.hasNext()) {
-            System.out.println("bt " + btIterator.next());
-        }
+        //while (btIterator.hasNext()) {
+            //System.out.println("bt " + btIterator.next());
+        //}
 
         Iterator<TradeTransaction> ttIterator = ttList.iterator();
         System.out.println("Number of tt = " + ttList.size());
-        while (ttIterator.hasNext()) {
-            System.out.println("tt " + ttIterator.next());
-        }
+        //while (ttIterator.hasNext()) {
+        //    System.out.println("tt " + ttIterator.next());
+        //}
 
     }
 

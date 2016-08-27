@@ -171,9 +171,16 @@ public class SecurityHolding extends LotHolding {
             // more than offset the current?  we shouldn't be here
             // probably something went wrong.  Issue a error message
             // and then match offset anyway
-            System.err.println("" + lotInfo.getTransactionID()
-                    + " can't find enough lots to offset.  Something is wrong");
+            System.err.println("*******\nTransaction Date: " + lotInfo.getDate().toString() + "\n"
+                    + "Security Name: " + lotInfo.getSecurityName() + "\n"
+                    + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
+                    + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
+                    + "Quantity: " + lotInfoQuantity + "\n"
+                    + "Existing Quantity: " + oldQuantity + "\n"
+                    + " can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
+                    + "*******");
 
+/*
             BigDecimal newQuantity = lotInfo.getQuantity().add(oldQuantity);
             lotInfo.setCostBasis(scaleCostBasis(lotInfo.getCostBasis(), lotInfo.getQuantity(), newQuantity));
             lotInfo.setQuantity(newQuantity);
@@ -182,6 +189,7 @@ public class SecurityHolding extends LotHolding {
             getLotInfoList().add(lotInfo);
             setCostBasis(lotInfo.getCostBasis());
             return;
+*/
         }
 
         if (matchInfoList.size() == 0) {

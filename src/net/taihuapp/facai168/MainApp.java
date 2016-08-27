@@ -542,8 +542,8 @@ public class MainApp extends Application {
             System.err.println("Account [" + accountName + "] not found, nothing inserted");
             return -1;
         }
-        if (account.getType() != Account.Type.SPENDING) {
-            System.err.println("Account " + account.getName() + " is not a spending account");
+        if (account.getType() == Account.Type.INVESTING) {
+            System.err.println("Account " + account.getName() + " is not an investing account");
             return -1;
         }
 
@@ -1328,16 +1328,6 @@ public class MainApp extends Application {
     }
 
     void showSpecifyLotsDialog(Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
-        System.out.println("Show Specify Lot window...");
-
-/*
-        Security security = mSecurityChoiceBox.getValue();
-        if (security == null) {
-            showWarningDialog("No Security Chosen", "No Security Chosen",
-                    "Please select a valid security first");
-            return;
-        }
-*/
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("SpecifyLotsDialog.fxml"));
@@ -1432,7 +1422,6 @@ public class MainApp extends Application {
         accountChoiceDialog.setHeaderText("Default account for transactions:");
         accountChoiceDialog.setContentText("Select default account");
         Optional<String> result = accountChoiceDialog.showAndWait();
-        result.ifPresent(accountName -> System.out.println("Default account is " + accountName));
 
         File file;
         FileChooser fileChooser = new FileChooser();
@@ -1536,7 +1525,6 @@ public class MainApp extends Application {
                     // insert transaction successful, insert price is it has one.
                     BigDecimal p = tt.getPrice();
                     if (p != null && p.signum() > 0) {
-                        System.out.println(tt.getSecurityName() + " " + tt.getDate() + " " + p);
                         insertUpdatePriceToDB(getSecurityByName(tt.getSecurityName()).getID(), tt.getDate(), p, 0);
                     }
                 }

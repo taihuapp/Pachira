@@ -22,7 +22,8 @@ public class Transaction {
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
         SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, DEPOSIT, WITHDRAW, BUYBOND, BUYBONDX,
+        XFRSHRS, XIN, XOUT, DEPOSIT, DEPOSITX, WITHDRAW, WITHDRWX, BUYBOND, BUYBONDX,
+        CONTRIB, CONTRIBX,
         SELL, SELLX, CVTSHRT, CVTSHRTX
     }
 
@@ -81,7 +82,7 @@ public class Transaction {
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
 
     StringProperty getDescriptionProperty() {
-        switch (TradeAction.valueOf(mTradeActionProperty.get())) {
+        switch (getTradeActionEnum()) {
             case BUY:
             case BUYX:
             case CVTSHRT:
@@ -139,7 +140,7 @@ public class Transaction {
     int getMatchSplitID() { return mMatchSplitID; }
 
     BigDecimal getSignedQuantity() {
-        switch (TradeAction.valueOf(getTradeAction())) {
+        switch (getTradeActionEnum()) {
             case SELL:
             case SELLX:
             case SHTSELL:
@@ -164,6 +165,7 @@ public class Transaction {
             case REINVSH:
             case REINVMD:
             case REINVLG:
+            case MISCINCX:
                 return getQuantity();
             default:
                 System.err.println("getSignedQuantity not implemented for " + getTradeAction());
@@ -241,7 +243,10 @@ public class Transaction {
             case MISCINC:
             case RTRNCAP:
             case XIN:
+            case CONTRIB:
+            case CONTRIBX:
             case DEPOSIT:
+            case DEPOSITX:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount);
                 mQuantityProperty.set(null);
@@ -250,6 +255,7 @@ public class Transaction {
                 break;
             case XOUT:
             case WITHDRAW:
+            case WITHDRWX:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount.negate());
                 mQuantityProperty.set(null);
@@ -366,7 +372,6 @@ public class Transaction {
                 mCashAmountProperty.setValue(null);
                 break;
         }
-        System.out.println("Banking Transaction constructor: " + "ID = " + id + "; Amount = " + mCashAmountProperty);
     }
 
     // copy constructor

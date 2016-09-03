@@ -55,6 +55,9 @@ public class MainApp extends Application {
 
     private static int AMORTLINELEN = 32;
 
+    private final static int PRICETOTALLEN = 20;
+    final static int PRICEDECIMALLEN = 8;
+
     private Preferences mPrefs;
     private Stage mPrimaryStage;
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
@@ -1814,7 +1817,7 @@ public class MainApp extends Application {
         sqlCmd = "create table PRICES ("
                 + "SECURITYID integer NOT NULL, "
                 + "DATE date NOT NULL, "
-                + "PRICE decimal(20,8),"
+                + "PRICE decimal(" + PRICETOTALLEN + "," + PRICEDECIMALLEN + "),"
                 + "PRIMARY KEY (SECURITYID, DATE));";
         sqlCreateTable(sqlCmd);
 

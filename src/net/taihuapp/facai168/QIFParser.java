@@ -391,10 +391,12 @@ class QIFParser {
     static class TradeTransaction {
 
         enum Action { BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
-            CONTRIB, CONTRIBX, DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
+            //CONTRIB, CONTRIBX,
+            DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
             MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
             RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
-            STKSPLIT, WITHDRWX, XIN, XOUT, DEPOSIT, WITHDRAW }
+            STKSPLIT, XIN, XOUT, //DEPOSIT, WITHDRAW, WITHDRWX
+        }
 
         private String mAccountName;
         private LocalDate mDate;
@@ -496,26 +498,50 @@ class QIFParser {
                 }
             }
             if (actionStr != null) {
+                switch (actionStr) {
+                    case "CASH":
+                        BigDecimal tAmount = tt.getTAmount();
+                        if (tAmount != null && tAmount.signum() < 0) {
+                            actionStr = "XOUT";
+                            tt.setTAmount(tAmount.negate());
+                            BigDecimal uAmount = tt.getUAmount();
+                            if (uAmount != null)
+                                tt.setUAmount(uAmount.negate());
+                        } else {
+                            actionStr = "XIN";
+                        }
+                        break;
+                    case "CONTRIBX":
+                        actionStr = "XIN";
+                        break;
+                    case "WITHDRWX":
+                        actionStr = "XOUT";
+                        break;
+                }
+/*
                 if (actionStr.equals("CASH")) {
                     // transform CASH to either DEPOSIT or WITHDRAW
                     BigDecimal tAmount = tt.getTAmount();
                     if (tAmount != null && tAmount.signum() < 0) {
-                        actionStr = "WITHDRAW";
+                        //actionStr = "WITHDRAW";
+                        actionStr = "XOUT";
                         tt.setTAmount(tAmount.negate());
                         BigDecimal uAmount = tt.getUAmount();
                         if (uAmount != null)
                             tt.setUAmount(uAmount.negate());
                     } else {
-                        actionStr = "DEPOSIT";
+                        //actionStr = "DEPOSIT";
+                        actionStr = "XIN";
                     }
                 }
+*/
                 tt.setAction(Action.valueOf(actionStr));
             }
             return tt;
         }
     }
 
-    static class MemorizedTransaction {
+    private static class MemorizedTransaction {
         enum Type { INVESTMENT, EPAYMENT, CHECK, PAYMENT, DEPOSIT }
 
         private Type mType;
@@ -644,7 +670,7 @@ class QIFParser {
                     num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
                 }
                 price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den),
-                        BigDecimal.ROUND_HALF_DOWN)));
+                        MainApp.PRICEDECIMALLEN, BigDecimal.ROUND_HALF_DOWN)));
             }
             return price;
         }

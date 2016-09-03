@@ -22,8 +22,8 @@ public class Transaction {
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
         SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, DEPOSIT, DEPOSITX, WITHDRAW, WITHDRWX, BUYBOND, BUYBONDX,
-        CONTRIB, CONTRIBX,
+        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX,
+        //DEPOSIT, DEPOSITX, WITHDRAW, WITHDRWX, CONTRIB, CONTRIBX,
         SELL, SELLX, CVTSHRT, CVTSHRTX
     }
 
@@ -102,8 +102,8 @@ public class Transaction {
                 break;
             case XIN:
             case XOUT:
-            case DEPOSIT:
-            case WITHDRAW:
+            //case DEPOSIT:
+            //case WITHDRAW:
             case DIV:
             case DIVX:
             case CGLONG:
@@ -243,10 +243,10 @@ public class Transaction {
             case MISCINC:
             case RTRNCAP:
             case XIN:
-            case CONTRIB:
-            case CONTRIBX:
-            case DEPOSIT:
-            case DEPOSITX:
+            //case CONTRIB:
+            //case CONTRIBX:
+            //case DEPOSIT:
+            //case DEPOSITX:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount);
                 mQuantityProperty.set(null);
@@ -254,8 +254,8 @@ public class Transaction {
                 mPaymentProperty.set(null);
                 break;
             case XOUT:
-            case WITHDRAW:
-            case WITHDRWX:
+            //case WITHDRAW:
+            //case WITHDRWX:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount.negate());
                 mQuantityProperty.set(null);
@@ -331,8 +331,8 @@ public class Transaction {
     }
 
     static TradeAction mapBankingTransactionTA(String category, BigDecimal signedAmount) {
-        if (MainApp.categoryOrTransferTest(category) >= 0)
-            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
+        //if (MainApp.categoryOrTransferTest(category) >= 0)
+        //    return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
 
         return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
     }
@@ -355,13 +355,13 @@ public class Transaction {
 
         switch (ta) {
             case XIN:
-            case DEPOSIT:
+            //case DEPOSIT:
                 mDepositProperty.setValue(amount);
                 mPaymentProperty.setValue(null);
                 mCashAmountProperty.setValue(amount);
                 break;
             case XOUT:
-            case WITHDRAW:
+            //case WITHDRAW:
                 mDepositProperty.setValue(null);
                 mPaymentProperty.setValue(amount);
                 mCashAmountProperty.setValue(amount);

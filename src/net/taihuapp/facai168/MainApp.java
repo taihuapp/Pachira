@@ -387,7 +387,6 @@ public class MainApp extends Application {
                 e.printStackTrace();
         }
         return status;
-
     }
 
     // construct a wrapped account name
@@ -1159,6 +1158,7 @@ public class MainApp extends Application {
 
         BigDecimal totalCash = BigDecimal.ZERO;
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
+        Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
 
         // sort the transaction list first
         SortedList<Transaction> sortedTransactionList = new SortedList<>(account.getTransactionList(),
@@ -1183,8 +1183,14 @@ public class MainApp extends Application {
                     indexMap.put(name, index);
                     securityHoldingList.add(new SecurityHolding(name));
                 }
-                if (t.getTradeAction().equals(Transaction.TradeAction.STKSPLIT.name())) {
+                if (Transaction.TradeAction.valueOf(t.getTradeAction()) == Transaction.TradeAction.STKSPLIT) {
                     securityHoldingList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
+                    List<Transaction> splitList = stockSplitTransactionListMap.get(t.getSecurityName());
+                    if (splitList == null) {
+                        splitList = new ArrayList<>();
+                        stockSplitTransactionListMap.put(t.getSecurityName(), splitList);
+                    }
+                    splitList.add(t);
                 } else {
                     securityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
                             t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
@@ -1202,9 +1208,29 @@ public class MainApp extends Application {
             if (securityHolding.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
+                continue;
             }
+
             //securityHolding.setPrice(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
-            securityHolding.updateMarketValue(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
+            Price price = getLatestSecurityPrice(securityHolding.getSecurityName(), date);
+            BigDecimal p = price.getPrice();
+            if (price.getDate().isBefore(date)) {
+                // need to check if there is stock split between "date" and price.getDate()
+                List<Transaction> splitList = stockSplitTransactionListMap.get(securityHolding.getSecurityName());
+                if (splitList != null) {
+                    // we have a list of stock splits, check now
+                    // since this list is ordered by date, we start from the end
+                    ListIterator<Transaction> li = splitList.listIterator(splitList.size());
+                    while (li.hasPrevious()) {
+                        Transaction t = li.previous();
+                        if (t.getTDate().isBefore(price.getDate()))
+                            break; // the split is prior to the price date, no need to adjust
+                        p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(), PRICEDECIMALLEN,
+                                BigDecimal.ROUND_HALF_UP);
+                    }
+                }
+            }
+            securityHolding.updateMarketValue(p);
             securityHolding.updatePctRet();
 
             totalMarketValue = totalMarketValue.add(securityHolding.getMarketValue());
@@ -1277,16 +1303,17 @@ public class MainApp extends Application {
         return priceList;
     }
 
-    // retrieve the latest price no later than date
-    private BigDecimal getLatestSecurityPrice(String securityName, LocalDate date) {
-        BigDecimal price = null;
-        String sqlCmd = "select top 1 p.price from PRICES p inner join SECURITIES s " +
+    // retrive the latest price no later than requested date
+    private Price getLatestSecurityPrice(String securityName, LocalDate date) {
+        Price price = null;
+        String sqlCmd = "select top 1 p.price, p.date from PRICES p inner join SECURITIES s " +
                 "where s.NAME = '" + securityName + "' and s.ID = p.SECURITYID " +
                 " and p.DATE <= '" + date.toString() + "' order by DATE desc";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
-                if (resultSet.next())
-                    price = resultSet.getBigDecimal(1);
+            if (resultSet.next()) {
+                price = new Price(resultSet.getDate(2).toLocalDate(), resultSet.getBigDecimal(1));
+            }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();

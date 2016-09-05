@@ -160,12 +160,18 @@ public class Transaction {
             case CGMIDX:
             case CGSHORT:
             case CGSHORTX:
+            case INTINC:
+            case INTINCX:
+            case MISCEXPX:
+            case MISCINCX:
             case REINVDIV:
             case REINVINT:
             case REINVSH:
             case REINVMD:
             case REINVLG:
-            case MISCINCX:
+            case RTRNCAPX:
+            case XIN:
+            case XOUT:
                 return getQuantity();
             default:
                 System.err.println("getSignedQuantity not implemented for " + getTradeAction());

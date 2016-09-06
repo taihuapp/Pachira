@@ -1156,7 +1156,7 @@ public class MainApp extends Application {
         if (account.getType() != Account.Type.INVESTING)
             return securityHoldingList;
 
-        BigDecimal totalCash = BigDecimal.ZERO;
+        BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHolding.CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP);
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
         Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
 
@@ -1171,7 +1171,8 @@ public class MainApp extends Application {
             if (tid == exTid)
                 continue;  // exclude exTid from the holdings list
 
-            totalCash = totalCash.add(t.getCashAmount());
+            totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHolding.CURRENCYFRACTIONLEN,
+                    BigDecimal.ROUND_UP));
             String name = t.getSecurityName();
 
             if (name != null && !name.isEmpty()) {
@@ -1233,6 +1234,7 @@ public class MainApp extends Application {
             securityHolding.updateMarketValue(p);
             securityHolding.updatePctRet();
 
+            // both cost basis and market value are properly scaled
             totalMarketValue = totalMarketValue.add(securityHolding.getMarketValue());
             totalCostBasis = totalCostBasis.add(securityHolding.getCostBasis());
         }
@@ -1978,7 +1980,6 @@ public class MainApp extends Application {
 
     @Override
     public void start(final Stage stage) throws Exception {
-
         mPrimaryStage = stage;
         mPrimaryStage.setTitle("FaCai168");
         initMainLayout();

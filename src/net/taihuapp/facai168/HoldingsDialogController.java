@@ -138,7 +138,7 @@ public class HoldingsDialogController {
                 };
             }
         });
-
+        mPriceColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPriceColumn.setOnEditCommit(e -> {
             Security security = mMainApp.getSecurityByName(e.getRowValue().getValue().getSecurityName());
             if (security == null)
@@ -190,22 +190,27 @@ public class HoldingsDialogController {
 
         mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getQuantity()));
+        mQuantityColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mQuantityColumn.setComparator(null);
 
         mMarketValueColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getMarketValue()));
+        mMarketValueColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mMarketValueColumn.setComparator(null);
 
         mCostBasisColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getCostBasis()));
+        mCostBasisColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mCostBasisColumn.setComparator(null);
 
         mPNLColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPNL()));
+        mPNLColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPNLColumn.setComparator(null);
 
         mPctReturnColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPctRet()));
+        mPctReturnColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPctReturnColumn.setComparator(null);
 
         mDatePicker.setOnAction(event -> updateHoldings());

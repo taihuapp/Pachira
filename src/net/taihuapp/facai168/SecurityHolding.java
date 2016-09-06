@@ -19,6 +19,8 @@ import java.util.List;
  */
 public class SecurityHolding extends LotHolding {
 
+    final static int CURRENCYFRACTIONLEN = 2;  // two place for cents
+
     static class LotInfo extends LotHolding implements Comparable<LotInfo> {
 
         private int mTransactionID;
@@ -47,7 +49,7 @@ public class SecurityHolding extends LotHolding {
             mTradeActionProperty.set(ta);
 
             setQuantity(quantity);
-            setCostBasis(costBasis);
+            setCostBasis(costBasis.setScale(CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP));
             setPrice(price);  // this is the trade price
         }
 
@@ -60,8 +62,9 @@ public class SecurityHolding extends LotHolding {
         // compute market value and pnl
         @Override
         protected void updateMarketValue(BigDecimal p) {
-            getMarketValueProperty().set(getQuantity().multiply(p));
-            getPNLProperty().set(getMarketValue().subtract(getCostBasis()));
+            BigDecimal m = p.multiply(getQuantity()).setScale(CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP);
+            getMarketValueProperty().set(m);
+            getPNLProperty().set(m.subtract(getCostBasis()));
         }
 
         @Override
@@ -128,11 +131,12 @@ public class SecurityHolding extends LotHolding {
     @Override
     protected void updateMarketValue(BigDecimal p) {
         setPrice(p);
-        BigDecimal m = BigDecimal.ZERO;
+        BigDecimal q = BigDecimal.ZERO;
         for (LotInfo li : getLotInfoList()) {
             li.updateMarketValue(p);
-            m = m.add(li.getMarketValue());
+            q = q.add(li.getQuantity());
         }
+        BigDecimal m = q.multiply(p).setScale(CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP);
         getMarketValueProperty().set(m);
         getPNLProperty().set(m.subtract(getCostBasis()));
     }

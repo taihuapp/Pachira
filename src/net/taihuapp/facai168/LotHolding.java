@@ -6,6 +6,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * Created by ghe on 7/7/15.
@@ -57,7 +58,7 @@ abstract class LotHolding {
         BigDecimal c = getCostBasis();
         if (c.compareTo(BigDecimal.ZERO) != 0) {
             getPctRetProperty().set((new BigDecimal(100)).multiply(getPNL())
-                    .divide(c.abs(), 2, BigDecimal.ROUND_HALF_UP));
+                    .divide(c.abs(), 2, RoundingMode.HALF_UP));
         } else {
             getPNLProperty().set(null);
         }

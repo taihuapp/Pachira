@@ -3,6 +3,7 @@ package net.taihuapp.facai168;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -670,7 +671,7 @@ class QIFParser {
                     num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
                 }
                 price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den),
-                        MainApp.PRICEDECIMALLEN, BigDecimal.ROUND_HALF_DOWN)));
+                        MainApp.PRICEDECIMALLEN, RoundingMode.HALF_UP)));
             }
             return price;
         }

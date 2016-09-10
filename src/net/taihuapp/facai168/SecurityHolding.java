@@ -19,7 +19,7 @@ import java.util.List;
  */
 public class SecurityHolding extends LotHolding {
 
-    final static int CURRENCYFRACTIONLEN = 2;  // two place for cents
+    final static int CURRENCYDECIMALLEN = 2;  // two place for cents
 
     static class LotInfo extends LotHolding implements Comparable<LotInfo> {
 
@@ -49,7 +49,7 @@ public class SecurityHolding extends LotHolding {
             mTradeActionProperty.set(ta);
 
             setQuantity(quantity);
-            setCostBasis(costBasis.setScale(CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP));
+            setCostBasis(costBasis.setScale(CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
             setPrice(price);  // this is the trade price
         }
 
@@ -62,7 +62,7 @@ public class SecurityHolding extends LotHolding {
         // compute market value and pnl
         @Override
         protected void updateMarketValue(BigDecimal p) {
-            BigDecimal m = p.multiply(getQuantity()).setScale(CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP);
+            BigDecimal m = p.multiply(getQuantity()).setScale(CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
             getMarketValueProperty().set(m);
             getPNLProperty().set(m.subtract(getCostBasis()));
         }
@@ -124,7 +124,7 @@ public class SecurityHolding extends LotHolding {
     ObservableList<LotInfo> getLotInfoList() { return mLotInfoList; }
 
     private BigDecimal scaleCostBasis(BigDecimal oldC, BigDecimal oldQ, BigDecimal newQ) {
-        return oldC.multiply(newQ).divide(oldQ, oldC.scale(), BigDecimal.ROUND_HALF_UP);
+        return oldC.multiply(newQ).divide(oldQ, oldC.scale(), RoundingMode.HALF_UP);
     }
 
     // update marketvalue and PNL
@@ -136,7 +136,7 @@ public class SecurityHolding extends LotHolding {
             li.updateMarketValue(p);
             q = q.add(li.getQuantity());
         }
-        BigDecimal m = q.multiply(p).setScale(CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP);
+        BigDecimal m = q.multiply(p).setScale(CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
         getMarketValueProperty().set(m);
         getPNLProperty().set(m.subtract(getCostBasis()));
     }
@@ -281,12 +281,10 @@ public class SecurityHolding extends LotHolding {
         for (LotInfo li : getLotInfoList()) {
             BigDecimal oldQ = li.getQuantity();
             BigDecimal oldP = li.getPrice();
-            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, oldQ.scale(),
-                    BigDecimal.ROUND_HALF_UP);
+            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, oldQ.scale(), RoundingMode.HALF_UP);
             newQTotal = newQTotal.add(newQ);
             li.setQuantity(newQ);
-            li.setPrice(li.getPrice().multiply(oldQuantity).divide(newQuantity, oldP.scale(),
-                    RoundingMode.HALF_UP));
+            li.setPrice(li.getPrice().multiply(oldQuantity).divide(newQuantity, oldP.scale(), RoundingMode.HALF_UP));
         }
         setQuantity(newQTotal);
     }

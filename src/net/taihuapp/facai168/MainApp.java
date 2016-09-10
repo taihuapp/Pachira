@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.*;
 import java.sql.Date;
 import java.time.LocalDate;
@@ -1156,7 +1157,7 @@ public class MainApp extends Application {
         if (account.getType() != Account.Type.INVESTING)
             return securityHoldingList;
 
-        BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHolding.CURRENCYFRACTIONLEN, BigDecimal.ROUND_UP);
+        BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
         Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
 
@@ -1171,8 +1172,8 @@ public class MainApp extends Application {
             if (tid == exTid)
                 continue;  // exclude exTid from the holdings list
 
-            totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHolding.CURRENCYFRACTIONLEN,
-                    BigDecimal.ROUND_UP));
+            totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHolding.CURRENCYDECIMALLEN,
+                    RoundingMode.HALF_UP));
             String name = t.getSecurityName();
 
             if (name != null && !name.isEmpty()) {
@@ -1227,7 +1228,7 @@ public class MainApp extends Application {
                         if (t.getTDate().isBefore(price.getDate()))
                             break; // the split is prior to the price date, no need to adjust
                         p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(), PRICEDECIMALLEN,
-                                BigDecimal.ROUND_HALF_UP);
+                                RoundingMode.HALF_UP);
                     }
                 }
             }

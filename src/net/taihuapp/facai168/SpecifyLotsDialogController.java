@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -42,10 +43,10 @@ public class SpecifyLotsDialogController {
         void updateRealizedPNL(Transaction t) {
             int scale = getCostBasis().scale();
             BigDecimal c0 = getCostBasis().multiply(getSelectedShares())
-                    .divide(getQuantity().abs(), scale, BigDecimal.ROUND_HALF_UP);
+                    .divide(getQuantity().abs(), scale, RoundingMode.HALF_UP);
             // t.getQuantity() is always positive
             BigDecimal c1 = t.getCostBasis().multiply(getSelectedShares())
-                    .divide(t.getQuantity(), scale, BigDecimal.ROUND_HALF_UP);
+                    .divide(t.getQuantity(), scale, RoundingMode.HALF_UP);
             getRealizedPNLProperty().set(c1.add(c0).negate());
         }
     }

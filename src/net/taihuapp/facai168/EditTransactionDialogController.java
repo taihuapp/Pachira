@@ -13,6 +13,7 @@ import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -903,7 +904,7 @@ public class EditTransactionDialogController {
                             return null;
 
                         return mTransaction.getAmount().subtract(mTransaction.getCommission())
-                                .divide(mTransaction.getQuantity(), 6, BigDecimal.ROUND_HALF_UP);
+                                .divide(mTransaction.getQuantity(), 6, RoundingMode.HALF_UP);
                     }
                 };
                 mTransaction.getPriceProperty().bind(price);

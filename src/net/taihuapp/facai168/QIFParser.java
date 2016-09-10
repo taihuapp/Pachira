@@ -395,7 +395,7 @@ class QIFParser {
             DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
             MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
             RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
-            STKSPLIT, XIN, XOUT, //DEPOSIT, WITHDRAW, WITHDRWX
+            STKSPLIT, XIN, XOUT, DEPOSIT, WITHDRAW //, WITHDRWX
         }
 
         private String mAccountName;
@@ -502,13 +502,13 @@ class QIFParser {
                     case "CASH":
                         BigDecimal tAmount = tt.getTAmount();
                         if (tAmount != null && tAmount.signum() < 0) {
-                            actionStr = "XOUT";
+                            actionStr = "WITHDRAW";
                             tt.setTAmount(tAmount.negate());
                             BigDecimal uAmount = tt.getUAmount();
                             if (uAmount != null)
                                 tt.setUAmount(uAmount.negate());
                         } else {
-                            actionStr = "XIN";
+                            actionStr = "DEPOSIT";
                         }
                         break;
                     case "CONTRIBX":

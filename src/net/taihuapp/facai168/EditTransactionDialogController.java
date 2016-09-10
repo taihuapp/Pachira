@@ -219,12 +219,12 @@ public class EditTransactionDialogController {
                 return new TransactionTypeCombo(InvestmentTransaction.XIN);
             case XOUT:
                 return new TransactionTypeCombo(InvestmentTransaction.XOUT);
-//            case DEPOSIT:
+            case DEPOSIT:
 //            case DEPOSITX:
-//                return new TransactionTypeCombo(InvestmentTransaction.DEPOSIT);
-//            case WITHDRAW:
+                return new TransactionTypeCombo(InvestmentTransaction.DEPOSIT);
+            case WITHDRAW:
 //            case WITHDRWX:
-//                return new TransactionTypeCombo(InvestmentTransaction.WITHDRAW);
+                return new TransactionTypeCombo(InvestmentTransaction.WITHDRAW);
             case STKSPLIT:
                 return new TransactionTypeCombo(InvestmentTransaction.STKSPLIT);
             default:
@@ -381,8 +381,8 @@ public class EditTransactionDialogController {
             case REINVLG:
             case REINVMD:
             case REINVSH:
-//            case DEPOSIT:  // deposit and withdraw are not transfered from known account
-//            case WITHDRAW:
+            case DEPOSIT:
+            case WITHDRAW:
             case STKSPLIT:
                 // no transfer, do nothing
                 break;
@@ -464,8 +464,8 @@ public class EditTransactionDialogController {
             case INTINCX:
             case XIN:
             case XOUT:
-//            case DEPOSIT:
-//            case WITHDRAW:
+            case DEPOSIT:
+            case WITHDRAW:
                 return true;
             default:
                 // return false for all other transactions without security
@@ -931,16 +931,16 @@ public class EditTransactionDialogController {
 
         mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountComboBox.valueProperty());
         mTransaction.getCategoryProperty().unbindBidirectional(mCategoryComboBox.valueProperty());
-//        if (mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())
-//                || mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())) {
-//            Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
-//                    mCategoryComboBox.valueProperty(), new CategoryConverter());
-//        } else {
+        if (mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())
+                || mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())) {
+            Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
+                    mCategoryComboBox.valueProperty(), new CategoryConverter());
+        } else {
             Account transferAccount = mMainApp.getAccountByWrappedName(mTransaction.getCategory());
             Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
                     mTransferAccountComboBox.valueProperty(), new AccountCategoryConverter());
             mTransferAccountComboBox.getSelectionModel().select(transferAccount);
-//        }
+        }
 
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
         mTransaction.getSecurityNameProperty().unbindBidirectional(mSecurityComboBox.valueProperty());

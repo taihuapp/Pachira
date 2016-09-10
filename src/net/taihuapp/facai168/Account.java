@@ -77,7 +77,7 @@ public class Account {
         BigDecimal b = new BigDecimal(0);
         boolean accountBalanceIsSet = false;
         for (Transaction t : getTransactionList()) {
-            if (getType() == Type.SPENDING  // this approach is only for SPENDING account
+            if (getType() != Type.INVESTING  // investing account balance is handled differently
                     && !accountBalanceIsSet && t.getTDateProperty().get().isAfter(LocalDate.now())) {
                 // this is a future transaction.  if account current balance is not set
                 // set it before process this future transaction
@@ -91,7 +91,7 @@ public class Account {
             }
         }
         // at the end of the list, if the account balance still not set, set it now.
-        if (getType() == Type.SPENDING && !accountBalanceIsSet)
+        if (getType() != Type.INVESTING && !accountBalanceIsSet)
             setCurrentBalance(b);
     }
 

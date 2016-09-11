@@ -249,7 +249,8 @@ public class MainController {
                     setText("");
                 } else {
                     // format
-                    setText((new DecimalFormat("#0.00")).format(item));
+                    //setText((new DecimalFormat("#0.00")).format(item));
+                    setText((new DecimalFormat("###,##0.00")).format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }
@@ -295,7 +296,7 @@ public class MainController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText((new DecimalFormat("#0.00")).format(item));
+                                    setText((new DecimalFormat("###,##0.00")).format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }

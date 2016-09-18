@@ -28,16 +28,17 @@ public class Account {
 
     // default constructor
     public Account() {
-        this(0, Type.SPENDING, "", "", false, -1);
+        this(0, Type.SPENDING, "", "", false, -1, null);
     }
 
     // detailed constructor
-    public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder) {
+    public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
+                   BigDecimal balance) {
         mID = new SimpleIntegerProperty(id);
         mType = type;
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
-        mCurrentBalance = new SimpleObjectProperty<>(BigDecimal.ZERO);
+        mCurrentBalance = new SimpleObjectProperty<>(balance);
         mHiddenFlag.set(hidden);
         mDisplayOrder.set(displayOrder);
     }
@@ -45,7 +46,7 @@ public class Account {
     // copy constructor
     Account(Account account) {
         this(account.getID(), account.getType(), account.getName(), account.getDescription(),
-                account.getHiddenFlag(), account.getDisplayOrder());
+                account.getHiddenFlag(), account.getDisplayOrder(), account.getCurrentBalanceProperty().get());
     }
 
     // getters and setters

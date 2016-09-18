@@ -5,6 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -90,11 +91,11 @@ public class MainApp extends Application {
 
     ObservableList<Account> getAccountList() { return mAccountList; }
     FilteredList<Account> getAccountList(Boolean hidden) {
-        return new FilteredList<>(getAccountList(), a -> { return a.getHiddenFlag().equals(hidden); });
+        return new FilteredList<>(getAccountList(), a -> a.getHiddenFlag().equals(hidden));
     }
 
     FilteredList<Account> getAccountList(Account.Type t) {
-        return new FilteredList<>(getAccountList(), a -> { return t == null || a.getType() == t;});
+        return new FilteredList<>(getAccountList(), a ->  (t == null || a.getType() == t));
     }
 
     ObservableList<Category> getCategoryList() { return mCategoryList; }
@@ -862,26 +863,36 @@ public class MainApp extends Application {
     }
 
     void updateAccountBalance(int accountID) {
-        Account account = getAccountByID(accountID);
-        if (account == null) {
-            System.err.println("Invalid account ID: " + accountID);
-            return;
-        }
+        // create a task to do the heavy calculation.
+        Task task = new Task<Void>() {
+            @Override
+            public Void call() {
 
-        // load transaction list
-        // this method will set account balance for SPENDING account
-        account.setTransactionList(loadAccountTransactions(accountID));
+                Account account = getAccountByID(accountID);
+                if (account == null) {
+                    System.err.println("Invalid account ID: " + accountID);
+                    //return;
+                }
 
-        // update holdings and balance for INVESTING account
-        if (account.getType() == Account.Type.INVESTING) {
-            List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
-            SecurityHolding totalHolding = shList.get(shList.size()-1);
-            if (totalHolding.getSecurityName().equals("TOTAL")) {
-                account.setCurrentBalance(totalHolding.getMarketValue());
-            } else {
-                System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
+                // load transaction list
+                // this method will set account balance for SPENDING account
+                account.setTransactionList(loadAccountTransactions(accountID));
+
+                // update holdings and balance for INVESTING account
+                if (account.getType() == Account.Type.INVESTING) {
+                    List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
+                    SecurityHolding totalHolding = shList.get(shList.size() - 1);
+                    if (totalHolding.getSecurityName().equals("TOTAL")) {
+                        account.setCurrentBalance(totalHolding.getMarketValue());
+                    } else {
+                        System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
+                    }
+                }
+                return null;
             }
-        }
+        };
+
+        new Thread(task).start();
     }
 
     void initAccountList() {
@@ -900,7 +911,7 @@ public class MainApp extends Application {
                 String description = rs.getString("DESCRIPTION");
                 Boolean hiddenFlag = rs.getBoolean("HIDDENFLAG");
                 Integer displayOrder = rs.getInt("DISPLAYORDER");
-                mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder));
+                mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder, null));
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -1539,7 +1550,7 @@ public class MainApp extends Application {
                     break;
             }
             if (at != null) {
-                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false, -1));
+                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false, -1, null));
             } else {
                 System.err.println("Unknow account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
@@ -2024,7 +2035,7 @@ public class MainApp extends Application {
         // play around with filtered list
         List<Integer> aList = new ArrayList<>();
         ObservableList<Integer> oList = FXCollections.observableList(aList);
-        FilteredList<Integer> fList = new FilteredList<Integer>(oList, i -> { return i > 5; });
+        FilteredList<Integer> fList = new FilteredList<>(oList, i -> i > 5);
         for (Integer i = 0; i < 10; i++)
             oList.add(i);
         aList.add(10);

@@ -73,7 +73,7 @@ public class AccountListDialogController {
 
             // create a tableview
             final TableView<Account> tableView = new TableView<>();
-            tableView.setItems(mMainApp.getAccountList(t));
+            tableView.setItems(mMainApp.getAccountList(t, null)); // hidden accounts should be shown here
 
             TableColumn<Account, String> accountNameTableColumn = new TableColumn<>("Name");
             accountNameTableColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());

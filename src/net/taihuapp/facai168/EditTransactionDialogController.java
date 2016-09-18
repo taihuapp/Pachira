@@ -871,7 +871,7 @@ public class EditTransactionDialogController {
         mTransferAccountComboBox.getItems().clear();
         mTransferAccountComboBox.getItems().add(new Account()); // a blank account
         System.out.println("setupInvestmentTransactionDialog");
-        for (Account account : mMainApp.getAccountList()) {
+        for (Account account : mMainApp.getAccountList(null, null)) {
             if (account.getID() != mAccount.getID() || !isCashTransfer)
                 mTransferAccountComboBox.getItems().add(account);
         }

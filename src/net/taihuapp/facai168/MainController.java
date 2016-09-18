@@ -83,7 +83,7 @@ public class MainController {
         updateUI(mMainApp.isConnected());
 
         // get accounts with hiddenflag == false.
-        mAccountTableView.setItems(mMainApp.getAccountList(false));
+        mAccountTableView.setItems(mMainApp.getAccountList(null, false));
     }
 
     @FXML

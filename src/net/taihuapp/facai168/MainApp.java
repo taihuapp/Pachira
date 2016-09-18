@@ -89,13 +89,25 @@ public class MainApp extends Application {
         return fileNameList;
     }
 
-    ObservableList<Account> getAccountList() { return mAccountList; }
+/*    ObservableList<Account> getAccountList() { return mAccountList; }
     FilteredList<Account> getAccountList(Boolean hidden) {
         return new FilteredList<>(getAccountList(), a -> a.getHiddenFlag().equals(hidden));
     }
 
     FilteredList<Account> getAccountList(Account.Type t) {
         return new FilteredList<>(getAccountList(), a ->  (t == null || a.getType() == t));
+    }
+*/
+
+    SortedList<Account> getAccountList(Account.Type t, Boolean hidden) {
+        FilteredList<Account> fList = new FilteredList<>(mAccountList,
+                a -> (t == null || a.getType() == t) && (hidden == null || a.getHiddenFlag() == hidden));
+
+        // sort accounts by type first, then displayOrder, then ID
+        SortedList<Account> sList = new SortedList<>(fList,
+                Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)
+                        .thenComparing(Account::getID));
+        return sList;
     }
 
     ObservableList<Category> getCategoryList() { return mCategoryList; }
@@ -107,7 +119,7 @@ public class MainApp extends Application {
     SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
 
     Account getAccountByName(String name) {
-        for (Account a : getAccountList()) {
+        for (Account a : getAccountList(null, null)) {
             if (a.getName().equals(name)) {
                 return a;
             }
@@ -116,7 +128,7 @@ public class MainApp extends Application {
     }
 
     private Account getAccountByID(int id) {
-        for (Account a : getAccountList()) {
+        for (Account a : getAccountList(null, null)) {
             if (a.getID() == id)
                 return a;
         }
@@ -731,9 +743,11 @@ public class MainApp extends Application {
         }
     }
 
-    void insertUpdateAccountToDB(Account account) {
+    // insert or update an account in database, return the account ID, or -1 for failure
+    int insertUpdateAccountToDB(Account account) {
         String sqlCmd;
         if (account.getID() <= 0) {
+            // new account, insert
             sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER) values (?,?,?,?,?)";
         } else {
             sqlCmd = "update ACCOUNTS set TYPE = ?, NAME = ?, DESCRIPTION = ? , HIDDENFLAG = ?, DISPLAYORDER = ? " +
@@ -753,12 +767,12 @@ public class MainApp extends Application {
                 throw new SQLException("Insert Account failed, no rows affected");
             }
             if (account.getID() > 0)
-                return;  // we are done
+                return account.getID();  // we are done
 
             try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                 if (resultSet.next()) {
                     account.setID(resultSet.getInt(1));
-                    return;
+                    return account.getID();
                 }
                 throw new SQLException("Insert Account failed, no ID obtained");
             } catch (SQLException e) {
@@ -786,6 +800,7 @@ public class MainApp extends Application {
             System.err.println("mConnection is null");
             e.printStackTrace();
         }
+        return -1; // something went wrong if we got here
     }
 
     private int getSecurityID(String ticker) {
@@ -901,7 +916,7 @@ public class MainApp extends Application {
 
         try (Statement statement = mConnection.createStatement()) {
             String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER "
-                    + "from ACCOUNTS order by TYPE, ID";
+                    + "from ACCOUNTS"; // order by TYPE, ID";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int id = rs.getInt("ID");
@@ -919,7 +934,7 @@ public class MainApp extends Application {
         }
 
         // load transactions and set account balance
-        for (Account account : getAccountList())
+        for (Account account : getAccountList(null, null))
             updateAccountBalance(account.getID());
     }
 
@@ -1496,7 +1511,7 @@ public class MainApp extends Application {
     void importQIF() {
         ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
         accountChoiceDialog.getItems().add("");
-        for (Account account : getAccountList())
+        for (Account account : getAccountList(null, null))
             accountChoiceDialog.getItems().add(account.getName());
         accountChoiceDialog.setSelectedItem("");
         accountChoiceDialog.setTitle("Importing...");
@@ -1874,7 +1889,7 @@ public class MainApp extends Application {
         // Accounts table
         // ID starts from 1
         String sqlCmd = "create table ACCOUNTS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), "
+                + "ID integer NOT NULL AUTO_INCREMENT (1), " // make sure to start from 1
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
@@ -1957,7 +1972,7 @@ public class MainApp extends Application {
         // Transactions
         // ID starts from 1
         sqlCmd = "create table TRANSACTIONS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), "
+                + "ID integer NOT NULL AUTO_INCREMENT (1), " // make sure to start with 1
                 + "ACCOUNTID integer NOT NULL, "
                 + "DATE date NOT NULL, "
                 + "ADATE date, "

@@ -24,11 +24,11 @@ public class Account {
     private final ObjectProperty<BigDecimal> mCurrentBalance;
     private final ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
     private final BooleanProperty mHiddenFlag = new SimpleBooleanProperty(false);
-    private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(-1);
+    private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(Integer.MAX_VALUE);
 
     // default constructor
     public Account() {
-        this(0, Type.SPENDING, "", "", false, -1, null);
+        this(0, Type.SPENDING, "", "", false, Integer.MAX_VALUE, null);
     }
 
     // detailed constructor

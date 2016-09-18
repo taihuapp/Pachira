@@ -24,8 +24,6 @@ public class MainController {
     @FXML
     private Menu mEditMenu;
     @FXML
-    private Menu mEditAccountMenu;
-    @FXML
     private MenuItem mChangePasswordMenuItem;
     @FXML
     private MenuItem mBackupMenuItem;
@@ -84,7 +82,8 @@ public class MainController {
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
-        mAccountTableView.setItems(mMainApp.getAccountList());
+        // get accounts with hiddenflag == false.
+        mAccountTableView.setItems(mMainApp.getAccountList(false));
     }
 
     @FXML
@@ -127,41 +126,14 @@ public class MainController {
     }
 
     @FXML
-    private void handleNewAccount() {
-        handleEditAccount(new Account());
-    }
-
-    private void handleEditAccount(Account account) {
-        if (mMainApp.showEditAccountDialog(account)) {
-            mMainApp.insertUpdateAccountToDB(account);
-            mMainApp.initAccountList();
-            updateEditAccountMenu();
-        }
-    }
+    private void handleEditAccountList() { mMainApp.showAccountListDialog(); }
 
     @FXML
     private void handleEditSecurityList() {
         mMainApp.showSecurityListDialog();
     }
 
-    private void updateEditAccountMenu() {
-        // clear account list first, keeping item 0 and 1 which are 'New' and 'Separator'.
-        ObservableList<MenuItem> editAccountMenuItems = mEditAccountMenu.getItems();
-        editAccountMenuItems.remove(2, editAccountMenuItems.size());
-
-        for (Account account : mMainApp.getAccountList()) {
-            MenuItem mi = new MenuItem(account.getName());
-            mi.setOnAction(event -> {
-                MenuItem mi1 = (MenuItem) event.getTarget();
-                handleEditAccount(mMainApp.getAccountByName(mi1.getText()));
-            });
-            editAccountMenuItems.add(mi);
-        }
-    }
-
     private void updateUI(boolean isConnected) {
-        if (isConnected)
-            updateEditAccountMenu();
         mEditMenu.setVisible(isConnected);
         mChangePasswordMenuItem.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);
@@ -195,10 +167,6 @@ public class MainController {
     @FXML
     private void handleShowHoldings() {
         mMainApp.showAccountHoldings();
-    }
-
-    private void showEditTransactionDialog(Transaction t) {
-        mMainApp.showEditTransactionDialog(t);
     }
 
     private void showAccountTransactions(Account account) {

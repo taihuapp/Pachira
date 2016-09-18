@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -13,8 +14,8 @@ import javafx.stage.Stage;
 public class EditAccountDialogController {
 
     private Stage mDialogStage;
+    private MainApp mMainApp;
     private Account mAccount;
-    private boolean mIsOK = false;
 
     @FXML
     private ChoiceBox<Account.Type> mTypeChoiceBox;
@@ -22,21 +23,25 @@ public class EditAccountDialogController {
     private TextField mNameTextField;
     @FXML
     private TextArea mDescriptionTextArea;
+    @FXML
+    private CheckBox mHiddenFlagCheckBox;
 
-    public void setAccount(Account account) {
+    void setAccount(boolean lockAccountType, Account account, MainApp mainApp) {
+        mMainApp = mainApp;
         mAccount = account;
 
         // todo more initialization
         mTypeChoiceBox.getSelectionModel().select(account.getType());
-        mTypeChoiceBox.setDisable(account.getID() > 0); // disable type for existing
+
+        // if lockAccountType is true, or if account ID > 0, then don't allow type change
+        mTypeChoiceBox.setDisable(lockAccountType || account.getID() > 0);
 
         mNameTextField.setText(account.getName());
         mDescriptionTextArea.setText(account.getDescription());
+        mHiddenFlagCheckBox.setSelected(account.getHiddenFlag());
     }
 
     void setDialogStage(Stage stage) { mDialogStage = stage; }
-
-    boolean isOK() { return mIsOK; }
 
     @FXML
     private void handleOK() {
@@ -49,7 +54,11 @@ public class EditAccountDialogController {
         }
         mAccount.setName(mNameTextField.getText());
         mAccount.setDescription(mDescriptionTextArea.getText());
-        mIsOK = true;
+        mAccount.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
+
+        mMainApp.insertUpdateAccountToDB(mAccount);
+        mMainApp.initAccountList();
+
         mDialogStage.close();
     }
 
@@ -59,19 +68,5 @@ public class EditAccountDialogController {
     }
 
     @FXML
-    private void initialize() {
-        // todo move to initialize
-/*       mTypeChoiceBox.setConverter(new StringConverter<Account.Type>() {
-            @Override
-            public String toString(Account.Type object) { return object.getType(); }
-
-            @Override
-            public AccountType fromString(String string) {
-                return null;
-            }
-        });
-*/
-        mTypeChoiceBox.getItems().addAll(Account.Type.values());
-
-    }
+    private void initialize() { mTypeChoiceBox.getItems().addAll(Account.Type.values()); }
 }

@@ -23,18 +23,29 @@ public class Account {
     private final StringProperty mDescription;
     private final ObjectProperty<BigDecimal> mCurrentBalance;
     private final ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
+    private final BooleanProperty mHiddenFlag = new SimpleBooleanProperty(false);
+    private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(-1);
 
     // default constructor
     public Account() {
-        this(0, Type.SPENDING, "", "");
+        this(0, Type.SPENDING, "", "", false, -1);
     }
 
-    public Account(int id, Type type, String name, String description) {
+    // detailed constructor
+    public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder) {
         mID = new SimpleIntegerProperty(id);
         mType = type;
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
         mCurrentBalance = new SimpleObjectProperty<>(BigDecimal.ZERO);
+        mHiddenFlag.set(hidden);
+        mDisplayOrder.set(displayOrder);
+    }
+
+    // copy constructor
+    Account(Account account) {
+        this(account.getID(), account.getType(), account.getName(), account.getDescription(),
+                account.getHiddenFlag(), account.getDisplayOrder());
     }
 
     // getters and setters
@@ -49,6 +60,14 @@ public class Account {
     IntegerProperty getIDProperty() { return mID; }
     int getID() { return mID.get(); }
     void setID(int id) { mID.set(id); }
+
+    BooleanProperty getHiddenFlagProperty() { return mHiddenFlag; }
+    Boolean getHiddenFlag() { return getHiddenFlagProperty().get(); }
+    void setHiddenFlag(boolean h) { getHiddenFlagProperty().set(h); }
+
+    IntegerProperty getDisplayOrderProperty() { return mDisplayOrder; }
+    Integer getDisplayOrder() { return getDisplayOrderProperty().get(); }
+    void setDisplayOrder(int d) { mDisplayOrder.set(d); }
 
     StringProperty getNameProperty() { return mName; }
     String getName() { return mName.get(); }
@@ -70,10 +89,6 @@ public class Account {
     // update balance field for each transaction for SPENDING account
     // no-op for other types of accounts
     private void updateTransactionListBalance() {
-        // todo what should we do here
-        //if (getType() != Type.SPENDING && getType() != Type.INVESTING)
-        //  return;  // don't do anything for non-SPENDING account
-
         BigDecimal b = new BigDecimal(0);
         boolean accountBalanceIsSet = false;
         for (Transaction t : getTransactionList()) {

@@ -28,13 +28,8 @@
           </Menu>
           <Menu fx:id="mEditMenu" mnemonicParsing="false" text="Edit" visible="false">
                <items>
-                  <Menu fx:id="mEditAccountMenu" mnemonicParsing="false" text="Account">
-                    <items>
-                      <MenuItem mnemonicParsing="false" onAction="#handleNewAccount" text="New" />
-                        <SeparatorMenuItem mnemonicParsing="false" />
-                    </items>
-                  </Menu>
-                  <MenuItem fx:id="mEditSecurityListMenu" mnemonicParsing="false" onAction="#handleEditSecurityList" text="Security List" />
+                  <MenuItem mnemonicParsing="false" onAction="#handleEditAccountList" text="Account List" />
+                  <MenuItem mnemonicParsing="false" onAction="#handleEditSecurityList" text="Security List" />
                </items>
           </Menu>
           <Menu mnemonicParsing="false" text="Help">

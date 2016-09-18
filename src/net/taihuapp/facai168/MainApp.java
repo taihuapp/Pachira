@@ -3,6 +3,7 @@ package net.taihuapp.facai168;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -88,6 +89,13 @@ public class MainApp extends Application {
     }
 
     ObservableList<Account> getAccountList() { return mAccountList; }
+    FilteredList<Account> getAccountList(Boolean hidden) {
+        return new FilteredList<>(getAccountList(), a -> { return a.getHiddenFlag().equals(hidden); });
+    }
+
+    FilteredList<Account> getAccountList(Account.Type t) {
+        return new FilteredList<>(getAccountList(), a -> { return t == null || a.getType() == t;});
+    }
 
     ObservableList<Category> getCategoryList() { return mCategoryList; }
     ObservableList<Security> getSecurityList() { return mSecurityList; }
@@ -725,17 +733,20 @@ public class MainApp extends Application {
     void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
         if (account.getID() <= 0) {
-            sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION) values (?,?,?)";
+            sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER) values (?,?,?,?,?)";
         } else {
-            sqlCmd = "update ACCOUNTS set TYPE = ?, NAME = ?, DESCRIPTION = ? where ID = ?";
+            sqlCmd = "update ACCOUNTS set TYPE = ?, NAME = ?, DESCRIPTION = ? , HIDDENFLAG = ?, DISPLAYORDER = ? " +
+                    "where ID = ?";
         }
 
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setInt(1, account.getType().ordinal());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
+            preparedStatement.setBoolean(4, account.getHiddenFlag());
+            preparedStatement.setInt(5, account.getDisplayOrder());
             if (account.getID() > 0) {
-                preparedStatement.setInt(4, account.getID());
+                preparedStatement.setInt(6, account.getID());
             }
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert Account failed, no rows affected");
@@ -878,7 +889,8 @@ public class MainApp extends Application {
         if (mConnection == null) return;
 
         try (Statement statement = mConnection.createStatement()) {
-            String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION from ACCOUNTS order by TYPE, ID";
+            String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER "
+                    + "from ACCOUNTS order by TYPE, ID";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int id = rs.getInt("ID");
@@ -886,7 +898,9 @@ public class MainApp extends Application {
                 Account.Type type = Account.Type.values()[typeOrdinal];
                 String name = rs.getString("NAME");
                 String description = rs.getString("DESCRIPTION");
-                mAccountList.add(new Account(id, type, name, description));
+                Boolean hiddenFlag = rs.getBoolean("HIDDENFLAG");
+                Integer displayOrder = rs.getInt("DISPLAYORDER");
+                mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder));
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -1050,6 +1064,29 @@ public class MainApp extends Application {
         return openedDBNames;
     }
 
+    void showAccountListDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("AccountListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Account List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            AccountListDialogController controller = loader.getController();
+            if (controller == null) {
+                System.err.println("Null controller for AccountListDialog");
+                return;
+            }
+            controller.setMainApp(this, dialogStage);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     void showSecurityListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
@@ -1073,7 +1110,7 @@ public class MainApp extends Application {
         }
     }
 
-    boolean showEditAccountDialog(Account account) {
+    boolean showEditAccountDialog(boolean lockAccountType, Account account) {
         boolean isNew = account.getID() < 0;
         String title;
         if (isNew) {
@@ -1098,9 +1135,9 @@ public class MainApp extends Application {
             }
 
             controller.setDialogStage(dialogStage);
-            controller.setAccount(account);
+            controller.setAccount(lockAccountType, account, this);
             dialogStage.showAndWait();
-            return controller.isOK();
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
             return false;
@@ -1502,7 +1539,7 @@ public class MainApp extends Application {
                     break;
             }
             if (at != null) {
-                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription()));
+                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false, -1));
             } else {
                 System.err.println("Unknow account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
@@ -1830,6 +1867,8 @@ public class MainApp extends Application {
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
+                + "HIDDENFLAG boolean NOT NULL, "
+                + "DISPLAYORDER integer NOT NULL, "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
@@ -1981,6 +2020,34 @@ public class MainApp extends Application {
 
     @Override
     public void start(final Stage stage) throws Exception {
+
+        // play around with filtered list
+        List<Integer> aList = new ArrayList<>();
+        ObservableList<Integer> oList = FXCollections.observableList(aList);
+        FilteredList<Integer> fList = new FilteredList<Integer>(oList, i -> { return i > 5; });
+        for (Integer i = 0; i < 10; i++)
+            oList.add(i);
+        aList.add(10);
+        oList.add(11);
+        oList.add(-1);
+
+        System.out.print("A: ");
+        for (Integer i : aList)
+            System.out.print(i + ", ");
+        System.out.println("");
+
+        System.out.print("O: ");
+        for (Integer i : oList)
+            System.out.print(i + ", ");
+        System.out.println("");
+
+        System.out.print("F: ");
+        for (Integer i : fList)
+            System.out.print(i + ", ");
+        System.out.println("");
+
+        // end of ...
+
         mPrimaryStage = stage;
         mPrimaryStage.setTitle("FaCai168");
         initMainLayout();

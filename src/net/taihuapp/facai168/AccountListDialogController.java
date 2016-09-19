@@ -54,18 +54,72 @@ public class AccountListDialogController {
     }
 
     @FXML
-    private void handleEdit() {}
-    @FXML
-    private void handleMoveUp() { System.out.println("move up"); }
-    @FXML
-    private void handleMoveDown() {System.out.println("move down"); }
-    @FXML
-    private void handleUnhide() {
+    private void handleEdit() {
+        // the type cast is create a warning message, suppress it.
+        @SuppressWarnings("unchecked")
         TableView<Account> tableView = (TableView<Account>) mTabPane.getSelectionModel().getSelectedItem().getContent();
         Account account = tableView.getSelectionModel().getSelectedItem();
-        account.setHiddenFlag(!account.getHiddenFlag());
-        mMainApp.insertUpdateAccountToDB(account);
+        if (account != null)
+            mMainApp.showEditAccountDialog(true, account);
     }
+
+    @FXML
+    private void handleMoveUp() {
+        // the type cast is create a warning message, suppress it.
+        @SuppressWarnings("unchecked")
+        TableView<Account> tableView = (TableView<Account>) mTabPane.getSelectionModel().getSelectedItem().getContent();
+        int selectedIdx = tableView.getSelectionModel().getSelectedIndex();
+        Account account = tableView.getSelectionModel().getSelectedItem();
+        if (account == null || selectedIdx <= 0)
+            return; // how we got here
+
+        Account accountAbove = tableView.getItems().get(selectedIdx-1);
+        if (accountAbove == null || accountAbove.getType() != account.getType())
+            return; // how did this happen?
+
+        account.setDisplayOrder(account.getDisplayOrder()-1);
+        accountAbove.setDisplayOrder(account.getDisplayOrder()+1);
+        mMainApp.insertUpdateAccountToDB(account, false);
+        mMainApp.insertUpdateAccountToDB(accountAbove, false);
+    }
+
+    @FXML
+    private void handleMoveDown() {
+        // the type cast is create a warning message, suppress it.
+        @SuppressWarnings("unchecked")
+        TableView<Account> tableView = (TableView<Account>) mTabPane.getSelectionModel().getSelectedItem().getContent();
+        int selectedIdx = tableView.getSelectionModel().getSelectedIndex();
+        int numberOfRows = tableView.getItems().size();
+        Account account = tableView.getSelectionModel().getSelectedItem();
+        if (account == null || selectedIdx < 0 || selectedIdx >= numberOfRows-1)
+            return; // we shouldn't be here
+
+        Account accountBelow = tableView.getItems().get(selectedIdx+1);
+        if (accountBelow == null || accountBelow.getType() != account.getType())
+            return;
+
+        account.setDisplayOrder(account.getDisplayOrder()+1);
+        accountBelow.setDisplayOrder(accountBelow.getDisplayOrder()-1);
+
+        // these two accounts are in MainApp.mAccountList, no need to update
+        mMainApp.insertUpdateAccountToDB(account, false);
+        mMainApp.insertUpdateAccountToDB(accountBelow, false);
+    }
+
+    @FXML
+    private void handleUnhide() {
+        // the type cast is create a warning message, suppress it.
+        @SuppressWarnings("unchecked")
+        TableView<Account> tableView = (TableView<Account>) mTabPane.getSelectionModel().getSelectedItem().getContent();
+        Account account = tableView.getSelectionModel().getSelectedItem();
+        if (account == null)
+            return;  // is this necessary?
+        // working on the account in mMainApp.mAccountList
+        account.setHiddenFlag(!account.getHiddenFlag());
+        mUnhideButton.setText(account.getHiddenFlag() ? "Unhide" : "Hide");
+        mMainApp.insertUpdateAccountToDB(account, false);
+    }
+
     @FXML
     private void handleClose() { close(); }
 
@@ -84,15 +138,16 @@ public class AccountListDialogController {
             else
                 tab.setText("All");
 
-            // create a tableview
+            // create a tableView
             final TableView<Account> tableView = new TableView<>();
             final List<Account> sortedAccountList = mMainApp.getAccountList(t, null);
             // check display order
             if (t != null) {
                 for (int i = 0; i < sortedAccountList.size(); i++) {
-                    if (sortedAccountList.get(i).getDisplayOrder() != i) {
-                        sortedAccountList.get(i).setDisplayOrder(i);
-                        mMainApp.insertUpdateAccountToDB(sortedAccountList.get(i)); // save to DB
+                    Account a = sortedAccountList.get(i);
+                    if (a.getDisplayOrder() != i) {
+                        a.setDisplayOrder(i);
+                        mMainApp.insertUpdateAccountToDB(a, false); // save to DB
                     }
                 }
             }
@@ -115,15 +170,16 @@ public class AccountListDialogController {
                 TableRow<Account> row = new TableRow<>();
                 row.setOnMouseClicked(event -> {
                     if ((event.getClickCount() == 2) && (!row.isEmpty())) {
-                        mMainApp.showEditAccountDialog(true, new Account(row.getItem()));
+                        mMainApp.showEditAccountDialog(true, row.getItem());
                     }
                 });
                 return row;
             });
 
-            // add columns to tableview
-            tableView.getColumns().addAll(accountNameTableColumn, accountTypeTableColumn,
-                    accountHiddenFlagTableColumn);
+            // add columns to tableView
+            tableView.getColumns().add(accountNameTableColumn);
+            tableView.getColumns().add(accountTypeTableColumn);
+            tableView.getColumns().add(accountHiddenFlagTableColumn);
 
             // add a selection change listener to the table
             tableView.getSelectionModel().selectedItemProperty().addListener((ob, ov, nv) -> {
@@ -133,7 +189,7 @@ public class AccountListDialogController {
                 if (nv != null)
                     mUnhideButton.setText(nv.getHiddenFlag() ? "Unhide" : "Hide");
 
-                // disable move up bottun if
+                // disable move up button if
                 // 1) nv is null or at the top (selectedIdx <= 0)
                 // 2) nv is with different type from the account above it
                 int selectedIdx = tableView.getSelectionModel().getSelectedIndex();
@@ -157,10 +213,6 @@ public class AccountListDialogController {
 
         // add a listener for tab change event
         mTabPane.getSelectionModel().selectedItemProperty().addListener((ov, oldTab, newTab) -> {
-            boolean hasSelection = false;
-            boolean atTop = true;
-            boolean atBottom = true;
-
             if (newTab == null) {
                 // how did we get here
                 mEditButton.setDisable(true);
@@ -169,7 +221,7 @@ public class AccountListDialogController {
                 mUnhideButton.setDisable(true);
                 return;
             }
-
+            @SuppressWarnings("unchecked")
             TableView<Account> tableView = (TableView<Account>) newTab.getContent();
             int selectedIdx = tableView.getSelectionModel().getSelectedIndex();
             int numberOfRows = tableView.getItems().size();
@@ -181,7 +233,7 @@ public class AccountListDialogController {
             if (nv != null)
                 mUnhideButton.setText(nv.getHiddenFlag() ? "Unhide" : "Hide");
 
-            // disable move up bottun if
+            // disable move up button if
             // 1) nv is null or at the top (selectedIdx <= 0)
             // 2) nv is with different type from the account above it
             mMoveUpButton.setDisable(nv == null || selectedIdx == 0
@@ -198,6 +250,7 @@ public class AccountListDialogController {
         mEditButton.setDisable(true);
         mMoveUpButton.setDisable(true);
         mMoveDownButton.setDisable(true);
+        mUnhideButton.setDisable(true);
     }
 
     void close() { mDialogStage.close(); }

@@ -45,7 +45,9 @@ public class EditAccountDialogController {
 
     @FXML
     private void handleOK() {
+        boolean isNew = false;
         if (mAccount.getID() <= 0) {
+            isNew = true;
             try {
                 mAccount.setType(mTypeChoiceBox.getValue());
             } catch (Exception e) {
@@ -56,8 +58,8 @@ public class EditAccountDialogController {
         mAccount.setDescription(mDescriptionTextArea.getText());
         mAccount.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
 
-        mMainApp.insertUpdateAccountToDB(mAccount);
-        mMainApp.initAccountList();
+        // for new account, we need to update accountList in mainApp
+        mMainApp.insertUpdateAccountToDB(mAccount, isNew);
 
         mDialogStage.close();
     }

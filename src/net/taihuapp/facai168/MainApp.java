@@ -1,7 +1,6 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Application;
-import javafx.beans.*;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -746,7 +745,7 @@ public class MainApp extends Application {
     }
 
     // insert or update an account in database, return the account ID, or -1 for failure
-    int insertUpdateAccountToDB(Account account) {
+    void insertUpdateAccountToDB(Account account, boolean updateList) {
         String sqlCmd;
         if (account.getID() <= 0) {
             // new account, insert
@@ -768,18 +767,18 @@ public class MainApp extends Application {
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert Account failed, no rows affected");
             }
-            if (account.getID() > 0)
-                return account.getID();  // we are done
 
-            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
-                if (resultSet.next()) {
-                    account.setID(resultSet.getInt(1));
-                    return account.getID();
+            if (account.getID() <= 0) {
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    if (resultSet.next()) {
+                        account.setID(resultSet.getInt(1));
+                    } else {
+                        throw new SQLException("\n" + sqlCmd + "\nInsert Account failed, no ID obtained");
+                    }
+                } catch (SQLException e) {
+                    System.err.println(e.getMessage());
+                    throw e;
                 }
-                throw new SQLException("Insert Account failed, no ID obtained");
-            } catch (SQLException e) {
-                System.err.println(e.getMessage());
-                throw e;
             }
         } catch (SQLException e) {
             String title = "Database Error";
@@ -802,7 +801,14 @@ public class MainApp extends Application {
             System.err.println("mConnection is null");
             e.printStackTrace();
         }
-        return -1; // something went wrong if we got here
+
+        if (updateList) {
+            Account a = getAccountByID(account.getID());
+            if (a != account) {
+                mAccountList.remove(a);
+                mAccountList.add(account);
+            }
+        }
     }
 
     private int getSecurityID(String ticker) {
@@ -1568,7 +1574,7 @@ public class MainApp extends Application {
             }
             if (at != null) {
                 insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
-                        Integer.MAX_VALUE, null));
+                        Integer.MAX_VALUE, null), false);
             } else {
                 System.err.println("Unknow account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
@@ -2084,7 +2090,6 @@ public class MainApp extends Application {
 
         oList.remove(3,5);
         show(oList, fList, sList);
-
 
         // end of ...
 

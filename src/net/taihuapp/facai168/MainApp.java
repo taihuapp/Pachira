@@ -804,9 +804,12 @@ public class MainApp extends Application {
 
         if (updateList) {
             Account a = getAccountByID(account.getID());
-            if (a != account) {
-                mAccountList.remove(a);
+            if (a == null) {
+                // new account, add
                 mAccountList.add(account);
+            } else if (a != account) {
+                // old account, replace
+                mAccountList.set(mAccountList.indexOf(a), account);
             }
         }
     }
@@ -886,36 +889,26 @@ public class MainApp extends Application {
     }
 
     void updateAccountBalance(int accountID) {
-        // create a task to do the heavy calculation.
-        Task task = new Task<Void>() {
-            @Override
-            public Void call() {
+        Account account = getAccountByID(accountID);
+        if (account == null) {
+            System.err.println("Invalid account ID: " + accountID);
+            //return;
+        }
 
-                Account account = getAccountByID(accountID);
-                if (account == null) {
-                    System.err.println("Invalid account ID: " + accountID);
-                    //return;
-                }
+        // load transaction list
+        // this method will set account balance for SPENDING account
+        account.setTransactionList(loadAccountTransactions(accountID));
 
-                // load transaction list
-                // this method will set account balance for SPENDING account
-                account.setTransactionList(loadAccountTransactions(accountID));
-
-                // update holdings and balance for INVESTING account
-                if (account.getType() == Account.Type.INVESTING) {
-                    List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
-                    SecurityHolding totalHolding = shList.get(shList.size() - 1);
-                    if (totalHolding.getSecurityName().equals("TOTAL")) {
-                        account.setCurrentBalance(totalHolding.getMarketValue());
-                    } else {
-                        System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
-                    }
-                }
-                return null;
+        // update holdings and balance for INVESTING account
+        if (account.getType() == Account.Type.INVESTING) {
+            List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
+            SecurityHolding totalHolding = shList.get(shList.size() - 1);
+            if (totalHolding.getSecurityName().equals("TOTAL")) {
+                account.setCurrentBalance(totalHolding.getMarketValue());
+            } else {
+                System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
             }
-        };
-
-        new Thread(task).start();
+        }
     }
 
     void initAccountList() {

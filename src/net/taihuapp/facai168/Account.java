@@ -28,7 +28,7 @@ public class Account {
 
     // default constructor
     public Account() {
-        this(0, Type.SPENDING, "", "", false, Integer.MAX_VALUE, null);
+        this(0, Type.SPENDING, "", "", false, Integer.MAX_VALUE, BigDecimal.ZERO);
     }
 
     // detailed constructor

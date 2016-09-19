@@ -6,6 +6,8 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.Stage;
 
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -161,6 +163,23 @@ public class AccountListDialogController {
             accountTypeTableColumn.setCellValueFactory(
                     cellData -> new SimpleStringProperty(cellData.getValue().getType().name()));
 
+            TableColumn<Account, BigDecimal> accountBalanceTableColumn = new TableColumn<>("Balance");
+            accountBalanceTableColumn.setCellValueFactory(cellData -> cellData.getValue().getCurrentBalanceProperty());
+            accountBalanceTableColumn.setCellFactory(column -> new TableCell<Account, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+
+                    if (item == null || empty) {
+                        setText("");
+                    } else {
+                        // format
+                        //setText((new DecimalFormat("#0.00")).format(item));
+                        setText((new DecimalFormat("###,##0.00")).format(item));
+                    }
+                    setStyle("-fx-alignment: CENTER-RIGHT;");
+                }
+            });
             TableColumn<Account, Boolean> accountHiddenFlagTableColumn = new TableColumn<>("Hidden");
             accountHiddenFlagTableColumn.setCellValueFactory(cellData -> cellData.getValue().getHiddenFlagProperty());
             accountHiddenFlagTableColumn.setCellFactory(c -> new CheckBoxTableCell<>());
@@ -176,9 +195,16 @@ public class AccountListDialogController {
                 return row;
             });
 
+            // we don't want to sort the table at all
+            accountNameTableColumn.setSortable(false);
+            accountTypeTableColumn.setSortable(false);
+            accountBalanceTableColumn.setSortable(false);
+            accountHiddenFlagTableColumn.setSortable(false);
+
             // add columns to tableView
             tableView.getColumns().add(accountNameTableColumn);
             tableView.getColumns().add(accountTypeTableColumn);
+            tableView.getColumns().add(accountBalanceTableColumn);
             tableView.getColumns().add(accountHiddenFlagTableColumn);
 
             // add a selection change listener to the table

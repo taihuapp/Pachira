@@ -1,6 +1,8 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Application;
+import javafx.beans.*;
+import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -65,7 +67,9 @@ public class MainApp extends Application {
     private Stage mPrimaryStage;
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
 
-    private ObservableList<Account> mAccountList = FXCollections.observableArrayList();
+    // we want to watch the change of hiddenflag and displayOrder
+    private ObservableList<Account> mAccountList = FXCollections.observableArrayList(
+            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty() });
     private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
@@ -104,10 +108,8 @@ public class MainApp extends Application {
                 a -> (t == null || a.getType() == t) && (hidden == null || a.getHiddenFlag() == hidden));
 
         // sort accounts by type first, then displayOrder, then ID
-        SortedList<Account> sList = new SortedList<>(fList,
-                Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)
-                        .thenComparing(Account::getID));
-        return sList;
+        return new SortedList<>(fList, Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)
+                .thenComparing(Account::getID));
     }
 
     ObservableList<Category> getCategoryList() { return mCategoryList; }
@@ -1565,7 +1567,8 @@ public class MainApp extends Application {
                     break;
             }
             if (at != null) {
-                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false, -1, null));
+                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
+                        Integer.MAX_VALUE, null));
             } else {
                 System.err.println("Unknow account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
@@ -2044,24 +2047,7 @@ public class MainApp extends Application {
     @Override
     public void init() { mPrefs = Preferences.userNodeForPackage(MainApp.class); }
 
-    @Override
-    public void start(final Stage stage) throws Exception {
-
-        // play around with filtered list
-        List<Integer> aList = new ArrayList<>();
-        ObservableList<Integer> oList = FXCollections.observableList(aList);
-        FilteredList<Integer> fList = new FilteredList<>(oList, i -> i > 5);
-        for (Integer i = 0; i < 10; i++)
-            oList.add(i);
-        aList.add(10);
-        oList.add(11);
-        oList.add(-1);
-
-        System.out.print("A: ");
-        for (Integer i : aList)
-            System.out.print(i + ", ");
-        System.out.println("");
-
+    void show(List<Integer> oList, List<Integer> fList, List<Integer> sList) {
         System.out.print("O: ");
         for (Integer i : oList)
             System.out.print(i + ", ");
@@ -2071,6 +2057,34 @@ public class MainApp extends Application {
         for (Integer i : fList)
             System.out.print(i + ", ");
         System.out.println("");
+
+        System.out.print("S: ");
+        for (Integer i : sList)
+            System.out.print(i + ", ");
+        System.out.println("");
+    }
+
+    @Override
+    public void start(final Stage stage) throws Exception {
+
+        // play around with filtered list
+        ObservableList<Integer> oList = FXCollections.observableArrayList();
+        FilteredList<Integer> fList = new FilteredList<>(oList, i -> i < 8);
+        SortedList<Integer> sList = new SortedList<>(fList, (i,j) -> i-j);
+        for (Integer i = 0; i < 10; i++)
+            oList.add(i);
+        oList.remove(6);
+        oList.add(6);
+        oList.add(15);
+        oList.add(12);
+        oList.add(-1);
+
+        oList.set(3,20);
+        show(oList, fList, sList);
+
+        oList.remove(3,5);
+        show(oList, fList, sList);
+
 
         // end of ...
 

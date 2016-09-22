@@ -1,18 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.*?>
 <?import java.lang.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditTransactionDialogController">
-   <top>
-       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-          <items>
-              <ChoiceBox fx:id="mClassChoiceBox" prefWidth="200.0" />
-              <ChoiceBox fx:id="mTransactionChoiceBox" prefWidth="200.0" />
-          </items>
-       </ToolBar>
-   </top>
+    <top>
+        <ChoiceBox fx:id="mTransactionChoiceBox" prefWidth="200.0" BorderPane.alignment="CENTER_LEFT" />
+    </top>
    <center>
       <GridPane hgap="10.0" BorderPane.alignment="CENTER">
         <columnConstraints>
@@ -34,7 +30,6 @@
             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         </rowConstraints>
          <children>
-             <Label fx:id="mTransactionLabel" text="Transaction" GridPane.columnSpan="2" />
              <Label text="Transaction Date:" GridPane.rowIndex="1" />
              <Label fx:id="mADatePickerLabel" text="Acquisition Date:" GridPane.rowIndex="2" />
              <Label text="Account:" GridPane.rowIndex="3" />
@@ -47,16 +42,16 @@
              <Label fx:id="mTotalLabel" text="Total Cost:" GridPane.columnIndex="2" GridPane.rowIndex="7" />
              <Label fx:id="mTransferAccountLabel" text="Transfer Account:" GridPane.rowIndex="4" />
              <Label text="Memo:" GridPane.rowIndex="5" />
-             <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="6" />
-             <TextField fx:id="mAccountNameTextField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+             <ComboBox fx:id="mSecurityComboBox" prefWidth="150.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
              <TextField fx:id="mSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="3" />
              <TextField fx:id="mPriceTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
              <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="5" />
+             <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="6" />
              <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" editable="false" GridPane.columnIndex="3" GridPane.rowIndex="7" />
+             <TextField fx:id="mAccountNameTextField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="3" />
              <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="2" GridPane.rowIndex="6" />
             <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
             <TextField fx:id="mIncomeTextField" GridPane.columnIndex="3" GridPane.rowIndex="2" />
-            <ComboBox fx:id="mSecurityComboBox" prefWidth="150.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
             <TextField fx:id="mPayeeTextField" GridPane.columnIndex="3" GridPane.rowIndex="1" />
             <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="1" />
             <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
@@ -68,13 +63,16 @@
       </GridPane>
    </center>
    <bottom>
-       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-          <items>
-              <Button fx:id="mCancelButton" mnemonicParsing="false" onAction="#handleCancel" text="Cancel" />
-              <Button fx:id="mClearButton" mnemonicParsing="false" onAction="#handleClear" text="Clear" />
-              <Button fx:id="mEnterNewButton" mnemonicParsing="false" onAction="#handleEnterNew" text="Enter/New" />
-              <Button fx:id="mEnterDoneButton" mnemonicParsing="false" onAction="#handleEnterDone" text="Enter/Done" />
-          </items>
-       </ToolBar>
+       <TilePane hgap="5.0" prefRows="1" BorderPane.alignment="CENTER">
+          <children>
+              <Button fx:id="mCancelButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleCancel" text="Cancel" />
+              <Button fx:id="mClearButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClear" text="Clear" />
+              <Button fx:id="mEnterNewButton" defaultButton="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleEnterNew" text="Enter/New" />
+              <Button fx:id="mEnterDoneButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleEnterDone" text="Enter/Done" />
+          </children>
+       </TilePane>
    </bottom>
+   <padding>
+      <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+   </padding>
 </BorderPane>

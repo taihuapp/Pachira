@@ -9,6 +9,7 @@ import javafx.util.Callback;
 import javafx.util.StringConverter;
 
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -188,24 +189,45 @@ public class HoldingsDialogController {
             }
         });
 
+        Callback<TreeTableColumn<LotHolding, BigDecimal>, TreeTableCell<LotHolding, BigDecimal>> dollarCentsCF =
+                new Callback<TreeTableColumn<LotHolding, BigDecimal>, TreeTableCell<LotHolding, BigDecimal>>() {
+                    @Override
+                    public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding, BigDecimal> column) {
+                        return new TreeTableCell<LotHolding, BigDecimal>() {
+                            @Override
+                            protected void updateItem(BigDecimal item, boolean empty) {
+                                super.updateItem(item, empty);
+
+                                if (item == null || empty) {
+                                    setText("");
+                                } else {
+                                    // format
+                                    setText((new DecimalFormat("###,##0.00")).format(item));
+                                }
+                                setStyle("-fx-alignment: CENTER-RIGHT;");
+                            }
+                        };
+                    }
+                };
+
         mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getQuantity()));
-        mQuantityColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+        mQuantityColumn.setCellFactory(dollarCentsCF);
         mQuantityColumn.setComparator(null);
 
         mMarketValueColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getMarketValue()));
-        mMarketValueColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+        mMarketValueColumn.setCellFactory(dollarCentsCF);
         mMarketValueColumn.setComparator(null);
 
         mCostBasisColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getCostBasis()));
-        mCostBasisColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+        mCostBasisColumn.setCellFactory(dollarCentsCF);
         mCostBasisColumn.setComparator(null);
 
         mPNLColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPNL()));
-        mPNLColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+        mPNLColumn.setCellFactory(dollarCentsCF);
         mPNLColumn.setComparator(null);
 
         mPctReturnColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->

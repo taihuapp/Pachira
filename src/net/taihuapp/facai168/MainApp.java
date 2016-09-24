@@ -892,7 +892,7 @@ public class MainApp extends Application {
         Account account = getAccountByID(accountID);
         if (account == null) {
             System.err.println("Invalid account ID: " + accountID);
-            //return;
+            return;
         }
 
         // load transaction list
@@ -2046,46 +2046,8 @@ public class MainApp extends Application {
     @Override
     public void init() { mPrefs = Preferences.userNodeForPackage(MainApp.class); }
 
-    void show(List<Integer> oList, List<Integer> fList, List<Integer> sList) {
-        System.out.print("O: ");
-        for (Integer i : oList)
-            System.out.print(i + ", ");
-        System.out.println("");
-
-        System.out.print("F: ");
-        for (Integer i : fList)
-            System.out.print(i + ", ");
-        System.out.println("");
-
-        System.out.print("S: ");
-        for (Integer i : sList)
-            System.out.print(i + ", ");
-        System.out.println("");
-    }
-
     @Override
     public void start(final Stage stage) throws Exception {
-
-        // play around with filtered list
-        ObservableList<Integer> oList = FXCollections.observableArrayList();
-        FilteredList<Integer> fList = new FilteredList<>(oList, i -> i < 8);
-        SortedList<Integer> sList = new SortedList<>(fList, (i,j) -> i-j);
-        for (Integer i = 0; i < 10; i++)
-            oList.add(i);
-        oList.remove(6);
-        oList.add(6);
-        oList.add(15);
-        oList.add(12);
-        oList.add(-1);
-
-        oList.set(3,20);
-        show(oList, fList, sList);
-
-        oList.remove(3,5);
-        show(oList, fList, sList);
-
-        // end of ...
-
         mPrimaryStage = stage;
         mPrimaryStage.setTitle("FaCai168");
         initMainLayout();

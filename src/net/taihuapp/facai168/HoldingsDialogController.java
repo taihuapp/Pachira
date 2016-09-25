@@ -105,7 +105,8 @@ public class HoldingsDialogController {
                     public String toString(BigDecimal object) {
                         if (object == null)
                             return null;
-                        return object.toString();
+                        // format to 6 decimal places
+                        return new DecimalFormat("###,##0.000000").format(object);
                     }
 
                     @Override

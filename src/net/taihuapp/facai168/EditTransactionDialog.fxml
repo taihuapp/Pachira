@@ -51,7 +51,7 @@
              <TextField fx:id="mAccountNameTextField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="3" />
              <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="2" GridPane.rowIndex="6" />
             <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-            <TextField fx:id="mIncomeTextField" GridPane.columnIndex="3" GridPane.rowIndex="2" />
+            <TextField fx:id="mIncomeTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="2" />
             <TextField fx:id="mPayeeTextField" GridPane.columnIndex="3" GridPane.rowIndex="1" />
             <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="1" />
             <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />

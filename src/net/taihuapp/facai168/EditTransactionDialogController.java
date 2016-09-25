@@ -584,6 +584,7 @@ public class EditTransactionDialogController {
                 investAmountSign = BigDecimal.ONE;
                 break;
             case BUY:
+            case CVTSHRT:
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
                 mPayeeLabel.setVisible(false);
@@ -703,6 +704,7 @@ public class EditTransactionDialogController {
                 mCommissionTextField.setVisible(isReinvest);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(!isReinvest);
+                mTransferAccountLabel.setText("Put Cash Into:");
                 mTransferAccountComboBox.setVisible(!isReinvest);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);

@@ -1,6 +1,10 @@
 package net.taihuapp.facai168;
 
-import javafx.beans.property.*;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -94,12 +98,17 @@ public class Transaction {
             case SHTSELLX:
             case SHRSIN:
             case REINVDIV:
-                mDescriptionProperty.set(mQuantityProperty.get().stripTrailingZeros().toPlainString()
-                        + " shares @ " + mPriceProperty.get().stripTrailingZeros().toPlainString());
+                //mDescriptionProperty.set(mQuantityProperty.get().stripTrailingZeros().toPlainString()
+                //+ " shares @ " + mPriceProperty.get().stripTrailingZeros().toPlainString());
+                mDescriptionProperty.bind(Bindings.concat(mQuantityProperty.get().stripTrailingZeros().toPlainString())
+                        .concat(" shares @ ").concat(mPriceProperty.get().stripTrailingZeros().toPlainString()));
                 break;
             case STKSPLIT:
-                mDescriptionProperty.set(getQuantity().stripTrailingZeros().toPlainString() + " for "
-                        + getOldQuantity().stripTrailingZeros().toPlainString() + " split");
+                //mDescriptionProperty.set(getQuantity().stripTrailingZeros().toPlainString() + " for "
+                // + getOldQuantity().stripTrailingZeros().toPlainString() + " split");
+                mDescriptionProperty.bind(Bindings.concat(getQuantity().stripTrailingZeros().toPlainString())
+                        .concat(" for ").concat(getOldQuantity().stripTrailingZeros().toPlainString())
+                        .concat(" split"));
                 break;
             case XIN:
             case XOUT:
@@ -408,5 +417,6 @@ public class Transaction {
         mMatchSplitID = t0.mMatchSplitID;
         mSplitTransactionList.addAll(t0.mSplitTransactionList);
         mOldQuantityProperty.set(t0.getOldQuantity());
+        mDescriptionProperty.set(t0.getDescriptionProperty().get());
     }
 }

@@ -416,6 +416,7 @@ class QIFParser {
 
         TradeTransaction() {
             mCleared = ' ';
+            mCommission = BigDecimal.ZERO;
         }
 
         // setters
@@ -519,23 +520,6 @@ class QIFParser {
                         actionStr = "XOUT";
                         break;
                 }
-/*
-                if (actionStr.equals("CASH")) {
-                    // transform CASH to either DEPOSIT or WITHDRAW
-                    BigDecimal tAmount = tt.getTAmount();
-                    if (tAmount != null && tAmount.signum() < 0) {
-                        //actionStr = "WITHDRAW";
-                        actionStr = "XOUT";
-                        tt.setTAmount(tAmount.negate());
-                        BigDecimal uAmount = tt.getUAmount();
-                        if (uAmount != null)
-                            tt.setUAmount(uAmount.negate());
-                    } else {
-                        //actionStr = "DEPOSIT";
-                        actionStr = "XIN";
-                    }
-                }
-*/
                 tt.setAction(Action.valueOf(actionStr));
             }
             return tt;

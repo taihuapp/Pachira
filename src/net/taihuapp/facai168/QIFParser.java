@@ -417,6 +417,7 @@ class QIFParser {
         TradeTransaction() {
             mCleared = ' ';
             mCommission = BigDecimal.ZERO;
+            mPrice = BigDecimal.ZERO; // shouldn't leave it as null
         }
 
         // setters
@@ -482,6 +483,9 @@ class QIFParser {
                         tt.setCommission(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'L':
+                        // todo this is for diagonose only, should be removed later
+                        if (actionStr == null || actionStr.startsWith("MISC"))
+                            System.out.println(lines);
                         tt.setCategoryOrTransfer(l.substring(1));
                         break;
                     case 'T':

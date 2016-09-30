@@ -69,6 +69,7 @@ public class EditTransactionDialogController {
         REINVDIV("Reinvest Dividend"), REINVINT("Reinvest Interest"),  REINVLG("Reinvest Long-term Cap Gain"),
         REINVMD("Reinvest Mid-term Cap Gain"), REINVSH("Reinvest Short-term Cap Gain"),
         STKSPLIT("Stock Split"),
+        MISCINC("Miscllaneous Income"), MISCEXP("Miscllaneous Expense"),
         XIN("Cash Transferred In"), XOUT("Cash Transferred Out"),
         DEPOSIT("Deposit Money"), WITHDRAW("Withdraw Money");
 
@@ -149,6 +150,12 @@ public class EditTransactionDialogController {
                 return InvestmentTransaction.WITHDRAW;
             case STKSPLIT:
                 return InvestmentTransaction.STKSPLIT;
+            case MISCEXP:
+            case MISCEXPX:
+                return InvestmentTransaction.MISCEXP;
+            case MISCINC:
+            case MISCINCX:
+                return InvestmentTransaction.MISCINC;
             default:
                 // more work is needed to added new cases
                 return null;
@@ -289,6 +296,7 @@ public class EditTransactionDialogController {
             case BUYX:
             case CVTSHRTX:
             case XIN:
+                // todo re-check the logic
                 xferTA = Transaction.TradeAction.XOUT;
                 break;
             case SELLX:
@@ -299,6 +307,7 @@ public class EditTransactionDialogController {
             case CGMIDX:
             case CGSHORTX:
             case XOUT:
+                // todo: recheck the logic
                 xferTA = Transaction.TradeAction.XIN;
                 break;
             default:
@@ -476,6 +485,8 @@ public class EditTransactionDialogController {
                     case CGLONG:
                     case CGMID:
                     case CGSHORT:
+                    case MISCINC:
+                    case MISCEXP:
                         return it.name() + "X";
                     default:
                         System.err.println("Unhandled InvestmentTransaction type " + it.name());
@@ -685,6 +696,8 @@ public class EditTransactionDialogController {
             case INTINC:
             case CGMID:
             case CGSHORT:
+            case MISCINC:
+            case MISCEXP:
                 isIncome = true;
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);

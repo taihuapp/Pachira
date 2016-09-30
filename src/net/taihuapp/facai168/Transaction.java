@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Created by ghe on 4/9/15.
@@ -86,51 +87,68 @@ public class Transaction {
     StringProperty getTradeActionProperty() { return mTradeActionProperty; }
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
 
-    StringProperty getDescriptionProperty() {
-        switch (getTradeActionEnum()) {
-            case BUY:
-            case BUYX:
-            case CVTSHRT:
-            case CVTSHRTX:
-            case SELL:
-            case SELLX:
-            case SHTSELL:
-            case SHTSELLX:
-            case SHRSIN:
-            case REINVDIV:
-                //mDescriptionProperty.set(mQuantityProperty.get().stripTrailingZeros().toPlainString()
-                //+ " shares @ " + mPriceProperty.get().stripTrailingZeros().toPlainString());
-                mDescriptionProperty.bind(Bindings.concat(mQuantityProperty.get().stripTrailingZeros().toPlainString())
-                        .concat(" shares @ ").concat(mPriceProperty.get().stripTrailingZeros().toPlainString()));
-                break;
-            case STKSPLIT:
-                //mDescriptionProperty.set(getQuantity().stripTrailingZeros().toPlainString() + " for "
-                // + getOldQuantity().stripTrailingZeros().toPlainString() + " split");
-                mDescriptionProperty.bind(Bindings.concat(getQuantity().stripTrailingZeros().toPlainString())
-                        .concat(" for ").concat(getOldQuantity().stripTrailingZeros().toPlainString())
-                        .concat(" split"));
-                break;
-            case XIN:
-            case XOUT:
-            case DEPOSIT:
-            case WITHDRAW:
-            case DIV:
-            case DIVX:
-            case CGLONG:
-            case CGLONGX:
-            case CGMID:
-            case CGMIDX:
-            case CGSHORT:
-            case CGSHORTX:
-            case INTINC:
-            case INTINCX:
-                break;  // do nothing here
-            default:
-                mDescriptionProperty.set("description for this type Transaction not implemented yet.");
-                break;
-        }
-        return mDescriptionProperty;
+    private void bindDescriptionProperty() {
+        // first build a converter
+        final Callable<String> converter = () -> {
+            switch (getTradeActionEnum()) {
+                case BUY:
+                case BUYX:
+                case CVTSHRT:
+                case CVTSHRTX:
+                case SELL:
+                case SELLX:
+                case SHTSELL:
+                case SHTSELLX:
+                case SHRSIN:
+                case REINVDIV:
+                case REINVINT:
+                case REINVLG:
+                case REINVMD:
+                case REINVSH:
+                    return mQuantityProperty.get().stripTrailingZeros().toPlainString() + " shares @ "
+                            + mPriceProperty.get().stripTrailingZeros().toPlainString();
+                case STKSPLIT:
+                    return mQuantityProperty.get().stripTrailingZeros().toPlainString() + " for "
+                            + mOldQuantityProperty.get().stripTrailingZeros().toPlainString() + " split";
+                case MARGINT:
+                case MARGINTX:
+                case MISCEXP:
+                case MISCEXPX:
+                case MISCINC:
+                case MISCINCX:
+                case XIN:
+                case XOUT:
+                case DEPOSIT:
+                case WITHDRAW:
+                case DIV:
+                case DIVX:
+                case CGLONG:
+                case CGLONGX:
+                case CGMID:
+                case CGMIDX:
+                case CGSHORT:
+                case CGSHORTX:
+                case INTINC:
+                case INTINCX:
+                    return "";
+                case RTRNCAP:
+                case RTRNCAPX:
+                case SHRSOUT:
+                case STOCKDIV:
+                case XFRSHRS:
+                case BUYBOND:
+                case BUYBONDX:
+                default:
+                    return "description for this type Transaction not implemented yet.";
+            }
+        };
+
+        // bind now
+        mDescriptionProperty.bind(Bindings.createStringBinding(converter,
+                mTradeActionProperty, mQuantityProperty, mPriceProperty, mOldQuantityProperty));
     }
+
+    StringProperty getDescriptionProperty() { return mDescriptionProperty; }
 
     LocalDate getTDate() { return mTDateProperty.get(); }
     LocalDate getADate() { return mADateProperty.get(); }
@@ -322,6 +340,9 @@ public class Transaction {
         if (ta != null)
             mTradeActionProperty.set(ta.name());
         mCategoryProperty.set(category);
+
+        // bind description property now
+        bindDescriptionProperty();
     }
 
     // Trade Transaction constructor
@@ -346,6 +367,9 @@ public class Transaction {
         mPayeeProperty.set(payee);
         mOldQuantityProperty.set(oldQuantity);
         setTradeDetails(ta, price, quantity, commission, amount);
+
+        // bind description property now
+        bindDescriptionProperty();
     }
 
     static TradeAction mapBankingTransactionTA(String category, BigDecimal signedAmount) {
@@ -390,6 +414,9 @@ public class Transaction {
                 mCashAmountProperty.setValue(null);
                 break;
         }
+
+        // bind description property now
+        bindDescriptionProperty();
     }
 
     // copy constructor
@@ -417,6 +444,8 @@ public class Transaction {
         mMatchSplitID = t0.mMatchSplitID;
         mSplitTransactionList.addAll(t0.mSplitTransactionList);
         mOldQuantityProperty.set(t0.getOldQuantity());
-        mDescriptionProperty.set(t0.getDescriptionProperty().get());
+
+        // bind description property now
+        bindDescriptionProperty();
     }
 }

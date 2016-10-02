@@ -142,7 +142,8 @@ public class AccountListDialogController {
 
             // create a tableView
             final TableView<Account> tableView = new TableView<>();
-            final List<Account> sortedAccountList = mMainApp.getAccountList(t, null);
+            // exclude deleted account
+            final List<Account> sortedAccountList = mMainApp.getAccountList(t, null, true);
             // check display order
             if (t != null) {
                 for (int i = 0; i < sortedAccountList.size(); i++) {
@@ -154,7 +155,7 @@ public class AccountListDialogController {
                 }
             }
 
-            tableView.setItems(mMainApp.getAccountList(t, null)); // hidden accounts should be shown here
+            tableView.setItems(mMainApp.getAccountList(t, null, true)); // hidden accounts should be shown here
 
             TableColumn<Account, String> accountNameTableColumn = new TableColumn<>("Name");
             accountNameTableColumn.setCellValueFactory(cellData -> cellData.getValue().getNameProperty());

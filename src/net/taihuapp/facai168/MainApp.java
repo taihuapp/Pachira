@@ -58,8 +58,18 @@ public class MainApp extends Application {
 
     private static int AMORTLINELEN = 32;
 
-    private final static int PRICETOTALLEN = 20;
+    private static final int PRICETOTALLEN = 20;
     final static int PRICEDECIMALLEN = 8;
+
+    // Category And Transfer Account are often shared as the following:
+    // String     #    Meaning
+    // Blank      0    no transfer, no category
+    // [Deleted] -??   transfer to deleted account
+    // [A Name]  -AID  transfer to account with id = AID
+    // Cat Name   CID  category with id = CID
+    private static final int MIN_ACCOUND_ID = 10;
+    private static final String DELETED_ACCOUNT_NAME = "Deleted Account";
+    private static final int MIN_CATEGORY_ID = 10;
 
     private Preferences mPrefs;
     private Stage mPrimaryStage;
@@ -91,19 +101,10 @@ public class MainApp extends Application {
         return fileNameList;
     }
 
-/*    ObservableList<Account> getAccountList() { return mAccountList; }
-    FilteredList<Account> getAccountList(Boolean hidden) {
-        return new FilteredList<>(getAccountList(), a -> a.getHiddenFlag().equals(hidden));
-    }
-
-    FilteredList<Account> getAccountList(Account.Type t) {
-        return new FilteredList<>(getAccountList(), a ->  (t == null || a.getType() == t));
-    }
-*/
-
-    SortedList<Account> getAccountList(Account.Type t, Boolean hidden) {
+    SortedList<Account> getAccountList(Account.Type t, Boolean hidden, Boolean exDeleted) {
         FilteredList<Account> fList = new FilteredList<>(mAccountList,
-                a -> (t == null || a.getType() == t) && (hidden == null || a.getHiddenFlag() == hidden));
+                a -> (t == null || a.getType() == t) && (hidden == null || a.getHiddenFlag() == hidden)
+                        && !(exDeleted && a.getName().equals(DELETED_ACCOUNT_NAME)));
 
         // sort accounts by type first, then displayOrder, then ID
         return new SortedList<>(fList, Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)
@@ -119,7 +120,7 @@ public class MainApp extends Application {
     SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
 
     Account getAccountByName(String name) {
-        for (Account a : getAccountList(null, null)) {
+        for (Account a : getAccountList(null, null, false)) {
             if (a.getName().equals(name)) {
                 return a;
             }
@@ -128,7 +129,7 @@ public class MainApp extends Application {
     }
 
     private Account getAccountByID(int id) {
-        for (Account a : getAccountList(null, null)) {
+        for (Account a : getAccountList(null, null, false)) {
             if (a.getID() == id)
                 return a;
         }
@@ -746,7 +747,7 @@ public class MainApp extends Application {
     // insert or update an account in database, return the account ID, or -1 for failure
     void insertUpdateAccountToDB(Account account, boolean updateList) {
         String sqlCmd;
-        if (account.getID() <= 0) {
+        if (account.getID() < MIN_ACCOUND_ID) {
             // new account, insert
             sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER) values (?,?,?,?,?)";
         } else {
@@ -760,14 +761,14 @@ public class MainApp extends Application {
             preparedStatement.setString(3, account.getDescription());
             preparedStatement.setBoolean(4, account.getHiddenFlag());
             preparedStatement.setInt(5, account.getDisplayOrder());
-            if (account.getID() > 0) {
+            if (account.getID() >= MIN_ACCOUND_ID) {
                 preparedStatement.setInt(6, account.getID());
             }
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert Account failed, no rows affected");
             }
 
-            if (account.getID() <= 0) {
+            if (account.getID() < MIN_ACCOUND_ID) {
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                     if (resultSet.next()) {
                         account.setID(resultSet.getInt(1));
@@ -934,7 +935,8 @@ public class MainApp extends Application {
         }
 
         // load transactions and set account balance
-        for (Account account : getAccountList(null, null))
+        // we don't care about deleted account
+        for (Account account : getAccountList(null, null, true))
             updateAccountBalance(account.getID());
     }
 
@@ -1137,7 +1139,7 @@ public class MainApp extends Application {
     }
 
     boolean showEditAccountDialog(boolean lockAccountType, Account account) {
-        boolean isNew = account.getID() < 0;
+        boolean isNew = account.getID() < MIN_ACCOUND_ID;
         String title;
         if (isNew) {
             title = "New Account";
@@ -1511,7 +1513,7 @@ public class MainApp extends Application {
     void importQIF() {
         ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
         accountChoiceDialog.getItems().add("");
-        for (Account account : getAccountList(null, null))
+        for (Account account : getAccountList(null, null, true))
             accountChoiceDialog.getItems().add(account.getName());
         accountChoiceDialog.setSelectedItem("");
         accountChoiceDialog.setTitle("Importing...");
@@ -1890,7 +1892,8 @@ public class MainApp extends Application {
         // Accounts table
         // ID starts from 1
         String sqlCmd = "create table ACCOUNTS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), " // make sure to start from 1
+                // make sure to start from MIN_ACCOUND_ID
+                + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_ACCOUND_ID + "), "
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
@@ -1898,6 +1901,10 @@ public class MainApp extends Application {
                 + "DISPLAYORDER integer NOT NULL, "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
+
+        // insert Deleted account
+        insertUpdateAccountToDB(new Account(MIN_ACCOUND_ID-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
+                "Placeholder for the Deleted Account", true, Integer.MAX_VALUE, BigDecimal.ZERO), false);
 
         // Security Table
         // ID starts from 1
@@ -1920,7 +1927,8 @@ public class MainApp extends Application {
         // Category Table
         // ID starts from 1
         sqlCmd = "create table CATEGORIES ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), "
+                // make sure to start from MIN_CATEGORY_ID
+                + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_CATEGORY_ID + "), "
                 + "NAME varchar(" + CATEGORYNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + CATEGORYDESCLEN + ") NOT NULL, "
                 + "INCOMEFLAG boolean, "

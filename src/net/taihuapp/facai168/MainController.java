@@ -82,8 +82,8 @@ public class MainController {
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
-        // get accounts with hiddenflag == false.
-        mAccountTableView.setItems(mMainApp.getAccountList(null, false));
+        // get accounts with hiddenflag == false and exDelete = true
+        mAccountTableView.setItems(mMainApp.getAccountList(null, false, true));
     }
 
     @FXML
@@ -250,6 +250,27 @@ public class MainController {
         mTransactionMemoColumn.setCellValueFactory(cellData -> cellData.getValue().getMemoProperty());
 
         mTransactionCategoryColumn.setCellValueFactory(cellData -> cellData.getValue().getCategoryProperty());
+        Callback<TableColumn<Transaction, String>, TableCell<Transaction, String>> categoryTransferCF =
+                new Callback<TableColumn<Transaction, String>, TableCell<Transaction, String>>() {
+                    @Override
+                    public TableCell<Transaction, String> call(TableColumn<Transaction, String> param) {
+                        return new TableCell<Transaction, String>() {
+                            @Override
+                            protected void updateItem(String item, boolean empty) {
+                                super.updateItem(item, empty);
+                                if (item == null || empty) {
+                                    setText("");
+                                } else {
+                                    if (((Transaction) getTableRow().getItem()).getSplitTransactionList().size() > 0)
+                                        setText("**Split**");
+                                    else
+                                        setText(item);
+                                }
+                            }
+                        };
+                    }
+                };
+        mTransactionCategoryColumn.setCellFactory(categoryTransferCF);
 
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
                 new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {

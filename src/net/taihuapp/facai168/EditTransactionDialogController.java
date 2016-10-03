@@ -347,7 +347,8 @@ public class EditTransactionDialogController {
 
         mMainApp.updateAccountBalance(mTransaction.getAccountID());
 
-        mMainApp.updateAccountBalance(xferAID);
+        if (xferAID > MainApp.MIN_ACCOUNT_ID)
+            mMainApp.updateAccountBalance(xferAID);
 
         if (mOldXferAccountID >= MainApp.MIN_ACCOUNT_ID) {
             mMainApp.updateAccountBalance(mOldXferAccountID);
@@ -402,22 +403,25 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleClear() {
-        System.out.println("Clear");
+        mTransaction.setSecurityName("");
+        mTransaction.setPrice(BigDecimal.ZERO);
+        mTransaction.setQuantity(BigDecimal.ZERO);
+        mTransaction.setCommission(BigDecimal.ZERO);
+        if (!mTransaction.getAmountProperty().isBound())
+            mTransaction.getAmountProperty().set(BigDecimal.ZERO);
     }
 
     @FXML
     private void handleEnterDone() {
-        if (enterTransaction()) {
-            mAccount.setTransactionList(mMainApp.loadAccountTransactions(mAccount.getID()));
+        if (enterTransaction())
             mDialogStage.close();
-        }
     }
 
     @FXML
     private void handleEnterNew() {
         if (enterTransaction()) {
+            handleClear();
             mTransaction.setID(0); // a new transaction
-            mAccount.setTransactionList(mMainApp.loadAccountTransactions(mAccount.getID()));
         }
     }
 

@@ -24,28 +24,25 @@ import java.util.List;
  */
 public class EditTransactionDialogController {
 
-    private class AccountConverter extends StringConverter<Account> {
-        public Account fromString(String accountName) {
-            return mMainApp.getAccountByName(accountName);
+    private class CategoryIDConverter extends StringConverter<Integer> {
+        public Integer fromString(String categoryName) {
+            Category c = mMainApp.getCategoryByName(categoryName);
+            return c == null ? 0 : c.getID();
         }
-        public String toString(Account account) {
-            if (account == null)
-                return null;
-            return account.getName();
+        public String toString(Integer cid) {
+            Category c = mMainApp.getCategoryByID(cid);
+            return c == null ? "" : c.getName();
         }
     }
 
-    private class CategoryConverter extends StringConverter<Category> {
-        public Category fromString(String categoryName) { return mMainApp.getCategoryByName(categoryName); }
-        public String toString(Category category) { return (category == null ? null : category.getName()); }
-    }
-
-    private class AccountCategoryConverter extends StringConverter<Account> {
-        public Account fromString(String wrapedAccountName) {
-            return mMainApp.getAccountByWrappedName(wrapedAccountName);
+    private class AccountIDConverter extends StringConverter<Integer> {
+        public Integer fromString(String accountName) {
+            Account a = mMainApp.getAccountByName(accountName);
+            return a == null ? 0 : -a.getID();
         }
-        public String toString(Account account) {
-            return MainApp.getWrappedAccountName(account);
+        public String toString(Integer negAID) {
+            Account a = mMainApp.getAccountByID(-negAID);
+            return a == null ? "" : a.getName();
         }
     }
 
@@ -180,11 +177,11 @@ public class EditTransactionDialogController {
     @FXML
     private Label mTransferAccountLabel;
     @FXML
-    private ComboBox<Account> mTransferAccountComboBox;
+    private ComboBox<Integer> mTransferAccountComboBox;
     @FXML
     private Label mCategoryLabel;
     @FXML
-    private ComboBox<Category> mCategoryComboBox;
+    private ComboBox<Integer> mCategoryComboBox;
     @FXML
     private TextField mMemoTextField;
     @FXML
@@ -246,8 +243,7 @@ public class EditTransactionDialogController {
         mAccount = mMainApp.getCurrentAccount();
 
         if (transaction == null) {
-            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(),
-                    Transaction.TradeAction.BUY, MainApp.getWrappedAccountName(mAccount));
+            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(), Transaction.TradeAction.BUY, 0);
         } else {
             mTransaction = transaction;
         }
@@ -315,17 +311,19 @@ public class EditTransactionDialogController {
                 return false;
         }
 
+        // transfer transaction id
         int xferTID = mTransaction.getMatchID();
-        String wrappedTransferAccountName = mTransaction.getCategory();
-        Account xferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
+        //String wrappedTransferAccountName = mTransaction.getCategory();
+        //Account xferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
+        //Account xferAccount = mMainApp.getAccountByID(-mTransaction.getCategoryID());
+        int xferAID = -mTransaction.getCategoryID();
         BigDecimal xferAmount = mTransaction.getAmount();
 
         Transaction linkedTransaction = null;
-        if (xferAccount != null && xferTA != null && xferAccount.getID() != mAccount.getID()
-                && xferAmount.compareTo(BigDecimal.ZERO) != 0) {
+        if (xferTA != null && xferAID != mAccount.getID() && xferAmount.signum() != 0) {
             // we need a transfer transaction
-            linkedTransaction = new Transaction(xferAccount.getID(), mTransaction.getTDate(), xferTA,
-                    MainApp.getWrappedAccountName(mAccount));
+            linkedTransaction = new Transaction(xferAID, mTransaction.getTDate(), xferTA,
+                    -mAccount.getID());
             linkedTransaction.setID(xferTID);
             linkedTransaction.getAmountProperty().set(xferAmount);
             linkedTransaction.setMemo(mTransaction.getMemo());
@@ -347,8 +345,8 @@ public class EditTransactionDialogController {
             mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 
         mMainApp.updateAccountBalance(mTransaction.getAccountID());
-        if (xferAccount != null)
-            mMainApp.updateAccountBalance(xferAccount.getID());
+
+        mMainApp.updateAccountBalance(xferAID);
 
         return true;
     }
@@ -458,9 +456,9 @@ public class EditTransactionDialogController {
             protected String computeValue() {
                 InvestmentTransaction it
                         = InvestmentTransaction.fromString(mTransactionChoiceBox.valueProperty().get());
-                Account xferAccount = mTransferAccountComboBox.valueProperty().get();
-                if (xferAccount != null && xferAccount.getID() == mAccount.getID())
-                    return it.name();
+                int xferAID = mTransferAccountComboBox.valueProperty().get();
+                if (xferAID == 0 ||  xferAID == mAccount.getID())
+                    return it.name();  // 0 or same means no transfer
 
                 switch (it) {
                     case SHRSIN:
@@ -735,21 +733,21 @@ public class EditTransactionDialogController {
                 return;
         }
 
-        mTransferAccountComboBox.setConverter(new AccountConverter());
+        mTransferAccountComboBox.setConverter(new AccountIDConverter());
         mTransferAccountComboBox.getItems().clear();
-        mTransferAccountComboBox.getItems().add(new Account()); // a blank account
+        mTransferAccountComboBox.getItems().add(0); // a blank account
         System.out.println("setupInvestmentTransactionDialog");
         for (Account account : mMainApp.getAccountList(null, null, true)) {
             if (account.getID() != mAccount.getID() || !isCashTransfer)
-                mTransferAccountComboBox.getItems().add(account);
+                mTransferAccountComboBox.getItems().add(-account.getID());
         }
-        mTransferAccountComboBox.getSelectionModel().select(isCashTransfer ? new Account() : mAccount);
+        mTransferAccountComboBox.getSelectionModel().select(0);
 
-        mCategoryComboBox.setConverter(new CategoryConverter());
+        mCategoryComboBox.setConverter(new CategoryIDConverter());
         mCategoryComboBox.getItems().clear();
-        mCategoryComboBox.getItems().add(new Category());
+        mCategoryComboBox.getItems().add(0);
         for (Category c : mMainApp.getCategoryList())
-            mCategoryComboBox.getItems().add(c);
+            mCategoryComboBox.getItems().add(c.getID());
 
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();
@@ -798,17 +796,17 @@ public class EditTransactionDialogController {
             mTransaction.getAmountProperty().bind(amount);
         }
 
-        mTransaction.getCategoryProperty().unbindBidirectional(mTransferAccountComboBox.valueProperty());
-        mTransaction.getCategoryProperty().unbindBidirectional(mCategoryComboBox.valueProperty());
+        Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(),
+                mTransaction.getCategoryIDProperty());
+        Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(),
+                mTransaction.getCategoryIDProperty());
         if (mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())
                 || mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())) {
-            Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
-                    mCategoryComboBox.valueProperty(), new CategoryConverter());
+            Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
+                    mTransaction.getCategoryIDProperty().asObject());
         } else {
-            Account transferAccount = mMainApp.getAccountByWrappedName(mTransaction.getCategory());
-            Bindings.bindBidirectional(mTransaction.getCategoryProperty(),
-                    mTransferAccountComboBox.valueProperty(), new AccountCategoryConverter());
-            mTransferAccountComboBox.getSelectionModel().select(transferAccount);
+            Bindings.bindBidirectional(mTransferAccountComboBox.valueProperty(),
+                    mTransaction.getCategoryIDProperty().asObject());
         }
 
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());

@@ -2,6 +2,8 @@ package net.taihuapp.facai168;
 
 import javafx.application.Application;
 import javafx.beans.Observable;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -67,7 +69,7 @@ public class MainApp extends Application {
     // [Deleted] -??   transfer to deleted account
     // [A Name]  -AID  transfer to account with id = AID
     // Cat Name   CID  category with id = CID
-    private static final int MIN_ACCOUND_ID = 10;
+    static final int MIN_ACCOUNT_ID = 10;
     private static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     private static final int MIN_CATEGORY_ID = 10;
 
@@ -128,7 +130,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    private Account getAccountByID(int id) {
+    Account getAccountByID(int id) {
         for (Account a : getAccountList(null, null, false)) {
             if (a.getID() == id)
                 return a;
@@ -139,8 +141,6 @@ public class MainApp extends Application {
     Account getAccountByWrappedName(String wrappedName) {
         // mapCategoryOrAccountNameToID unwraps a wraped account name and return a valid account
         int id = -mapCategoryOrAccountNameToID(wrappedName);
-        if (id <= 0)
-            return null;
         return getAccountByID(id);
     }
 
@@ -160,7 +160,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    private Category getCategoryByID(int id) {
+    Category getCategoryByID(int id) {
         for (Category c : getCategoryList()) {
             if (c.getID() == id)
                 return c;
@@ -253,7 +253,7 @@ public class MainApp extends Application {
             else
                 preparedStatement.setObject(5, null);
             preparedStatement.setInt(6, 0); // cleared
-            preparedStatement.setInt(7, mapCategoryOrAccountNameToID(t.getCategoryProperty().get()));
+            preparedStatement.setInt(7, t.getCategoryID());
             preparedStatement.setString(8, t.getMemoProperty().get());
             preparedStatement.setBigDecimal(9, t.getPrice());
             preparedStatement.setBigDecimal(10, t.getQuantity());
@@ -428,6 +428,14 @@ public class MainApp extends Application {
         return -1;
     }
 
+    static int categoryOrTransferTest(int cid) {
+        if (cid >= MIN_CATEGORY_ID)
+            return 1; // is category
+        if (cid <= -MIN_ACCOUNT_ID)
+            return -1; // is transfer account
+        return 0;  // neither
+    }
+
     // the name should be a category name or account name surrounded by []
     // return categoryID or negative accountID
     private int mapCategoryOrAccountNameToID(String name) {
@@ -447,13 +455,11 @@ public class MainApp extends Application {
         }
     }
 
-    private String mapCategoryOrAccountIDToName(int id) {
-        if (id > 0) {
+    String mapCategoryOrAccountIDToName(int id) {
+        if (id >= MIN_CATEGORY_ID) {
             Category c = getCategoryByID(id);
-            if (c != null)
-                return c.getName();
-            return "";
-        } else if (id < 0) {
+            return c == null ? "" : c.getName();
+        } else if (-id >= MIN_ACCOUNT_ID) {
             return getWrappedAccountName(getAccountByID(-id));
         } else {
             return "";
@@ -747,7 +753,7 @@ public class MainApp extends Application {
     // insert or update an account in database, return the account ID, or -1 for failure
     void insertUpdateAccountToDB(Account account, boolean updateList) {
         String sqlCmd;
-        if (account.getID() < MIN_ACCOUND_ID) {
+        if (account.getID() < MIN_ACCOUNT_ID) {
             // new account, insert
             sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER) values (?,?,?,?,?)";
         } else {
@@ -761,14 +767,14 @@ public class MainApp extends Application {
             preparedStatement.setString(3, account.getDescription());
             preparedStatement.setBoolean(4, account.getHiddenFlag());
             preparedStatement.setInt(5, account.getDisplayOrder());
-            if (account.getID() >= MIN_ACCOUND_ID) {
+            if (account.getID() >= MIN_ACCOUNT_ID) {
                 preparedStatement.setInt(6, account.getID());
             }
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert Account failed, no rows affected");
             }
 
-            if (account.getID() < MIN_ACCOUND_ID) {
+            if (account.getID() < MIN_ACCOUNT_ID) {
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                     if (resultSet.next()) {
                         account.setID(resultSet.getInt(1));
@@ -973,7 +979,7 @@ public class MainApp extends Application {
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
-                String categoryStr = mapCategoryOrAccountIDToName(resultSet.getInt("CATEGORYID"));
+                int cid = resultSet.getInt("CATEGORYID");
                 String memo = resultSet.getString("MEMO");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
                 if (amount == null) {
@@ -992,8 +998,8 @@ public class MainApp extends Application {
                 // split transaction table doesn't keep trade action, but
                 // keeps category/transfer and signed amount.
                 stList.add(new Transaction(id, accountID, null,
-                        Transaction.mapBankingTransactionTA(categoryStr, amount), null, null,
-                        memo, categoryStr, amount.abs(), matchID, matchSplitID));
+                        Transaction.mapBankingTransactionTA(cid, amount), null, null,
+                        memo, cid, amount.abs(), matchID, matchSplitID));
             }
         }  catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -1029,7 +1035,7 @@ public class MainApp extends Application {
                 if (amount == null) {
                     amount = BigDecimal.ZERO;
                 }
-                String categoryStr = mapCategoryOrAccountIDToName(resultSet.getInt("CATEGORYID"));
+                int cid = resultSet.getInt("CATEGORYID");
                 Transaction.TradeAction tradeAction = null;
                 String taStr = resultSet.getString("TRADEACTION");
 
@@ -1053,7 +1059,7 @@ public class MainApp extends Application {
                         name = security.getName();
                 }
                 Transaction transaction = new Transaction(id, accountID, tDate, aDate, tradeAction, name, reference,
-                        payee, price, quantity, oldQuantity, memo, commission, amount, categoryStr, matchID,
+                        payee, price, quantity, oldQuantity, memo, commission, amount, cid, matchID,
                         matchSplitID);
 
                 if (resultSet.getBoolean("SPLITFLAG"))
@@ -1139,7 +1145,7 @@ public class MainApp extends Application {
     }
 
     boolean showEditAccountDialog(boolean lockAccountType, Account account) {
-        boolean isNew = account.getID() < MIN_ACCOUND_ID;
+        boolean isNew = account.getID() < MIN_ACCOUNT_ID;
         String title;
         if (isNew) {
             title = "New Account";
@@ -1771,6 +1777,7 @@ public class MainApp extends Application {
         }
         // we have enough information to open a new db, close the current db now
         closeConnection();
+        mPrimaryStage.setTitle("FaCai168");
         setCurrentAccount(null);
         initAccountList();  // empty it
         initSecurityList(); // empty it
@@ -1893,7 +1900,7 @@ public class MainApp extends Application {
         // ID starts from 1
         String sqlCmd = "create table ACCOUNTS ("
                 // make sure to start from MIN_ACCOUND_ID
-                + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_ACCOUND_ID + "), "
+                + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_ACCOUNT_ID + "), "
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
@@ -1903,7 +1910,7 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // insert Deleted account
-        insertUpdateAccountToDB(new Account(MIN_ACCOUND_ID-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
+        insertUpdateAccountToDB(new Account(MIN_ACCOUNT_ID-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
                 "Placeholder for the Deleted Account", true, Integer.MAX_VALUE, BigDecimal.ZERO), false);
 
         // Security Table

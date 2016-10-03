@@ -1,10 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,7 +45,7 @@ public class Transaction {
     private ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
-    private final StringProperty mCategoryProperty = new SimpleStringProperty("");
+    private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
     private final ObjectProperty<BigDecimal> mBalanceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     // investment amount, derived from total amount
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -70,7 +67,7 @@ public class Transaction {
     StringProperty getReferenceProperty() { return mReferenceProperty; }
     StringProperty getPayeeProperty() { return mPayeeProperty; }
     StringProperty getMemoProperty() { return mMemoProperty; }
-    StringProperty getCategoryProperty() { return mCategoryProperty; }
+    IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
 
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
     ObjectProperty<BigDecimal> getInvestAmountProperty() { return mInvestAmountProperty; }
@@ -163,7 +160,7 @@ public class Transaction {
     List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
     BigDecimal getAmount() { return mAmountProperty.get(); }
     String getTradeAction() { return getTradeActionProperty().get(); }
-    String getCategory() { return getCategoryProperty().get(); }
+    Integer getCategoryID() { return getCategoryIDProperty().get(); }
     int getMatchID() { return mMatchID; }  // this is for linked transactions
     int getMatchSplitID() { return mMatchSplitID; }
 
@@ -325,21 +322,19 @@ public class Transaction {
     void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
     void setMemo(String memo) { mMemoProperty.set(memo); }
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
-    private void setCategory(String c) { mCategoryProperty.setValue(c); }
+    private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
     void setSplitTransactionList(List<Transaction> stList) {
         mSplitTransactionList.addAll(stList);
-        if (mSplitTransactionList.size() > 0)
-            setCategory("--Split--");
     }
 
     // minimum constractor
-    public Transaction(int accountID, LocalDate date, TradeAction ta, String category) {
+    public Transaction(int accountID, LocalDate date, TradeAction ta, int categoryID) {
         System.out.println("Transaction minimum constructor called");
         mAccountID = accountID;
         mTDateProperty.set(date);
         if (ta != null)
             mTradeActionProperty.set(ta.name());
-        mCategoryProperty.set(category);
+        setCategoryID(categoryID);
 
         // bind description property now
         bindDescriptionProperty();
@@ -350,7 +345,7 @@ public class Transaction {
     // tradeAction can not be null
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
                        String reference, String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity,
-                       String memo, BigDecimal commission, BigDecimal amount, String categoryString, int matchID,
+                       String memo, BigDecimal commission, BigDecimal amount, int categoryID, int matchID,
                        int matchSplitID) {
         mID = id;
         mAccountID = accountID;
@@ -363,13 +358,20 @@ public class Transaction {
         mPriceProperty.set(price);
         mCommissionProperty.set(commission);
         mMemoProperty.set(memo);
-        mCategoryProperty.set(categoryString);
+        setCategoryID(categoryID);
         mPayeeProperty.set(payee);
         mOldQuantityProperty.set(oldQuantity);
         setTradeDetails(ta, price, quantity, commission, amount);
 
         // bind description property now
         bindDescriptionProperty();
+    }
+
+    static TradeAction mapBankingTransactionTA(int cid, BigDecimal signedAmount) {
+        if (MainApp.categoryOrTransferTest(cid) >= 0)
+            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
+
+        return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
     }
 
     static TradeAction mapBankingTransactionTA(String category, BigDecimal signedAmount) {
@@ -381,7 +383,7 @@ public class Transaction {
 
     // Banking Transaction constructors
     public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String reference, String payee,
-                       String memo, String category, BigDecimal amount, int matchID, int matchSplitID) {
+                       String memo, int categoryID, BigDecimal amount, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -391,7 +393,7 @@ public class Transaction {
         mPayeeProperty.setValue(payee);
         mMemoProperty.setValue(memo);
         mAmountProperty.set(amount);
-        mCategoryProperty.setValue(category);
+        setCategoryID(categoryID);
 
         mTradeActionProperty.setValue(ta.name());
 
@@ -434,7 +436,7 @@ public class Transaction {
         mPaymentProperty.set(t0.mPaymentProperty.get());
         mDepositProperty.set(t0.mDepositProperty.get());
         mMemoProperty.set(t0.mMemoProperty.get());
-        mCategoryProperty.set(t0.mCategoryProperty.get());
+        setCategoryID(t0.getCategoryID());
         mBalanceProperty.set(t0.mBalanceProperty.get());
         mInvestAmountProperty.set(t0.mInvestAmountProperty.get());
         mCommissionProperty.set(t0.mCommissionProperty.get());

@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -249,28 +250,12 @@ public class MainController {
 
         mTransactionMemoColumn.setCellValueFactory(cellData -> cellData.getValue().getMemoProperty());
 
-        mTransactionCategoryColumn.setCellValueFactory(cellData -> cellData.getValue().getCategoryProperty());
-        Callback<TableColumn<Transaction, String>, TableCell<Transaction, String>> categoryTransferCF =
-                new Callback<TableColumn<Transaction, String>, TableCell<Transaction, String>>() {
-                    @Override
-                    public TableCell<Transaction, String> call(TableColumn<Transaction, String> param) {
-                        return new TableCell<Transaction, String>() {
-                            @Override
-                            protected void updateItem(String item, boolean empty) {
-                                super.updateItem(item, empty);
-                                if (item == null || empty) {
-                                    setText("");
-                                } else {
-                                    if (((Transaction) getTableRow().getItem()).getSplitTransactionList().size() > 0)
-                                        setText("**Split**");
-                                    else
-                                        setText(item);
-                                }
-                            }
-                        };
-                    }
-                };
-        mTransactionCategoryColumn.setCellFactory(categoryTransferCF);
+        mTransactionCategoryColumn.setCellValueFactory(cellData -> {
+            Transaction t = cellData.getValue();
+            if (t.getSplitTransactionList().size() > 0)
+                return new ReadOnlyStringWrapper("--Split--");
+            return new ReadOnlyStringWrapper(mMainApp.mapCategoryOrAccountIDToName(t.getCategoryID()));
+        });
 
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
                 new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {

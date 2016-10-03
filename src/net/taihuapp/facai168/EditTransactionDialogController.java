@@ -222,6 +222,7 @@ public class EditTransactionDialogController {
 
     private MainApp mMainApp;
     private Account mAccount;
+    private int mOldXferAccountID;
     private Stage mDialogStage;
 
     private Transaction mTransaction = null;
@@ -248,6 +249,8 @@ public class EditTransactionDialogController {
             mTransaction = transaction;
         }
         mMatchInfoList = mMainApp.getMatchInfoList(mTransaction.getID());
+
+        mOldXferAccountID = -mTransaction.getCategoryID();
 
         setupTransactionDialog();
     }
@@ -313,9 +316,6 @@ public class EditTransactionDialogController {
 
         // transfer transaction id
         int xferTID = mTransaction.getMatchID();
-        //String wrappedTransferAccountName = mTransaction.getCategory();
-        //Account xferAccount = mMainApp.getAccountByWrappedName(wrappedTransferAccountName);
-        //Account xferAccount = mMainApp.getAccountByID(-mTransaction.getCategoryID());
         int xferAID = -mTransaction.getCategoryID();
         BigDecimal xferAmount = mTransaction.getAmount();
 
@@ -341,12 +341,18 @@ public class EditTransactionDialogController {
         if (linkedTransaction != null) {
             linkedTransaction.setMatchID(tid, 0);
             mTransaction.setMatchID(mMainApp.insertUpDateTransactionToDB(linkedTransaction), 0);
+            mMainApp.insertUpDateTransactionToDB(mTransaction);
         } else
             mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 
         mMainApp.updateAccountBalance(mTransaction.getAccountID());
 
         mMainApp.updateAccountBalance(xferAID);
+
+        if (mOldXferAccountID >= MainApp.MIN_ACCOUNT_ID) {
+            mMainApp.updateAccountBalance(mOldXferAccountID);
+            mOldXferAccountID = 0;
+        }
 
         return true;
     }

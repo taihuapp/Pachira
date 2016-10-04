@@ -136,12 +136,6 @@ public class MainApp extends Application {
         return null;
     }
 
-    Account getAccountByWrappedName(String wrappedName) {
-        // mapCategoryOrAccountNameToID unwraps a wraped account name and return a valid account
-        int id = -mapCategoryOrAccountNameToID(wrappedName);
-        return getAccountByID(id);
-    }
-
     private Security getSecurityByID(int id) {
         for (Security s : getSecurityList()) {
             if (s.getID() == id)
@@ -411,7 +405,7 @@ public class MainApp extends Application {
     }
 
     // construct a wrapped account name
-    static String getWrappedAccountName(Account a) {
+    private static String getWrappedAccountName(Account a) {
         if (a == null)
             return "";
         return "[" + a.getName() + "]";
@@ -749,7 +743,7 @@ public class MainApp extends Application {
     }
 
     // insert or update an account in database, return the account ID, or -1 for failure
-    void insertUpdateAccountToDB(Account account, boolean updateList) {
+    void insertUpdateAccountToDB(Account account) {
         String sqlCmd;
         if (account.getID() < MIN_ACCOUNT_ID) {
             // new account, insert
@@ -806,15 +800,15 @@ public class MainApp extends Application {
             e.printStackTrace();
         }
 
-        if (updateList) {
-            Account a = getAccountByID(account.getID());
-            if (a == null) {
-                // new account, add
-                mAccountList.add(account);
-            } else if (a != account) {
-                // old account, replace
-                mAccountList.set(mAccountList.indexOf(a), account);
-            }
+        // update account list
+        Account a = getAccountByID(account.getID());
+        if (a == null) {
+            // new account, add
+            mAccountList.add(account);
+        } else if (a != account) {
+            // old account, replace
+            System.err.println("insertupdateaccounttodb, how did we get here");
+            mAccountList.set(mAccountList.indexOf(a), account);
         }
     }
 
@@ -1008,7 +1002,7 @@ public class MainApp extends Application {
 
     // load transactions for given accountID, and put in a list in
     // the order of DATE and then TransactionID
-    List<Transaction> loadAccountTransactions(int accountID) {
+    private List<Transaction> loadAccountTransactions(int accountID) {
         if (mConnection == null)
             return null;
 
@@ -1572,7 +1566,7 @@ public class MainApp extends Application {
             }
             if (at != null) {
                 insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
-                        Integer.MAX_VALUE, null), false);
+                        Integer.MAX_VALUE, null));
             } else {
                 System.err.println("Unknow account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
@@ -1909,7 +1903,7 @@ public class MainApp extends Application {
 
         // insert Deleted account
         insertUpdateAccountToDB(new Account(MIN_ACCOUNT_ID-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
-                "Placeholder for the Deleted Account", true, Integer.MAX_VALUE, BigDecimal.ZERO), false);
+                "Placeholder for the Deleted Account", true, Integer.MAX_VALUE, BigDecimal.ZERO));
 
         // Security Table
         // ID starts from 1

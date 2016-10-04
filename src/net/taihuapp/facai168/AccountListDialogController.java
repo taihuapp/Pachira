@@ -81,8 +81,8 @@ public class AccountListDialogController {
 
         account.setDisplayOrder(account.getDisplayOrder()-1);
         accountAbove.setDisplayOrder(account.getDisplayOrder()+1);
-        mMainApp.insertUpdateAccountToDB(account, false);
-        mMainApp.insertUpdateAccountToDB(accountAbove, false);
+        mMainApp.insertUpdateAccountToDB(account);
+        mMainApp.insertUpdateAccountToDB(accountAbove);
     }
 
     @FXML
@@ -104,8 +104,8 @@ public class AccountListDialogController {
         accountBelow.setDisplayOrder(accountBelow.getDisplayOrder()-1);
 
         // these two accounts are in MainApp.mAccountList, no need to update
-        mMainApp.insertUpdateAccountToDB(account, false);
-        mMainApp.insertUpdateAccountToDB(accountBelow, false);
+        mMainApp.insertUpdateAccountToDB(account);
+        mMainApp.insertUpdateAccountToDB(accountBelow);
     }
 
     @FXML
@@ -119,7 +119,7 @@ public class AccountListDialogController {
         // working on the account in mMainApp.mAccountList
         account.setHiddenFlag(!account.getHiddenFlag());
         mUnhideButton.setText(account.getHiddenFlag() ? "Unhide" : "Hide");
-        mMainApp.insertUpdateAccountToDB(account, false);
+        mMainApp.insertUpdateAccountToDB(account);
     }
 
     @FXML
@@ -150,7 +150,7 @@ public class AccountListDialogController {
                     Account a = sortedAccountList.get(i);
                     if (a.getDisplayOrder() != i) {
                         a.setDisplayOrder(i);
-                        mMainApp.insertUpdateAccountToDB(a, false); // save to DB
+                        mMainApp.insertUpdateAccountToDB(a); // save to DB
                     }
                 }
             }

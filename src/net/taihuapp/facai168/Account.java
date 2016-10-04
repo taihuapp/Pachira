@@ -14,6 +14,28 @@ import java.util.List;
  */
 public class Account {
 
+    /*
+     * Accounts are separated into four groups, and each groups are consisted with several
+     * types
+     *    Banking
+     *        Checking
+     *        Saving
+     *        credit card
+     *        cash
+     *    Investing
+     *        Brokerage
+     *        IRA or Keogh
+     *        401(k) or 403(b)
+     *        529
+     *    Property
+     *        House
+     *        Vehicle
+     *        Other
+     *    Debt
+     *        loan
+     *        Other liability (not a credit card)
+     */
+
     enum Type { SPENDING, INVESTING, PROPERTY, DEBT }
 
     private Type mType;

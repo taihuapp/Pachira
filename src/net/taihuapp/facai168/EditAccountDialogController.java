@@ -57,9 +57,11 @@ public class EditAccountDialogController {
         mAccount.setName(mNameTextField.getText());
         mAccount.setDescription(mDescriptionTextArea.getText());
         mAccount.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
-
+/*
+        mAccount = new Account(0, mTypeChoiceBox.getValue(), mNameTextField.getText(), mDescriptionTextArea.getText(),
+                mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE, BigDecimal.ZERO); */
         // for new account, we need to update accountList in mainApp
-        mMainApp.insertUpdateAccountToDB(mAccount, isNew);
+        mMainApp.insertUpdateAccountToDB(mAccount);
 
         mDialogStage.close();
     }

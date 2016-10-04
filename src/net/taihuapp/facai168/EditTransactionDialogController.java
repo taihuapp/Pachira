@@ -403,12 +403,9 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleClear() {
-        mTransaction.setSecurityName("");
-        mTransaction.setPrice(BigDecimal.ZERO);
-        mTransaction.setQuantity(BigDecimal.ZERO);
-        mTransaction.setCommission(BigDecimal.ZERO);
-        if (!mTransaction.getAmountProperty().isBound())
-            mTransaction.getAmountProperty().set(BigDecimal.ZERO);
+        mIncomeTextField.setText("0");
+        mSharesTextField.setText("0");
+        mCommissionTextField.setText("0");
     }
 
     @FXML
@@ -420,8 +417,8 @@ public class EditTransactionDialogController {
     @FXML
     private void handleEnterNew() {
         if (enterTransaction()) {
-            handleClear();
             mTransaction.setID(0); // a new transaction
+            handleClear();
         }
     }
 
@@ -762,6 +759,8 @@ public class EditTransactionDialogController {
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();
         mTransaction.getPriceProperty().unbind();
+        mTransaction.getCommissionProperty().unbind();
+        mTransaction.getQuantityProperty().unbind();
 
         if (isIncome) {
             mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),

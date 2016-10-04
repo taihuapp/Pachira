@@ -38,7 +38,7 @@ public class Account {
 
     enum Type { SPENDING, INVESTING, PROPERTY, DEBT }
 
-    private Type mType;
+    private final Type mType;
 
     private final IntegerProperty mID;
     private final StringProperty mName;
@@ -49,9 +49,9 @@ public class Account {
     private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(Integer.MAX_VALUE);
 
     // default constructor
-    public Account() {
+    /*public Account() {
         this(0, Type.SPENDING, "", "", false, Integer.MAX_VALUE, BigDecimal.ZERO);
-    }
+    }*/
 
     // detailed constructor
     public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
@@ -66,19 +66,13 @@ public class Account {
     }
 
     // copy constructor
-    Account(Account account) {
+    /*Account(Account account) {
         this(account.getID(), account.getType(), account.getName(), account.getDescription(),
                 account.getHiddenFlag(), account.getDisplayOrder(), account.getCurrentBalanceProperty().get());
-    }
+    }*/
 
     // getters and setters
     public Type getType() { return mType; }
-    public void setType(Type t) throws Exception {
-        if (mID.get() > 0) {
-            throw new Exception("Can't change account type for an exiting account");
-        }
-        mType = t;
-    }
 
     IntegerProperty getIDProperty() { return mID; }
     int getID() { return mID.get(); }

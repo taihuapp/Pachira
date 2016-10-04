@@ -1,11 +1,10 @@
 package net.taihuapp.facai168;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
+
+import java.math.BigDecimal;
 
 /**
  * Created by ghe on 3/19/15.
@@ -26,41 +25,54 @@ public class EditAccountDialogController {
     @FXML
     private CheckBox mHiddenFlagCheckBox;
 
-    void setAccount(boolean lockAccountType, Account account, MainApp mainApp) {
+    void setAccount(MainApp mainApp, Account account, Account.Type t) {
         mMainApp = mainApp;
         mAccount = account;
 
         // todo more initialization
-        mTypeChoiceBox.getSelectionModel().select(account.getType());
+        if (account != null) {
+            // edit an existing account
+            mTypeChoiceBox.getSelectionModel().select(account.getType());
+        } else if (t != null) {
+            // new accout with a given type
+            mTypeChoiceBox.getSelectionModel().select(t);
+        } else {
+            // new account without a given type, default to first Type
+            mTypeChoiceBox.getSelectionModel().select(0);
+        }
 
-        // if lockAccountType is true, or if account ID > 0, then don't allow type change
-        mTypeChoiceBox.setDisable(lockAccountType || account.getID() > 0);
+        // disable if editing an existing account, or an account with given type.
+        mTypeChoiceBox.setDisable(account != null || t != null);
 
-        mNameTextField.setText(account.getName());
-        mDescriptionTextArea.setText(account.getDescription());
-        mHiddenFlagCheckBox.setSelected(account.getHiddenFlag());
+        mNameTextField.setText(account == null ? "" : account.getName());
+        mDescriptionTextArea.setText(account == null ? "" : account.getDescription());
+        mHiddenFlagCheckBox.setSelected(account == null ? false : account.getHiddenFlag());
     }
 
     void setDialogStage(Stage stage) { mDialogStage = stage; }
 
     @FXML
     private void handleOK() {
-        boolean isNew = false;
-        if (mAccount.getID() <= 0) {
-            isNew = true;
-            try {
-                mAccount.setType(mTypeChoiceBox.getValue());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        String name = mNameTextField.getText();
+        if (name == null || name.length() == 0) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Warning");
+            alert.setHeaderText("Account name cannot be empty");
+            alert.showAndWait();
+            return;
         }
-        mAccount.setName(mNameTextField.getText());
-        mAccount.setDescription(mDescriptionTextArea.getText());
-        mAccount.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
-/*
-        mAccount = new Account(0, mTypeChoiceBox.getValue(), mNameTextField.getText(), mDescriptionTextArea.getText(),
-                mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE, BigDecimal.ZERO); */
-        // for new account, we need to update accountList in mainApp
+
+        if (mAccount == null) {
+            mAccount = new Account(0, mTypeChoiceBox.getValue(), name,
+                    mDescriptionTextArea.getText(), mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE,
+                    BigDecimal.ZERO);
+        } else {
+            mAccount.setName(name);
+            mAccount.setDescription(mDescriptionTextArea.getText());
+            mAccount.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
+        }
+
+        // insert or update database
         mMainApp.insertUpdateAccountToDB(mAccount);
 
         mDialogStage.close();

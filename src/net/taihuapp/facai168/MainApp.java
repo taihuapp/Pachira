@@ -778,6 +778,18 @@ public class MainApp extends Application {
                     throw e;
                 }
             }
+
+            // update account list
+            Account a = getAccountByID(account.getID());
+            if (a == null) {
+                // new account, add
+                mAccountList.add(account);
+            } else if (a != account) {
+                // old account, replace
+                System.err.println("insertupdateaccounttodb, how did we get here");
+                mAccountList.set(mAccountList.indexOf(a), account);
+            }
+
         } catch (SQLException e) {
             String title = "Database Error";
             String headerText = "Unknown DB error";
@@ -798,17 +810,6 @@ public class MainApp extends Application {
         } catch (NullPointerException e) {
             System.err.println("mConnection is null");
             e.printStackTrace();
-        }
-
-        // update account list
-        Account a = getAccountByID(account.getID());
-        if (a == null) {
-            // new account, add
-            mAccountList.add(account);
-        } else if (a != account) {
-            // old account, replace
-            System.err.println("insertupdateaccounttodb, how did we get here");
-            mAccountList.set(mAccountList.indexOf(a), account);
         }
     }
 
@@ -1136,14 +1137,8 @@ public class MainApp extends Application {
         }
     }
 
-    boolean showEditAccountDialog(boolean lockAccountType, Account account) {
-        boolean isNew = account.getID() < MIN_ACCOUNT_ID;
-        String title;
-        if (isNew) {
-            title = "New Account";
-        } else {
-            title = "Edit Account";
-        }
+    boolean showEditAccountDialog(Account account, Account.Type t) {
+        String title = (account == null) ? "New Account" : "Edit Account";
 
         try {
             FXMLLoader loader = new FXMLLoader();
@@ -1161,7 +1156,7 @@ public class MainApp extends Application {
             }
 
             controller.setDialogStage(dialogStage);
-            controller.setAccount(lockAccountType, account, this);
+            controller.setAccount(this, account, t);
             dialogStage.showAndWait();
             return true;
         } catch (IOException e) {

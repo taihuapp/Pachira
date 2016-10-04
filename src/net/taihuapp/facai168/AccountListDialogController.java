@@ -41,18 +41,8 @@ public class AccountListDialogController {
             t = null;
         }
 
-        Account account = new Account();
-        if (t != null) {
-            try {
-                account.setType(t);
-            } catch (Exception e) {
-                // we shouldn't be here anyway.
-                e.printStackTrace();
-            }
-        }
-
         // if t != null, we are on one of the sub tabs, lock the account type
-        mMainApp.showEditAccountDialog(t != null, account);
+        mMainApp.showEditAccountDialog(null, t);
     }
 
     @FXML
@@ -62,7 +52,7 @@ public class AccountListDialogController {
         TableView<Account> tableView = (TableView<Account>) mTabPane.getSelectionModel().getSelectedItem().getContent();
         Account account = tableView.getSelectionModel().getSelectedItem();
         if (account != null)
-            mMainApp.showEditAccountDialog(true, account);
+            mMainApp.showEditAccountDialog(account, null);
     }
 
     @FXML
@@ -190,7 +180,7 @@ public class AccountListDialogController {
                 TableRow<Account> row = new TableRow<>();
                 row.setOnMouseClicked(event -> {
                     if ((event.getClickCount() == 2) && (!row.isEmpty())) {
-                        mMainApp.showEditAccountDialog(true, row.getItem());
+                        mMainApp.showEditAccountDialog(row.getItem(), null);
                     }
                 });
                 return row;

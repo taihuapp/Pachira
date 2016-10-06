@@ -391,7 +391,7 @@ class QIFParser {
 
     static class TradeTransaction {
 
-        enum Action { BUY, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
+        enum Action { BUY, CGLONG, CGMID, CGSHORT,
             //CONTRIB, CONTRIBX,
             DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
             MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
@@ -507,6 +507,9 @@ class QIFParser {
                 switch (actionStr) {
                     case "BUYX":
                     case "SELLX":
+                    case "CGLONGX":
+                    case "CGMIDX":
+                    case "CGSHORTX":
                         actionStr = actionStr.substring(0, actionStr.length()-1);
                         break;
                     case "CASH":

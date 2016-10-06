@@ -115,13 +115,10 @@ public class EditTransactionDialogController {
             case INTINCX:
                 return InvestmentTransaction.INTINC;
             case CGLONG:
-            case CGLONGX:
                 return InvestmentTransaction.CGLONG;
             case CGMID:
-            case CGMIDX:
                 return InvestmentTransaction.CGMID;
             case CGSHORT:
-            case CGSHORTX:
                 return InvestmentTransaction.CGSHORT;
             case REINVDIV:
                 return InvestmentTransaction.REINVDIV;
@@ -308,9 +305,6 @@ public class EditTransactionDialogController {
             case SHTSELLX:
             case DIVX:
             case INTINCX:
-            case CGLONGX:
-            case CGMIDX:
-            case CGSHORTX:
             case XOUT:
                 // todo: recheck the logic
                 xferTA = Transaction.TradeAction.XIN;

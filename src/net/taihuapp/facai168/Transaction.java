@@ -19,14 +19,12 @@ public class Transaction {
     // the order in enum matters.  we need to process closing transactions (sell, sellx,
     // cvtshrt, cvtshrtx) after the openning trasactions (BUY, ...)
     enum TradeAction {
-        BUY, CGLONG, CGMID, CGSHORT, DIV, INTINC,
-        MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
-        REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
-        SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX,
-        DEPOSIT, WITHDRAW,
-        //DEPOSITX, WITHDRWX, CONTRIB, CONTRIBX,
-        SELL, CVTSHRT, CVTSHRTX
+        BUY, CGLONG, CGMID, CGSHORT, DIV, INTINC, MARGINT, MISCEXP, MISCINC,
+        REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP,
+        SHRSIN, SHRSOUT, SHTSELL, STKSPLIT, STOCKDIV,
+        XFRSHRS, XIN, XOUT, BUYBOND, DEPOSIT, WITHDRAW,
+        // leave these two at the end for sorting purpose
+        SELL, CVTSHRT
     }
 
     private int mID = -1;
@@ -89,10 +87,8 @@ public class Transaction {
             switch (getTradeActionEnum()) {
                 case BUY:
                 case CVTSHRT:
-                case CVTSHRTX:
                 case SELL:
                 case SHTSELL:
-                case SHTSELLX:
                 case SHRSIN:
                 case REINVDIV:
                 case REINVINT:
@@ -105,11 +101,8 @@ public class Transaction {
                     return mQuantityProperty.get().stripTrailingZeros().toPlainString() + " for "
                             + mOldQuantityProperty.get().stripTrailingZeros().toPlainString() + " split";
                 case MARGINT:
-                case MARGINTX:
                 case MISCEXP:
-                case MISCEXPX:
                 case MISCINC:
-                case MISCINCX:
                 case XIN:
                 case XOUT:
                 case DEPOSIT:
@@ -121,12 +114,10 @@ public class Transaction {
                 case INTINC:
                     return mAmountProperty.get().stripTrailingZeros().toPlainString();
                 case RTRNCAP:
-                case RTRNCAPX:
                 case SHRSOUT:
                 case STOCKDIV:
                 case XFRSHRS:
                 case BUYBOND:
-                case BUYBONDX:
                 default:
                     return "description for [" + getTradeAction() + "] Transaction not implemented yet.";
             }
@@ -160,26 +151,25 @@ public class Transaction {
         switch (getTradeActionEnum()) {
             case SELL:
             case SHTSELL:
-            case SHTSELLX:
             case SHRSOUT:
                 return getQuantity().negate();
             case BUY:
+            case BUYBOND:
             case CVTSHRT:
-            case CVTSHRTX:
             case DEPOSIT:
             case DIV:
             case CGLONG:
             case CGMID:
             case CGSHORT:
             case INTINC:
-            case MISCEXPX:
-            case MISCINCX:
+            case MISCINC:
+            case MISCEXP:
             case REINVDIV:
             case REINVINT:
             case REINVSH:
             case REINVMD:
             case REINVLG:
-            case RTRNCAPX:
+            case RTRNCAP:
             case SHRSIN:
             case WITHDRAW:
             case XIN:
@@ -216,8 +206,6 @@ public class Transaction {
                 mDepositProperty.set(null);
                 mPaymentProperty.set(null);
                 break;
-            case BUYBONDX:
-            case CVTSHRTX:
             case REINVDIV:
             case REINVINT:
             case REINVLG:
@@ -238,13 +226,6 @@ public class Transaction {
             case SHTSELL:
                 mInvestAmountProperty.setValue(amount.negate());
                 mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount);
-                mQuantityProperty.set(quantity);
-                mDepositProperty.set(null);
-                mPaymentProperty.set(null);
-                break;
-            case SHTSELLX:
-                mInvestAmountProperty.setValue(amount.negate());
-                mCashAmountProperty.setValue(BigDecimal.ZERO);
                 mQuantityProperty.set(quantity);
                 mDepositProperty.set(null);
                 mPaymentProperty.set(null);
@@ -283,16 +264,6 @@ public class Transaction {
                 mQuantityProperty.set(null);
                 mDepositProperty.set(null);
                 mPaymentProperty.set(amount);
-                break;
-            case MARGINTX:
-            case MISCEXPX:
-            case MISCINCX:
-            case RTRNCAPX:
-                mInvestAmountProperty.setValue(BigDecimal.ZERO);
-                mCashAmountProperty.setValue(BigDecimal.ZERO);
-                mQuantityProperty.set(quantity);
-                mDepositProperty.set(null);
-                mPaymentProperty.set(null);
                 break;
             default:
                 System.err.println("TradingAction " + ta.name() + " not implement yet");

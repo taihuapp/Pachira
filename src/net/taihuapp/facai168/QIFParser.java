@@ -391,10 +391,8 @@ class QIFParser {
 
     static class TradeTransaction {
 
-        enum Action { BUY, CGLONG, CGMID, CGSHORT,
-            //CONTRIB, CONTRIBX,
-            DIV, INTINC, MISCEXP, MISCEXPX,
-            MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
+        enum Action { BUY, CGLONG, CGMID, CGSHORT, DIV, INTINC, MISCEXP,
+            MISCINC, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
             RTRNCAP, RTRNCAPX, SELL, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
             STKSPLIT, XIN, XOUT, DEPOSIT, WITHDRAW //, WITHDRWX
         }
@@ -486,7 +484,13 @@ class QIFParser {
                         // todo this is for diagonose only, should be removed later
                         if (actionStr == null || actionStr.startsWith("MISC"))
                             System.out.println(lines);
-                        tt.setCategoryOrTransfer(l.substring(1));
+                        String[] tokens = l.substring(1).split("\\|");
+                        if (tokens.length > 1) {
+                            System.err.println(lines);
+                            System.err.println("Multiple tokens seen at Category line: " + l +
+                                    ", importing as " + tokens[tokens.length-1]);
+                        }
+                        tt.setCategoryOrTransfer(tokens[tokens.length-1]);
                         break;
                     case 'T':
                         tt.setTAmount(new BigDecimal(l.substring(1).replace(",","")));
@@ -506,12 +510,19 @@ class QIFParser {
             if (actionStr != null) {
                 switch (actionStr) {
                     case "BUYX":
+                    case "BUYBONDX":
                     case "SELLX":
                     case "CGLONGX":
                     case "CGMIDX":
                     case "CGSHORTX":
+                    case "CVTSHRTX":
                     case "DIVX":
                     case "INTINCX":
+                    case "MISCINCX":
+                    case "MISCEXPX":
+                    case "MARGINTX":
+                    case "RTRNCAPX":
+                    case "SHTSELLX":
                         actionStr = actionStr.substring(0, actionStr.length()-1);
                         break;
                     case "CASH":

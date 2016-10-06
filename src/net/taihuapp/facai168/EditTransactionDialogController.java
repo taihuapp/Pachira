@@ -102,7 +102,6 @@ public class EditTransactionDialogController {
             case SELL:
                 return InvestmentTransaction.SELL;
             case SHTSELL:
-            case SHTSELLX:
                 return InvestmentTransaction.SHTSELL;
             case SHRSIN:
                 return InvestmentTransaction.SHRSIN;
@@ -141,10 +140,8 @@ public class EditTransactionDialogController {
             case STKSPLIT:
                 return InvestmentTransaction.STKSPLIT;
             case MISCEXP:
-            case MISCEXPX:
                 return InvestmentTransaction.MISCEXP;
             case MISCINC:
-            case MISCINCX:
                 return InvestmentTransaction.MISCINC;
             default:
                 // more work is needed to added new cases
@@ -255,9 +252,7 @@ public class EditTransactionDialogController {
             return false;  // invalid transaction
 
         Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
-        if ((ta != Transaction.TradeAction.SELL &&
-                ta != Transaction.TradeAction.CVTSHRT &&
-                ta != Transaction.TradeAction.CVTSHRTX)) {
+        if ((ta != Transaction.TradeAction.SELL && ta != Transaction.TradeAction.CVTSHRT)) {
             // only SELL or CVTSHORT needs the MatchInfoList
             mMatchInfoList.clear();
         }
@@ -271,11 +266,12 @@ public class EditTransactionDialogController {
         Transaction.TradeAction xferTA = null;
         switch (ta) {
             case BUY:
-            case SHTSELL:
+            case BUYBOND:
             case SHRSIN:
             case CGLONG:
             case CGMID:
             case CGSHORT:
+            case CVTSHRT:
             case REINVDIV:
             case REINVINT:
             case REINVLG:
@@ -284,26 +280,19 @@ public class EditTransactionDialogController {
             case DEPOSIT:
             case WITHDRAW:
             case STKSPLIT:
-                if (xferAID >= MainApp.MIN_ACCOUNT_ID)
+            case XIN:
+                if (xferAID >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XIN)
                     xferTA = Transaction.TradeAction.XOUT;
 
                 // no transfer, do nothing
                 break;
-            case CVTSHRTX:
-            case XIN:
-                // todo re-check the logic
-                xferTA = Transaction.TradeAction.XOUT;
-                break;
             case DIV:
             case INTINC:
             case SELL:
-                if (xferAID >= MainApp.MIN_ACCOUNT_ID)
-                    xferTA = Transaction.TradeAction.XIN;
-                break;
-            case SHTSELLX:
+            case SHTSELL:
             case XOUT:
-                // todo: recheck the logic
-                xferTA = Transaction.TradeAction.XIN;
+                if (xferAID >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XOUT)
+                    xferTA = Transaction.TradeAction.XIN;
                 break;
             default:
                 System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
@@ -476,12 +465,11 @@ public class EditTransactionDialogController {
                     case CGLONG:
                     case CGMID:
                     case CGSHORT:
-                        return it.name();
-                    case SHTSELL:
-                    case CVTSHRT:
                     case MISCINC:
                     case MISCEXP:
-                        return it.name() + "X";
+                    case SHTSELL:
+                    case CVTSHRT:
+                        return it.name();
                     default:
                         System.err.println("Unhandled InvestmentTransaction type " + it.name());
                         return null;

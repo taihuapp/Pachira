@@ -34,7 +34,7 @@ public class EditAccountDialogController {
             // edit an existing account
             mTypeChoiceBox.getSelectionModel().select(account.getType());
         } else if (t != null) {
-            // new accout with a given type
+            // new account with a given type
             mTypeChoiceBox.getSelectionModel().select(t);
         } else {
             // new account without a given type, default to first Type
@@ -54,10 +54,17 @@ public class EditAccountDialogController {
     @FXML
     private void handleOK() {
         String name = mNameTextField.getText();
-        if (name == null || name.length() == 0) {
+        if (name == null || name.length() == 0 || MainApp.hasBannedCharacter(name)) {
+            // we need to throw up a warning sign and go back
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Warning");
-            alert.setHeaderText("Account name cannot be empty");
+            if (name == null || name.length() == 0)
+                alert.setHeaderText("Account name cannot be empty");
+            else {
+                String bcs = MainApp.BANNED_CHARACTER_SET.toString();
+                bcs = bcs.substring(1, bcs.length() - 1).replaceAll(",", ""); // take out [] and ,
+                alert.setHeaderText("Account name cannot contain any of:  " + bcs);
+            }
             alert.showAndWait();
             return;
         }

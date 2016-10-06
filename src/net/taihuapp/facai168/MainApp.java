@@ -32,6 +32,17 @@ import java.util.prefs.Preferences;
 
 public class MainApp extends Application {
 
+    // these characters are not allowed in account names and
+    // security names
+    static final Set<Character> BANNED_CHARACTER_SET = new HashSet<>(Arrays.asList(
+            new Character[] {'/', ':', ']', '[', '|', '^'}));
+    static boolean hasBannedCharacter(String name) {
+        for (int i = 0; i < name.length(); i++)
+            if (BANNED_CHARACTER_SET.contains(name.charAt(i)))
+                return true;
+        return false;
+    }
+
     private static int MAXOPENEDDBHIST = 5; // keep max 5 opened files
     private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     private static String DBOWNER = "FC168ADM";
@@ -428,23 +439,26 @@ public class MainApp extends Application {
         return 0;  // neither
     }
 
-    // the name should be a category name or account name surrounded by []
-    // return categoryID or negative accountID
+    // name is a category name or an account name wrapped by [].
+    // if a valid account is seen, the negative of the corresponding account id is returned.
+    // if a wrapped name cannot be mapped to a valid account, then the Deleted Account is used
+    // if a valid category name is seen, the corresponding id is returned
+    // otherwise, 0 is returned
     private int mapCategoryOrAccountNameToID(String name) {
         if (name == null)
             return 0;
         if (name.startsWith("[") && name.endsWith("]")) {
-            int len = name.length();
-            Account a = getAccountByName(name.substring(1, len - 1));
+            Account a = getAccountByName(name.substring(1, name.length()-1));
             if (a != null)
                 return -a.getID();
-            return 0;
+            a = getAccountByName(DELETED_ACCOUNT_NAME);
+            return -a.getID();
         } else {
             Category c = getCategoryByName(name);
             if (c != null)
                 return c.getID();
-            return 0;
         }
+        return 0;
     }
 
     String mapCategoryOrAccountIDToName(int id) {

@@ -391,11 +391,11 @@ class QIFParser {
 
     static class TradeTransaction {
 
-        enum Action { BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
+        enum Action { BUY, CGLONG, CGLONGX, CGMID, CGMIDX, CGSHORT, CGSHORTX,
             //CONTRIB, CONTRIBX,
             DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
             MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
-            RTRNCAP, RTRNCAPX, SELL, SELLX, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
+            RTRNCAP, RTRNCAPX, SELL, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
             STKSPLIT, XIN, XOUT, DEPOSIT, WITHDRAW //, WITHDRWX
         }
 
@@ -505,6 +505,10 @@ class QIFParser {
             }
             if (actionStr != null) {
                 switch (actionStr) {
+                    case "BUYX":
+                    case "SELLX":
+                        actionStr = actionStr.substring(0, actionStr.length()-1);
+                        break;
                     case "CASH":
                         BigDecimal tAmount = tt.getTAmount();
                         if (tAmount != null && tAmount.signum() < 0) {

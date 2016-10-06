@@ -98,10 +98,8 @@ public class EditTransactionDialogController {
         // todo need to complete all cases
         switch (ta) {
             case BUY:
-            case BUYX:
                 return InvestmentTransaction.BUY;
             case SELL:
-            case SELLX:
                 return InvestmentTransaction.SELL;
             case SHTSELL:
             case SHTSELLX:
@@ -263,18 +261,21 @@ public class EditTransactionDialogController {
 
         Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
         if ((ta != Transaction.TradeAction.SELL &&
-                ta != Transaction.TradeAction.SELLX &&
                 ta != Transaction.TradeAction.CVTSHRT &&
                 ta != Transaction.TradeAction.CVTSHRTX)) {
             // only SELL or CVTSHORT needs the MatchInfoList
             mMatchInfoList.clear();
         }
 
+        // transfer transaction id
+        int xferTID = mTransaction.getMatchID();
+        int xferAID = -mTransaction.getCategoryID();
+        BigDecimal xferAmount = mTransaction.getAmount();
+
         // setup transfer Transaction if needed
         Transaction.TradeAction xferTA = null;
         switch (ta) {
             case BUY:
-            case SELL:
             case SHTSELL:
             case SHRSIN:
             case DIV:
@@ -290,15 +291,20 @@ public class EditTransactionDialogController {
             case DEPOSIT:
             case WITHDRAW:
             case STKSPLIT:
+                if (xferAID >= MainApp.MIN_ACCOUNT_ID)
+                    xferTA = Transaction.TradeAction.XOUT;
+
                 // no transfer, do nothing
                 break;
-            case BUYX:
             case CVTSHRTX:
             case XIN:
                 // todo re-check the logic
                 xferTA = Transaction.TradeAction.XOUT;
                 break;
-            case SELLX:
+            case SELL:
+                if (xferAID >= MainApp.MIN_ACCOUNT_ID)
+                    xferTA = Transaction.TradeAction.XIN;
+                break;
             case SHTSELLX:
             case DIVX:
             case INTINCX:
@@ -313,11 +319,6 @@ public class EditTransactionDialogController {
                 System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
                 return false;
         }
-
-        // transfer transaction id
-        int xferTID = mTransaction.getMatchID();
-        int xferAID = -mTransaction.getCategoryID();
-        BigDecimal xferAmount = mTransaction.getAmount();
 
         Transaction linkedTransaction = null;
         if (xferTA != null && xferAID != mAccount.getID() && xferAmount.signum() != 0) {
@@ -480,9 +481,9 @@ public class EditTransactionDialogController {
                     case DEPOSIT:
                     case WITHDRAW:
                     case STKSPLIT:
-                        return it.name();
                     case BUY:
                     case SELL:
+                        return it.name();
                     case SHTSELL:
                     case CVTSHRT:
                     case DIV:

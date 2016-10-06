@@ -19,7 +19,7 @@ public class Transaction {
     // the order in enum matters.  we need to process closing transactions (sell, sellx,
     // cvtshrt, cvtshrtx) after the openning trasactions (BUY, ...)
     enum TradeAction {
-        BUY, BUYX, CGLONG, CGLONGX, CGMID, CGMIDX,
+        BUY, CGLONG, CGLONGX, CGMID, CGMIDX,
         CGSHORT, CGSHORTX, DIV, DIVX, INTINC, INTINCX,
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
@@ -27,7 +27,7 @@ public class Transaction {
         XFRSHRS, XIN, XOUT, BUYBOND, BUYBONDX,
         DEPOSIT, WITHDRAW,
         //DEPOSITX, WITHDRWX, CONTRIB, CONTRIBX,
-        SELL, SELLX, CVTSHRT, CVTSHRTX
+        SELL, CVTSHRT, CVTSHRTX
     }
 
     private int mID = -1;
@@ -89,11 +89,9 @@ public class Transaction {
         final Callable<String> converter = () -> {
             switch (getTradeActionEnum()) {
                 case BUY:
-                case BUYX:
                 case CVTSHRT:
                 case CVTSHRTX:
                 case SELL:
-                case SELLX:
                 case SHTSELL:
                 case SHTSELLX:
                 case SHRSIN:
@@ -167,13 +165,11 @@ public class Transaction {
     BigDecimal getSignedQuantity() {
         switch (getTradeActionEnum()) {
             case SELL:
-            case SELLX:
             case SHTSELL:
             case SHTSELLX:
             case SHRSOUT:
                 return getQuantity().negate();
             case BUY:
-            case BUYX:
             case CVTSHRT:
             case CVTSHRTX:
             case DEPOSIT:
@@ -214,7 +210,7 @@ public class Transaction {
     }
 
     private void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity,
-                                 BigDecimal commission, BigDecimal amount) {
+                                 BigDecimal commission, BigDecimal amount, boolean isXfer) {
         mTradeActionProperty.set(ta.name());
         mAmountProperty.set(amount);
         mCommissionProperty.set(commission);
@@ -226,12 +222,11 @@ public class Transaction {
             case BUYBOND:
             case CVTSHRT:
                 mInvestAmountProperty.setValue(amount);
-                mCashAmountProperty.setValue(amount.negate());
+                mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount.negate());
                 mQuantityProperty.set(quantity);
                 mDepositProperty.set(null);
                 mPaymentProperty.set(null);
                 break;
-            case BUYX:
             case BUYBONDX:
             case CVTSHRTX:
             case REINVDIV:
@@ -253,12 +248,11 @@ public class Transaction {
             case SELL:
             case SHTSELL:
                 mInvestAmountProperty.setValue(amount.negate());
-                mCashAmountProperty.setValue(amount);
+                mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount);
                 mQuantityProperty.set(quantity);
                 mDepositProperty.set(null);
                 mPaymentProperty.set(null);
                 break;
-            case SELLX:
             case SHTSELLX:
                 mInvestAmountProperty.setValue(amount.negate());
                 mCashAmountProperty.setValue(BigDecimal.ZERO);
@@ -361,7 +355,7 @@ public class Transaction {
         setCategoryID(categoryID);
         mPayeeProperty.set(payee);
         mOldQuantityProperty.set(oldQuantity);
-        setTradeDetails(ta, price, quantity, commission, amount);
+        setTradeDetails(ta, price, quantity, commission, amount, categoryID <= -MainApp.MIN_ACCOUNT_ID);
 
         // bind description property now
         bindDescriptionProperty();

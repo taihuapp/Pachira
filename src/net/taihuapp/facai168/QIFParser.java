@@ -393,7 +393,7 @@ class QIFParser {
 
         enum Action { BUY, CGLONG, CGMID, CGSHORT,
             //CONTRIB, CONTRIBX,
-            DIV, DIVX, INTINC, INTINCX, MISCEXP, MISCEXPX,
+            DIV, INTINC, MISCEXP, MISCEXPX,
             MISCINC, MISCINCX, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
             RTRNCAP, RTRNCAPX, SELL, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
             STKSPLIT, XIN, XOUT, DEPOSIT, WITHDRAW //, WITHDRWX
@@ -510,6 +510,8 @@ class QIFParser {
                     case "CGLONGX":
                     case "CGMIDX":
                     case "CGSHORTX":
+                    case "DIVX":
+                    case "INTINCX":
                         actionStr = actionStr.substring(0, actionStr.length()-1);
                         break;
                     case "CASH":

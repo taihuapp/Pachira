@@ -19,8 +19,7 @@ public class Transaction {
     // the order in enum matters.  we need to process closing transactions (sell, sellx,
     // cvtshrt, cvtshrtx) after the openning trasactions (BUY, ...)
     enum TradeAction {
-        BUY, CGLONG, CGMID,
-        CGSHORT, DIV, DIVX, INTINC, INTINCX,
+        BUY, CGLONG, CGMID, CGSHORT, DIV, INTINC,
         MARGINT, MARGINTX, MISCEXP, MISCEXPX, MISCINC, MISCINCX,
         REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP, RTRNCAPX,
         SHRSIN, SHRSOUT, SHTSELL, SHTSELLX, STKSPLIT, STOCKDIV,
@@ -116,13 +115,11 @@ public class Transaction {
                 case DEPOSIT:
                 case WITHDRAW:
                 case DIV:
-                case DIVX:
                 case CGLONG:
                 case CGMID:
                 case CGSHORT:
                 case INTINC:
-                case INTINCX:
-                    return "";
+                    return mAmountProperty.get().stripTrailingZeros().toPlainString();
                 case RTRNCAP:
                 case RTRNCAPX:
                 case SHRSOUT:
@@ -131,7 +128,7 @@ public class Transaction {
                 case BUYBOND:
                 case BUYBONDX:
                 default:
-                    return "description for this type Transaction not implemented yet.";
+                    return "description for [" + getTradeAction() + "] Transaction not implemented yet.";
             }
         };
 
@@ -171,12 +168,10 @@ public class Transaction {
             case CVTSHRTX:
             case DEPOSIT:
             case DIV:
-            case DIVX:
             case CGLONG:
             case CGMID:
             case CGSHORT:
             case INTINC:
-            case INTINCX:
             case MISCEXPX:
             case MISCINCX:
             case REINVDIV:
@@ -269,12 +264,16 @@ public class Transaction {
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount);
                 mQuantityProperty.set(null);
-                mDepositProperty.set(amount); // todo should it be null?
+                mDepositProperty.set(null); // todo should it be null?
                 mPaymentProperty.set(null);
-                // fall through here
+                break;
             case XIN:
             case DEPOSIT:
+                mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount);
+                mQuantityProperty.set(null);
+                mDepositProperty.set(amount);
+                mPaymentProperty.set(null);
                 break;
             case XOUT:
             case WITHDRAW:
@@ -285,8 +284,6 @@ public class Transaction {
                 mDepositProperty.set(null);
                 mPaymentProperty.set(amount);
                 break;
-            case DIVX:
-            case INTINCX:
             case MARGINTX:
             case MISCEXPX:
             case MISCINCX:

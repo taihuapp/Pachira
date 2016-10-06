@@ -109,10 +109,8 @@ public class EditTransactionDialogController {
             case SHRSOUT:
                 return InvestmentTransaction.SHRSOUT;
             case DIV:
-            case DIVX:
                 return InvestmentTransaction.DIV;
             case INTINC:
-            case INTINCX:
                 return InvestmentTransaction.INTINC;
             case CGLONG:
                 return InvestmentTransaction.CGLONG;
@@ -275,8 +273,6 @@ public class EditTransactionDialogController {
             case BUY:
             case SHTSELL:
             case SHRSIN:
-            case DIV:
-            case INTINC:
             case CGLONG:
             case CGMID:
             case CGSHORT:
@@ -298,13 +294,13 @@ public class EditTransactionDialogController {
                 // todo re-check the logic
                 xferTA = Transaction.TradeAction.XOUT;
                 break;
+            case DIV:
+            case INTINC:
             case SELL:
                 if (xferAID >= MainApp.MIN_ACCOUNT_ID)
                     xferTA = Transaction.TradeAction.XIN;
                 break;
             case SHTSELLX:
-            case DIVX:
-            case INTINCX:
             case XOUT:
                 // todo: recheck the logic
                 xferTA = Transaction.TradeAction.XIN;
@@ -363,9 +359,7 @@ public class EditTransactionDialogController {
         // for cash related transaction, return true
         switch (Transaction.TradeAction.valueOf(mTransaction.getTradeAction())) {
             case DIV:
-            case DIVX:
             case INTINC:
-            case INTINCX:
             case XIN:
             case XOUT:
             case DEPOSIT:
@@ -477,14 +471,14 @@ public class EditTransactionDialogController {
                     case STKSPLIT:
                     case BUY:
                     case SELL:
-                        return it.name();
-                    case SHTSELL:
-                    case CVTSHRT:
                     case DIV:
                     case INTINC:
                     case CGLONG:
                     case CGMID:
                     case CGSHORT:
+                        return it.name();
+                    case SHTSELL:
+                    case CVTSHRT:
                     case MISCINC:
                     case MISCEXP:
                         return it.name() + "X";

@@ -25,7 +25,7 @@ public class SecurityHolding extends LotHolding {
 
         private int mTransactionID;
         private ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
-        private StringProperty mTradeActionProperty = new SimpleStringProperty();
+        private ObjectProperty<Transaction.TradeAction> mTradeActionProperty = new SimpleObjectProperty<>();
 
         // copy construcgtor
         // how to chain constructor???
@@ -41,7 +41,7 @@ public class SecurityHolding extends LotHolding {
         }
 
         // constructor
-        public LotInfo(int id, String n, String ta, LocalDate date,
+        public LotInfo(int id, String n, Transaction.TradeAction ta, LocalDate date,
                        BigDecimal price, BigDecimal quantity, BigDecimal costBasis) {
             super(n);
             mTransactionID = id;
@@ -56,8 +56,8 @@ public class SecurityHolding extends LotHolding {
         ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
         LocalDate getDate() { return mDateProperty.get(); }
         int getTransactionID() { return mTransactionID; }
-        StringProperty getTradeActionProperty() { return mTradeActionProperty; }
-        String getTradeAction() { return getTradeActionProperty().get(); }
+        ObjectProperty<Transaction.TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
+        Transaction.TradeAction getTradeAction() { return getTradeActionProperty().get(); }
 
         // compute market value and pnl
         @Override
@@ -183,17 +183,6 @@ public class SecurityHolding extends LotHolding {
                     + "Existing Quantity: " + oldQuantity + "\n"
                     + " can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
                     + "*******");
-
-/*
-            BigDecimal newQuantity = lotInfo.getQuantity().add(oldQuantity);
-            lotInfo.setCostBasis(scaleCostBasis(lotInfo.getCostBasis(), lotInfo.getQuantity(), newQuantity));
-            lotInfo.setQuantity(newQuantity);
-
-            getLotInfoList().clear();
-            getLotInfoList().add(lotInfo);
-            setCostBasis(lotInfo.getCostBasis());
-            return;
-*/
         }
 
         if (matchInfoList.size() == 0) {

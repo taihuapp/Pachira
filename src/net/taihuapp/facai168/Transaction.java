@@ -16,22 +16,19 @@ import java.util.concurrent.Callable;
 
 public class Transaction {
 
-    // the order in enum matters.  we need to process closing transactions (sell, sellx,
-    // cvtshrt, cvtshrtx) after the openning trasactions (BUY, ...)
     enum TradeAction {
-        BUY, CGLONG, CGMID, CGSHORT, DIV, INTINC, MARGINT, MISCEXP, MISCINC,
-        REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH, RTRNCAP,
-        SHRSIN, SHRSOUT, SHTSELL, STKSPLIT, STOCKDIV,
-        XFRSHRS, XIN, XOUT, BUYBOND, DEPOSIT, WITHDRAW,
-        // leave these two at the end for sorting purpose
-        SELL, CVTSHRT
+        BUY, SELL, DIV, REINVDIV, INTINC, REINVINT, CGLONG, CGMID, CGSHORT,
+        REINVLG, REINVMD, REINVSH, STKSPLIT, SHRSIN, SHRSOUT, MISCEXP, MISCINC, STOCKDIV,
+        RTRNCAP, SHTSELL, CVTSHRT, MARGINT,
+        XFRSHRS, XIN, XOUT, BUYBOND, DEPOSIT, WITHDRAW
     }
 
     private int mID = -1;
     private int mAccountID = -1;
     private final ObjectProperty<LocalDate> mTDateProperty = new SimpleObjectProperty<>(LocalDate.now());
     private final ObjectProperty<LocalDate> mADateProperty = new SimpleObjectProperty<>(null);
-    private StringProperty mTradeActionProperty = new SimpleStringProperty("BUY");
+    //private StringProperty mTradeActionProperty = new SimpleStringProperty("BUY");
+    private final ObjectProperty<TradeAction> mTradeActionProperty = new SimpleObjectProperty<>(TradeAction.BUY);
     private StringProperty mSecurityNameProperty = new SimpleStringProperty("");
     private final StringProperty mReferenceProperty = new SimpleStringProperty("");
     private final StringProperty mPayeeProperty = new SimpleStringProperty("");
@@ -77,14 +74,15 @@ public class Transaction {
     ObjectProperty<BigDecimal> getOldQuantityProperty() { return mOldQuantityProperty; }
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
-    TradeAction getTradeActionEnum() { return TradeAction.valueOf(getTradeAction()); }
-    StringProperty getTradeActionProperty() { return mTradeActionProperty; }
+    //TradeAction getTradeActionEnum() { return TradeAction.valueOf(getTradeAction()); }
+    ObjectProperty<TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
+    TradeAction getTradeAction() { return getTradeActionProperty().get();}
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
 
     private void bindDescriptionProperty() {
         // first build a converter
         final Callable<String> converter = () -> {
-            switch (getTradeActionEnum()) {
+            switch (getTradeAction()) {
                 case BUY:
                 case CVTSHRT:
                 case SELL:
@@ -142,13 +140,12 @@ public class Transaction {
     BigDecimal getCashAmount() { return mCashAmountProperty.get(); }
     List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
     BigDecimal getAmount() { return mAmountProperty.get(); }
-    String getTradeAction() { return getTradeActionProperty().get(); }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
     int getMatchID() { return mMatchID; }  // this is for linked transactions
     int getMatchSplitID() { return mMatchSplitID; }
 
     BigDecimal getSignedQuantity() {
-        switch (getTradeActionEnum()) {
+        switch (getTradeAction()) {
             case SELL:
             case SHTSELL:
             case SHRSOUT:
@@ -190,7 +187,7 @@ public class Transaction {
 
     private void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity,
                                  BigDecimal commission, BigDecimal amount, boolean isXfer) {
-        mTradeActionProperty.set(ta.name());
+        mTradeActionProperty.set(ta);
         mAmountProperty.set(amount);
         mCommissionProperty.set(commission);
         mPriceProperty.set(price);
@@ -239,13 +236,10 @@ public class Transaction {
             case MISCEXP:
             case MISCINC:
             case RTRNCAP:
-            //case CONTRIB:
-            //case CONTRIBX:
-            //case DEPOSITX:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount);
                 mQuantityProperty.set(null);
-                mDepositProperty.set(null); // todo should it be null?
+                mDepositProperty.set(null);
                 mPaymentProperty.set(null);
                 break;
             case XIN:
@@ -258,7 +252,6 @@ public class Transaction {
                 break;
             case XOUT:
             case WITHDRAW:
-            //case WITHDRWX:
                 mInvestAmountProperty.setValue(BigDecimal.ZERO);
                 mCashAmountProperty.setValue(amount.negate());
                 mQuantityProperty.set(null);
@@ -287,8 +280,7 @@ public class Transaction {
         System.out.println("Transaction minimum constructor called");
         mAccountID = accountID;
         mTDateProperty.set(date);
-        if (ta != null)
-            mTradeActionProperty.set(ta.name());
+        mTradeActionProperty.set(ta);
         setCategoryID(categoryID);
 
         // bind description property now
@@ -350,7 +342,7 @@ public class Transaction {
         mAmountProperty.set(amount);
         setCategoryID(categoryID);
 
-        mTradeActionProperty.setValue(ta.name());
+        mTradeActionProperty.set(ta);
 
         switch (ta) {
             case XIN:

@@ -2,9 +2,6 @@ package net.taihuapp.facai168;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.binding.StringBinding;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
@@ -15,7 +12,6 @@ import javafx.util.converter.BigDecimalStringConverter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -57,105 +53,8 @@ public class EditTransactionDialogController {
         }
     }
 
-    // Investment Transaction Types
-    private enum InvestmentTransaction {
-        BUY("Buy - Shares Bought"), SELL("Sell - Shares Sold"),
-        SHTSELL("Short Sell"), CVTSHRT("Cover Short Sale"), SHRSIN("Shares Added"), SHRSOUT("Shares Removed"),
-        DIV("Dividend"), INTINC("Interest"), CGLONG("Long-term Cap Gain"),
-        CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain"),
-        REINVDIV("Reinvest Dividend"), REINVINT("Reinvest Interest"),  REINVLG("Reinvest Long-term Cap Gain"),
-        REINVMD("Reinvest Mid-term Cap Gain"), REINVSH("Reinvest Short-term Cap Gain"),
-        STKSPLIT("Stock Split"),
-        MISCINC("Miscllaneous Income"), MISCEXP("Miscllaneous Expense"),
-        XIN("Cash Transferred In"), XOUT("Cash Transferred Out"),
-        DEPOSIT("Deposit Money"), WITHDRAW("Withdraw Money");
-
-        private final String mDesc;
-        InvestmentTransaction(String d) { mDesc = d; }
-        @Override
-        public String toString() { return mDesc; }
-        public static InvestmentTransaction fromString(String s) {
-            if (s != null) {
-                for (InvestmentTransaction it : InvestmentTransaction.values()) {
-                    if (s.equals(it.toString()))
-                        return it;
-                }
-            }
-            return null;
-        }
-        public static List<String> names() {
-            List<String> names = new ArrayList<>();
-            InvestmentTransaction[] its = values();
-            for (InvestmentTransaction it : its) {
-                names.add(it.toString());
-            }
-            return names;
-        }
-    }
-
-    // todo maybe should get rid of this mapping business.  Using tradeAction directly
-    private InvestmentTransaction mapTradeAction(Transaction.TradeAction ta) {
-        // todo need to complete all cases
-        switch (ta) {
-            case BUY:
-                return InvestmentTransaction.BUY;
-            case SELL:
-                return InvestmentTransaction.SELL;
-            case SHTSELL:
-                return InvestmentTransaction.SHTSELL;
-            case SHRSIN:
-                return InvestmentTransaction.SHRSIN;
-            case SHRSOUT:
-                return InvestmentTransaction.SHRSOUT;
-            case DIV:
-                return InvestmentTransaction.DIV;
-            case INTINC:
-                return InvestmentTransaction.INTINC;
-            case CGLONG:
-                return InvestmentTransaction.CGLONG;
-            case CGMID:
-                return InvestmentTransaction.CGMID;
-            case CGSHORT:
-                return InvestmentTransaction.CGSHORT;
-            case REINVDIV:
-                return InvestmentTransaction.REINVDIV;
-            case REINVINT:
-                return InvestmentTransaction.REINVINT;
-            case REINVLG:
-                return InvestmentTransaction.REINVLG;
-            case REINVMD:
-                return InvestmentTransaction.REINVMD;
-            case REINVSH:
-                return InvestmentTransaction.REINVSH;
-            case XIN:
-                return InvestmentTransaction.XIN;
-            case XOUT:
-                return InvestmentTransaction.XOUT;
-            case DEPOSIT:
-//            case DEPOSITX:
-                return InvestmentTransaction.DEPOSIT;
-            case WITHDRAW:
-//            case WITHDRWX:
-                return InvestmentTransaction.WITHDRAW;
-            case STKSPLIT:
-                return InvestmentTransaction.STKSPLIT;
-            case MISCEXP:
-                return InvestmentTransaction.MISCEXP;
-            case MISCINC:
-                return InvestmentTransaction.MISCINC;
-            default:
-                // more work is needed to added new cases
-                return null;
-        }
-    }
-
-    private final ObservableList<String> mInvestmentTransactionList = FXCollections.observableArrayList(
-            InvestmentTransaction.names()
-            //"Buy - Shares Bought", "Sell - Shares Sold"
-    );
-
     @FXML
-    private ChoiceBox<String> mTransactionChoiceBox;
+    private ChoiceBox<Transaction.TradeAction> mTransactionChoiceBox;
     @FXML
     private DatePicker mTDatePicker;
     @FXML
@@ -251,7 +150,7 @@ public class EditTransactionDialogController {
         if (!validateTransaction())
             return false;  // invalid transaction
 
-        Transaction.TradeAction ta = Transaction.TradeAction.valueOf(mTransaction.getTradeAction());
+        Transaction.TradeAction ta = mTransaction.getTradeAction();
         if ((ta != Transaction.TradeAction.SELL && ta != Transaction.TradeAction.CVTSHRT)) {
             // only SELL or CVTSHORT needs the MatchInfoList
             mMatchInfoList.clear();
@@ -346,7 +245,7 @@ public class EditTransactionDialogController {
 
         // empty securiy here
         // for cash related transaction, return true
-        switch (Transaction.TradeAction.valueOf(mTransaction.getTradeAction())) {
+        switch (mTransaction.getTradeAction()) {
             case DIV:
             case INTINC:
             case XIN:
@@ -406,7 +305,7 @@ public class EditTransactionDialogController {
         mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
         mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
 
-        mTransactionChoiceBox.getItems().setAll(mInvestmentTransactionList);
+        mTransactionChoiceBox.getItems().setAll(Transaction.TradeAction.values());
 
         addEventFilter(mSharesTextField);
         addEventFilter(mOldSharesTextField);
@@ -427,63 +326,19 @@ public class EditTransactionDialogController {
 
         mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
                 .addListener((observable1, oldValue, newValue)
-                        -> setupInvestmentTransactionDialog(InvestmentTransaction.fromString(newValue)));
+                        -> setupInvestmentTransactionDialog(newValue));
 
-        InvestmentTransaction tc = mapTradeAction(Transaction.TradeAction.valueOf(mTransaction.getTradeAction()));
-        // todo:  tc == null???
-        // select Investment or Cash according to mTransaction
-        mTransactionChoiceBox.getSelectionModel().select(tc.toString());
-        mTransaction.getTradeActionProperty().unbind();
-        mTransaction.getTradeActionProperty().bind(new StringBinding() {
-            { super.bind(mTransferAccountComboBox.valueProperty(),
-                    mTransactionChoiceBox.valueProperty()); }
-            @Override
-            protected String computeValue() {
-                InvestmentTransaction it
-                        = InvestmentTransaction.fromString(mTransactionChoiceBox.valueProperty().get());
-                int xferAID = mTransferAccountComboBox.valueProperty().get();
-                if (xferAID == 0 ||  xferAID == mAccount.getID())
-                    return it.name();  // 0 or same means no transfer
-
-                switch (it) {
-                    case SHRSIN:
-                    case SHRSOUT:
-                    case REINVDIV:
-                    case REINVINT:
-                    case REINVLG:
-                    case REINVMD:
-                    case REINVSH:
-                    case XIN:
-                    case XOUT:
-                    case DEPOSIT:
-                    case WITHDRAW:
-                    case STKSPLIT:
-                    case BUY:
-                    case SELL:
-                    case DIV:
-                    case INTINC:
-                    case CGLONG:
-                    case CGMID:
-                    case CGSHORT:
-                    case MISCINC:
-                    case MISCEXP:
-                    case SHTSELL:
-                    case CVTSHRT:
-                        return it.name();
-                    default:
-                        System.err.println("Unhandled InvestmentTransaction type " + it.name());
-                        return null;
-                }
-            }
-        });
+        mTransactionChoiceBox.getSelectionModel().select(mTransaction.getTradeAction());
+        mTransactionChoiceBox.valueProperty().unbindBidirectional(mTransaction.getTradeActionProperty());
+        mTransactionChoiceBox.valueProperty().bindBidirectional(mTransaction.getTradeActionProperty());
     }
 
-    private void setupInvestmentTransactionDialog(InvestmentTransaction investType) {
+    private void setupInvestmentTransactionDialog(Transaction.TradeAction tradeAction) {
         final BigDecimal investAmountSign;
         boolean isIncome = false;
         boolean isReinvest = false;
         boolean isCashTransfer = false;
-        switch (investType) {
+        switch (tradeAction) {
             case STKSPLIT:
                 isCashTransfer = false;
                 mCategoryLabel.setVisible(false);
@@ -566,7 +421,7 @@ public class EditTransactionDialogController {
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(false);
                 mIncomeTextField.setVisible(false);
-                if (investType == InvestmentTransaction.XIN)
+                if (tradeAction == Transaction.TradeAction.XIN)
                     mTransferAccountLabel.setText("Transfer Cash From:");
                 else
                     mTransferAccountLabel.setText("Transfer Cash To:");
@@ -624,7 +479,7 @@ public class EditTransactionDialogController {
                 mPriceTextField.setVisible(true);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
-                mSpecifyLotButton.setVisible(investType == InvestmentTransaction.SELL);
+                mSpecifyLotButton.setVisible(tradeAction == Transaction.TradeAction.SELL);
                 mTransferAccountLabel.setVisible(true);
                 mTransferAccountComboBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);
@@ -709,11 +564,11 @@ public class EditTransactionDialogController {
                 mTotalTextField.setVisible(true);
                 mTotalLabel.setText("Total Income");
                 mTotalTextField.setEditable(false);
-                mIncomeLabel.setText(investType.toString());
+                mIncomeLabel.setText(tradeAction.name());
                 investAmountSign = BigDecimal.ONE;
                 break;
             default:
-                System.err.println("InvestmentTransaction " + investType + " not implemented yet.");
+                System.err.println("TradeAction " + tradeAction + " not implemented yet.");
                 return;
         }
 
@@ -786,8 +641,8 @@ public class EditTransactionDialogController {
                 mTransaction.getCategoryIDProperty());
         Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(),
                 mTransaction.getCategoryIDProperty());
-        if (mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())
-                || mTransaction.getTradeAction().equals(Transaction.TradeAction.DEPOSIT.name())) {
+        if (mTransaction.getTradeAction() == Transaction.TradeAction.DEPOSIT
+                || mTransaction.getTradeAction() == Transaction.TradeAction.DEPOSIT) {
             Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
                     mTransaction.getCategoryIDProperty().asObject());
         } else {

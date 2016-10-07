@@ -67,7 +67,7 @@ public class MainController {
     private TableColumn<Transaction, BigDecimal> mTransactionBalanceColumn;
 
     @FXML
-    private TableColumn<Transaction, String> mTransactionTradeActionColumn;
+    private TableColumn<Transaction, Transaction.TradeAction> mTransactionTradeActionColumn;
     @FXML
     private TableColumn<Transaction, String> mTransactionSecurityNameColumn;
     @FXML
@@ -239,7 +239,7 @@ public class MainController {
             return row;
         });
 
-        // transactiontable
+        // transaction table
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getTDateProperty());
         mTransactionTradeActionColumn.setCellValueFactory(cellData -> cellData.getValue().getTradeActionProperty());
         mTransactionSecurityNameColumn.setCellValueFactory(cellData -> cellData.getValue().getSecurityNameProperty());
@@ -270,7 +270,7 @@ public class MainController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText((new DecimalFormat("###,##0.00")).format(item));
+                                    setText(item.signum() == 0 ? "" : (new DecimalFormat("###,##0.00")).format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }

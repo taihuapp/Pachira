@@ -73,7 +73,7 @@ public class SpecifyLotsDialogController {
     @FXML
     private TableColumn<SpecifyLotInfo, LocalDate> mDateColumn;
     @FXML
-    private TableColumn<SpecifyLotInfo, String> mTypeColumn;
+    private TableColumn<SpecifyLotInfo, Transaction.TradeAction> mTypeColumn;
     @FXML
     private TableColumn<SpecifyLotInfo, BigDecimal> mPriceColumn;
     @FXML

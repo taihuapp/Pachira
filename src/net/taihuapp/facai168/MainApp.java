@@ -30,6 +30,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.prefs.Preferences;
 
+import static net.taihuapp.facai168.Transaction.TradeAction.CVTSHRT;
+import static net.taihuapp.facai168.Transaction.TradeAction.SELL;
+
 public class MainApp extends Application {
 
     // these characters are not allowed in account names and
@@ -249,7 +252,7 @@ public class MainApp extends Application {
             preparedStatement.setInt(1, t.getAccountID());
             preparedStatement.setDate(2, Date.valueOf(t.getTDate()));
             preparedStatement.setBigDecimal(3, t.getAmount());
-            preparedStatement.setString(4, t.getTradeActionProperty().get());
+            preparedStatement.setString(4, t.getTradeActionProperty().get().name());
             Security security = getSecurityByName(t.getSecurityName());
             if (security != null)
                 preparedStatement.setObject(5, security.getID());
@@ -1234,8 +1237,24 @@ public class MainApp extends Application {
         Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
 
         // sort the transaction list first
+        // we want to sort the transactions by dates first, then by TradeAction, in which we want to put
+        // SELL and CVSHRT at the end in case the transaction is closing the positions opened on the same date
         SortedList<Transaction> sortedTransactionList = new SortedList<>(account.getTransactionList(),
-                Comparator.comparing(Transaction::getTDate).thenComparing(Transaction::getTradeActionEnum));
+                (o1, o2) -> {
+                    // first compare dates
+                    int dateComparison = o1.getTDate().compareTo(o2.getTDate());
+                    if (dateComparison != 0)
+                        return dateComparison;
+
+                    // compare TradeAction if dates are the same
+                    // we want to have SELL and CVTSHRT at the end
+                    if (o1.getTradeAction() == SELL || o1.getTradeAction() == CVTSHRT)
+                        return 1;
+                    if (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT)
+                        return -1;
+                    return o1.getTradeAction().compareTo(o2.getTradeAction());
+                });
+
         for (Transaction t : sortedTransactionList) {
             if (t.getTDate().isAfter(date))
                 break; // we are done
@@ -1257,7 +1276,7 @@ public class MainApp extends Application {
                     indexMap.put(name, index);
                     securityHoldingList.add(new SecurityHolding(name));
                 }
-                if (Transaction.TradeAction.valueOf(t.getTradeAction()) == Transaction.TradeAction.STKSPLIT) {
+                if (t.getTradeAction() == Transaction.TradeAction.STKSPLIT) {
                     securityHoldingList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
                     List<Transaction> splitList = stockSplitTransactionListMap.get(t.getSecurityName());
                     if (splitList == null) {
@@ -1279,13 +1298,12 @@ public class MainApp extends Application {
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
 
-            if (securityHolding.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
+            if (securityHolding.getQuantity().signum() == 0) {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
                 continue;
             }
 
-            //securityHolding.setPrice(getLatestSecurityPrice(securityHolding.getSecurityName(), date));
             Price price = getLatestSecurityPrice(securityHolding.getSecurityName(), date);
             BigDecimal p = price.getPrice();
             if (price.getDate().isBefore(date)) {
@@ -2035,10 +2053,6 @@ public class MainApp extends Application {
         }
         return s;
     }
-
-//    public static void printSQLException(SQLException e) {
-//        System.err.print(SQLExceptionToString(e));
-//    }
 
     // init the main layout
     private void initMainLayout() {

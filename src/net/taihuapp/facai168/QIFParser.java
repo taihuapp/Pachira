@@ -524,6 +524,12 @@ class QIFParser {
                     case "RTRNCAPX":
                     case "SHTSELLX":
                         actionStr = actionStr.substring(0, actionStr.length()-1);
+                        if (tt.getCategoryOrTransfer() == null || !(tt.getCategoryOrTransfer().startsWith("[")
+                                && tt.getCategoryOrTransfer().endsWith("]"))) {
+                            // it's a transfer transaction, but transfer account is not set
+                            // set to DELETED_ACCOUNT_NAME
+                            tt.setCategoryOrTransfer("[" + MainApp.DELETED_ACCOUNT_NAME + "]");
+                        }
                         break;
                     case "CASH":
                         BigDecimal tAmount = tt.getTAmount();

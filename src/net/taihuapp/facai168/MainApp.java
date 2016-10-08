@@ -82,7 +82,7 @@ public class MainApp extends Application {
     // [A Name]  -AID  transfer to account with id = AID
     // Cat Name   CID  category with id = CID
     static final int MIN_ACCOUNT_ID = 10;
-    private static final String DELETED_ACCOUNT_NAME = "Deleted Account";
+    static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     private static final int MIN_CATEGORY_ID = 10;
 
     private Preferences mPrefs;

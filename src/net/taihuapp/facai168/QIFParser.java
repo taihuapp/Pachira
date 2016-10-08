@@ -685,7 +685,7 @@ class QIFParser {
                     num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
                 }
                 price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den),
-                        MainApp.PRICEDECIMALLEN, RoundingMode.HALF_UP)));
+                        MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP)));
             }
             return price;
         }

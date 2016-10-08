@@ -72,8 +72,12 @@ public class MainApp extends Application {
 
     private static int AMORTLINELEN = 32;
 
-    private static final int PRICETOTALLEN = 20;
-    final static int PRICEDECIMALLEN = 8;
+    private static final int PRICE_TOTAL_LEN = 20;
+    final static int PRICE_FRACTION_LEN = 8;
+
+    private static final int QUANTITY_TOTAL_LEN = 20;
+    static final int QUANTITY_FRACTION_LEN = 8;
+
 
     // Category And Transfer Account are often shared as the following:
     // String     #    Meaning
@@ -1317,7 +1321,7 @@ public class MainApp extends Application {
                         Transaction t = li.previous();
                         if (t.getTDate().isBefore(price.getDate()))
                             break; // the split is prior to the price date, no need to adjust
-                        p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(), PRICEDECIMALLEN,
+                        p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(), PRICE_FRACTION_LEN,
                                 RoundingMode.HALF_UP);
                     }
                 }
@@ -1946,7 +1950,7 @@ public class MainApp extends Application {
         sqlCmd = "create table PRICES ("
                 + "SECURITYID integer NOT NULL, "
                 + "DATE date NOT NULL, "
-                + "PRICE decimal(" + PRICETOTALLEN + "," + PRICEDECIMALLEN + "),"
+                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "),"
                 + "PRIMARY KEY (SECURITYID, DATE));";
         sqlCreateTable(sqlCmd);
 
@@ -2022,9 +2026,9 @@ public class MainApp extends Application {
                 + "AMORTIZATIONID integer, "
                 + "TRADEACTION varchar(" + TRANSACTIONTRACEACTIONLEN + "), "
                 + "SECURITYID integer, "
-                + "PRICE decimal(20,6), "
-                + "QUANTITY decimal(20,6), "
-                + "OLDQUANTITY decimal(20,6), "  // used in stock split transactions
+                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "), "
+                + "QUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "
+                + "OLDQUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "  // used in stock split transactions
                 + "TRANSFERREMINDER varchar(" + TRANSACTIONTRANSFERREMINDERLEN + "), "
                 + "COMMISSION decimal(20,4), "
                 + "AMOUNTTRANSFERRED decimal(20,4), "

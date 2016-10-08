@@ -106,7 +106,10 @@ public class HoldingsDialogController {
                         if (object == null)
                             return null;
                         // format to 6 decimal places
-                        return new DecimalFormat("###,##0.000000").format(object);
+                        DecimalFormat df = new DecimalFormat();
+                        df.setMaximumFractionDigits(MainApp.PRICE_FRACTION_LEN-2);
+                        df.setMinimumFractionDigits(0);
+                        return df.format(object);
                     }
 
                     @Override
@@ -213,7 +216,28 @@ public class HoldingsDialogController {
 
         mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getQuantity()));
-        mQuantityColumn.setCellFactory(dollarCentsCF);
+        mQuantityColumn.setCellFactory(new Callback<TreeTableColumn<LotHolding, BigDecimal>, TreeTableCell<LotHolding, BigDecimal>>() {
+            @Override
+            public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding, BigDecimal> param) {
+                return new TreeTableCell<LotHolding, BigDecimal>() {
+                    @Override
+                    protected void updateItem(BigDecimal item, boolean empty) {
+                        super.updateItem(item, empty);
+
+                        if (item == null || empty) {
+                            setText("");
+                        } else {
+                            // format
+                            DecimalFormat df = new DecimalFormat();
+                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_LEN-2);
+                            df.setMinimumFractionDigits(0);
+                            setText(df.format(item));
+                        }
+                        setStyle("-fx-alignment: CENTER-RIGHT;");
+                    }
+                };
+            }
+        });
         mQuantityColumn.setComparator(null);
 
         mMarketValueColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->

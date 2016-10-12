@@ -308,7 +308,9 @@ public class Transaction {
         setCategoryID(categoryID);
         mPayeeProperty.set(payee);
         mOldQuantityProperty.set(oldQuantity);
-        setTradeDetails(ta, price, quantity, commission, amount, categoryID <= -MainApp.MIN_ACCOUNT_ID);
+
+        boolean isXfer = categoryID <= -MainApp.MIN_ACCOUNT_ID && categoryID != -accountID;
+        setTradeDetails(ta, price, quantity, commission, amount, isXfer);
 
         // bind description property now
         bindDescriptionProperty();

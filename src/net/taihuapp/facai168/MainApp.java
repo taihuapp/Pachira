@@ -1112,6 +1112,29 @@ public class MainApp extends Application {
         return openedDBNames;
     }
 
+    void showNAVReportDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("NAVReportDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("NAV Report");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.setScene(new Scene(loader.load()));
+            NAVReportDialogController controller = loader.getController();
+            if (controller == null) {
+                System.err.println("Null NAVReportDialogController");
+                return;
+            }
+            controller.setMainApp(this, dialogStage);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Show NAV Report");
+    }
+
     void showAccountListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();

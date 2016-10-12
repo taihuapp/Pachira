@@ -25,6 +25,8 @@ public class MainController {
     @FXML
     private Menu mEditMenu;
     @FXML
+    private Menu mReportsMenu;
+    @FXML
     private MenuItem mChangePasswordMenuItem;
     @FXML
     private MenuItem mBackupMenuItem;
@@ -134,8 +136,12 @@ public class MainController {
         mMainApp.showSecurityListDialog();
     }
 
+    @FXML
+    private void handleNAVReport() { mMainApp.showNAVReportDialog(); }
+
     private void updateUI(boolean isConnected) {
         mEditMenu.setVisible(isConnected);
+        mReportsMenu.setVisible(isConnected);
         mChangePasswordMenuItem.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);
         mImportQIFMenuItem.setVisible(isConnected);

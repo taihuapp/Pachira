@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.lang.*?>
+<?import javafx.geometry.*?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+
 <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.MainController">
    <top>
       <MenuBar prefHeight="30.0" prefWidth="1000.0" BorderPane.alignment="CENTER">
@@ -29,6 +32,13 @@
                   <MenuItem mnemonicParsing="false" onAction="#handleEditSecurityList" text="Security List" />
                </items>
           </Menu>
+            <Menu fx:id="mReportsMenu" mnemonicParsing="false" text="Reports" visible="false">
+              <items>
+                  <MenuItem mnemonicParsing="false" text="Saved Reports" />
+                  <SeparatorMenuItem mnemonicParsing="false" />
+                <MenuItem mnemonicParsing="false" onAction="#handleNAVReport" text="Net Asset Value" />
+              </items>
+            </Menu>
           <Menu mnemonicParsing="false" text="Help">
             <items>
               <MenuItem mnemonicParsing="false" text="About" />

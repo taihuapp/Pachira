@@ -8,18 +8,22 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.ListView;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
 
+import java.text.DecimalFormat;
+import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.List;
 
 /**
- * Created by ghe on 10/11/16.
- *
+ * Created by ghe on 10/13/16.
+ * Base class for all ReportDialogController classes
  */
-public class NAVReportDialogController {
+public class ReportDialogController {
 
+    enum ReportType { NAV }
+    private enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL}
     private static class SelectedAccount {
         Account mAccount;
         IntegerProperty mSelectedOrderProperty = new SimpleIntegerProperty(-1); // -1 for not selected
@@ -33,9 +37,10 @@ public class NAVReportDialogController {
         int getDisplayOrder() { return mAccount.getDisplayOrder(); }
         int getID() { return mAccount.getID(); }
 
-        public String toString() { return getDisplayOrder() + " " + mAccount.getName(); }
+        public String toString() { return mAccount.getName(); }
     }
 
+    private ReportType mReportType; // report type
     private ObservableList<SelectedAccount> mAccountList = FXCollections.observableArrayList(
             a -> new Observable[] { a.getSelectedOrderProperty() });
 
@@ -47,6 +52,21 @@ public class NAVReportDialogController {
     Button mUpButton;
     @FXML
     Button mDownButton;
+    @FXML
+    Label mStartDateLabel;
+    @FXML
+    DatePicker mStartDatePicker;
+    @FXML
+    Label mEndDateLabel;
+    @FXML
+    DatePicker mEndDatePicker;
+    @FXML
+    Label mFrequencyLabel;
+    @FXML
+    ChoiceBox<Frequency> mFrequencyChoiceBox;
+
+    @FXML
+    TextArea mReportTextArea;
 
     @FXML
     ListView<SelectedAccount> mAvailableAccountListView;
@@ -57,10 +77,17 @@ public class NAVReportDialogController {
     private MainApp mMainApp;
     private Stage mDialogStage;
 
-    void setMainApp(MainApp mainApp, Stage stage) {
+    void setMainApp(ReportType reportType, MainApp mainApp, Stage stage) {
+
+        // set members
+        mReportType = reportType;
         mMainApp = mainApp;
         mDialogStage = stage;
 
+        // set window title
+        mDialogStage.setTitle(mReportType + " Report");
+
+        // initialize account selection controls and time period selection controls
         mAccountList.clear();
         for (Account a : mMainApp.getAccountList(null, null, true)) {
             mAccountList.add(new SelectedAccount(a));
@@ -95,6 +122,20 @@ public class NAVReportDialogController {
         mUnselectButton.setDisable(true);
         mUpButton.setDisable(true);
         mDownButton.setDisable(true);
+        mReportTextArea.setVisible(false);
+        mReportTextArea.setStyle("-fx-font-family: monospace");
+
+        switch (mReportType) {
+            case NAV:
+                mStartDateLabel.setText("As of:");
+                mStartDatePicker.setValue(LocalDate.now());
+                mEndDateLabel.setVisible(false);
+                mEndDatePicker.setVisible(false);
+                mFrequencyLabel.setVisible(false);
+                mFrequencyChoiceBox.setVisible(false);
+                break;
+            default:
+        }
     }
 
     @FXML
@@ -136,5 +177,63 @@ public class NAVReportDialogController {
         a1.setSelectedOrder(n);
     }
 
+    @FXML
+    private void handleClose() {
+        close();
+    }
+
+    @FXML
+    private void handleShowReport() {
+        switch (mReportType) {
+            case NAV:
+                mReportTextArea.setText(NAVReport());
+                break;
+            default:
+                mReportTextArea.setText("Report type " + mReportType + " not implemented yet");
+                break;
+        }
+        mReportTextArea.setVisible(true);
+    }
+
+    @FXML
+    private void handleSaveReport() {
+        System.out.println("Save Report not implemented yet");
+    }
+
+    @FXML
+    private void handleShowSetting() {
+        mReportTextArea.setVisible(false);  // hide the report, show settings
+    }
+
+    @FXML
+    private void handleSaveSetting() {
+        System.out.println("save setting not implemented yet");
+    }
+
     void close() { mDialogStage.close(); }
+
+    private String NAVReport() {
+        int accountNameLen = 8; // minimum 8 char long
+        int amountLen = 16;
+
+        // loop once to find out the max account name length
+        for (SelectedAccount s : mSelectedAccountListView.getItems()) {
+            int l = s.toString().length();
+            if (l > accountNameLen)
+                accountNameLen = l;
+        }
+
+        LocalDate date = mStartDatePicker.getValue();
+        String outputStr = "NAV Report as of " + date + "\n";
+        final DecimalFormat df = new DecimalFormat("#,##0.00");
+        for (SelectedAccount s : mSelectedAccountListView.getItems()) {
+            List<SecurityHolding> shList = mMainApp.updateAccountSecurityHoldingList(s.mAccount, date, -1);
+            outputStr += String.format("%-" + accountNameLen + "s%" + amountLen + "s\n", s.toString(),
+                    df.format(shList.get(shList.size()-1).getMarketValue()));
+        }
+        return outputStr;
+    }
+
+    @FXML
+    private void initialize() { mFrequencyChoiceBox.getItems().setAll(Frequency.values()); }
 }

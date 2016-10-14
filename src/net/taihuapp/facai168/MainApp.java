@@ -1115,24 +1115,22 @@ public class MainApp extends Application {
     void showNAVReportDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("NAVReportDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("ReportDialog.fxml"));
 
             Stage dialogStage = new Stage();
-            dialogStage.setTitle("NAV Report");
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.setScene(new Scene(loader.load()));
-            NAVReportDialogController controller = loader.getController();
+            ReportDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null NAVReportDialogController");
+                System.err.println("Null ReportDialogController");
                 return;
             }
-            controller.setMainApp(this, dialogStage);
+            controller.setMainApp(ReportDialogController.ReportType.NAV, this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("Show NAV Report");
     }
 
     void showAccountListDialog() {
@@ -1252,12 +1250,53 @@ public class MainApp extends Application {
     }
 
     // update HoldingsList to date but exclude transaction exTid
-    // an empty list is returned if the account is not an investing account
-    private List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
+    // an list of cash and total is returned if the account is not an investing account
+    List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
         // empty the list first
         List<SecurityHolding> securityHoldingList = new ArrayList<>();
-        if (account.getType() != Account.Type.INVESTING)
+        if (account.getType() != Account.Type.INVESTING) {
+            BigDecimal totalCash = null;
+            int n = account.getTransactionList().size();
+            if (n == 0) {
+                totalCash = BigDecimal.ZERO;
+            } else {
+                for (int i = 0; i < account.getTransactionList().size(); i++) {
+                    Transaction t = account.getTransactionList().get(i);
+                    if (t.getTDate().isAfter(date)) {
+                        if (i == 0) {
+                            // all transaction are after given date, balance is zero
+                            totalCash = BigDecimal.ZERO;
+                        } else {
+                            // t is already after given date, use previous
+                            totalCash = account.getTransactionList().get(i - 1).getBalanceProperty().get();
+                        }
+                        break; // we are done
+                    }
+                }
+                if (totalCash == null) {
+                    // all transactions happened on or before date, take the balance of last one
+                    totalCash = account.getTransactionList().get(n-1).getBalanceProperty().get();
+                }
+            }
+
+            SecurityHolding cashHolding = new SecurityHolding("CASH");
+            cashHolding.getPriceProperty().set(null);
+            cashHolding.getQuantityProperty().set(null);
+            cashHolding.setCostBasis(totalCash);
+            cashHolding.getMarketValueProperty().set(totalCash);
+
+            SecurityHolding totalHolding = new SecurityHolding("TOTAL");
+            totalHolding.getMarketValueProperty().set(totalCash);
+            totalHolding.setQuantity(null);
+            totalHolding.setCostBasis(totalCash);
+            totalHolding.getPNLProperty().set(BigDecimal.ZERO);
+            totalHolding.getPriceProperty().set(null); // don't want to display any price
+            totalHolding.updatePctRet();
+
+            securityHoldingList.add(cashHolding);
+            securityHoldingList.add(totalHolding);
             return securityHoldingList;
+        }
 
         BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index

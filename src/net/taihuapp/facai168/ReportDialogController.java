@@ -11,6 +11,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -213,24 +214,44 @@ public class ReportDialogController {
     void close() { mDialogStage.close(); }
 
     private String NAVReport() {
-        int accountNameLen = 8; // minimum 8 char long
-        int amountLen = 16;
+        final LocalDate date = mStartDatePicker.getValue();
+        String outputStr = "NAV Report as of " + date + "\n\n";
 
-        // loop once to find out the max account name length
-        for (SelectedAccount s : mSelectedAccountListView.getItems()) {
-            int l = s.toString().length();
-            if (l > accountNameLen)
-                accountNameLen = l;
-        }
+        BigDecimal total = BigDecimal.ZERO;
+        String separator0 = new String(new char[75]).replace("\0", "-");
+        String separator1 = new String(new char[75]).replace("\0", "=");
+        final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
+        final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
-        LocalDate date = mStartDatePicker.getValue();
-        String outputStr = "NAV Report as of " + date + "\n";
-        final DecimalFormat df = new DecimalFormat("#,##0.00");
         for (SelectedAccount s : mSelectedAccountListView.getItems()) {
             List<SecurityHolding> shList = mMainApp.updateAccountSecurityHoldingList(s.mAccount, date, -1);
-            outputStr += String.format("%-" + accountNameLen + "s%" + amountLen + "s\n", s.toString(),
-                    df.format(shList.get(shList.size()-1).getMarketValue()));
+            int shListLen = shList.size();
+
+            // aggregate total
+            total = total.add(shList.get(shListLen-1).getMarketValue());
+
+            // print account total
+            outputStr += String.format("%-40s%35s\n", s.toString(),
+                    dcFormat.format(shList.get(shListLen-1).getMarketValue()));
+
+            outputStr += separator0 + "\n";
+
+            // print out positions
+            BigDecimal q, p;
+            for (int i = 0; i < shListLen-1; i++) {
+                SecurityHolding sh = shList.get(i);
+                q = sh.getQuantity();
+                p = sh.getPrice();
+                outputStr += String.format("  %-35s%12s%10s%14s\n", sh.getLabel(), q == null ? "" : qpFormat.format(q),
+                        p == null ? "" : qpFormat.format(p), dcFormat.format(sh.getMarketValue()));
+            }
+            outputStr += separator1 + "\n";
+            outputStr += "\n";
         }
+
+        // print out total
+        outputStr += String.format("%-40s%35s\n", "Total", dcFormat.format(total));
+
         return outputStr;
     }
 

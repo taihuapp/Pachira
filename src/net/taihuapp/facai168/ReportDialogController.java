@@ -9,13 +9,17 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Created by ghe on 10/13/16.
@@ -24,12 +28,18 @@ import java.util.List;
 public class ReportDialogController {
 
     enum ReportType { NAV }
-    private enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL}
-    private static class SelectedAccount {
+    enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
+    enum SpecialDay { TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMIZED }
+
+    static class SelectedAccount {
         Account mAccount;
         IntegerProperty mSelectedOrderProperty = new SimpleIntegerProperty(-1); // -1 for not selected
 
-        SelectedAccount(Account a) { mAccount = a; }
+        SelectedAccount(Account a, int displayOrder) {
+            mAccount = a;
+            mSelectedOrderProperty.set(displayOrder);
+        }
+
         IntegerProperty getSelectedOrderProperty() { return mSelectedOrderProperty;}
         Integer getSelectedOrder() { return getSelectedOrderProperty().get(); }
         void setSelectedOrder(int s) { mSelectedOrderProperty.set(s); }
@@ -41,12 +51,60 @@ public class ReportDialogController {
         public String toString() { return mAccount.getName(); }
     }
 
-    private ReportType mReportType; // report type
+    static class Setting {
+        private int mID = -1;
+        private String mName = "";
+        private final ReportType mType;
+        private SpecialDay mStart;
+        private LocalDate mStartDate;
+        private SpecialDay mEnd;
+        private LocalDate mEndDate;
+        private Frequency mFrequency;
+        private final List<SelectedAccount> mSelectedAccountList = new ArrayList<>();
+
+        // default Constructor
+        Setting(ReportType type) { this(-1, type); }
+        Setting(int id, ReportType type) {
+            mID = id;
+            mType = type;
+            mStart = SpecialDay.TODAY;
+            mStartDate = LocalDate.now();
+            mEnd = SpecialDay.TODAY;
+            mEndDate = LocalDate.now();
+            mFrequency = Frequency.DAILY;
+        }
+
+        // getters
+        int getID() { return mID; }
+        String getName() { return mName; }
+        ReportType getType() { return mType; }
+        SpecialDay getStart() { return mStart; }
+        LocalDate getStartDate() { return mStartDate; }
+        SpecialDay getEnd() { return mEnd; }
+        LocalDate getEndDate() { return mEndDate; }
+        Frequency getFrequency() { return mFrequency; }
+        List<SelectedAccount> getSelectedAccountList() { return mSelectedAccountList; }
+
+        // setters
+        void setID(int id) { mID = id; }
+        void setName(String name) { mName = name; }
+        void setStart(SpecialDay start) { mStart = start; }
+        void setStartDate(LocalDate date) { mStartDate = date; }
+        void setEnd(SpecialDay end) { mEnd = end; }
+        void setEndDate(LocalDate date) { mEndDate = date; }
+        void setFrequency(Frequency f) { mFrequency = f; }
+        void setSelectedAccountList(List<SelectedAccount> selectedAccountList) {
+            mSelectedAccountList.clear();
+            mSelectedAccountList.addAll(selectedAccountList);
+        }
+    }
+
+    private Setting mSetting;
     private ObservableList<SelectedAccount> mAccountList = FXCollections.observableArrayList(
             a -> new Observable[] { a.getSelectedOrderProperty() });
 
     @FXML
-    Button mSelectButton;
+    private Button mSelectButton;
     @FXML
     Button mUnselectButton;
     @FXML
@@ -56,9 +114,13 @@ public class ReportDialogController {
     @FXML
     Label mStartDateLabel;
     @FXML
+    ChoiceBox<SpecialDay> mStartChoiceBox;
+    @FXML
     DatePicker mStartDatePicker;
     @FXML
     Label mEndDateLabel;
+    @FXML
+    ChoiceBox<SpecialDay> mEndChoiceBox;
     @FXML
     DatePicker mEndDatePicker;
     @FXML
@@ -78,20 +140,24 @@ public class ReportDialogController {
     private MainApp mMainApp;
     private Stage mDialogStage;
 
-    void setMainApp(ReportType reportType, MainApp mainApp, Stage stage) {
+    void setMainApp(Setting setting, MainApp mainApp, Stage stage) {
 
         // set members
-        mReportType = reportType;
+        mSetting = setting;
         mMainApp = mainApp;
         mDialogStage = stage;
 
         // set window title
-        mDialogStage.setTitle(mReportType + " Report");
+        mDialogStage.setTitle(mSetting.getType() + " Report");
 
         // initialize account selection controls and time period selection controls
         mAccountList.clear();
         for (Account a : mMainApp.getAccountList(null, null, true)) {
-            mAccountList.add(new SelectedAccount(a));
+            int selectedOrder = -1;
+            for (SelectedAccount sa : setting.getSelectedAccountList())
+                if (sa.getID() == a.getID())
+                    selectedOrder = sa.getSelectedOrder();
+            mAccountList.add(new SelectedAccount(a, selectedOrder));
         }
 
         SortedList<SelectedAccount> availableAccountList
@@ -126,12 +192,23 @@ public class ReportDialogController {
         mReportTextArea.setVisible(false);
         mReportTextArea.setStyle("-fx-font-family: monospace");
 
-        switch (mReportType) {
+        mStartChoiceBox.getSelectionModel().select(setting.getStart());
+        mStartDatePicker.setValue(setting.getStartDate());
+        mEndChoiceBox.getSelectionModel().select(setting.getEnd());
+        mEndDatePicker.setValue(setting.getEndDate());
+        mFrequencyChoiceBox.getSelectionModel().select(setting.getFrequency());
+
+        switch (mSetting.getType()) {
             case NAV:
                 mStartDateLabel.setText("As of:");
+                mStartChoiceBox.setVisible(true);
+                mStartDatePicker.setVisible(true);
                 mStartDatePicker.setValue(LocalDate.now());
+
                 mEndDateLabel.setVisible(false);
+                mEndChoiceBox.setVisible(false);
                 mEndDatePicker.setVisible(false);
+
                 mFrequencyLabel.setVisible(false);
                 mFrequencyChoiceBox.setVisible(false);
                 break;
@@ -185,12 +262,12 @@ public class ReportDialogController {
 
     @FXML
     private void handleShowReport() {
-        switch (mReportType) {
+        switch (mSetting.getType()) {
             case NAV:
                 mReportTextArea.setText(NAVReport());
                 break;
             default:
-                mReportTextArea.setText("Report type " + mReportType + " not implemented yet");
+                mReportTextArea.setText("Report type " + mSetting.getType() + " not implemented yet");
                 break;
         }
         mReportTextArea.setVisible(true);
@@ -198,7 +275,22 @@ public class ReportDialogController {
 
     @FXML
     private void handleSaveReport() {
-        System.out.println("Save Report not implemented yet");
+        FileChooser fileChooser = new FileChooser();
+        FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text file",
+                "*.TXT", "*.TXt", "*.TxT", "*.Txt", "*.tXT", "*.tXt", "*.txT", "*.txt");
+        FileChooser.ExtensionFilter pdfFilter = new FileChooser.ExtensionFilter("Pdf file",
+                "*.PDF", "*.PDf", "*.PdF", "*.Pdf", "*.pDF", "*.pDf", "*.pdF", "*.pdf");
+        fileChooser.getExtensionFilters().addAll(txtFilter, pdfFilter);
+        File reportFile = fileChooser.showSaveDialog(mDialogStage);
+        if (reportFile != null) {
+            if (reportFile.getName().toLowerCase().endsWith(".txt")) {
+                System.out.println("Save text file");
+            } else {
+                System.out.println("Save pdf file");
+            }
+        }
+
+        System.out.println("Save Report not fully implemented yet");
     }
 
     @FXML
@@ -208,7 +300,47 @@ public class ReportDialogController {
 
     @FXML
     private void handleSaveSetting() {
-        System.out.println("save setting not implemented yet");
+        mSetting.setStart(mStartChoiceBox.getValue());
+        mSetting.setStartDate(mStartDatePicker.getValue());
+        mSetting.setEnd(mEndChoiceBox.getValue());
+        mSetting.setEndDate(mEndDatePicker.getValue());
+        mSetting.setFrequency(mFrequencyChoiceBox.getValue());
+        mSetting.setSelectedAccountList(mSelectedAccountListView.getItems());
+
+        TextInputDialog tiDialog = new TextInputDialog(mSetting.getName());
+        tiDialog.setTitle("Save Report Setting:");
+        if (mSetting.getID() <= 0) {
+            tiDialog.setHeaderText("New Report Setting, please input the name to save under:");
+        } else {
+            tiDialog.setHeaderText("Overwrite existing report setting, or input a new name to save under:");
+        }
+
+        Optional<String> result = tiDialog.showAndWait();
+        if (result.isPresent()) {
+            if (result.get().length() == 0) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning Dialog");
+                alert.setHeaderText("Bad Report Setting Name");
+                alert.setContentText("Name cannot be empty");
+                alert.showAndWait();
+                return;
+            }
+
+            int oldID = mSetting.getID();
+            if (!result.get().equals(mSetting.getName())) {
+                // name has changed, need to save as new
+                mSetting.setID(-1);
+            }
+            mSetting.setName(result.get());
+            if (mMainApp.insertUpdateReportSettingToDB(mSetting) <= 0) {
+                mSetting.setID(oldID);  // put back oldID
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error Dialog");
+                alert.setHeaderText("Failed to save report setting!");
+                alert.setContentText("Make sure the name is not being used");
+                alert.showAndWait();
+            }
+        }
     }
 
     void close() { mDialogStage.close(); }
@@ -255,6 +387,63 @@ public class ReportDialogController {
         return outputStr;
     }
 
+    private LocalDate mapSpecialDate(SpecialDay sd) {
+        LocalDate today = LocalDate.now();
+        switch (sd) {
+            case TODAY:
+                return today;
+            case YESTERDAY:
+                return today.minusDays(1);
+            case LASTEOM:
+                return today.minusDays(today.getDayOfMonth());
+            case LASTEOQ:
+                int year = today.getYear();
+                int month = today.getMonthValue();
+                switch (month) {
+                    case 1:
+                    case 2:
+                    case 3:
+                        return LocalDate.of(year-1, 12, 31);
+                    case 4:
+                    case 5:
+                    case 6:
+                        return LocalDate.of(year, 3, 31);
+                    case 7:
+                    case 8:
+                    case 9:
+                        return LocalDate.of(year, 6, 30);
+                    case 10:
+                    case 11:
+                    case 12:
+                        return LocalDate.of(year, 9, 30);
+                }
+            case LASTEOY:
+                return LocalDate.of(today.getYear()-1, 12, 31);
+            case CUSTOMIZED:
+                return today;
+            default:
+                System.err.println("Unimplemented case in mapSpecialDate " + sd);
+                return today;
+        }
+    }
+
     @FXML
-    private void initialize() { mFrequencyChoiceBox.getItems().setAll(Frequency.values()); }
+    private void initialize() {
+        mFrequencyChoiceBox.getItems().setAll(Frequency.values());
+        mFrequencyChoiceBox.getSelectionModel().select(0);
+        mStartChoiceBox.getItems().setAll(SpecialDay.values());
+        mEndChoiceBox.getItems().setAll(SpecialDay.values());
+
+        mStartChoiceBox.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
+            mStartDatePicker.setDisable(nv != SpecialDay.CUSTOMIZED);
+            mStartDatePicker.setValue(mapSpecialDate(nv));
+        });
+        mEndChoiceBox.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
+            mEndDatePicker.setDisable(nv != SpecialDay.CUSTOMIZED);
+            mEndDatePicker.setValue(mapSpecialDate(nv));
+        });
+
+        mStartChoiceBox.getSelectionModel().select(0);
+        mEndChoiceBox.getSelectionModel().select(0);
+    }
 }

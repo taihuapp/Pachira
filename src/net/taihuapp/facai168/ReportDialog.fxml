@@ -131,13 +131,15 @@
                               <Insets bottom="5.0" left="5.0" right="5.0" top="25.0" />
                            </VBox.margin>
                         </Label>
-                        <DatePicker fx:id="mStartDatePicker" />
+                        <ChoiceBox fx:id="mStartChoiceBox" prefWidth="150.0" />
+                        <DatePicker fx:id="mStartDatePicker" visible="false" />
                         <Label fx:id="mEndDateLabel" text="End Date">
                            <VBox.margin>
                               <Insets bottom="5.0" left="5.0" right="5.0" top="50.0" />
                            </VBox.margin>
                         </Label>
-                        <DatePicker fx:id="mEndDatePicker" />
+                        <ChoiceBox fx:id="mEndChoiceBox" prefWidth="150.0" />
+                        <DatePicker fx:id="mEndDatePicker" visible="false" />
                         <Label fx:id="mFrequencyLabel" text="Frequency">
                            <VBox.margin>
                               <Insets bottom="5.0" left="5.0" right="5.0" top="50.0" />

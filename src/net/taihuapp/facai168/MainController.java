@@ -27,6 +27,8 @@ public class MainController {
     @FXML
     private Menu mReportsMenu;
     @FXML
+    private Menu mSavedReportsMenu;
+    @FXML
     private MenuItem mChangePasswordMenuItem;
     @FXML
     private MenuItem mBackupMenuItem;
@@ -85,7 +87,7 @@ public class MainController {
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
-        // get accounts with hiddenflag == false and exDelete = true
+        // get accounts with hiddenFlag == false and exDelete = true
         mAccountTableView.setItems(mMainApp.getAccountList(null, false, true));
     }
 
@@ -137,7 +139,21 @@ public class MainController {
     }
 
     @FXML
-    private void handleNAVReport() { mMainApp.showNAVReportDialog(); }
+    private void handleNAVReport() {
+        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.NAV));
+        updateSavedReportsMenu();
+    }
+
+    private void updateSavedReportsMenu() {
+        List<MenuItem> menuItemList = new ArrayList<>();
+        for (ReportDialogController.Setting setting : mMainApp.loadReportSetting(0)) {
+            MenuItem mi = new MenuItem(setting.getName());
+            mi.setUserData(setting);
+            mi.setOnAction(t -> mMainApp.showReportDialog((ReportDialogController.Setting) mi.getUserData()));
+            menuItemList.add(mi);
+        }
+        mSavedReportsMenu.getItems().setAll(menuItemList);
+    }
 
     private void updateUI(boolean isConnected) {
         mEditMenu.setVisible(isConnected);
@@ -147,6 +163,8 @@ public class MainController {
         mImportQIFMenuItem.setVisible(isConnected);
         mAccountTableView.setVisible(isConnected);
         mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
+        if (isConnected)
+            updateSavedReportsMenu();
     }
 
     private void updateRecentMenu() {

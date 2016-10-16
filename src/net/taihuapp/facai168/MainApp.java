@@ -233,6 +233,116 @@ public class MainApp extends Application {
         alert.showAndWait();
     }
 
+    // if id <= 0, load all settings and return a list
+    // if id > 0, load the setting with given id, return a list of length 1 (or 0 if no matching id found)
+    List<ReportDialogController.Setting> loadReportSetting(int id) {
+        List<ReportDialogController.Setting> settingList = new ArrayList<>();
+        String sqlCmd = "select * from SAVEDREPORTS ";
+        if (id > 0)
+            sqlCmd += "where ID = " + id;
+        else
+            sqlCmd += " order by id";
+        String sqlCmd1 = "select * from SAVEDREPORTACCOUNTS where REPORTID = ? order by SELECTEDORDER";
+        try (Statement statement = mConnection.createStatement();
+             PreparedStatement preparedStatement1 = mConnection.prepareStatement(sqlCmd1);
+             ResultSet rs = statement.executeQuery(sqlCmd)) {
+            while (rs.next()) {
+                ReportDialogController.Setting setting = new ReportDialogController.Setting(id,
+                        ReportDialogController.ReportType.valueOf(rs.getString("TYPE")));
+                setting.setID(rs.getInt("ID"));
+                setting.setName(rs.getString("NAME"));
+                setting.setStart(ReportDialogController.SpecialDay.valueOf(rs.getString("START")));
+                setting.setStartDate(rs.getDate("SDATE").toLocalDate());
+                setting.setEnd(ReportDialogController.SpecialDay.valueOf(rs.getString("END")));
+                setting.setEndDate(rs.getDate("EDATE").toLocalDate());
+
+                List<ReportDialogController.SelectedAccount> saList = setting.getSelectedAccountList();
+
+                preparedStatement1.setInt(1, setting.getID());
+                try (ResultSet rs1 = preparedStatement1.executeQuery()) {
+                    while (rs1.next()) {
+                        saList.add(new ReportDialogController.SelectedAccount(getAccountByID(rs1.getInt("ACCOUNTID")),
+                                rs1.getInt("SELECTEDORDER")));
+                    }
+                }
+                settingList.add(setting);
+
+            }
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+            e.printStackTrace();
+        }
+
+        return settingList;
+    }
+
+    int insertUpdateReportSettingToDB(ReportDialogController.Setting setting) {
+        String sqlCmd;
+        int id = setting.getID();
+        if (id <= 0) {
+            // new setting, insert
+            sqlCmd = "insert into SAVEDREPORTS "
+                    + "(NAME, TYPE, START, SDATE, END, EDATE, FREQUENCY) "
+                    + "values (?, ?, ?, ?, ?, ?, ?)";
+        } else {
+            sqlCmd = "update SAVEDREPORTS set "
+                    + "NAME = ?, TYPE = ?, START = ?, SDATE = ?, END = ?, EDATE = ?, FREQUENCY = ? "
+                    + "where ID = ?";
+        }
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setString(1, setting.getName());
+            preparedStatement.setString(2, setting.getType().name());
+            preparedStatement.setString(3, setting.getStart().name());
+            preparedStatement.setDate(4, Date.valueOf(setting.getStartDate()));
+            preparedStatement.setString(5, setting.getEnd().name());
+            preparedStatement.setDate(6, Date.valueOf(setting.getEndDate()));
+            preparedStatement.setString(7, setting.getFrequency().name());
+            if (id > 0)
+                preparedStatement.setInt(8, id);
+            preparedStatement.executeUpdate();
+            if (id <= 0) {
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    if (resultSet.next())
+                        setting.setID(id = resultSet.getInt(1));
+                    else
+                        throw new SQLException(("Insert into SAVEDREPORTS failed."));
+                } catch (SQLException e) {
+                    System.err.println(e.getMessage());
+                    throw e;
+                }
+            }
+
+            // now deal with account list
+            String sqlCmd1 = "insert into SAVEDREPORTACCOUNTS (REPORTID, ACCOUNTID, SELECTEDORDER) values (?, ?, ?)";
+            try (Statement statement = mConnection.createStatement();
+                 PreparedStatement preparedStatement1 = mConnection.prepareStatement(sqlCmd1)) {
+                statement.execute("delete from SAVEDREPORTACCOUNTS where REPORTID = " + id);
+                for (ReportDialogController.SelectedAccount sa : setting.getSelectedAccountList()) {
+                    preparedStatement1.setInt(1, id);
+                    preparedStatement1.setInt(2, sa.getID());
+                    preparedStatement1.setInt(3, sa.getSelectedOrder());
+
+                    preparedStatement1.executeUpdate();
+                }
+            } catch (SQLException e) {
+                System.err.print(SQLExceptionToString(e));
+                e.printStackTrace();
+                return 0;
+            }
+
+            return id;
+
+        } catch (SQLException e) {
+            String title = "Database Error";
+            String header = "Unable to insert/update SAVEDREPORTS Setting";
+            String content = SQLExceptionToString(e);
+            showExceptionDialog(title, header, content, e);
+        }
+
+        return 0;
+    }
+
     // return affected transaction id if success, 0 for failure.
     int insertUpDateTransactionToDB(Transaction t) {
         String sqlCmd;
@@ -1112,20 +1222,21 @@ public class MainApp extends Application {
         return openedDBNames;
     }
 
-    void showNAVReportDialog() {
+    void showReportDialog(ReportDialogController.Setting setting) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("ReportDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
             ReportDialogController controller = loader.getController();
             if (controller == null) {
                 System.err.println("Null ReportDialogController");
                 return;
             }
-            controller.setMainApp(ReportDialogController.ReportType.NAV, this, dialogStage);
+            controller.setMainApp(setting, this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2107,6 +2218,24 @@ public class MainApp extends Application {
                 + "Constraint UniquePair unique (TransID, MatchID));";
         sqlCreateTable(sqlCmd);
 
+        // SavedReports table
+        sqlCmd = "create table SAVEDREPORTS ("
+                + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
+                + "NAME varchar (16) UNIQUE NOT NULL, "       // name of the report
+                + "TYPE varchar (16) NOT NULL, "              // type of the report
+                + "START varchar (16) NOT NULL, "             // enum for start time
+                + "SDATE date NOT NULL, "                              // customized start date
+                + "END varchar (16) NOT NULL, "               // enum for start time
+                + "EDATE date NOT NULL, "                              // customized start date
+                + "FREQUENCY varchar (16) NOT NULL);";                 // frequency enum
+        sqlCreateTable(sqlCmd);
+
+        // SavedReportAccounts table
+        sqlCmd = "create table SAVEDREPORTACCOUNTS ("
+                + "REPORTID integer NOT NULL, "
+                + "ACCOUNTID integer NOT NULL, "
+                + "SELECTEDORDER integer NOT NULL); ";
+        sqlCreateTable(sqlCmd);
     }
 
     private static String SQLExceptionToString(SQLException e) {

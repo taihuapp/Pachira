@@ -34,7 +34,11 @@
           </Menu>
             <Menu fx:id="mReportsMenu" mnemonicParsing="false" text="Reports" visible="false">
               <items>
-                  <MenuItem mnemonicParsing="false" text="Saved Reports" />
+                  <Menu fx:id="mSavedReportsMenu" mnemonicParsing="false" text="Saved Reports">
+                    <items>
+                      <MenuItem mnemonicParsing="false" text="Action 1" />
+                    </items>
+                  </Menu>
                   <SeparatorMenuItem mnemonicParsing="false" />
                 <MenuItem mnemonicParsing="false" onAction="#handleNAVReport" text="Net Asset Value" />
               </items>

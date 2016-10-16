@@ -12,7 +12,7 @@ import javafx.scene.control.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
-import java.io.File;
+import java.io.*;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
@@ -136,6 +136,14 @@ public class ReportDialogController {
     @FXML
     ListView<SelectedAccount> mSelectedAccountListView;
 
+    @FXML
+    Button mShowReportButton;
+    @FXML
+    Button mSaveReportButton;
+    @FXML
+    Button mShowSettingButton;
+    @FXML
+    Button mSaveSettingButton;
 
     private MainApp mMainApp;
     private Stage mDialogStage;
@@ -271,31 +279,35 @@ public class ReportDialogController {
                 break;
         }
         mReportTextArea.setVisible(true);
+        mShowReportButton.setDisable(true);
+        mSaveReportButton.setDisable(false);
+        mShowSettingButton.setDisable(false);
     }
 
     @FXML
     private void handleSaveReport() {
-        FileChooser fileChooser = new FileChooser();
-        FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text file",
+        final FileChooser fileChooser = new FileChooser();
+        final FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text file",
                 "*.TXT", "*.TXt", "*.TxT", "*.Txt", "*.tXT", "*.tXt", "*.txT", "*.txt");
-        FileChooser.ExtensionFilter pdfFilter = new FileChooser.ExtensionFilter("Pdf file",
-                "*.PDF", "*.PDf", "*.PdF", "*.Pdf", "*.pDF", "*.pDf", "*.pdF", "*.pdf");
-        fileChooser.getExtensionFilters().addAll(txtFilter, pdfFilter);
+        fileChooser.getExtensionFilters().add(txtFilter);
+        fileChooser.setInitialFileName(mSetting.getName()+".txt");
         File reportFile = fileChooser.showSaveDialog(mDialogStage);
+
         if (reportFile != null) {
-            if (reportFile.getName().toLowerCase().endsWith(".txt")) {
-                System.out.println("Save text file");
-            } else {
-                System.out.println("Save pdf file");
+            try (PrintWriter pw = new PrintWriter(reportFile.getCanonicalPath())) {
+                pw.print(mReportTextArea.getText());
+            } catch (IOException e) {
+                e.printStackTrace(System.err);
             }
         }
-
-        System.out.println("Save Report not fully implemented yet");
     }
 
     @FXML
     private void handleShowSetting() {
         mReportTextArea.setVisible(false);  // hide the report, show settings
+        mShowReportButton.setDisable(false);
+        mSaveReportButton.setDisable(true);
+        mShowSettingButton.setDisable(true);
     }
 
     @FXML
@@ -445,5 +457,8 @@ public class ReportDialogController {
 
         mStartChoiceBox.getSelectionModel().select(0);
         mEndChoiceBox.getSelectionModel().select(0);
+
+        mSaveReportButton.setDisable(true);
+        mShowSettingButton.setDisable(true);
     }
 }

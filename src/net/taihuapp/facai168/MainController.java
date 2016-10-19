@@ -186,7 +186,7 @@ public class MainController {
 
     @FXML
     private void handleEnterTransaction() {
-        mMainApp.showEditTransactionDialog(null);
+        mMainApp.showEditTransactionDialog(mMainApp.getStage(), null);
     }
 
     @FXML
@@ -257,7 +257,7 @@ public class MainController {
             TableRow<Transaction> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if ((event.getClickCount() == 2) && (!row.isEmpty())) {
-                    mMainApp.showEditTransactionDialog(new Transaction(row.getItem()));
+                    mMainApp.showEditTransactionDialog(mMainApp.getStage(), new Transaction(row.getItem()));
                 }
             });
             return row;

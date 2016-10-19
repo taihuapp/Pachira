@@ -2,9 +2,12 @@ package net.taihuapp.facai168;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTreeTableCell;
+import javafx.scene.layout.AnchorPane;
+import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.StringConverter;
 
@@ -23,8 +26,9 @@ public class HoldingsDialogController {
     private MainApp mMainApp;
 
     @FXML
+    private AnchorPane mMainPane;
+    @FXML
     private DatePicker mDatePicker;
-
     @FXML
     private TreeTableView<LotHolding> mSecurityHoldingTreeTableView;
     @FXML
@@ -41,6 +45,8 @@ public class HoldingsDialogController {
     private TreeTableColumn<LotHolding, BigDecimal> mPNLColumn;
     @FXML
     private TreeTableColumn<LotHolding, BigDecimal> mPctReturnColumn;
+
+    private ListChangeListener<Transaction> mTransactionListChangeListener = null;
 
     private void populateTreeTable() {
         mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(mMainApp.getRootSecurityHolding()));
@@ -68,7 +74,7 @@ public class HoldingsDialogController {
                 new ReadOnlyStringWrapper(p.getValue().getValue().getLabel()));
         mNameColumn.setComparator((o1, o2) -> {
             if (mNameColumn.getSortType() == TreeTableColumn.SortType.ASCENDING) {
-                // sorting accending
+                // sorting ascending
                 if (o1.equals("TOTAL"))
                     return 1;
                 if (o2.equals("TOTAL"))
@@ -80,7 +86,7 @@ public class HoldingsDialogController {
                 return o1.compareTo(o2);
             }
 
-            // sorting decending
+            // sorting descending
             if (o1.equals("TOTAL"))
                 return -1;
             if (o2.equals("TOTAL"))
@@ -262,11 +268,22 @@ public class HoldingsDialogController {
 
         mDatePicker.setOnAction(event -> updateHoldings());
         mDatePicker.setValue(LocalDate.now());
-        updateHoldings();// setValue doesn't trigger an event, call update mannually.
+        updateHoldings();// setValue doesn't trigger an event, call update manually.
+
+        // set a listener on TransactionList
+        mTransactionListChangeListener = c -> updateHoldings();
+        mMainApp.getCurrentAccount().getTransactionList().addListener(mTransactionListChangeListener);
     }
 
     private void updateHoldings() {
         mMainApp.setCurrentAccountSecurityHoldingList(mDatePicker.getValue(), 0);
         populateTreeTable();
+    }
+
+    void close() { mMainApp.getCurrentAccount().getTransactionList().removeListener(mTransactionListChangeListener); }
+
+    @FXML
+    private void handleEnterTransaction() {
+        mMainApp.showEditTransactionDialog((Stage) mMainPane.getScene().getWindow(),  null);
     }
 }

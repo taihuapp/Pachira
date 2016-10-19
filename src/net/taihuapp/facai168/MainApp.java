@@ -233,6 +233,8 @@ public class MainApp extends Application {
         alert.showAndWait();
     }
 
+    Stage getStage() { return mPrimaryStage; }
+
     // if id <= 0, load all settings and return a list
     // if id > 0, load the setting with given id, return a list of length 1 (or 0 if no matching id found)
     List<ReportDialogController.Setting> loadReportSetting(int id) {
@@ -1645,7 +1647,7 @@ public class MainApp extends Application {
         }
     }
 
-    void showEditTransactionDialog(Transaction transaction) {
+    void showEditTransactionDialog(Stage parent, Transaction transaction) {
         if (mCurrentAccount == null) {
             System.err.println("Can't show holdings for null account.");
             return;
@@ -1658,7 +1660,7 @@ public class MainApp extends Application {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Enter Transaction:");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.initOwner(parent);
             dialogStage.setScene(new Scene(loader.load()));
 
             EditTransactionDialogController controller = loader.getController();
@@ -1691,6 +1693,7 @@ public class MainApp extends Application {
 
             HoldingsDialogController controller = loader.getController();
             controller.setMainApp(this);
+            dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();
@@ -1772,7 +1775,7 @@ public class MainApp extends Application {
                 insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
                         Integer.MAX_VALUE, null));
             } else {
-                System.err.println("Unknow account type: " + qa.getType()
+                System.err.println("Unknown account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
             }
         }
@@ -2095,7 +2098,7 @@ public class MainApp extends Application {
         // Accounts table
         // ID starts from 1
         String sqlCmd = "create table ACCOUNTS ("
-                // make sure to start from MIN_ACCOUND_ID
+                // make sure to start from MIN_ACCOUNT_ID
                 + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_ACCOUNT_ID + "), "
                 + "TYPE integer NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "

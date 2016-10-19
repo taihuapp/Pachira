@@ -5,11 +5,14 @@
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.HoldingsDialogController">
+<AnchorPane fx:id="mMainPane" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.HoldingsDialogController">
    <children>
       <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
-            <DatePicker fx:id="mDatePicker" />
+            <DatePicker fx:id="mDatePicker">
+               <VBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </VBox.margin></DatePicker>
             <TreeTableView fx:id="mSecurityHoldingTreeTableView">
               <columns>
                 <TreeTableColumn fx:id="mNameColumn" prefWidth="150.0" text="Name" />
@@ -20,7 +23,15 @@
                   <TreeTableColumn fx:id="mPNLColumn" prefWidth="100.0" text="P&amp;L" />
                   <TreeTableColumn fx:id="mPctReturnColumn" prefWidth="100.0" text="Return (%)" />
               </columns>
+               <VBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </VBox.margin>
             </TreeTableView>
+            <Button mnemonicParsing="false" onAction="#handleEnterTransaction" text="Enter Transaction">
+               <VBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </VBox.margin>
+            </Button>
          </children>
       </VBox>
    </children>

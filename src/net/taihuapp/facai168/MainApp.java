@@ -1482,8 +1482,8 @@ public class MainApp extends Application {
             }
 
             Price price = getLatestSecurityPrice(securityHolding.getSecurityName(), date);
-            BigDecimal p = price.getPrice();
-            if (price.getDate().isBefore(date)) {
+            BigDecimal p = price == null ? BigDecimal.ZERO : price.getPrice(); // assume zero if no price found
+            if (price != null && price.getDate().isBefore(date)) {
                 // need to check if there is stock split between "date" and price.getDate()
                 List<Transaction> splitList = stockSplitTransactionListMap.get(securityHolding.getSecurityName());
                 if (splitList != null) {

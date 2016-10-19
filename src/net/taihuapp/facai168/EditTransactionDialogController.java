@@ -14,6 +14,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 
+import static net.taihuapp.facai168.Transaction.TradeAction.*;
+
 /**
  * Created by ghe on 7/10/15.
  * Controller for EditTransactionDialog
@@ -133,7 +135,7 @@ public class EditTransactionDialogController {
         mAccount = mMainApp.getCurrentAccount();
 
         if (transaction == null) {
-            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(), Transaction.TradeAction.BUY, 0);
+            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(), BUY, 0);
         } else {
             mTransaction = transaction;
         }
@@ -151,7 +153,7 @@ public class EditTransactionDialogController {
             return false;  // invalid transaction
 
         Transaction.TradeAction ta = mTransaction.getTradeAction();
-        if ((ta != Transaction.TradeAction.SELL && ta != Transaction.TradeAction.CVTSHRT)) {
+        if ((ta != SELL && ta != Transaction.TradeAction.CVTSHRT)) {
             // only SELL or CVTSHORT needs the MatchInfoList
             mMatchInfoList.clear();
         }
@@ -234,6 +236,20 @@ public class EditTransactionDialogController {
             mOldXferAccountID = 0;
         }
 
+        if ((mTransaction.getTradeAction() == BUY || mTransaction.getTradeAction() == SELL
+                || mTransaction.getTradeAction() == REINVDIV || mTransaction.getTradeAction() == REINVINT
+                || mTransaction.getTradeAction() == REINVLG || mTransaction.getTradeAction() == REINVMD
+                || mTransaction.getTradeAction() == REINVSH || mTransaction.getTradeAction() == SHTSELL
+                || mTransaction.getTradeAction() == CVTSHRT || mTransaction.getTradeAction() == BUYBOND)
+            && (mTransaction.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
+            Security security = mMainApp.getSecurityByName(mTransaction.getSecurityName());
+            if (security != null) {
+                int securityID = security.getID();
+                LocalDate date = mTransaction.getTDate();
+                // update price table
+                mMainApp.insertUpdatePriceToDB(securityID, date, mTransaction.getPrice(), 0);
+            }
+        }
         return true;
     }
 
@@ -280,9 +296,9 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleClear() {
-        mIncomeTextField.setText("0");
-        mSharesTextField.setText("0");
-        mCommissionTextField.setText("0");
+        mIncomeTextField.setText("0.00");
+        mSharesTextField.setText("0.00");
+        mCommissionTextField.setText("0.00");
     }
 
     @FXML
@@ -481,7 +497,7 @@ public class EditTransactionDialogController {
                 mPriceTextField.setEditable(true);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
-                mSpecifyLotButton.setVisible(tradeAction == Transaction.TradeAction.SELL);
+                mSpecifyLotButton.setVisible(tradeAction == SELL);
                 mTransferAccountLabel.setVisible(true);
                 mTransferAccountComboBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);

@@ -446,6 +446,7 @@ public class EditTransactionDialogController {
                 mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(true);
                 mPriceTextField.setVisible(true);
+                mPriceTextField.setEditable(true);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
@@ -477,6 +478,7 @@ public class EditTransactionDialogController {
                 mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(true);
                 mPriceTextField.setVisible(true);
+                mPriceTextField.setEditable(true);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(tradeAction == Transaction.TradeAction.SELL);
@@ -507,6 +509,7 @@ public class EditTransactionDialogController {
                 mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(true);
                 mPriceTextField.setVisible(true);
+                mPriceTextField.setEditable(true);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
@@ -594,6 +597,13 @@ public class EditTransactionDialogController {
         mTransaction.getCommissionProperty().unbind();
         mTransaction.getQuantityProperty().unbind();
 
+        mTotalTextField.textProperty().unbindBidirectional(mTransaction.getAmountProperty());
+        mIncomeTextField.textProperty().unbindBidirectional(mTransaction.getAmountProperty());
+        mSharesTextField.textProperty().unbindBidirectional(mTransaction.getQuantityProperty());
+        mOldSharesTextField.textProperty().unbindBidirectional(mTransaction.getOldQuantityProperty());
+        mPriceTextField.textProperty().unbindBidirectional(mTransaction.getPriceProperty());
+        mCommissionTextField.textProperty().unbindBidirectional(mTransaction.getCommissionProperty());
+
         if (isIncome) {
             mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
                     new BigDecimalStringConverter());
@@ -637,10 +647,8 @@ public class EditTransactionDialogController {
             mTransaction.getAmountProperty().bind(amount);
         }
 
-        Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(),
-                mTransaction.getCategoryIDProperty());
-        Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(),
-                mTransaction.getCategoryIDProperty());
+        Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
+        Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
         if (mTransaction.getTradeAction() == Transaction.TradeAction.DEPOSIT
                 || mTransaction.getTradeAction() == Transaction.TradeAction.DEPOSIT) {
             Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
@@ -656,23 +664,18 @@ public class EditTransactionDialogController {
                 mSecurityComboBox.valueProperty(), mSecurityComboBox.getConverter());
         mSecurityComboBox.getSelectionModel().select(currentSecurity);
 
-        mSharesTextField.textProperty().unbindBidirectional(mTransaction.getQuantityProperty());
         mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),
                 new BigDecimalStringConverter());
 
-        mOldSharesTextField.textProperty().unbindBidirectional(mTransaction.getOldQuantityProperty());
         mOldSharesTextField.textProperty().bindBidirectional(mTransaction.getOldQuantityProperty(),
                 new BigDecimalStringConverter());
 
-        mPriceTextField.textProperty().unbindBidirectional(mTransaction.getPriceProperty());
         mPriceTextField.textProperty().bindBidirectional(mTransaction.getPriceProperty(),
                 new BigDecimalStringConverter());
 
-        mCommissionTextField.textProperty().unbindBidirectional(mTransaction.getCommissionProperty());
         mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
                 new BigDecimalStringConverter());
 
-        mTotalTextField.textProperty().unbindBidirectional(mTransaction.getAmountProperty());
         mTotalTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
                 new BigDecimalStringConverter());
     }

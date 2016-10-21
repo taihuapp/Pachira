@@ -2,8 +2,6 @@ package net.taihuapp.facai168;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
@@ -12,6 +10,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Iterator;
 import java.util.List;
+
+import static net.taihuapp.facai168.Transaction.TradeAction.CVTSHRT;
+import static net.taihuapp.facai168.Transaction.TradeAction.SELL;
 
 /**
  * Created by ghe on 6/22/15.
@@ -155,9 +156,28 @@ public class SecurityHolding extends LotHolding {
 
         // update total quantity here
         BigDecimal lotInfoQuantity = lotInfo.getQuantity();
-        if (lotInfoQuantity == null)
-            return;  // nothing todo here
+        if (lotInfoQuantity == null) {
+            // no change in quantity, check cost basis
+            setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
+            return;
+        }
+
         setQuantity(oldQuantity.add(lotInfoQuantity));
+
+        if (oldQuantity.signum() == 0 && (lotInfo.getTradeAction() == SELL || lotInfo.getTradeAction() == CVTSHRT)) {
+            // this is a closing trade
+            System.err.println("*******\nTransaction Date: " + lotInfo.getDate().toString() + "\n"
+                    + "Security Name: " + lotInfo.getSecurityName() + "\n"
+                    + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
+                    + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
+                    + "Quantity: " + lotInfoQuantity + "\n"
+                    + "Existing Quantity: " + oldQuantity + "\n"
+                    + " can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
+                    + "*******");
+            getLotInfoList().add(lotInfo);
+            setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
+            return;
+        }
 
         if ((oldQuantity.signum() >= 0) && (lotInfoQuantity.signum() > 0)
             || ((oldQuantity.signum() <= 0) && (lotInfo.getQuantity().signum() < 0))) {

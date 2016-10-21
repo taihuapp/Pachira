@@ -554,6 +554,7 @@ public class EditTransactionDialogController {
             case CGSHORT:
             case MISCINC:
             case MISCEXP:
+            case RTRNCAP:
                 isIncome = true;
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
@@ -581,7 +582,7 @@ public class EditTransactionDialogController {
                 mIncomeTextField.setVisible(true);
                 mTotalLabel.setVisible(true);
                 mTotalTextField.setVisible(true);
-                mTotalLabel.setText("Total Income");
+                mTotalLabel.setText(tradeAction == RTRNCAP ? "Amount" : "Total Income");
                 mTotalTextField.setEditable(false);
                 mIncomeLabel.setText(tradeAction.name());
                 investAmountSign = BigDecimal.ONE;

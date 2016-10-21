@@ -16,10 +16,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.h2.tools.ChangeFileEncryption;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.*;
@@ -2279,6 +2276,12 @@ public class MainApp extends Application {
     }
 
     public static void main(String[] args) {
+        // set error stream to a file in the current directory
+        try {
+            System.setErr(new PrintStream(File.createTempFile("FC168", ".err")));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         launch(args);
     }
 }

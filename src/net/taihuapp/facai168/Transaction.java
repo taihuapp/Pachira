@@ -236,7 +236,7 @@ public class Transaction {
             case MISCEXP:
             case MISCINC:
             case RTRNCAP:
-                mInvestAmountProperty.setValue(BigDecimal.ZERO);
+                mInvestAmountProperty.setValue(ta == TradeAction.RTRNCAP ? amount.negate() : BigDecimal.ZERO);
                 mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount);
                 mQuantityProperty.set(null);
                 mDepositProperty.set(null);

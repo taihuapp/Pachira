@@ -11,6 +11,8 @@ import javafx.beans.property.StringProperty;
  */
 public class Security {
     enum Type {
+        // make sure the name is not longer than 16 characters
+        // or database structure needs to be changed.
         STOCK, BOND, MUTUALFUND, CD, INDEX, OTHER;
 
         public String toString() {

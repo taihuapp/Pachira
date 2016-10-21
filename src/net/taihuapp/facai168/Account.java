@@ -36,6 +36,8 @@ public class Account {
      *        Other liability (not a credit card)
      */
 
+    // make sure the name is not longer than 10 characters
+    // otherwise database change is needed
     enum Type { SPENDING, INVESTING, PROPERTY, DEBT }
 
     private final Type mType;

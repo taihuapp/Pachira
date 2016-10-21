@@ -434,7 +434,7 @@ public class MainApp extends Application {
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setString(1, security.getTicker());
             preparedStatement.setString(2, security.getName());
-            preparedStatement.setInt(3, security.getType().ordinal());
+            preparedStatement.setString(3, security.getType().name());
             if (security.getID() > 0) {
                 preparedStatement.setInt(4, security.getID());
             }
@@ -887,7 +887,7 @@ public class MainApp extends Application {
         }
 
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
-            preparedStatement.setInt(1, account.getType().ordinal());
+            preparedStatement.setString(1, account.getType().name());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
             preparedStatement.setBoolean(4, account.getHiddenFlag());
@@ -1053,8 +1053,7 @@ public class MainApp extends Application {
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int id = rs.getInt("ID");
-                int typeOrdinal = rs.getInt("TYPE");
-                Account.Type type = Account.Type.values()[typeOrdinal];
+                Account.Type type = Account.Type.valueOf(rs.getString("TYPE"));
                 String name = rs.getString("NAME");
                 String description = rs.getString("DESCRIPTION");
                 Boolean hiddenFlag = rs.getBoolean("HIDDENFLAG");
@@ -1081,10 +1080,9 @@ public class MainApp extends Application {
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int id = rs.getInt("ID");
-                int typeOrdinal = rs.getInt("TYPE");
                 String ticker = rs.getString("TICKER");
                 String name = rs.getString("NAME");
-                Security.Type type = Security.Type.values()[typeOrdinal];
+                Security.Type type = Security.Type.valueOf(rs.getString("TYPE"));
                 if (type == Security.Type.INDEX)
                     continue; // skip index
                 mSecurityList.add(new Security(id, ticker, name, type));
@@ -2100,7 +2098,7 @@ public class MainApp extends Application {
         String sqlCmd = "create table ACCOUNTS ("
                 // make sure to start from MIN_ACCOUNT_ID
                 + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_ACCOUNT_ID + "), "
-                + "TYPE integer NOT NULL, "
+                + "TYPE varchar (10) NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "HIDDENFLAG boolean NOT NULL, "
@@ -2118,7 +2116,7 @@ public class MainApp extends Application {
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure starts with 1
                 + "TICKER varchar(" + SECURITYTICKERLEN + ") NOT NULL, "
                 + "NAME varchar(" + SECURITYNAMELEN + ") UNIQUE NOT NULL, "
-                + "TYPE integer NOT NULL, "
+                + "TYPE varchar(16) NOT NULL, "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 

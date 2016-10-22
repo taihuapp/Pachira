@@ -171,10 +171,10 @@ public class Transaction {
             case WITHDRAW:
             case XIN:
             case XOUT:
+            case MARGINT:
                 return getQuantity();
             case XFRSHRS:
             case STKSPLIT:
-            case MARGINT:
             default:
                 System.err.println("getSignedQuantity not implemented for " + getTradeAction());
                 return getQuantity();

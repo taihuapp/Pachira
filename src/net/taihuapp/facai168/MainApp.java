@@ -2277,11 +2277,13 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
         // set error stream to a file in the current directory
+/*
         try {
             System.setErr(new PrintStream(File.createTempFile("FC168", ".err")));
         } catch (IOException e) {
             e.printStackTrace();
         }
+*/
         launch(args);
     }
 }

@@ -182,6 +182,7 @@ public class EditTransactionDialogController {
             case WITHDRAW:
             case STKSPLIT:
             case XIN:
+            case MARGINT:
                 if (xferAID >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XIN)
                     xferTA = Transaction.TradeAction.XOUT;
 
@@ -271,6 +272,7 @@ public class EditTransactionDialogController {
             case XOUT:
             case DEPOSIT:
             case WITHDRAW:
+            case MARGINT:
                 return true;
             default:
                 // return false for all other transactions without security
@@ -440,13 +442,10 @@ public class EditTransactionDialogController {
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(false);
                 mIncomeTextField.setVisible(false);
-                if (tradeAction == Transaction.TradeAction.XIN)
-                    mTransferAccountLabel.setText("Transfer Cash From:");
-                else
-                    mTransferAccountLabel.setText("Transfer Cash To:");
+                mTransferAccountLabel.setText(tradeAction == XOUT ? "Transfer Cash To:" : "Transfer Cash From:");
                 mTotalLabel.setVisible(true);
                 mTotalTextField.setVisible(true);
-                mTotalLabel.setText("Transfer Amount:");
+                mTotalLabel.setText(tradeAction == MARGINT ? "Amount" : "Transfer Amount:");
                 mTotalTextField.setEditable(true);
                 investAmountSign = BigDecimal.ONE;
                 break;
@@ -557,6 +556,7 @@ public class EditTransactionDialogController {
             case CGMID:
             case CGSHORT:
             case CGLONG:
+            case MARGINT:
             case MISCINC:
             case MISCEXP:
             case RTRNCAP:
@@ -584,15 +584,14 @@ public class EditTransactionDialogController {
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(true);
+                mIncomeLabel.setText(tradeAction.name());
                 mIncomeTextField.setVisible(true);
                 mTotalLabel.setVisible(true);
                 mTotalTextField.setVisible(true);
-                mTotalLabel.setText(tradeAction == RTRNCAP ? "Amount" : "Total Income");
+                mTotalLabel.setText("Amount");
                 mTotalTextField.setEditable(false);
-                mIncomeLabel.setText(tradeAction.name());
                 investAmountSign = BigDecimal.ONE;
                 break;
-            case MARGINT:
             case XFRSHRS:
             case BUYBOND:
             default:

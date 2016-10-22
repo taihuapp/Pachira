@@ -154,7 +154,7 @@ public class EditTransactionDialogController {
 
         Transaction.TradeAction ta = mTransaction.getTradeAction();
         if ((ta != SELL && ta != Transaction.TradeAction.CVTSHRT)) {
-            // only SELL or CVTSHORT needs the MatchInfoList
+            // only SELL or CVTSHRT needs the MatchInfoList
             mMatchInfoList.clear();
         }
 
@@ -262,7 +262,7 @@ public class EditTransactionDialogController {
         if (security != null && security.getID() > 0)  // has a valid security
             return true;
 
-        // empty securiy here
+        // empty security here
         // for cash related transaction, return true
         switch (mTransaction.getTradeAction()) {
             case DIV:
@@ -592,7 +592,6 @@ public class EditTransactionDialogController {
                 mIncomeLabel.setText(tradeAction.name());
                 investAmountSign = BigDecimal.ONE;
                 break;
-            case STOCKDIV:
             case MARGINT:
             case XFRSHRS:
             case BUYBOND:

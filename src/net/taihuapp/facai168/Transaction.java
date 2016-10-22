@@ -18,7 +18,7 @@ public class Transaction {
 
     enum TradeAction {
         BUY, SELL, DIV, REINVDIV, INTINC, REINVINT, CGLONG, CGMID, CGSHORT,
-        REINVLG, REINVMD, REINVSH, STKSPLIT, SHRSIN, SHRSOUT, MISCEXP, MISCINC, STOCKDIV,
+        REINVLG, REINVMD, REINVSH, STKSPLIT, SHRSIN, SHRSOUT, MISCEXP, MISCINC,
         RTRNCAP, SHTSELL, CVTSHRT, MARGINT,
         XFRSHRS, XIN, XOUT, BUYBOND, DEPOSIT, WITHDRAW
     }
@@ -114,7 +114,6 @@ public class Transaction {
                     return mAmountProperty.get().stripTrailingZeros().toPlainString();
                 case SHRSOUT:
                     return getQuantity().stripTrailingZeros().toPlainString() + " shares";
-                case STOCKDIV:
                 case XFRSHRS:
                 case BUYBOND:
                 default:
@@ -175,7 +174,6 @@ public class Transaction {
                 return getQuantity();
             case XFRSHRS:
             case STKSPLIT:
-            case STOCKDIV:
             case MARGINT:
             default:
                 System.err.println("getSignedQuantity not implemented for " + getTradeAction());
@@ -216,7 +214,6 @@ public class Transaction {
             case STKSPLIT:
             case SHRSIN:
             case SHRSOUT:
-            case STOCKDIV:
             case XFRSHRS:
                 mInvestAmountProperty.setValue(amount);
                 mCashAmountProperty.setValue(BigDecimal.ZERO);
@@ -280,7 +277,7 @@ public class Transaction {
         mSplitTransactionList.addAll(stList);
     }
 
-    // minimum constractor
+    // minimum constructor
     public Transaction(int accountID, LocalDate date, TradeAction ta, int categoryID) {
         System.out.println("Transaction minimum constructor called");
         mAccountID = accountID;

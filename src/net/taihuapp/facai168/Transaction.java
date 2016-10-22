@@ -110,9 +110,10 @@ public class Transaction {
                 case CGMID:
                 case CGSHORT:
                 case INTINC:
-                    return mAmountProperty.get().stripTrailingZeros().toPlainString();
                 case RTRNCAP:
+                    return mAmountProperty.get().stripTrailingZeros().toPlainString();
                 case SHRSOUT:
+                    return getQuantity().stripTrailingZeros().toPlainString() + " shares";
                 case STOCKDIV:
                 case XFRSHRS:
                 case BUYBOND:
@@ -172,6 +173,10 @@ public class Transaction {
             case XIN:
             case XOUT:
                 return getQuantity();
+            case XFRSHRS:
+            case STKSPLIT:
+            case STOCKDIV:
+            case MARGINT:
             default:
                 System.err.println("getSignedQuantity not implemented for " + getTradeAction());
                 return getQuantity();

@@ -195,6 +195,9 @@ public class EditTransactionDialogController {
                 if (xferAID >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XOUT)
                     xferTA = Transaction.TradeAction.XIN;
                 break;
+            case SHRSOUT:
+                // nothing to transfer
+                break;
             default:
                 System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
                 return false;
@@ -481,6 +484,7 @@ public class EditTransactionDialogController {
                 break;
             case SELL:
             case SHTSELL:
+            case SHRSOUT:
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
                 mPayeeLabel.setVisible(false);
@@ -492,21 +496,21 @@ public class EditTransactionDialogController {
                 mSharesTextField.setVisible(true);
                 mOldSharesLabel.setVisible(false);
                 mOldSharesTextField.setVisible(false);
-                mPriceLabel.setVisible(true);
-                mPriceTextField.setVisible(true);
+                mPriceLabel.setVisible(tradeAction != SHRSOUT);
+                mPriceTextField.setVisible(tradeAction != SHRSOUT);
                 mPriceTextField.setEditable(true);
-                mCommissionLabel.setVisible(true);
-                mCommissionTextField.setVisible(true);
-                mSpecifyLotButton.setVisible(tradeAction == SELL);
-                mTransferAccountLabel.setVisible(true);
-                mTransferAccountComboBox.setVisible(true);
+                mCommissionLabel.setVisible(tradeAction != SHRSOUT);
+                mCommissionTextField.setVisible(tradeAction != SHRSOUT);
+                mSpecifyLotButton.setVisible(tradeAction == SELL || tradeAction == SHRSOUT);
+                mTransferAccountLabel.setVisible(tradeAction != SHRSOUT);
+                mTransferAccountComboBox.setVisible(tradeAction != SHRSOUT);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
                 mIncomeLabel.setVisible(false);
                 mIncomeTextField.setVisible(false);
                 mTransferAccountLabel.setText("Put Cash Into:");
-                mTotalLabel.setVisible(true);
-                mTotalTextField.setVisible(true);
+                mTotalLabel.setVisible(tradeAction != SHRSOUT);
+                mTotalTextField.setVisible(tradeAction != SHRSOUT);
                 mTotalLabel.setText("Total Sale:");
                 mTotalTextField.setEditable(false);
                 investAmountSign = BigDecimal.ONE.negate();
@@ -552,6 +556,7 @@ public class EditTransactionDialogController {
             case INTINC:
             case CGMID:
             case CGSHORT:
+            case CGLONG:
             case MISCINC:
             case MISCEXP:
             case RTRNCAP:
@@ -587,6 +592,10 @@ public class EditTransactionDialogController {
                 mIncomeLabel.setText(tradeAction.name());
                 investAmountSign = BigDecimal.ONE;
                 break;
+            case STOCKDIV:
+            case MARGINT:
+            case XFRSHRS:
+            case BUYBOND:
             default:
                 System.err.println("TradeAction " + tradeAction + " not implemented yet.");
                 return;

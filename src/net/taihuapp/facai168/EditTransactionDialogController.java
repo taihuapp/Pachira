@@ -167,7 +167,6 @@ public class EditTransactionDialogController {
         Transaction.TradeAction xferTA = null;
         switch (ta) {
             case BUY:
-            case BUYBOND:
             case SHRSIN:
             case CGLONG:
             case CGMID:
@@ -244,7 +243,7 @@ public class EditTransactionDialogController {
                 || mTransaction.getTradeAction() == REINVDIV || mTransaction.getTradeAction() == REINVINT
                 || mTransaction.getTradeAction() == REINVLG || mTransaction.getTradeAction() == REINVMD
                 || mTransaction.getTradeAction() == REINVSH || mTransaction.getTradeAction() == SHTSELL
-                || mTransaction.getTradeAction() == CVTSHRT || mTransaction.getTradeAction() == BUYBOND)
+                || mTransaction.getTradeAction() == CVTSHRT)
             && (mTransaction.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
             Security security = mMainApp.getSecurityByName(mTransaction.getSecurityName());
             if (security != null) {
@@ -593,7 +592,6 @@ public class EditTransactionDialogController {
                 investAmountSign = BigDecimal.ONE;
                 break;
             case XFRSHRS:
-            case BUYBOND:
             default:
                 System.err.println("TradeAction " + tradeAction + " not implemented yet.");
                 return;

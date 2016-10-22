@@ -20,7 +20,7 @@ public class Transaction {
         BUY, SELL, DIV, REINVDIV, INTINC, REINVINT, CGLONG, CGMID, CGSHORT,
         REINVLG, REINVMD, REINVSH, STKSPLIT, SHRSIN, SHRSOUT, MISCEXP, MISCINC,
         RTRNCAP, SHTSELL, CVTSHRT, MARGINT,
-        XFRSHRS, XIN, XOUT, BUYBOND, DEPOSIT, WITHDRAW
+        XFRSHRS, XIN, XOUT, DEPOSIT, WITHDRAW
     }
 
     private int mID = -1;
@@ -115,7 +115,6 @@ public class Transaction {
                 case SHRSOUT:
                     return getQuantity().stripTrailingZeros().toPlainString() + " shares";
                 case XFRSHRS:
-                case BUYBOND:
                 default:
                     return "description for [" + getTradeAction() + "] Transaction not implemented yet.";
             }
@@ -151,7 +150,6 @@ public class Transaction {
             case SHRSOUT:
                 return getQuantity().negate();
             case BUY:
-            case BUYBOND:
             case CVTSHRT:
             case DEPOSIT:
             case DIV:
@@ -198,7 +196,6 @@ public class Transaction {
             // todo
             // need to verify each
             case BUY:
-            case BUYBOND:
             case CVTSHRT:
                 mInvestAmountProperty.setValue(amount);
                 mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount.negate());

@@ -314,7 +314,9 @@ public class EditTransactionDialogController {
     @FXML
     private void handleEnterNew() {
         if (enterTransaction()) {
-            mTransaction.setID(0); // a new transaction
+            // new transaction, set transaction id, matchID, matchSplitID
+            mTransaction.setID(0);
+            mTransaction.setMatchID(-1, -1);
             handleClear();
         }
     }
@@ -345,8 +347,7 @@ public class EditTransactionDialogController {
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
 
         mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
-                .addListener((observable1, oldValue, newValue)
-                        -> setupInvestmentTransactionDialog(newValue));
+                .addListener((ob, o, n) -> { if (n != null) setupInvestmentTransactionDialog(n); });
 
         mTransactionChoiceBox.getSelectionModel().select(mTransaction.getTradeAction());
         mTransactionChoiceBox.valueProperty().unbindBidirectional(mTransaction.getTradeActionProperty());

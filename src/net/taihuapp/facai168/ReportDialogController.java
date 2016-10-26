@@ -362,8 +362,8 @@ public class ReportDialogController {
         String outputStr = "NAV Report as of " + date + "\n\n";
 
         BigDecimal total = BigDecimal.ZERO;
-        String separator0 = new String(new char[75]).replace("\0", "-");
-        String separator1 = new String(new char[75]).replace("\0", "=");
+        String separator0 = new String(new char[90]).replace("\0", "-");
+        String separator1 = new String(new char[90]).replace("\0", "=");
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
@@ -375,7 +375,7 @@ public class ReportDialogController {
             total = total.add(shList.get(shListLen-1).getMarketValue());
 
             // print account total
-            outputStr += String.format("%-40s%35s\n", s.toString(),
+            outputStr += String.format("%-55s%35s\n", s.toString(),
                     dcFormat.format(shList.get(shListLen-1).getMarketValue()));
 
             outputStr += separator0 + "\n";
@@ -386,7 +386,7 @@ public class ReportDialogController {
                 SecurityHolding sh = shList.get(i);
                 q = sh.getQuantity();
                 p = sh.getPrice();
-                outputStr += String.format("  %-35s%12s%10s%14s\n", sh.getLabel(), q == null ? "" : qpFormat.format(q),
+                outputStr += String.format("  %-50s%12s%10s%14s\n", sh.getLabel(), q == null ? "" : qpFormat.format(q),
                         p == null ? "" : qpFormat.format(p), dcFormat.format(sh.getMarketValue()));
             }
             outputStr += separator1 + "\n";
@@ -394,7 +394,7 @@ public class ReportDialogController {
         }
 
         // print out total
-        outputStr += String.format("%-40s%35s\n", "Total", dcFormat.format(total));
+        outputStr += String.format("%-55s%35s\n", "Total", dcFormat.format(total));
 
         return outputStr;
     }

@@ -139,7 +139,8 @@ public class EditTransactionDialogController {
         mAccount = mMainApp.getCurrentAccount();
 
         if (transaction == null) {
-            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(), BUY, 0);
+            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(),
+                    mAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
         } else {
             mTransaction = transaction;
         }
@@ -642,6 +643,7 @@ public class EditTransactionDialogController {
         mCategoryComboBox.getItems().add(0);
         for (Category c : mMainApp.getCategoryList())
             mCategoryComboBox.getItems().add(c.getID());
+        mCategoryComboBox.getSelectionModel().select(0);
 
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();
@@ -701,7 +703,7 @@ public class EditTransactionDialogController {
 
         Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
         Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
-        if (mTransaction.getTradeAction() == Transaction.TradeAction.DEPOSIT
+        if (mTransaction.getTradeAction() == Transaction.TradeAction.WITHDRAW
                 || mTransaction.getTradeAction() == Transaction.TradeAction.DEPOSIT) {
             Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
                     mTransaction.getCategoryIDProperty().asObject());

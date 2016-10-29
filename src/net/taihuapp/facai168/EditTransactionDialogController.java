@@ -56,7 +56,7 @@ public class EditTransactionDialogController {
     }
 
     @FXML
-    private ChoiceBox<Transaction.TradeAction> mTransactionChoiceBox;
+    private ChoiceBox<Transaction.TradeAction> mTradeActionChoiceBox;
     @FXML
     private DatePicker mTDatePicker;
     @FXML
@@ -79,6 +79,10 @@ public class EditTransactionDialogController {
     private Label mSecurityNameLabel;
     @FXML
     private ComboBox<Security> mSecurityComboBox;
+    @FXML
+    private Label mReferenceLabel;
+    @FXML
+    private TextField mReferenceTextField;
     @FXML
     private Label mPayeeLabel;
     @FXML
@@ -327,7 +331,15 @@ public class EditTransactionDialogController {
         mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
         mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
 
-        mTransactionChoiceBox.getItems().setAll(Transaction.TradeAction.values());
+        if (mAccount.getType() == Account.Type.INVESTING)
+            mTradeActionChoiceBox.getItems().setAll(Transaction.TradeAction.values());
+        else {
+            mTradeActionChoiceBox.getItems().clear();
+            mTradeActionChoiceBox.getItems().add(WITHDRAW);
+            mTradeActionChoiceBox.getItems().add(DEPOSIT);
+            mTradeActionChoiceBox.getItems().add(XIN);
+            mTradeActionChoiceBox.getItems().add(XOUT);
+        }
 
         addEventFilter(mSharesTextField);
         addEventFilter(mOldSharesTextField);
@@ -343,15 +355,18 @@ public class EditTransactionDialogController {
         mMemoTextField.textProperty().unbindBidirectional(mTransaction.getMemoProperty());
         mMemoTextField.textProperty().bindBidirectional(mTransaction.getMemoProperty());
 
+        mReferenceTextField.textProperty().unbindBidirectional(mTransaction.getReferenceProperty());
+        mReferenceTextField.textProperty().bindBidirectional(mTransaction.getReferenceProperty());
+
         mPayeeTextField.textProperty().unbindBidirectional(mTransaction.getPayeeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
 
-        mTransactionChoiceBox.getSelectionModel().selectedItemProperty()
+        mTradeActionChoiceBox.getSelectionModel().selectedItemProperty()
                 .addListener((ob, o, n) -> { if (n != null) setupInvestmentTransactionDialog(n); });
 
-        mTransactionChoiceBox.getSelectionModel().select(mTransaction.getTradeAction());
-        mTransactionChoiceBox.valueProperty().unbindBidirectional(mTransaction.getTradeActionProperty());
-        mTransactionChoiceBox.valueProperty().bindBidirectional(mTransaction.getTradeActionProperty());
+        mTradeActionChoiceBox.getSelectionModel().select(mTransaction.getTradeAction());
+        mTradeActionChoiceBox.valueProperty().unbindBidirectional(mTransaction.getTradeActionProperty());
+        mTradeActionChoiceBox.valueProperty().bindBidirectional(mTransaction.getTradeActionProperty());
     }
 
     private void setupInvestmentTransactionDialog(Transaction.TradeAction tradeAction) {
@@ -364,6 +379,8 @@ public class EditTransactionDialogController {
                 isCashTransfer = false;
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
+                mReferenceLabel.setVisible(false);
+                mReferenceTextField.setVisible(false);
                 mPayeeLabel.setVisible(false);
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
@@ -393,6 +410,8 @@ public class EditTransactionDialogController {
                 isCashTransfer = true;
                 mCategoryLabel.setVisible(true);
                 mCategoryComboBox.setVisible(true);
+                mReferenceLabel.setVisible(true);
+                mReferenceTextField.setVisible(true);
                 mPayeeLabel.setVisible(true);
                 mPayeeTextField.setVisible(true);
                 mSecurityNameLabel.setVisible(false);
@@ -423,8 +442,10 @@ public class EditTransactionDialogController {
                 isCashTransfer = true;
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
-                mPayeeLabel.setVisible(false);
-                mPayeeTextField.setVisible(false);
+                mReferenceLabel.setVisible(true);
+                mReferenceTextField.setVisible(true);
+                mPayeeLabel.setVisible(true);
+                mPayeeTextField.setVisible(true);
                 mSecurityNameLabel.setVisible(false);
                 mSecurityComboBox.setVisible(false);
                 mSharesLabel.setVisible(false);
@@ -453,6 +474,8 @@ public class EditTransactionDialogController {
             case CVTSHRT:
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
+                mReferenceLabel.setVisible(false);
+                mReferenceTextField.setVisible(false);
                 mPayeeLabel.setVisible(false);
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
@@ -486,6 +509,8 @@ public class EditTransactionDialogController {
             case SHRSOUT:
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
+                mReferenceLabel.setVisible(false);
+                mReferenceTextField.setVisible(false);
                 mPayeeLabel.setVisible(false);
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
@@ -517,6 +542,8 @@ public class EditTransactionDialogController {
             case SHRSIN:
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
+                mReferenceLabel.setVisible(false);
+                mReferenceTextField.setVisible(false);
                 mPayeeLabel.setVisible(false);
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
@@ -563,6 +590,8 @@ public class EditTransactionDialogController {
                 isIncome = true;
                 mCategoryLabel.setVisible(false);
                 mCategoryComboBox.setVisible(false);
+                mReferenceLabel.setVisible(false);
+                mReferenceTextField.setVisible(false);
                 mPayeeLabel.setVisible(false);
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);

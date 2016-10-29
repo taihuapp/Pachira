@@ -315,20 +315,6 @@ public class Transaction {
         bindDescriptionProperty();
     }
 
-    static TradeAction mapBankingTransactionTA(int cid, BigDecimal signedAmount) {
-        if (MainApp.categoryOrTransferTest(cid) >= 0)
-            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
-
-        return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
-    }
-
-    static TradeAction mapBankingTransactionTA(String category, BigDecimal signedAmount) {
-        if (MainApp.categoryOrTransferTest(category) >= 0)
-            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
-
-        return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
-    }
-
     // Banking Transaction constructors
     public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String reference, String payee,
                        String memo, int categoryID, BigDecimal amount, int matchID, int matchSplitID) {

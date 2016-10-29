@@ -350,15 +350,16 @@ public class MainApp extends Application {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                     "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, " +
-                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY, " +
+                    "REFERENCE) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
                     "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
-                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ? " +
+                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ? , REFERENCE = ? " +
                     "where ID = ?";
         }
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
@@ -385,9 +386,9 @@ public class MainApp extends Application {
             else
                 preparedStatement.setDate(15, Date.valueOf(t.getADate()));
             preparedStatement.setBigDecimal(16, t.getOldQuantity());
-
+            preparedStatement.setString(17, t.getReferenceProperty().get());
             if (t.getID() > 0)
-                preparedStatement.setInt(17, t.getID());
+                preparedStatement.setInt(18, t.getID());
 
             if (preparedStatement.executeUpdate() == 0)
                 throw new SQLException("Insert/Update Transaction failed, no rows changed");
@@ -538,6 +539,15 @@ public class MainApp extends Application {
         return "[" + a.getName() + "]";
     }
 
+    // Take categoryOrTransferID cid, and signedAmount for a banking transaction
+    // output matching Transaction.TradeAction
+    private static Transaction.TradeAction mapBankingTransactionTA(int cid, BigDecimal signedAmount) {
+        if (categoryOrTransferTest(cid) >= 0)
+            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
+
+        return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
+    }
+/*
     // return 1 for category, -1 for account, 0 for neither
     static int categoryOrTransferTest(String categoryOrTransferStr) {
         if (categoryOrTransferStr == null || categoryOrTransferStr.length() == 0)
@@ -546,8 +556,8 @@ public class MainApp extends Application {
             return 1;  // is category
         return -1;
     }
-
-    static int categoryOrTransferTest(int cid) {
+*/
+    private static int categoryOrTransferTest(int cid) {
         if (cid >= MIN_CATEGORY_ID)
             return 1; // is category
         if (cid <= -MIN_ACCOUNT_ID)
@@ -732,19 +742,20 @@ public class MainApp extends Application {
 
             try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
                 String categoryOrTransferStr = bt.getCategoryOrTransfer();
+                int categoryOrTransferID = mapCategoryOrAccountNameToID(categoryOrTransferStr);
+                Transaction.TradeAction ta = mapBankingTransactionTA(categoryOrTransferID, bt.getTAmount());
                 preparedStatement.setInt(1, account.getID());
                 preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
                 preparedStatement.setBigDecimal(3, bt.getTAmount().abs());
                 preparedStatement.setInt(4, bt.getCleared());
-                preparedStatement.setInt(5, mapCategoryOrAccountNameToID(categoryOrTransferStr));
+                preparedStatement.setInt(5, categoryOrTransferID);
                 preparedStatement.setString(6, bt.getMemo());
                 preparedStatement.setString(7, bt.getReference());
                 preparedStatement.setString(8, bt.getPayee());
                 preparedStatement.setBoolean(9, !splitList.isEmpty());
                 preparedStatement.setInt(10, addressID);
                 preparedStatement.setInt(11, amortID);
-                preparedStatement.setString(12,
-                        Transaction.mapBankingTransactionTA(categoryOrTransferStr, bt.getTAmount()).name());
+                preparedStatement.setString(12, ta.name());
                 preparedStatement.executeUpdate();
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                     if (resultSet.next()) {
@@ -1119,7 +1130,7 @@ public class MainApp extends Application {
                 // split transaction table doesn't keep trade action, but
                 // keeps category/transfer and signed amount.
                 stList.add(new Transaction(id, accountID, null,
-                        Transaction.mapBankingTransactionTA(cid, amount), null, null,
+                        mapBankingTransactionTA(cid, amount), null, null,
                         memo, cid, amount.abs(), matchID, matchSplitID));
             }
         }  catch (SQLException e) {

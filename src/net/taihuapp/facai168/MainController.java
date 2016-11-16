@@ -35,6 +35,8 @@ public class MainController {
     @FXML
     private MenuItem mImportQIFMenuItem;
     @FXML
+    private MenuItem mFixDBMenuItem;
+    @FXML
     private TableView<Account> mAccountTableView;
     @FXML
     private TableColumn<Account, String> mAccountColumn;
@@ -122,6 +124,12 @@ public class MainController {
     }
 
     @FXML
+    private void handleFixDB() {
+        mMainApp.fixDB();
+        mMainApp.initAccountList();
+    }
+
+    @FXML
     private void handleBackup() { mMainApp.doBackup(); }
 
     @FXML
@@ -161,6 +169,7 @@ public class MainController {
         mChangePasswordMenuItem.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);
         mImportQIFMenuItem.setVisible(isConnected);
+        mFixDBMenuItem.setVisible(isConnected);
         mAccountTableView.setVisible(isConnected);
         mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
         if (isConnected)

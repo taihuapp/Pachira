@@ -138,10 +138,50 @@ public class Transaction {
     String getSecurityName() { return mSecurityNameProperty.get();}
     BigDecimal getCashAmount() { return mCashAmountProperty.get(); }
     List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
+    boolean isSplit() { return getSplitTransactionList().size() > 0; }
     BigDecimal getAmount() { return mAmountProperty.get(); }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
     int getMatchID() { return mMatchID; }  // this is for linked transactions
     int getMatchSplitID() { return mMatchSplitID; }
+
+    // return 1 if a tradeAction increase the cash balance in the account
+    // return -1 if a tradeAction decrease the cash balance in the account
+    // return 0 if a tradeAction has zero impact on cash balance
+
+    BigDecimal cashFlow() {
+        switch (getTradeAction()) {
+            case BUY:
+            case CVTSHRT:
+            case MARGINT:
+            case MISCEXP:
+            case XIN:
+            case DEPOSIT:
+                return getAmount().negate();
+            case DIV:
+            case INTINC:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
+            case MISCINC:
+            case RTRNCAP:
+            case SELL:
+            case SHTSELL:
+            case XOUT:
+            case WITHDRAW:
+                return getAmount();
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
+            case STKSPLIT:
+            case SHRSIN:
+            case SHRSOUT:
+            case XFRSHRS:
+            default:
+                return BigDecimal.ZERO;
+        }
+    }
 
     BigDecimal getSignedQuantity() {
         switch (getTradeAction()) {
@@ -383,5 +423,14 @@ public class Transaction {
 
         // bind description property now
         bindDescriptionProperty();
+    }
+
+    // return false if this is NOT a transfer
+    // also return false if this is a transfer to exAccountID
+    // return true if this transaction is a transfer transaction to aother account
+    boolean isTransfer() {
+        int cid = getCategoryID();
+
+        return !(cid >= -MainApp.MIN_ACCOUNT_ID || cid == -getAccountID());
     }
 }

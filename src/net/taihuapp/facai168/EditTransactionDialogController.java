@@ -219,7 +219,7 @@ public class EditTransactionDialogController {
         }
 
         // update database for the main transaction and update account balance
-        int tid = mMainApp.insertUpDateTransactionToDB(mTransaction);
+        int tid = mMainApp.insertUpdateTransactionToDB(mTransaction);
         if (tid == 0) {
             // insertion/updating failed
             System.err.println("Failed insert/update transaction, ID = " + mTransaction.getID());
@@ -229,8 +229,8 @@ public class EditTransactionDialogController {
         mMainApp.putMatchInfoList(mMatchInfoList);
         if (linkedTransaction != null) {
             linkedTransaction.setMatchID(tid, 0);
-            mTransaction.setMatchID(mMainApp.insertUpDateTransactionToDB(linkedTransaction), 0);
-            mMainApp.insertUpDateTransactionToDB(mTransaction);
+            mTransaction.setMatchID(mMainApp.insertUpdateTransactionToDB(linkedTransaction), 0);
+            mMainApp.insertUpdateTransactionToDB(mTransaction);
         } else
             mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 

@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 import static net.taihuapp.facai168.Transaction.TradeAction.CVTSHRT;
 import static net.taihuapp.facai168.Transaction.TradeAction.SELL;
@@ -204,6 +205,7 @@ public class MainApp extends Application {
     // http://code.makery.ch/blog/javafx-dialogs-official/
     private void showExceptionDialog(String title, String header, String content, Exception e) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.initOwner(mPrimaryStage);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
@@ -346,7 +348,7 @@ public class MainApp extends Application {
     }
 
     // return affected transaction id if success, 0 for failure.
-    int insertUpDateTransactionToDB(Transaction t) {
+    int insertUpdateTransactionToDB(Transaction t) {
         String sqlCmd;
         // be extra careful about the order of the columns
         if (t.getID() <= 0) {
@@ -366,6 +368,8 @@ public class MainApp extends Application {
                     "where ID = ?";
         }
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            mConnection.setAutoCommit(false);
+
             preparedStatement.setInt(1, t.getAccountID());
             preparedStatement.setDate(2, Date.valueOf(t.getTDate()));
             preparedStatement.setBigDecimal(3, t.getAmount());
@@ -394,30 +398,111 @@ public class MainApp extends Application {
                 preparedStatement.setInt(18, t.getID());
 
             if (preparedStatement.executeUpdate() == 0)
-                throw new SQLException("Insert/Update Transaction failed, no rows changed");
+                throw(new SQLException("Failure: " + sqlCmd));
 
-            if (t.getID() > 0) {
-                return t.getID();
-            } else {
+            if (t.getID() <= 0) {
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
-                    if (resultSet.next()) {
-                        t.setID(resultSet.getInt(1));
-                        return t.getID();
-                    }
-                } catch (SQLException e) {
-                    System.err.println(e.getMessage());
-                    throw e;
+                    resultSet.next();
+                    t.setID(resultSet.getInt(1));
                 }
             }
+
+            if (!t.getSplitTransactionList().isEmpty())
+                insertUpdateSplitTransactionsToDB(t.getID(), t.getSplitTransactionList());
+
+            mConnection.commit();
+            return t.getID();
         } catch (SQLException e) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.initOwner(mPrimaryStage);
-            alert.setTitle("Database Error");
-            alert.setHeaderText("Unable to insert/update Transaction");
-            alert.setContentText(SQLExceptionToString(e));
-            alert.showAndWait();
+            // something went wrong, roll back
+            try {
+                showExceptionDialog("Database Error", "update transaction failed", SQLExceptionToString(e), e);
+                mConnection.rollback();
+            } catch (SQLException e1) {
+                // error in rollback
+                showExceptionDialog("Database Error", "Failed to rollback transaction database update",
+                        SQLExceptionToString(e1), e1);
+            }
+        } finally {
+            try {
+                mConnection.setAutoCommit(true);
+            } catch (SQLException e) {
+                showExceptionDialog("Database Error", "set autocommit failed", SQLExceptionToString(e), e);
+            }
         }
         return 0;
+    }
+
+    private void insertUpdateSplitTransactionsToDB(int tid, List<Transaction> stList) throws SQLException {
+        // load all existing split transactions for tid from database
+        List<Transaction> oldSTList = loadSplitTransactions(tid);
+
+        // delete those split transactions not in stList
+        List<Integer> exIDList = new ArrayList<>();
+        for (Transaction t0 : oldSTList) {
+            boolean isIn = false;
+            for (Transaction t1 : stList) {
+                if (t0.getID() == t1.getID()) {
+                    isIn = true;
+                    break; // old id is in the new list
+                }
+            }
+            if (!isIn) {
+                exIDList.add(t0.getID());
+            }
+        }
+
+        final int[] idArray = new int[stList.size()];
+        String insertSQL = "insert into SPLITTRANSACTIONS "
+                            + "(TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, MATCHTRANSACTIONID) "
+                            + "values (?, ?, ?, ?, ?)";
+        String updateSQL = "update SPLITTRANSACTIONS set "
+                            + "TRANSACTIONID = ?, CATEGORYID = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ? "
+                            + "where ID = ?";
+        try (Statement statement = mConnection.createStatement();
+             PreparedStatement insertStatement = mConnection.prepareStatement(insertSQL);
+             PreparedStatement updateStatement = mConnection.prepareStatement(updateSQL)) {
+            if (!exIDList.isEmpty()) {
+                // delete these split transactions
+                String sqlCmd = "delete from SPLITTRANSACTIONS where ID in ("
+                        + exIDList.stream().map(Object::toString).collect(Collectors.joining(", ")) + ")";
+                statement.executeUpdate(sqlCmd);
+            }
+
+            // insert or update stList
+            for (int i = 0; i < stList.size(); i++) {
+                Transaction st = stList.get(i);
+                if (st.getID() <= 0) {
+                    insertStatement.setInt(1, tid);
+                    insertStatement.setInt(2, st.getCategoryID());
+                    insertStatement.setString(3, st.getMemo());
+                    insertStatement.setBigDecimal(4, st.getAmount());
+                    insertStatement.setInt(5, st.getMatchID());
+
+                    if (insertStatement.executeUpdate() == 0) {
+                        throw new SQLException("Insert to splittransactions failed");
+                    }
+                    try (ResultSet resultSet = insertStatement.getGeneratedKeys()) {
+                        resultSet.next();
+                        idArray[i] = resultSet.getInt(1); // retrieve id from resultset
+                    }
+                } else {
+                    idArray[i] = st.getID();
+
+                    updateStatement.setInt(1, tid);
+                    updateStatement.setInt(2, st.getCategoryID());
+                    updateStatement.setString(3, st.getMemo());
+                    updateStatement.setBigDecimal(4, st.getAmount());
+                    updateStatement.setInt(5, st.getMatchID());
+                    updateStatement.setInt(6, st.getID());
+
+                    updateStatement.executeUpdate();
+                }
+            }
+        }
+        for (int i = 0; i < stList.size(); i++) {
+            if (stList.get(i).getID() <= 0)
+                stList.get(i).setID(idArray[i]);
+        }
     }
 
     // return true for DB operation success
@@ -550,16 +635,7 @@ public class MainApp extends Application {
 
         return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
     }
-/*
-    // return 1 for category, -1 for account, 0 for neither
-    static int categoryOrTransferTest(String categoryOrTransferStr) {
-        if (categoryOrTransferStr == null || categoryOrTransferStr.length() == 0)
-            return 0;  // empty, return 0
-        if (categoryOrTransferStr.startsWith("[") && categoryOrTransferStr.endsWith("]"))
-            return 1;  // is category
-        return -1;
-    }
-*/
+
     private static int categoryOrTransferTest(int cid) {
         if (cid >= MIN_CATEGORY_ID)
             return 1; // is category
@@ -1104,12 +1180,12 @@ public class MainApp extends Application {
         }
     }
 
-    private List<Transaction> loadSplitTransactions(Transaction transaction) {
+    private List<Transaction> loadSplitTransactions(int tid) {
         List<Transaction> stList = new ArrayList<>();
 
-        String sqlCmd = "select *"
-                + " from SPLITTRANSACTIONS where TRANSACTIONID = " + transaction.getID()
-                + " order by ID";
+        String sqlCmd = "select st.*, t.ACCOUNTID "
+                + "from SPLITTRANSACTIONS st left join TRANSACTIONS t "
+                + "where st.TRANSACTIONID = t.ID and t.ID = " + tid + " order by st.ID";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
@@ -1127,7 +1203,7 @@ public class MainApp extends Application {
                 int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
                 // we store split transaction id in the ID field
                 // ignore accountID, date, reference, payee,
-                int accountID = transaction.getAccountID(); // ignore accountID
+                int accountID = resultSet.getInt("ACCOUNTID");
 
                 // set input date, reference, payee to be null
                 // split transaction table doesn't keep trade action, but
@@ -1202,8 +1278,9 @@ public class MainApp extends Application {
                         payee, price, quantity, oldQuantity, memo, commission, amount, cid, matchID,
                         matchSplitID);
 
-                if (resultSet.getBoolean("SPLITFLAG"))
-                    transaction.setSplitTransactionList(loadSplitTransactions(transaction));
+                if (resultSet.getBoolean("SPLITFLAG")) {
+                    transaction.setSplitTransactionList(loadSplitTransactions(transaction.getID()));
+                }
 
                 transactionList.add(transaction);
             }
@@ -1735,7 +1812,7 @@ public class MainApp extends Application {
     // tList is sorted according to the date, reverse(isSplit), accountid
     // transactions with getMatchID > 0 will not be considered.
 
-    int findMatchingTransaction(LocalDate date, int fromAccountID, int toAccountID, BigDecimal cashFlow,
+    private int findMatchingTransaction(LocalDate date, int fromAccountID, int toAccountID, BigDecimal cashFlow,
                                 List<Transaction> tList) {
         for (int j = 0; j < tList.size(); j++) {
             Transaction t1 = tList.get(j);
@@ -1756,8 +1833,6 @@ public class MainApp extends Application {
 
     // fixed DB inconsistency due to import
     void fixDB() {
-        // todo to be completed.  But let's handle split transactions first.
-
         // load all transactions
         final List<Transaction> transactionList = loadAccountTransactions(-1);
         final int nTrans = transactionList.size();
@@ -1852,7 +1927,7 @@ public class MainApp extends Application {
 
         int cnt = 0;
         for (Transaction t : updateList) {
-            if (insertUpDateTransactionToDB(t) > 0)
+            if (insertUpdateTransactionToDB(t) > 0)
                 cnt++;
         }
         System.err.println("Total " + nTrans + " transactions processed.");

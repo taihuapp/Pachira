@@ -311,6 +311,7 @@ public class Transaction {
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
     void setSplitTransactionList(List<Transaction> stList) {
+        mSplitTransactionList.clear();
         mSplitTransactionList.addAll(stList);
     }
 

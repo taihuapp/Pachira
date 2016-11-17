@@ -1147,10 +1147,9 @@ public class MainApp extends Application {
     // the order of DATE and then TransactionID
     // if accountID = -1, then ALL transaction will be loaded
     private List<Transaction> loadAccountTransactions(int accountID) {
-        if (mConnection == null)
-            return null;
-
         List<Transaction> transactionList = new ArrayList<>();
+        if (mConnection == null)
+            return transactionList;
 
         String sqlCmd;
         if (accountID == -1)
@@ -1740,14 +1739,14 @@ public class MainApp extends Application {
                                 List<Transaction> tList) {
         for (int j = 0; j < tList.size(); j++) {
             Transaction t1 = tList.get(j);
-            if (t1.getTDate().isBefore(date) || (t1.getAccountID() < toAccountID))
+            if (t1.getTDate().isBefore(date) || (t1.getAccountID() < toAccountID) || t1.isSplit())
                 continue;
 
             if ((t1.getAccountID() > toAccountID) || t1.getTDate().isAfter(date)) {
                 // pass the date or the account ID
                 return -1;
             }
-            if (t1.isSplit() || !t1.isTransfer() || (t1.getMatchID() > 0))
+            if (!t1.isTransfer() || (t1.getMatchID() > 0))
                 continue;
             if ((fromAccountID == -t1.getCategoryID()) && (cashFlow.add(t1.cashFlow()).signum() == 0))
                 return j;
@@ -1772,9 +1771,6 @@ public class MainApp extends Application {
                 .reversed().thenComparing(Transaction::isSplit).reversed()  // put split first
                 .thenComparing(Transaction::getAccountID));
 
-        // initially done is false for all transactions
-        final boolean done[] = new boolean[transactionList.size()];
-
         final List<Transaction> updateList = new ArrayList<>();  // transactions needs to be updated in DB
         final List<Transaction> unMatchedList = new ArrayList<>(); // (partially) unmatched transactions
 
@@ -1793,16 +1789,39 @@ public class MainApp extends Application {
 
                     // transfer split transaction
                     unMatched++;  // we've seen a unmatched
+                    boolean modeAgg = false; // default not aggregate
                     int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
                             st.cashFlow(), transactionList.subList(i+1, nTrans));
+                    if (matchIdx < 0) {
+                        // didn't find match, it's possible more than one split transaction transfering
+                        // to the same account, the receiving account aggregates all into one transaction.
+                        modeAgg = true; // try aggregate mode
+                        BigDecimal cf = BigDecimal.ZERO;
+                        for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
+                            Transaction st1 = t0.getSplitTransactionList().get(s1);
+                            if (st1.getCategoryID().equals(st.getCategoryID()))
+                                cf = cf.add(st1.cashFlow());
+                        }
+                        matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
+                                cf, transactionList.subList(i+1, nTrans));
+                    }
                     if (matchIdx >= 0) {
+                        // found a match
                         needUpdate = true;
                         unMatched--;
                         Transaction t1 = transactionList.get(i+1+matchIdx);
-                        st.setMatchID(t1.getID(), -1);
+                        if (modeAgg) {
+                            // found a match via modeAgg
+                            for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
+                                Transaction st1 = t0.getSplitTransactionList().get(s1);
+                                if (st1.getCategoryID().equals(st.getCategoryID()))
+                                    st1.setMatchID(t1.getID(), -1);
+                            }
+                        } else {
+                            st.setMatchID(t1.getID(), -1);
+                        }
                         t1.setMatchID(t0.getID(), st.getID());
                         updateList.add(t1);
-                        done[i+1+matchIdx] = true;
                     }
                 }
                 if (needUpdate) {
@@ -1811,12 +1830,10 @@ public class MainApp extends Application {
                 if (unMatched != 0) {
                     unMatchedList.add(t0);
                 }
-                done[i] = true;
             } else {
                 // single transaction
                 // loop through the remaining transaction for the same day
                 if (!t0.isTransfer() || (t0.getMatchID() > 0)) {
-                    done[i] = true;
                     continue;
                 }
                 int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -t0.getCategoryID(),
@@ -1827,15 +1844,21 @@ public class MainApp extends Application {
                     t1.setMatchID(t0.getID(), -1);
                     updateList.add(t0);
                     updateList.add(t1);
-                    done[i+1+matchIdx] = true;
                 } else {
                     unMatchedList.add(t0);
                 }
-                done[i] = true;
             }
         }
 
-        System.err.println("Unmatched list: " + unMatchedList.size());
+        int cnt = 0;
+        for (Transaction t : updateList) {
+            if (insertUpDateTransactionToDB(t) > 0)
+                cnt++;
+        }
+        System.err.println("Total " + nTrans + " transactions processed.");
+        System.err.println("Found " + updateList.size() + " matching transactions.");
+        System.err.println("Updated " + cnt + " transactions.");
+        System.err.println(unMatchedList.size() + " unmatched transactions.");
     }
 
     // import data from QIF file

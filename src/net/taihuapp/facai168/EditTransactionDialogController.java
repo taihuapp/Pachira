@@ -371,7 +371,6 @@ public class EditTransactionDialogController {
     }
 
     private void setupInvestmentTransactionDialog(Transaction.TradeAction tradeAction) {
-        final BigDecimal investAmountSign;
         boolean isIncome = false;
         boolean isReinvest = false;
         boolean isCashTransfer = false;
@@ -404,7 +403,6 @@ public class EditTransactionDialogController {
                 mIncomeTextField.setVisible(false);
                 mTotalLabel.setVisible(false);
                 mTotalTextField.setVisible(false);
-                investAmountSign = BigDecimal.ONE;
                 break;
             case DEPOSIT:
             case WITHDRAW:
@@ -436,7 +434,6 @@ public class EditTransactionDialogController {
                 mTotalTextField.setVisible(true);
                 mTotalLabel.setText("Amount:");
                 mTotalTextField.setEditable(true);
-                investAmountSign = BigDecimal.ONE;
                 break;
             case XIN:
             case XOUT:
@@ -469,7 +466,6 @@ public class EditTransactionDialogController {
                 mTotalTextField.setVisible(true);
                 mTotalLabel.setText(tradeAction == MARGINT ? "Amount" : "Transfer Amount:");
                 mTotalTextField.setEditable(true);
-                investAmountSign = BigDecimal.ONE;
                 break;
             case BUY:
             case CVTSHRT:
@@ -488,7 +484,7 @@ public class EditTransactionDialogController {
                 mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(true);
                 mPriceTextField.setVisible(true);
-                mPriceTextField.setEditable(true);
+                mPriceTextField.setEditable(false);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
@@ -502,8 +498,7 @@ public class EditTransactionDialogController {
                 mTotalLabel.setVisible(true);
                 mTotalTextField.setVisible(true);
                 mTotalLabel.setText("Total Cost:");
-                mTotalTextField.setEditable(false);
-                investAmountSign = BigDecimal.ONE;
+                mTotalTextField.setEditable(true);
                 break;
             case SELL:
             case SHTSELL:
@@ -523,7 +518,7 @@ public class EditTransactionDialogController {
                 mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(tradeAction != SHRSOUT);
                 mPriceTextField.setVisible(tradeAction != SHRSOUT);
-                mPriceTextField.setEditable(true);
+                mPriceTextField.setEditable(false);
                 mCommissionLabel.setVisible(tradeAction != SHRSOUT);
                 mCommissionTextField.setVisible(tradeAction != SHRSOUT);
                 mSpecifyLotButton.setVisible(tradeAction == SELL || tradeAction == SHRSOUT);
@@ -537,8 +532,7 @@ public class EditTransactionDialogController {
                 mTotalLabel.setVisible(tradeAction != SHRSOUT);
                 mTotalTextField.setVisible(tradeAction != SHRSOUT);
                 mTotalLabel.setText("Total Sale:");
-                mTotalTextField.setEditable(false);
-                investAmountSign = BigDecimal.ONE.negate();
+                mTotalTextField.setEditable(true);
                 break;
             case SHRSIN:
                 mCategoryLabel.setVisible(false);
@@ -570,7 +564,6 @@ public class EditTransactionDialogController {
                 mTotalTextField.setVisible(true);
                 mTotalLabel.setText("Total Cost:");
                 mTotalTextField.setEditable(false);
-                investAmountSign = BigDecimal.ONE;
                 break;
             case REINVDIV:
             case REINVINT:
@@ -620,7 +613,6 @@ public class EditTransactionDialogController {
                 mTotalTextField.setVisible(true);
                 mTotalLabel.setText("Amount");
                 mTotalTextField.setEditable(false);
-                investAmountSign = BigDecimal.ONE;
                 break;
             case XFRSHRS:
             default:
@@ -631,7 +623,6 @@ public class EditTransactionDialogController {
         mTransferAccountComboBox.setConverter(new AccountIDConverter());
         mTransferAccountComboBox.getItems().clear();
         mTransferAccountComboBox.getItems().add(0); // a blank account
-        System.out.println("setupInvestmentTransactionDialog");
         for (Account account : mMainApp.getAccountList(null, null, true)) {
             if (account.getID() != mAccount.getID() || !isCashTransfer)
                 mTransferAccountComboBox.getItems().add(-account.getID());
@@ -658,47 +649,28 @@ public class EditTransactionDialogController {
         mPriceTextField.textProperty().unbindBidirectional(mTransaction.getPriceProperty());
         mCommissionTextField.textProperty().unbindBidirectional(mTransaction.getCommissionProperty());
 
-        if (isIncome) {
+        if (isIncome)
             mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
                     new BigDecimalStringConverter());
-            if (isReinvest) {
-                ObjectBinding<BigDecimal> price = new ObjectBinding<BigDecimal>() {
-                    {
-                        super.bind(mTransaction.getAmountProperty(), mTransaction.getQuantityProperty(),
-                                mTransaction.getCommissionProperty());
-                    }
 
-                    @Override
-                    protected BigDecimal computeValue() {
-                        if (mTransaction.getAmount() == null || mTransaction.getQuantity() == null
-                                || mTransaction.getQuantity().signum() == 0 || mTransaction.getCommission() == null)
-                            return null;
-
-                        return mTransaction.getAmount().subtract(mTransaction.getCommission())
-                                .divide(mTransaction.getQuantity(), 6, RoundingMode.HALF_UP);
-                    }
-                };
-                mTransaction.getPriceProperty().bind(price);
-            }
-        } else if (!isCashTransfer) {
-            ObjectBinding<BigDecimal> amount = new ObjectBinding<BigDecimal>() {
+        if (isReinvest || (!isIncome && !isCashTransfer)) {
+            ObjectBinding<BigDecimal> price = new ObjectBinding<BigDecimal>() {
                 {
-                    super.bind(mTransaction.getPriceProperty(), mTransaction.getQuantityProperty(),
+                    super.bind(mTransaction.getAmountProperty(), mTransaction.getQuantityProperty(),
                             mTransaction.getCommissionProperty());
                 }
 
                 @Override
                 protected BigDecimal computeValue() {
-                    if (mTransaction.getPriceProperty().get() == null
-                            || mTransaction.getQuantityProperty().get() == null
-                            || mTransaction.getCommissionProperty().get() == null)
+                    if (mTransaction.getAmount() == null || mTransaction.getQuantity() == null
+                            || mTransaction.getQuantity().signum() == 0 || mTransaction.getCommission() == null)
                         return null;
 
-                    return mTransaction.getQuantity().multiply(mTransaction.getPrice())
-                            .add(mTransaction.getCommission().multiply(investAmountSign));
+                    return mTransaction.getAmount().subtract(mTransaction.getCommission())
+                            .divide(mTransaction.getQuantity(), 6, RoundingMode.HALF_UP);
                 }
             };
-            mTransaction.getAmountProperty().bind(amount);
+            mTransaction.getPriceProperty().bind(price);
         }
 
         Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(), mTransaction.getCategoryIDProperty());

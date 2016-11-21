@@ -16,14 +16,12 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.h2.tools.ChangeFileEncryption;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.*;
 import java.sql.Date;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -2504,15 +2502,15 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
         // set error stream to a file in the current directory
-/*
         try {
-            File file = File.createTempFile("FC168", ".err");
-            System.err.println("Redirect error to " + file.path();
-            System.setErr(new PrintStream(file);
+            File file = File.createTempFile("FC168-", ".err", new File(System.getProperty("user.dir")));
+            System.err.println("Redirect System.err to " + file.getCanonicalPath());
+            System.setErr(new PrintStream(file));
+            System.err.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
         } catch (IOException e) {
             e.printStackTrace();
         }
-*/
+
         launch(args);
     }
 }

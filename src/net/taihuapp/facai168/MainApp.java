@@ -1358,6 +1358,29 @@ public class MainApp extends Application {
         }
     }
 
+    void showBillIncomeReminderDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("ReminderListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Reminder List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            ReminderListDialogController controller = loader.getController();
+            if (controller == null) {
+                System.err.println("Null controller for ReminderListDialog");
+                return;
+            }
+            controller.setMainApp(this, dialogStage);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     void showSecurityListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();

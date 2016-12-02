@@ -147,6 +147,9 @@ public class MainController {
     }
 
     @FXML
+    private void handleReminderList() { mMainApp.showBillIncomeReminderDialog(); }
+
+    @FXML
     private void handleNAVReport() {
         mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.NAV));
         updateSavedReportsMenu();

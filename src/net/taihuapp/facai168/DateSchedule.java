@@ -1,10 +1,14 @@
 package net.taihuapp.facai168;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
 
 import java.time.LocalDate;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.Callable;
 
 /**
  * Created by ghe on 11/27/16.
@@ -24,6 +28,7 @@ class DateSchedule {
 
     // mStartDate is the first occurrence of the date
     // mEndDate may not be the last occurrence
+    // mEndDateProperty.get may return null, which means no end date
     private final ObjectProperty<LocalDate> mStartDateProperty = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDate> mEndDateProperty = new SimpleObjectProperty<>();
 
@@ -37,6 +42,8 @@ class DateSchedule {
     // otherwise, count backward from the end of the month
     private final BooleanProperty mIsForwardProperty = new SimpleBooleanProperty();
 
+    private final StringProperty mDescriptionProperty = new SimpleStringProperty();
+
     // return the scheduled dates from d1 (inclusive) to d2 (inclusive)
     // in an ascending sorted list
     List<LocalDate> getDates(LocalDate d1, LocalDate d2) {
@@ -45,7 +52,7 @@ class DateSchedule {
             case DAY:
             case WEEK:
                 long s = getStartDate().toEpochDay();
-                long e = getEndDate().toEpochDay();
+                long e = getEndDate() == null ? java.lang.Long.MAX_VALUE : getEndDate().toEpochDay();
                 long l1 = d1.toEpochDay();
                 long l2 = d2.toEpochDay();
                 if (l1 < s)
@@ -71,7 +78,7 @@ class DateSchedule {
                 long nth = cntFD2D/7+1;   // nth dow from 1st of the period
                 long nthReverse = cntD2LD/7+1;
                 while (true) {
-                    if (d.isAfter(d2) || d.isAfter(getEndDate()))
+                    if (d.isAfter(d2) || ((getEndDate() != null) && d.isAfter(getEndDate())))
                         break; // break out while loop
                     if (!d.isBefore(d1))
                         dList.add(d); // add to the list if equal or after d1
@@ -161,6 +168,7 @@ class DateSchedule {
     IntegerProperty getNumPeriodProperty() { return mNumPeriodProperty; }
     BooleanProperty getIsDOMBasedProperty() { return mIsDOMBasedProperty; }
     BooleanProperty getIsForwardProperty() { return mIsForwardProperty; }
+    StringProperty getDescriptionProperty() { return mDescriptionProperty; }
 
     // getters
     BaseUnit getBaseUnit() { return getBaseUnitProperty().get(); }
@@ -189,5 +197,27 @@ class DateSchedule {
         mEndDateProperty.set(e);
         mIsDOMBasedProperty.set(isDOM);
         mIsForwardProperty.set(isFwd);
+
+        bindDescriptionProperty();
+    }
+
+    private void bindDescriptionProperty() {
+        final Callable<String> converter = () -> {
+            System.out.println("callable is called");
+            String result = "Every " + getNumPeriod() + " " + getBaseUnit() + " ";
+            switch (getBaseUnit()) {
+                case DAY:
+                case WEEK:
+                    return "Every " + getNumPeriod() + " " + getBaseUnit().toString().toLowerCase()
+                            + (getNumPeriod() == 1 ? "" : "s")
+                            + (getBaseUnit() == BaseUnit.DAY ? "" :
+                            " on " + getStartDate().getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault()));
+                default:
+                    return "haha";
+            }
+        };
+        mDescriptionProperty.bind(Bindings.createStringBinding(converter, getBaseUnitProperty(),
+                getNumPeriodProperty(), getStartDateProperty(), getEndDateProperty(),
+                getIsDOMBasedProperty(), getIsForwardProperty()));
     }
 }

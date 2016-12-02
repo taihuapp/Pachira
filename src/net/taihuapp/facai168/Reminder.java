@@ -14,7 +14,7 @@ class Reminder {
     // default constructor
     Reminder() {
         // default monthly schedule, starting today, no end, counting day of month forward.
-        mDateSchedule = new DateSchedule(DateSchedule.BaseUnit.MONTH, 1, LocalDate.now(), LocalDate.MAX,
+        mDateSchedule = new DateSchedule(DateSchedule.BaseUnit.MONTH, 1, LocalDate.now(), null,
                 true, true);
     }
 

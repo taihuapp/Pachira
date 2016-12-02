@@ -6,8 +6,9 @@
 
 <GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditReminderDialogController">
   <columnConstraints>
-    <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0" prefWidth="80.0" />
-      <ColumnConstraints hgrow="SOMETIMES" maxWidth="453.0" minWidth="10.0" prefWidth="300.0" />
+    <ColumnConstraints hgrow="NEVER" maxWidth="100.0" minWidth="10.0" prefWidth="100.0" />
+      <ColumnConstraints hgrow="SOMETIMES" maxWidth="200.0" minWidth="10.0" prefWidth="150.0" />
+      <ColumnConstraints hgrow="SOMETIMES" maxWidth="150.0" minWidth="10.0" prefWidth="100.0" />
     <ColumnConstraints hgrow="SOMETIMES" maxWidth="453.0" minWidth="10.0" prefWidth="100.0" />
   </columnConstraints>
   <rowConstraints>
@@ -21,43 +22,43 @@
       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
   </rowConstraints>
    <children>
       <Label text="Next due date" />
       <DatePicker fx:id="mStartDatePicker" GridPane.columnIndex="1" GridPane.columnSpan="2" />
       <Label text="Repeat" GridPane.rowIndex="1" />
-      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
+      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="1">
          <children>
             <Label text="Every " />
             <TextField fx:id="mNumPeriodTextField" prefHeight="25.0" prefWidth="25.0" />
             <ChoiceBox fx:id="mBaseUnitChoiceBox" prefWidth="150.0" />
          </children>
       </HBox>
-      <RadioButton fx:id="mDoMForwardRadioButton" mnemonicParsing="false" text="DoM Forward" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-      <RadioButton fx:id="mDoMBackwardRadioButton" mnemonicParsing="false" text="DoM Backward" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-      <RadioButton fx:id="mDoWForwardRadioButton" mnemonicParsing="false" text="DoW Forward" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-      <RadioButton fx:id="mDoWBackwardRadioButton" mnemonicParsing="false" text="DoW Backward" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-      <Label text="End" GridPane.rowIndex="7" />
-      <RadioButton fx:id="mNoEndRadioButton" mnemonicParsing="false" text="No end" GridPane.columnIndex="1" GridPane.rowIndex="7" />
-      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="8">
+      <Label text="End" GridPane.rowIndex="6" />
+      <RadioButton fx:id="mNoEndRadioButton" mnemonicParsing="false" text="No end" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="7">
          <children>
             <RadioButton fx:id="mEndOnDateRadioButton" mnemonicParsing="false" text="End on " />
             <DatePicker fx:id="mEndDatePicker" />
          </children>
       </HBox>
-      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="9">
+      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="8">
          <children>
             <RadioButton fx:id="mEndOnCountsRadioButton" mnemonicParsing="false" text="End after" />
             <TextField fx:id="mCountBeforeEndTextField" prefHeight="25.0" prefWidth="49.0" />
             <Label text="Occurance" />
          </children>
       </HBox>
-      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="10">
+      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="9">
          <children>
             <Button mnemonicParsing="false" onAction="#handleSave" text="Save" />
             <Button mnemonicParsing="false" onAction="#handleClose" text="Close" />
          </children>
       </HBox>
+       <ToggleButton fx:id="mDOMToggleButton" mnemonicParsing="false" text="Count days of the quarter" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+       <ToggleButton fx:id="mDOWToggleButton" mnemonicParsing="false" text="Count day of the week" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+       <ToggleButton fx:id="mFWDToggleButton" mnemonicParsing="false" text="Forward" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+       <ToggleButton fx:id="mREVToggleButton" mnemonicParsing="false" text="Reverse" GridPane.columnIndex="2" GridPane.rowIndex="3" />
+       <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="4" />
    </children>
 </GridPane>

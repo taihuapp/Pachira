@@ -1,13 +1,12 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.IntegerProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
-import javafx.util.converter.IntegerStringConverter;
 import javafx.util.converter.NumberStringConverter;
+
+import java.util.concurrent.Callable;
 
 /**
  * Created by ghe on 11/29/16.
@@ -29,13 +28,15 @@ public class EditReminderDialogController {
     @FXML
     private TextField mCountBeforeEndTextField;
     @FXML
-    private RadioButton mDoMForwardRadioButton;
+    private ToggleButton mDOMToggleButton;
     @FXML
-    private RadioButton mDoMBackwardRadioButton;
+    private ToggleButton mDOWToggleButton;
     @FXML
-    private RadioButton mDoWForwardRadioButton;
+    private ToggleButton mFWDToggleButton;
     @FXML
-    private RadioButton mDoWBackwardRadioButton;
+    private ToggleButton mREVToggleButton;
+    @FXML
+    private Label mDSDescriptionLabel;
     @FXML
     private RadioButton mNoEndRadioButton;
     @FXML
@@ -43,22 +44,19 @@ public class EditReminderDialogController {
     @FXML
     private RadioButton mEndOnCountsRadioButton;
 
-    private final ToggleGroup mPeriodDirectionGroup;
-    private final ToggleGroup mEndDateChoiceGroop;
+    private final ToggleGroup mDOMGroup = new ToggleGroup();
+    private final ToggleGroup mFWDGroup = new ToggleGroup();
+    private final ToggleGroup mEndDateChoiceGroop = new ToggleGroup();
 
     @FXML
     private void initialize() {
-        mDoMForwardRadioButton.setToggleGroup(mPeriodDirectionGroup);
-        mDoMBackwardRadioButton.setToggleGroup(mPeriodDirectionGroup);
-        mDoWForwardRadioButton.setToggleGroup(mPeriodDirectionGroup);
-        mDoWBackwardRadioButton.setToggleGroup(mPeriodDirectionGroup);
-
-        mNoEndRadioButton.setToggleGroup(mEndDateChoiceGroop);
-        mEndOnDateRadioButton.setToggleGroup(mEndDateChoiceGroop);
-        mEndOnCountsRadioButton.setToggleGroup(mEndDateChoiceGroop);
-
         mBaseUnitChoiceBox.getItems().setAll(DateSchedule.BaseUnit.values());
 
+        mDOMToggleButton.setToggleGroup(mDOMGroup);
+        mDOWToggleButton.setToggleGroup(mDOMGroup);
+
+        mFWDToggleButton.setToggleGroup(mFWDGroup);
+        mREVToggleButton.setToggleGroup(mFWDGroup);
         // todo need a changelistenser for mCountBeforeEndTextField
     }
 
@@ -75,13 +73,32 @@ public class EditReminderDialogController {
                 new NumberStringConverter("#"));
         // we don't have anything to bind mCountBeforeEndTextField, but we have a textchangelistener for it
         // set in initialization
-    }
 
-    // constructor
-    // has to be public
-    public EditReminderDialogController() {
-        mPeriodDirectionGroup = new ToggleGroup();
-        mEndDateChoiceGroop = new ToggleGroup();
+        mDOMToggleButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsDOMBasedProperty());
+        mFWDToggleButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsForwardProperty());
+        final Callable<Boolean> converter = () -> {
+            switch (mReminder.getDateSchedule().getBaseUnit()) {
+                case DAY:
+                case WEEK:
+                    return false;
+                case MONTH:
+                case QUARTER:
+                case YEAR:
+                default:
+                    return true;
+            }
+        };
+        mDOMToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty()));
+        mDOWToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty()));
+        mFWDToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty()));
+        mREVToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty()));
+
+        mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
+
     }
 
     @FXML

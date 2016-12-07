@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 
+import static java.time.temporal.ChronoUnit.DAYS;
+
 /**
  * Created by ghe on 11/27/16.
  *
@@ -161,6 +163,15 @@ class DateSchedule {
         }
     }
 
+    // return the day/week count of startdate to reference date
+    private long getDWCount() {
+        long cnt = isForward() ? firstDayOfPeriod(getBaseUnit(), getStartDate()).until(getStartDate(), DAYS)
+                : getStartDate().until(lastDayOfPeriod(getBaseUnit(), getStartDate()), DAYS);
+        if (isDOMBased())
+            return cnt+1;
+        return cnt/7+1;
+    }
+
     // getters for properties
     ObjectProperty<BaseUnit> getBaseUnitProperty() { return mBaseUnitProperty; }
     ObjectProperty<LocalDate> getStartDateProperty() { return mStartDateProperty; }
@@ -201,19 +212,51 @@ class DateSchedule {
         bindDescriptionProperty();
     }
 
+    private String nth(long n) {
+        if (n > 3 && n < 21)
+            return "th";
+        switch ((int) n%10) {
+            case 1: return "st";
+            case 2: return "nd";
+            case 3: return "rd";
+            default: return "th";
+        }
+    }
+
     private void bindDescriptionProperty() {
         final Callable<String> converter = () -> {
             System.out.println("callable is called");
-            String result = "Every " + getNumPeriod() + " " + getBaseUnit() + " ";
+            int np = getNumPeriod();
+            String buLowerCase = getBaseUnit().toString().toLowerCase();
             switch (getBaseUnit()) {
                 case DAY:
                 case WEEK:
-                    return "Every " + getNumPeriod() + " " + getBaseUnit().toString().toLowerCase()
-                            + (getNumPeriod() == 1 ? "" : "s")
+                    return "Every " + np + " " + buLowerCase
+                            + (np == 1 ? "" : "s")
                             + (getBaseUnit() == BaseUnit.DAY ? "" :
                             " on " + getStartDate().getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault()));
+                case MONTH:
+                case QUARTER:
+                case YEAR:
+                    long dwCount = getDWCount();
+                    if (isDOMBased()) {
+                        if (isForward())
+                            return "Day " + dwCount + " of every " + np + " " + buLowerCase;
+                        else {
+                            return (dwCount == 1 ? "The last day" : (dwCount + nth(dwCount)) + " last day")
+                                    + " of every " + np + " " + buLowerCase + (np > 1 ? "s" : "");
+                        }
+                    } else {
+                        String dow = getStartDate().getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault());
+                        if (isForward()) {
+                            return "The " + dwCount + nth(dwCount) + " " + dow + " of every " + np + " " + buLowerCase;
+                        } else {
+                            return (dwCount == 1 ? "The last " : (dwCount + nth(dwCount))) + dow
+                                    + " of every " + np + " " + buLowerCase + (np > 1 ? "s" : "");
+                        }
+                    }
                 default:
-                    return "haha";
+                    return "Unknow problem";
             }
         };
         mDescriptionProperty.bind(Bindings.createStringBinding(converter, getBaseUnitProperty(),

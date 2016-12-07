@@ -26,8 +26,6 @@ public class EditReminderDialogController {
     @FXML
     private TextField mNumPeriodTextField;
     @FXML
-    private TextField mCountBeforeEndTextField;
-    @FXML
     private ToggleButton mDOMToggleButton;
     @FXML
     private ToggleButton mDOWToggleButton;
@@ -37,16 +35,9 @@ public class EditReminderDialogController {
     private ToggleButton mREVToggleButton;
     @FXML
     private Label mDSDescriptionLabel;
-    @FXML
-    private RadioButton mNoEndRadioButton;
-    @FXML
-    private RadioButton mEndOnDateRadioButton;
-    @FXML
-    private RadioButton mEndOnCountsRadioButton;
 
     private final ToggleGroup mDOMGroup = new ToggleGroup();
     private final ToggleGroup mFWDGroup = new ToggleGroup();
-    private final ToggleGroup mEndDateChoiceGroop = new ToggleGroup();
 
     @FXML
     private void initialize() {
@@ -71,6 +62,12 @@ public class EditReminderDialogController {
         mEndDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getEndDateProperty());
         mNumPeriodTextField.textProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty(),
                 new NumberStringConverter("#"));
+
+        mDOMToggleButton.textProperty().bind(Bindings.createStringBinding(
+                () -> "Count days of " + mBaseUnitChoiceBox.valueProperty().get().toString().toLowerCase(),
+                mBaseUnitChoiceBox.valueProperty()));
+
+
         // we don't have anything to bind mCountBeforeEndTextField, but we have a textchangelistener for it
         // set in initialization
 
@@ -98,7 +95,6 @@ public class EditReminderDialogController {
                 mReminder.getDateSchedule().getBaseUnitProperty()));
 
         mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
-
     }
 
     @FXML

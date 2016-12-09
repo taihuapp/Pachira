@@ -29,6 +29,7 @@ import java.util.*;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
+import static java.time.temporal.ChronoUnit.DAYS;
 import static net.taihuapp.facai168.Transaction.TradeAction.CVTSHRT;
 import static net.taihuapp.facai168.Transaction.TradeAction.SELL;
 
@@ -95,10 +96,15 @@ public class MainApp extends Application {
     // we want to watch the change of hiddenflag and displayOrder
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList(
             a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty() });
+    private ObservableList<Tag> mTagList = FXCollections.observableArrayList();
     private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
     private SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
+
+    private Map<Integer, Reminder> mReminderMap = new HashMap<>();
+
+    private ObservableList<ReminderTransaction> mReminderTransactionList = FXCollections.observableArrayList();
 
     private Account mCurrentAccount = null;
 
@@ -128,6 +134,7 @@ public class MainApp extends Application {
                 .thenComparing(Account::getID));
     }
 
+    ObservableList<Tag> getTagList() { return mTagList; }
     ObservableList<Category> getCategoryList() { return mCategoryList; }
     ObservableList<Security> getSecurityList() { return mSecurityList; }
     ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
@@ -135,6 +142,9 @@ public class MainApp extends Application {
         mSecurityHoldingList.setAll(updateAccountSecurityHoldingList(getCurrentAccount(), date, exID));
     }
     SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
+
+    ObservableList<ReminderTransaction> getReminderTransactionList() { return mReminderTransactionList; }
+    private Map<Integer, Reminder> getReminderMap() { return mReminderMap; }
 
     Account getAccountByName(String name) {
         for (Account a : getAccountList(null, null, false)) {
@@ -181,6 +191,20 @@ public class MainApp extends Application {
         for (Category c : getCategoryList()) {
             if (c.getName().equals(name)) return c;
         }
+        return null;
+    }
+
+    Tag getTagByID(int id) {
+        for (Tag t : getTagList())
+            if (t.getID() == id)
+                return t;
+        return null;
+    }
+
+    Tag getTagByName(String name) {
+        for (Tag t : getTagList())
+            if (t.getName().equals(name))
+                return t;
         return null;
     }
 
@@ -343,6 +367,59 @@ public class MainApp extends Application {
         }
 
         return 0;
+    }
+
+    // insert or update reminder
+    // return affected reminder id if success, 0 for failure.
+    int insertUpdateReminderToDB(Reminder reminder) {
+        String sqlCmd;
+        if (reminder.getID() <= 0) {
+            sqlCmd = "insert into REMINDERS "
+                    + "(TYPE, PAYEE, AMOUNT, ACCOUNTID, CATEGORYID, "
+                    + "TRANSFERACCOUNTID, TAGID, MEMO, STARTDATE, ENDDATE, "
+                    + "BASEUNIT, NUMPERIOD, ALERTDAYS, ISDOM, ISFWD) "
+                    + "values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)";
+        } else {
+            sqlCmd = "update REMINDERS set "
+                    + "TYPE = ?, PAYEE = ?, AMOUNT = ?, ACCOUNTID = ?, CATEGORYID = ?, "
+                    + "TRANSFERACCOUNTID = ?, TAGID = ?, MEMO = ?, STARTDATE = ?, ENDDATE = ?, "
+                    + "BASEUNIT = ?, NUMPERIOD = ?, ALERTDAYS = ?, ISDOM = ?, ISFWD = ? "
+                    + "where ID = ?";
+        }
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setString(1, reminder.getType().name());
+            preparedStatement.setString(2, reminder.getPayee());
+            preparedStatement.setBigDecimal(3, reminder.getAmount());
+            preparedStatement.setInt(4, reminder.getAccountID());
+            preparedStatement.setInt(5, reminder.getCategoryID());
+            preparedStatement.setInt(6, reminder.getTransferAccountID());
+            preparedStatement.setInt(7, reminder.getTagID());
+            preparedStatement.setString(8, reminder.getMemo());
+            preparedStatement.setDate(9, Date.valueOf(reminder.getDateSchedule().getStartDate()));
+
+            preparedStatement.setDate(10, reminder.getDateSchedule().getEndDate() == null ?
+                    null : Date.valueOf(reminder.getDateSchedule().getEndDate()));
+            preparedStatement.setString(11, reminder.getDateSchedule().getBaseUnit().name());
+            preparedStatement.setInt(12, reminder.getDateSchedule().getNumPeriod());
+            preparedStatement.setInt(13, reminder.getDateSchedule().getAlertDay());
+            preparedStatement.setBoolean(14, reminder.getDateSchedule().isDOMBased());
+            preparedStatement.setBoolean(15, reminder.getDateSchedule().isForward());
+            if (reminder.getID() > 0)
+                preparedStatement.setInt(16, reminder.getID());
+
+            preparedStatement.executeUpdate();
+            if (reminder.getID() <= 0) {
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    resultSet.next();
+                    reminder.setID(resultSet.getInt(1));
+                }
+            }
+            return reminder.getID();
+        } catch (SQLException e) {
+            showExceptionDialog("Database Error", "insert/update Reminder failed",
+                    SQLExceptionToString(e), e);
+        }
+        return 0; // failed
     }
 
     // return affected transaction id if success, 0 for failure.
@@ -1065,6 +1142,95 @@ public class MainApp extends Application {
         return id;
     }
 
+    void initReminderMap() {
+        if (mConnection == null) return;
+
+        mReminderMap.clear();
+        String sqlCmd = "select * from REMINDERS";
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                String type = resultSet.getString("TYPE");
+                String payee = resultSet.getString("PAYEE");
+                BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
+                int accountID = resultSet.getInt("ACCOUNTID");
+                int categoryID = resultSet.getInt("CATEGORYID");
+                int transferAccountID = resultSet.getInt("TRANSFERACCOUNTID");
+                int tagID = resultSet.getInt("TAGID");
+                String memo = resultSet.getString("MEMO");
+                LocalDate startDate = resultSet.getDate("STARTDATE").toLocalDate();
+                LocalDate endDate = resultSet.getDate("ENDDATE") == null ?
+                        null : resultSet.getDate("ENDDATE").toLocalDate();
+                DateSchedule.BaseUnit bu = DateSchedule.BaseUnit.valueOf(resultSet.getString("BASEUNIT"));
+                int np = resultSet.getInt("NUMPERIOD");
+                int ad = resultSet.getInt("ALERTDAYS");
+                boolean isDOM = resultSet.getBoolean("ISDOM");
+                boolean isFWD = resultSet.getBoolean("ISFWD");
+
+                DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, ad, isDOM, isFWD);
+                mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount,
+                        accountID, categoryID, transferAccountID, tagID, memo, ds));
+            }
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+            e.printStackTrace();
+        }
+    }
+
+    void initReminderTransactionList() {
+        if (mConnection == null) return;
+
+        mReminderTransactionList.clear();
+        String sqlCmd = "select * from REMINDERTRANSACTIONS order by REMINDERID, DUEDATE";
+        int ridPrev = -1;
+        Reminder reminder = null;
+        Account account = null;
+        Map<Integer, LocalDate> lastDueDateMap = new HashMap<>();
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            while (resultSet.next()) {
+                int rid = resultSet.getInt("REMINDERID");
+                LocalDate dueDate = resultSet.getDate("DUEDATE").toLocalDate();
+                int tid = resultSet.getInt("TRANSACTIONID");
+
+                // keep track latest due date
+                lastDueDateMap.put(rid, dueDate);
+
+                if (rid != ridPrev) {
+                    // new rid
+                    reminder = getReminderMap().get(rid);
+                    if (reminder == null)
+                        continue; // zombie reminderTransaction
+                    account = getAccountByID(reminder.getAccountID());
+                    if (account == null)
+                        continue; // bad account in reminder setting.  skip
+
+                    ridPrev = rid; // save rid to ridPrev
+                }
+
+                if (account != null) {
+                    Transaction transaction = account.getTransactionByID(tid);
+                    mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, transaction));
+                }
+            }
+
+            // add one unfulfilled reminders
+            for (Integer rid : getReminderMap().keySet()) {
+                reminder = getReminderMap().get(rid);
+                LocalDate lastDueDate = lastDueDateMap.get(rid);
+                if (lastDueDate != null)
+                    lastDueDate = lastDueDate.plus(1, DAYS);
+                LocalDate dueDate = reminder.getDateSchedule().getNextDueDate(lastDueDate);
+                mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, null));
+            }
+            mReminderTransactionList.sort(Comparator.comparing(ReminderTransaction::getDueDate));
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+            e.printStackTrace();
+        }
+    }
+
     private void initCategoryList() {
         if (mConnection == null) return;
 
@@ -1361,16 +1527,16 @@ public class MainApp extends Application {
     void showBillIncomeReminderDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("ReminderListDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("ReminderTransactionListDialog.fxml"));
 
             Stage dialogStage = new Stage();
-            dialogStage.setTitle("Reminder List");
+            dialogStage.setTitle("Reminder Transaction List");
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
-            ReminderListDialogController controller = loader.getController();
+            ReminderTransactionListDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null controller for ReminderListDialog");
+                System.err.println("Null controller for ReminderTransactionListDialog");
                 return;
             }
             controller.setMainApp(this, dialogStage);
@@ -2307,6 +2473,8 @@ public class MainApp extends Application {
         initCategoryList();
         initSecurityList();
         initAccountList();  // this should be done after securitylist and categorylist are loaded
+        initReminderMap();
+        initReminderTransactionList();
 
         mPrimaryStage.setTitle("FaCai168 " + dbName);
     }
@@ -2481,6 +2649,42 @@ public class MainApp extends Application {
                 + "REPORTID integer NOT NULL, "
                 + "ACCOUNTID integer NOT NULL, "
                 + "SELECTEDORDER integer NOT NULL); ";
+        sqlCreateTable(sqlCmd);
+
+        // Tag table
+        sqlCmd = "create table TAGS ("
+                + "ID integer NOT NULL AUTO_INCREMENT (1), " // starting 1
+                + "NAME varchar(20), "
+                + "DESCRIPTION varchar(80), "
+                + "primary key(ID));";
+        sqlCreateTable(sqlCmd);
+
+        // Reminders table
+        sqlCmd = "create table REMINDERS ("
+                + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
+                + "TYPE varchar(" + 12 + "), "
+                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
+                + "AMOUNT decimal(20, 4), "
+                + "ACCOUNTID integer NOT NULL, "
+                + "CATEGORYID integer, "
+                + "TRANSFERACCOUNTID integer, "
+                + "TAGID integer, "
+                + "MEMO varchar(" + TRANSACTIONMEMOLEN + "), "
+                + "STARTDATE date NOT NULL, "
+                + "ENDDATE date, "
+                + "BASEUNIT varchar(8) NOT NULL, "
+                + "NUMPERIOD integer NOT NULL, "
+                + "ALERTDAYS integer NOT NULL, "
+                + "ISDOM boolean NOT NULL, "
+                + "ISFWD boolean NOT NULL, "
+                + "primary key (ID));";
+        sqlCreateTable(sqlCmd);
+
+        // ReminderTransactions table
+        sqlCmd = "create table REMINDERTRANSACTIONS ("
+                + "REMINDERID integer NOT NULL, "
+                + "DUEDATE date, "
+                + "TRANSACTIONID integer)";
         sqlCreateTable(sqlCmd);
     }
 

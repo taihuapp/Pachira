@@ -1,7 +1,6 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.property.*;
-import javafx.util.converter.DateStringConverter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,7 +20,7 @@ class Reminder {
     private final IntegerProperty mAccountIDProperty = new SimpleIntegerProperty(0);
     private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
     private final IntegerProperty mTransferAccountIDProperty = new SimpleIntegerProperty(0);
-    private final StringProperty mTagProperty = new SimpleStringProperty("");
+    private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
 
     private DateSchedule mDateSchedule;
@@ -31,10 +30,28 @@ class Reminder {
 
         // default monthly schedule, starting today, no end, counting day of month forward.
         mDateSchedule = new DateSchedule(DateSchedule.BaseUnit.MONTH, 1, LocalDate.now(), null,
-                true, true);
+                3, true, true);
+    }
+
+    Reminder(int id, Type type, String payee, BigDecimal amount, int accountID, int categoryID,
+             int transferAccountID, int tagID, String memo, DateSchedule ds) {
+        mID = id;
+        mTypeProperty.set(type);
+        mPayeeProperty.set(payee);
+        mAmountProperty.set(amount);
+        mAccountIDProperty.set(accountID);
+        mCategoryIDProperty.set(categoryID);
+        mTransferAccountIDProperty.set(transferAccountID);
+        mTagIDProperty.set(tagID);
+        mMemoProperty.set(memo);
+        mDateSchedule = ds;
     }
 
     DateSchedule getDateSchedule() { return mDateSchedule; }
+    void setDateSchedule(DateSchedule ds) { mDateSchedule = ds; }
+
+    int getID() { return mID; }
+    void setID(int id) { mID = id; }
 
     ObjectProperty<Type> getTypeProperty() { return mTypeProperty; }
     Type getType() { return getTypeProperty().get(); }
@@ -60,9 +77,9 @@ class Reminder {
     Integer getTransferAccountID() { return getTransferAccountIDProperty().get(); }
     void setTransferAccountID(int i) { getTransferAccountIDProperty().set(i); }
 
-    StringProperty getTagProperty() { return mTagProperty; }
-    String getTag() { return getTagProperty().get(); }
-    void setTag(String t) { getTagProperty().set(t); }
+    IntegerProperty getTagIDProperty() { return mTagIDProperty; }
+    Integer getTagID() { return getTagIDProperty().get(); }
+    void setTagID(int i) { getTagIDProperty().set(i); }
 
     StringProperty getMemoProperty() { return mMemoProperty; }
     String getMemo() { return getMemoProperty().get(); }

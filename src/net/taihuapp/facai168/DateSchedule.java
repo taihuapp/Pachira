@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.concurrent.Callable;
 
 import static java.time.temporal.ChronoUnit.DAYS;
+import static net.taihuapp.facai168.DateSchedule.BaseUnit.DAY;
 
 /**
  * Created by ghe on 11/27/16.
@@ -34,6 +35,9 @@ class DateSchedule {
     private final ObjectProperty<LocalDate> mStartDateProperty = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDate> mEndDateProperty = new SimpleObjectProperty<>();
 
+    // number of days of advance alert
+    private final IntegerProperty mAlertDayProperty = new SimpleIntegerProperty();
+
     // used in MONTH/QUARTER/YEAR schedules
     // if true, count day of the month
     // otherwise, count day of the week
@@ -46,9 +50,47 @@ class DateSchedule {
 
     private final StringProperty mDescriptionProperty = new SimpleStringProperty();
 
+    LocalDate getNextDueDate(LocalDate from) {
+        if (from == null || from.isBefore(getStartDate()))
+            return getStartDate();
+        if (from.isAfter(getEndDate()))
+            return null; // after end date already
+
+        // from is between startDate and endDate
+        LocalDate to;
+        switch (getBaseUnit()) {
+            case DAY:
+                to = from.plus(getNumPeriod(), DAYS);
+                break;
+            case WEEK:
+                to = from.plus(getNumPeriod()*7, DAYS);
+                break;
+            case MONTH:
+                // add one more month just to be safe
+                to = from.plus((1+getNumPeriod())*31, DAYS);
+                break;
+            case QUARTER:
+                to = from.plus((1+getNumPeriod())*92, DAYS);
+                break;
+            case YEAR:
+                to = from.plus((1+getNumPeriod())*366, DAYS);
+                break;
+            default:
+                to = from; // we shouldn't be here
+                break;
+        }
+        if (to.isAfter(getEndDate()))
+            to = getEndDate();
+
+        List<LocalDate> dueDates = getDueDates(from, to);
+        if (dueDates.size() == 0)
+            return null;
+        return dueDates.get(0);
+    }
+
     // return the scheduled dates from d1 (inclusive) to d2 (inclusive)
     // in an ascending sorted list
-    List<LocalDate> getDates(LocalDate d1, LocalDate d2) {
+    private List<LocalDate> getDueDates(LocalDate d1, LocalDate d2) {
         List<LocalDate> dList = new ArrayList<>();
         switch (getBaseUnit()) {
             case DAY:
@@ -61,11 +103,12 @@ class DateSchedule {
                     l1 = s;
                 if (e < l2)
                     l2 = e;
-                long baseCnt = (getBaseUnit() == BaseUnit.DAY ? 1 : 7)* getNumPeriod();
+                long baseCnt = (getBaseUnit() == DAY ? 1 : 7)* getNumPeriod();
                 long r = ((l1-s) % baseCnt);
                 for (long i = r == 0 ? l1 : l1 + (baseCnt-r); i <= l2; i += baseCnt) {
                     dList.add(LocalDate.ofEpochDay(i));
                 }
+                break;
             case MONTH:
             case QUARTER:
             case YEAR:
@@ -177,6 +220,7 @@ class DateSchedule {
     ObjectProperty<LocalDate> getStartDateProperty() { return mStartDateProperty; }
     ObjectProperty<LocalDate> getEndDateProperty() { return mEndDateProperty; }
     IntegerProperty getNumPeriodProperty() { return mNumPeriodProperty; }
+    IntegerProperty getAlertDayProperty() { return mAlertDayProperty; }
     BooleanProperty getIsDOMBasedProperty() { return mIsDOMBasedProperty; }
     BooleanProperty getIsForwardProperty() { return mIsForwardProperty; }
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
@@ -186,6 +230,7 @@ class DateSchedule {
     LocalDate getStartDate() { return getStartDateProperty().get(); }
     LocalDate getEndDate() { return getEndDateProperty().get(); }
     Integer getNumPeriod() { return getNumPeriodProperty().get(); }
+    Integer getAlertDay() { return getAlertDayProperty().get(); }
     Boolean isDOMBased() { return getIsDOMBasedProperty().get(); }
     Boolean isForward() { return getIsForwardProperty().get(); }
 
@@ -194,6 +239,7 @@ class DateSchedule {
     void setStartDate(LocalDate s) { getStartDateProperty().set(s); }
     void setEndDate(LocalDate e) { getEndDateProperty().set(e); }
     void setNumPeriod(int n) { getNumPeriodProperty().set(n); }
+    void setAlertDay(int ad) { getAlertDayProperty().set(ad); }
     void setDOMBased(boolean tf) { getIsDOMBasedProperty().set(tf); }
     void setForward(boolean tf) { getIsForwardProperty().set(tf); }
 
@@ -201,11 +247,12 @@ class DateSchedule {
     // np > 0.
     // e should be after s
     // isDOM and isFwd are not used for DAY and WEEK
-    DateSchedule(BaseUnit bu, int np, LocalDate s, LocalDate e, boolean isDOM, boolean isFwd) {
+    DateSchedule(BaseUnit bu, int np, LocalDate s, LocalDate e, int ad, boolean isDOM, boolean isFwd) {
         mBaseUnitProperty.set(bu);
         mNumPeriodProperty.set(np);
         mStartDateProperty.set(s);
         mEndDateProperty.set(e);
+        mAlertDayProperty.set(ad);
         mIsDOMBasedProperty.set(isDOM);
         mIsForwardProperty.set(isFwd);
 
@@ -233,7 +280,7 @@ class DateSchedule {
                 case WEEK:
                     return "Every " + np + " " + buLowerCase
                             + (np == 1 ? "" : "s")
-                            + (getBaseUnit() == BaseUnit.DAY ? "" :
+                            + (getBaseUnit() == DAY ? "" :
                             " on " + getStartDate().getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault()));
                 case MONTH:
                 case QUARTER:

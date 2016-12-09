@@ -16,6 +16,17 @@ import java.util.concurrent.Callable;
  */
 public class EditReminderDialogController {
 
+    private class TagIDConverter extends StringConverter<Integer> {
+        public Integer fromString(String tagName) {
+            Tag t = mMainApp.getTagByName(tagName);
+            return t == null ? 0 : t.getID();
+        }
+        public String toString(Integer tid) {
+            Tag t = mMainApp.getTagByID(tid);
+            return t == null ? "" : t.getName();
+        }
+    }
+
     private class CategoryIDConverter extends StringConverter<Integer> {
         public Integer fromString(String categoryName) {
             Category c = mMainApp.getCategoryByName(categoryName);
@@ -63,7 +74,7 @@ public class EditReminderDialogController {
     @FXML
     private ComboBox<Integer> mTransferAccountIDComboBox;
     @FXML
-    private TextField mTagTextField;
+    private ComboBox<Integer> mTagIDComboBox;
     @FXML
     private TextField mMemoTextField;
     @FXML
@@ -74,6 +85,8 @@ public class EditReminderDialogController {
     private DatePicker mEndDatePicker;
     @FXML
     private TextField mNumPeriodTextField;
+    @FXML
+    private TextField mAlertDayTextField;
     @FXML
     private ToggleButton mDOMToggleButton;
     @FXML
@@ -133,9 +146,16 @@ public class EditReminderDialogController {
 
         mCategoryIDComboBox.setConverter(new CategoryIDConverter());
         mCategoryIDComboBox.getItems().clear();
+        mCategoryIDComboBox.getItems().add(0);
         for (Category c : mMainApp.getCategoryList())
             mCategoryIDComboBox.getItems().add(c.getID());
         Bindings.bindBidirectional(mCategoryIDComboBox.valueProperty(), mReminder.getCategoryIDProperty().asObject());
+
+        mTagIDComboBox.setConverter(new TagIDConverter());
+        mTagIDComboBox.getItems().clear();
+        for (Tag t : mMainApp.getTagList())
+            mTagIDComboBox.getItems().add(t.getID());
+        Bindings.bindBidirectional(mTagIDComboBox.valueProperty(), mReminder.getTagIDProperty().asObject());
 
         mTransferAccountIDComboBox.setConverter(new AccountIDConverter());
         mTransferAccountIDComboBox.getItems().clear();
@@ -149,7 +169,6 @@ public class EditReminderDialogController {
         for (Account a : mMainApp.getAccountList(Account.Type.SPENDING, false, true))
             mTransferAccountIDComboBox.getItems().add(a.getID());
 
-        mTagTextField.textProperty().bindBidirectional(mReminder.getTagProperty());
         mMemoTextField.textProperty().bindBidirectional(mReminder.getMemoProperty());
 
         // bind properties for DateSchedule fields
@@ -157,6 +176,8 @@ public class EditReminderDialogController {
         mStartDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getStartDateProperty());
         mEndDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getEndDateProperty());
         mNumPeriodTextField.textProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty(),
+                new NumberStringConverter("#"));
+        mAlertDayTextField.textProperty().bindBidirectional(mReminder.getDateSchedule().getAlertDayProperty(),
                 new NumberStringConverter("#"));
 
         mDOMToggleButton.textProperty().bind(Bindings.createStringBinding(
@@ -196,12 +217,21 @@ public class EditReminderDialogController {
 
     @FXML
     private void handleSave() {
+        // validation
+        // todo
+
         System.out.println(mReminder.getDateSchedule().getBaseUnit() + "|"
                 + mReminder.getDateSchedule().getStartDate() + "|"
                 + mReminder.getDateSchedule().getEndDate() + "|"
                 + mReminder.getDateSchedule().getNumPeriod() + "|"
+                + mReminder.getDateSchedule().getAlertDay() + "|"
                 + mReminder.getDateSchedule().isDOMBased() + "|"
                 + mReminder.getDateSchedule().isForward());
+        // enter
+        mMainApp.insertUpdateReminderToDB(mReminder);
+        mMainApp.initReminderMap();
+        mMainApp.initReminderTransactionList();
+        close();
     }
 
     @FXML

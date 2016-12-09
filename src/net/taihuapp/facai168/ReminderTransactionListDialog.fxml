@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.ReminderTransactionListDialogController">
+   <center>
+      <TableView fx:id="mReminderTransactionTableView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <columns>
+          <TableColumn fx:id="mStatusTableColumn" prefWidth="75.0" text="Status" />
+          <TableColumn fx:id="mDueDateTableColumn" prefWidth="100.0" text="Due" />
+            <TableColumn fx:id="mAccountTableColumn" prefWidth="150.0" text="Account" />
+            <TableColumn fx:id="mTypeTableColumn" prefWidth="75.0" text="Type" />
+            <TableColumn fx:id="mPayeeTableColumn" prefWidth="150.0" text="Payee/Payer" />
+            <TableColumn fx:id="mAmountTableColumn" prefWidth="75.0" text="Amount" />
+            <TableColumn fx:id="mFrequencyTableColumn" prefWidth="150.0" text="Frequency" />
+        </columns>
+      </TableView>
+   </center>
+   <bottom>
+      <HBox fillHeight="false" prefWidth="200.0" BorderPane.alignment="CENTER">
+         <children>
+            <Button mnemonicParsing="false" onAction="#handleNew" text="New" />
+         </children>
+      </HBox>
+   </bottom>
+</BorderPane>

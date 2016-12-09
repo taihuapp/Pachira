@@ -129,6 +129,13 @@ public class Account {
             setCurrentBalance(b);
     }
 
+    Transaction getTransactionByID(int tid) {
+        for (Transaction t : getTransactionList())
+            if (t.getID() == tid)
+                return t;
+        return null;
+    }
+
     public String toString() {
         return "mID:" + mID.get() + ";mType:" + mType.name()
                 + ";mName:" + mName.get() + ";mDescription:" + mDescription.get();

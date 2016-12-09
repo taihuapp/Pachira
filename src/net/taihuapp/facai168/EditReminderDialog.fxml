@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.lang.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+
 <GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditReminderDialogController">
   <columnConstraints>
     <ColumnConstraints hgrow="SOMETIMES" maxWidth="150.0" minWidth="10.0" prefWidth="150.0" />
@@ -27,8 +29,8 @@
    <children>
       <Label text="Next due date" GridPane.columnIndex="4" />
       <DatePicker fx:id="mStartDatePicker" GridPane.columnIndex="5" GridPane.columnSpan="2" />
-      <Label text="Repeat" GridPane.columnIndex="4" GridPane.rowIndex="1" />
-      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="5" GridPane.columnSpan="2" GridPane.rowIndex="1">
+      <Label text="Repeat" GridPane.columnIndex="4" GridPane.rowIndex="2" />
+      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="5" GridPane.columnSpan="2" GridPane.rowIndex="2">
          <children>
             <Label text="Every " />
             <TextField fx:id="mNumPeriodTextField" prefHeight="25.0" prefWidth="50.0" />
@@ -42,11 +44,11 @@
             <Button mnemonicParsing="false" onAction="#handleClose" text="Close" />
          </children>
       </HBox>
-       <ToggleButton fx:id="mDOMToggleButton" mnemonicParsing="false" text="Count days of the quarter" GridPane.columnIndex="5" GridPane.rowIndex="3" />
-       <ToggleButton fx:id="mDOWToggleButton" mnemonicParsing="false" text="Count day of the week" GridPane.columnIndex="5" GridPane.rowIndex="4" />
-       <ToggleButton fx:id="mFWDToggleButton" mnemonicParsing="false" text="Forward" GridPane.columnIndex="6" GridPane.rowIndex="3" />
-       <ToggleButton fx:id="mREVToggleButton" mnemonicParsing="false" text="Reverse" GridPane.columnIndex="6" GridPane.rowIndex="4" />
-       <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="5" GridPane.columnSpan="2" GridPane.rowIndex="2" />
+       <ToggleButton fx:id="mDOMToggleButton" mnemonicParsing="false" text="Count days of the quarter" GridPane.columnIndex="5" GridPane.rowIndex="4" />
+       <ToggleButton fx:id="mDOWToggleButton" mnemonicParsing="false" text="Count day of the week" GridPane.columnIndex="5" GridPane.rowIndex="5" />
+       <ToggleButton fx:id="mFWDToggleButton" mnemonicParsing="false" text="Forward" GridPane.columnIndex="6" GridPane.rowIndex="4" />
+       <ToggleButton fx:id="mREVToggleButton" mnemonicParsing="false" text="Reverse" GridPane.columnIndex="6" GridPane.rowIndex="5" />
+       <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="5" GridPane.columnSpan="2" GridPane.rowIndex="3" />
       <DatePicker fx:id="mEndDatePicker" GridPane.columnIndex="5" GridPane.rowIndex="6" />
       <Label text="Payee/Payer" GridPane.rowIndex="1" />
       <Label text="Amount" GridPane.rowIndex="2" />
@@ -60,9 +62,16 @@
       <TextField fx:id="mAmountTextField" GridPane.columnIndex="1" GridPane.rowIndex="2" />
       <ComboBox fx:id="mAccountIDComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
       <ComboBox fx:id="mCategoryIDComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-      <TextField fx:id="mTagTextField" GridPane.columnIndex="1" GridPane.rowIndex="5" />
       <TextField fx:id="mMemoTextField" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="6" />
       <ComboBox fx:id="mTransferAccountIDComboBox" prefWidth="150.0" visible="false" GridPane.columnIndex="1" GridPane.rowIndex="4" />
       <Label fx:id="mTransferAccountIDLabel" text="To Account" visible="false" GridPane.rowIndex="4" />
+      <ComboBox fx:id="mTagIDComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+      <HBox prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="4" GridPane.columnSpan="2" GridPane.rowIndex="1">
+         <children>
+            <Label text="Alert me " />
+            <TextField fx:id="mAlertDayTextField" prefHeight="25.0" prefWidth="32.0" />
+            <Label text=" days in advance" />
+         </children>
+      </HBox>
    </children>
 </GridPane>

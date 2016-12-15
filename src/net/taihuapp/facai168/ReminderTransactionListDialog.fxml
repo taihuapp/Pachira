@@ -19,9 +19,22 @@
       </TableView>
    </center>
    <bottom>
-      <HBox fillHeight="false" prefWidth="200.0" BorderPane.alignment="CENTER">
+      <HBox fillHeight="false" BorderPane.alignment="CENTER">
          <children>
             <Button mnemonicParsing="false" onAction="#handleNew" text="New" />
+            <Button fx:id="mEditButton" mnemonicParsing="false" onAction="#handleEdit" text="Edit" />
+            <Button fx:id="mDeleteButton" mnemonicParsing="false" onAction="#handleDelete" text="Delete" />
+            <StackPane HBox.hgrow="ALWAYS">
+               <children>
+                  <HBox alignment="CENTER_RIGHT">
+                     <children>
+                        <Button fx:id="mEnterButton" mnemonicParsing="false" onAction="#handleEnter" text="Enter" />
+                        <Button fx:id="mSkipButton" mnemonicParsing="false" onAction="#handleSkip" text="Skip" />
+                        <Button mnemonicParsing="false" onAction="#handleClose" text="Close" />
+                     </children>
+                  </HBox>
+               </children>
+            </StackPane>
          </children>
       </HBox>
    </bottom>

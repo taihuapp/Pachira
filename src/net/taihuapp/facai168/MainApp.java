@@ -429,14 +429,14 @@ public class MainApp extends Application {
         if (t.getID() <= 0) {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
-                    "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, " +
+                    "CLEARED, CATEGORYID, TAGID, MEMO, PRICE, QUANTITY, COMMISSION, " +
                     "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY, " +
                     "REFERENCE) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
-                    "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, MEMO = ?, " +
+                    "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, TAGID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
                     "PAYEE = ?, ADATE = ?, OLDQUANTITY = ? , REFERENCE = ? " +
@@ -456,21 +456,22 @@ public class MainApp extends Application {
                 preparedStatement.setObject(5, null);
             preparedStatement.setInt(6, 0); // cleared
             preparedStatement.setInt(7, t.getCategoryID());
-            preparedStatement.setString(8, t.getMemoProperty().get());
-            preparedStatement.setBigDecimal(9, t.getPrice());
-            preparedStatement.setBigDecimal(10, t.getQuantity());
-            preparedStatement.setBigDecimal(11, t.getCommission());
-            preparedStatement.setInt(12, t.getMatchID()); // matchTransactionID, ignore for now
-            preparedStatement.setInt(13, t.getMatchSplitID()); // matchSplitTransactionID, ignore for now
-            preparedStatement.setString(14, t.getPayeeProperty().get());
+            preparedStatement.setInt(8, t.getTagID());
+            preparedStatement.setString(9, t.getMemoProperty().get());
+            preparedStatement.setBigDecimal(10, t.getPrice());
+            preparedStatement.setBigDecimal(11, t.getQuantity());
+            preparedStatement.setBigDecimal(12, t.getCommission());
+            preparedStatement.setInt(13, t.getMatchID()); // matchTransactionID, ignore for now
+            preparedStatement.setInt(14, t.getMatchSplitID()); // matchSplitTransactionID, ignore for now
+            preparedStatement.setString(15, t.getPayeeProperty().get());
             if (t.getADate() == null)
-                preparedStatement.setNull(15, java.sql.Types.DATE);
+                preparedStatement.setNull(16, java.sql.Types.DATE);
             else
-                preparedStatement.setDate(15, Date.valueOf(t.getADate()));
-            preparedStatement.setBigDecimal(16, t.getOldQuantity());
-            preparedStatement.setString(17, t.getReferenceProperty().get());
+                preparedStatement.setDate(16, Date.valueOf(t.getADate()));
+            preparedStatement.setBigDecimal(17, t.getOldQuantity());
+            preparedStatement.setString(18, t.getReferenceProperty().get());
             if (t.getID() > 0)
-                preparedStatement.setInt(18, t.getID());
+                preparedStatement.setInt(19, t.getID());
 
             if (preparedStatement.executeUpdate() == 0)
                 throw(new SQLException("Failure: " + sqlCmd));
@@ -1231,6 +1232,25 @@ public class MainApp extends Application {
         }
     }
 
+    private void initTagList() {
+        if (mConnection == null) return;
+
+        mTagList.clear();
+        String sqlCmd = "select * from CATEGORIES";
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)){
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                String name = resultSet.getString("NAME");
+                String description = resultSet.getString("DESCRIPTION");
+                mTagList.add(new Tag(id, name, description));
+            }
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+            e.printStackTrace();
+        }
+    }
+
     private void initCategoryList() {
         if (mConnection == null) return;
 
@@ -1368,13 +1388,13 @@ public class MainApp extends Application {
                 // we store split transaction id in the ID field
                 // ignore accountID, date, reference, payee,
                 int accountID = resultSet.getInt("ACCOUNTID");
-
+                int tagID = 0;
                 // set input date, reference, payee to be null
                 // split transaction table doesn't keep trade action, but
                 // keeps category/transfer and signed amount.
                 stList.add(new Transaction(id, accountID, null,
                         mapBankingTransactionTA(cid, amount), null, null,
-                        memo, cid, amount.abs(), matchID, matchSplitID));
+                        memo, cid, tagID, amount.abs(), matchID, matchSplitID));
             }
         }  catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -1416,6 +1436,7 @@ public class MainApp extends Application {
                     amount = BigDecimal.ZERO;
                 }
                 int cid = resultSet.getInt("CATEGORYID");
+                int tagID = resultSet.getInt("TAGID");
                 Transaction.TradeAction tradeAction = null;
                 String taStr = resultSet.getString("TRADEACTION");
 
@@ -1439,7 +1460,7 @@ public class MainApp extends Application {
                         name = security.getName();
                 }
                 Transaction transaction = new Transaction(id, aid, tDate, aDate, tradeAction, name, reference,
-                        payee, price, quantity, oldQuantity, memo, commission, amount, cid, matchID,
+                        payee, price, quantity, oldQuantity, memo, commission, amount, cid, tagID, matchID,
                         matchSplitID);
 
                 if (resultSet.getBoolean("SPLITFLAG")) {
@@ -2471,6 +2492,7 @@ public class MainApp extends Application {
         }
         // initialize
         initCategoryList();
+        initTagList();
         initSecurityList();
         initAccountList();  // this should be done after securitylist and categorylist are loaded
         initReminderMap();
@@ -2605,6 +2627,7 @@ public class MainApp extends Application {
                 + "AMOUNT decimal(20,4), "
                 + "CLEARED integer, "
                 + "CATEGORYID integer, "   // positive for category ID, negative for transfer account id
+                + "TAGID integer, "
                 + "MEMO varchar(" + TRANSACTIONMEMOLEN + "), "
                 + "REFERENCE varchar (" + TRANSACTIONREFLEN + "), "  // reference or check number as string
                 + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "

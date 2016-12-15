@@ -1,5 +1,6 @@
 package net.taihuapp.facai168;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -43,8 +44,30 @@ public class ReminderTransactionListDialogController {
     private TableColumn<ReminderTransaction, String> mFrequencyTableColumn;
 
     @FXML
+    private Button mEnterButton;
+    @FXML
+    private Button mSkipButton;
+    @FXML
     private Button mEditButton;
+    @FXML
+    private Button mDeleteButton;
 
+    @FXML
+    private void handleEdit() {
+
+    }
+    @FXML
+    private void handleDelete() {
+
+    }
+    @FXML
+    private void handleEnter() {
+
+    }
+    @FXML
+    private void handleSkip() {
+
+    }
     @FXML
     private void handleNew() { showEditReminderDialog(new Reminder()); }
 
@@ -126,5 +149,14 @@ public class ReminderTransactionListDialogController {
 
         mAccountTableColumn.setCellValueFactory(cellData
                 -> mMainApp.getAccountByID(cellData.getValue().getReminder().getAccountID()).getNameProperty());
+
+        mEditButton.visibleProperty().bind(Bindings.isNotEmpty(
+                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
+        mDeleteButton.visibleProperty().bind(Bindings.isNotEmpty(
+                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
+        mEnterButton.visibleProperty().bind(Bindings.isNotEmpty(
+                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
+        mSkipButton.visibleProperty().bind(Bindings.isNotEmpty(
+                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
     }
 }

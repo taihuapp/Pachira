@@ -40,6 +40,7 @@ public class Transaction {
     private ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
+    private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
     private final ObjectProperty<BigDecimal> mBalanceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     // investment amount, derived from total amount
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -62,6 +63,7 @@ public class Transaction {
     StringProperty getPayeeProperty() { return mPayeeProperty; }
     StringProperty getMemoProperty() { return mMemoProperty; }
     IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
+    IntegerProperty getTagIDProperty() { return mTagIDProperty; }
 
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
     ObjectProperty<BigDecimal> getInvestAmountProperty() { return mInvestAmountProperty; }
@@ -141,6 +143,7 @@ public class Transaction {
     boolean isSplit() { return getSplitTransactionList().size() > 0; }
     BigDecimal getAmount() { return mAmountProperty.get(); }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
+    Integer getTagID() { return getTagIDProperty().get(); }
     int getMatchID() { return mMatchID; }  // this is for linked transactions
     int getMatchSplitID() { return mMatchSplitID; }
 
@@ -310,6 +313,7 @@ public class Transaction {
     void setMemo(String memo) { mMemoProperty.set(memo); }
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
+    private void setTagID(int tid) { mTagIDProperty.set(tid); }
     void setSplitTransactionList(List<Transaction> stList) {
         mSplitTransactionList.clear();
         mSplitTransactionList.addAll(stList);
@@ -317,11 +321,11 @@ public class Transaction {
 
     // minimum constructor
     public Transaction(int accountID, LocalDate date, TradeAction ta, int categoryID) {
-        System.out.println("Transaction minimum constructor called");
         mAccountID = accountID;
         mTDateProperty.set(date);
         mTradeActionProperty.set(ta);
         setCategoryID(categoryID);
+        mTagIDProperty.set(0); // unused for now.
 
         // bind description property now
         bindDescriptionProperty();
@@ -332,7 +336,7 @@ public class Transaction {
     // tradeAction can not be null
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
                        String reference, String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity,
-                       String memo, BigDecimal commission, BigDecimal amount, int categoryID, int matchID,
+                       String memo, BigDecimal commission, BigDecimal amount, int categoryID, int tagID, int matchID,
                        int matchSplitID) {
         mID = id;
         mAccountID = accountID;
@@ -345,7 +349,8 @@ public class Transaction {
         mPriceProperty.set(price);
         mCommissionProperty.set(commission);
         mMemoProperty.set(memo);
-        setCategoryID(categoryID);
+        mCategoryIDProperty.set(categoryID);
+        mTagIDProperty.set(tagID);
         mPayeeProperty.set(payee);
         mOldQuantityProperty.set(oldQuantity);
 
@@ -358,7 +363,7 @@ public class Transaction {
 
     // Banking Transaction constructors
     public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String reference, String payee,
-                       String memo, int categoryID, BigDecimal amount, int matchID, int matchSplitID) {
+                       String memo, int categoryID, int tagID, BigDecimal amount, int matchID, int matchSplitID) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -368,7 +373,8 @@ public class Transaction {
         mPayeeProperty.setValue(payee);
         mMemoProperty.setValue(memo);
         mAmountProperty.set(amount);
-        setCategoryID(categoryID);
+        mCategoryIDProperty.set(categoryID);
+        mTagIDProperty.set(tagID);
 
         mTradeActionProperty.set(ta);
 
@@ -411,7 +417,8 @@ public class Transaction {
         mPaymentProperty.set(t0.mPaymentProperty.get());
         mDepositProperty.set(t0.mDepositProperty.get());
         mMemoProperty.set(t0.mMemoProperty.get());
-        setCategoryID(t0.getCategoryID());
+        mCategoryIDProperty.set(t0.getCategoryID());
+        mTagIDProperty.set(t0.getTagID());
         mBalanceProperty.set(t0.mBalanceProperty.get());
         mInvestAmountProperty.set(t0.mInvestAmountProperty.get());
         mCommissionProperty.set(t0.mCommissionProperty.get());

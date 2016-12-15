@@ -29,7 +29,6 @@ import java.util.*;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
-import static java.time.temporal.ChronoUnit.DAYS;
 import static net.taihuapp.facai168.Transaction.TradeAction.CVTSHRT;
 import static net.taihuapp.facai168.Transaction.TradeAction.SELL;
 
@@ -92,6 +91,13 @@ public class MainApp extends Application {
     private Preferences mPrefs;
     private Stage mPrimaryStage;
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
+
+    // mTransactionList is ordered by ID.  It's important for getTransactionByID to work
+    // mTransactionListSort2 is ordered by accountID, Date, and ID
+    private final ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
+    private final SortedList<Transaction> mTransactionListSort2 = new SortedList<Transaction>(mTransactionList,
+            Comparator.comparing(Transaction::getAccountID).thenComparing(Transaction::getTDate)
+                    .thenComparing(Transaction::getID));
 
     // we want to watch the change of hiddenflag and displayOrder
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList(
@@ -1221,7 +1227,7 @@ public class MainApp extends Application {
                 reminder = getReminderMap().get(rid);
                 LocalDate lastDueDate = lastDueDateMap.get(rid);
                 if (lastDueDate != null)
-                    lastDueDate = lastDueDate.plus(1, DAYS);
+                    lastDueDate = lastDueDate.plusDays(1);
                 LocalDate dueDate = reminder.getDateSchedule().getNextDueDate(lastDueDate);
                 mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, null));
             }
@@ -1300,7 +1306,7 @@ public class MainApp extends Application {
 
         // load transaction list
         // this method will set account balance for SPENDING account
-        account.setTransactionList(loadAccountTransactions(accountID));
+        account.setTransactionList(getTransactionListByAccountID(accountID));
 
         // update holdings and balance for INVESTING account
         if (account.getType() == Account.Type.INVESTING) {
@@ -1368,7 +1374,7 @@ public class MainApp extends Application {
         List<Transaction> stList = new ArrayList<>();
 
         String sqlCmd = "select st.*, t.ACCOUNTID "
-                + "from SPLITTRANSACTIONS st left join TRANSACTIONS t "
+                + "from SPLITTRANSACTIONS st inner join TRANSACTIONS t "
                 + "where st.TRANSACTIONID = t.ID and t.ID = " + tid + " order by st.ID";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
@@ -1403,21 +1409,13 @@ public class MainApp extends Application {
         return stList;
     }
 
-    // load transactions for given accountID, and put in a list in
-    // the order of DATE and then TransactionID
-    // if accountID = -1, then ALL transaction will be loaded
-    private List<Transaction> loadAccountTransactions(int accountID) {
-        List<Transaction> transactionList = new ArrayList<>();
+    // initialize mTransactionList order by ID
+    private void initTransactionList() {
+        mTransactionList.clear();
         if (mConnection == null)
-            return transactionList;
+            return;
 
-        String sqlCmd;
-        if (accountID == -1)
-            sqlCmd = "select * from TRANSACTIONS order by DATE, ID";
-        else
-            sqlCmd = "select * "
-                + " from TRANSACTIONS where ACCOUNTID = " + accountID
-                + " order by DATE, ID";
+        String sqlCmd = "select * from TRANSACTIONS order by ID";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
@@ -1467,13 +1465,17 @@ public class MainApp extends Application {
                     transaction.setSplitTransactionList(loadSplitTransactions(transaction.getID()));
                 }
 
-                transactionList.add(transaction);
+                mTransactionList.add(transaction);
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
-        return transactionList;
+    }
+
+    // return a list of transactions sorted for Date and transaction ID for the given accountID
+    private List<Transaction> getTransactionListByAccountID(int accountID) {
+        return new FilteredList<Transaction>(mTransactionListSort2, t -> t.getAccountID() == accountID);
     }
 
     void putOpenedDBNames(List<String> openedDBNames) {
@@ -2042,17 +2044,15 @@ public class MainApp extends Application {
     // fixed DB inconsistency due to import
     void fixDB() {
         // load all transactions
-        final List<Transaction> transactionList = loadAccountTransactions(-1);
+        final SortedList<Transaction> transactionList = new SortedList<Transaction>(mTransactionList,
+                Comparator.comparing(Transaction::getTDate)
+                        .reversed().thenComparing(Transaction::isSplit).reversed()  // put split first
+                        .thenComparing(Transaction::getAccountID));
         final int nTrans = transactionList.size();
         System.err.println("Total " + nTrans + " transactions");
 
         if (nTrans == 0)
             return; // nothing to do
-
-        // sort the list according to date then put split transaction first, then accountID
-        transactionList.sort(Comparator.comparing(Transaction::getTDate)
-                .reversed().thenComparing(Transaction::isSplit).reversed()  // put split first
-                .thenComparing(Transaction::getAccountID));
 
         final List<Transaction> updateList = new ArrayList<>();  // transactions needs to be updated in DB
         final List<Transaction> unMatchedList = new ArrayList<>(); // (partially) unmatched transactions
@@ -2209,6 +2209,7 @@ public class MainApp extends Application {
                         + " for account [" + qa.getName() + "], skip.");
             }
         }
+        initTransactionList();
         initAccountList();
 
         List<QIFParser.Security> sList = qifParser.getSecurityList();
@@ -2408,6 +2409,7 @@ public class MainApp extends Application {
         closeConnection();
         mPrimaryStage.setTitle("FaCai168");
         setCurrentAccount(null);
+        initTransactionList(); // empty it
         initAccountList();  // empty it
         initSecurityList(); // empty it
 
@@ -2494,6 +2496,7 @@ public class MainApp extends Application {
         initCategoryList();
         initTagList();
         initSecurityList();
+        initTransactionList();
         initAccountList();  // this should be done after securitylist and categorylist are loaded
         initReminderMap();
         initReminderTransactionList();

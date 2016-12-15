@@ -1236,7 +1236,7 @@ public class MainApp extends Application {
         if (mConnection == null) return;
 
         mTagList.clear();
-        String sqlCmd = "select * from CATEGORIES";
+        String sqlCmd = "select * from TAGS";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)){
             while (resultSet.next()) {

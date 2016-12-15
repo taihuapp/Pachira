@@ -33,6 +33,12 @@ class Reminder {
                 3, true, true);
     }
 
+    // copy constructor
+    Reminder(Reminder r) {
+        this(r.getID(), r.getType(), r.getPayee(), r.getAmount(), r.getAccountID(), r.getCategoryID(),
+                r.getTransferAccountID(), r.getTagID(), r.getMemo(), r.getDateSchedule());
+    }
+
     Reminder(int id, Type type, String payee, BigDecimal amount, int accountID, int categoryID,
              int transferAccountID, int tagID, String memo, DateSchedule ds) {
         mID = id;

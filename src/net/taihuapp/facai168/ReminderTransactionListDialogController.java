@@ -54,7 +54,8 @@ public class ReminderTransactionListDialogController {
 
     @FXML
     private void handleEdit() {
-
+        Reminder reminder = mReminderTransactionTableView.getSelectionModel().getSelectedItem().getReminder();
+        showEditReminderDialog(new Reminder(reminder));
     }
     @FXML
     private void handleDelete() {
@@ -64,8 +65,10 @@ public class ReminderTransactionListDialogController {
     private void handleEnter() {
 
     }
+
     @FXML
     private void handleSkip() {
+        Reminder reminder = mReminderTransactionTableView.getSelectionModel().getSelectedItem().getReminder();
 
     }
     @FXML

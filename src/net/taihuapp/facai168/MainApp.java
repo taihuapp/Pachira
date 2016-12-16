@@ -95,7 +95,7 @@ public class MainApp extends Application {
     // mTransactionList is ordered by ID.  It's important for getTransactionByID to work
     // mTransactionListSort2 is ordered by accountID, Date, and ID
     private final ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
-    private final SortedList<Transaction> mTransactionListSort2 = new SortedList<Transaction>(mTransactionList,
+    private final SortedList<Transaction> mTransactionListSort2 = new SortedList<>(mTransactionList,
             Comparator.comparing(Transaction::getAccountID).thenComparing(Transaction::getTDate)
                     .thenComparing(Transaction::getID));
 
@@ -426,6 +426,31 @@ public class MainApp extends Application {
                     SQLExceptionToString(e), e);
         }
         return 0; // failed
+    }
+
+    boolean insertReminderTransactions(ReminderTransaction rt, Transaction t) {
+        int tid = 0;
+        if (t != null) {
+            tid = insertUpdateTransactionToDB(t);
+            if (tid == 0)
+                return false;
+        }
+
+        rt.setTransactionID(tid);
+        String sqlCmd = "insert into REMINDERTRANSACTIONS (REMINDERID, DUEDATE, TRANSACTIONID) "
+                + "values (?, ?, ?)";
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, rt.getReminder().getID());
+            preparedStatement.setDate(2,
+                    Date.valueOf(t == null ? rt.getDueDate() : t.getTDate()));
+            preparedStatement.setInt(3, tid);
+            preparedStatement.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            showExceptionDialog("Database Error", "Failed to insert into ReminderTransactions!",
+                    SQLExceptionToString(e), e);
+        }
+        return false;
     }
 
     // return affected transaction id if success, 0 for failure.
@@ -1192,7 +1217,6 @@ public class MainApp extends Application {
         String sqlCmd = "select * from REMINDERTRANSACTIONS order by REMINDERID, DUEDATE";
         int ridPrev = -1;
         Reminder reminder = null;
-        Account account = null;
         Map<Integer, LocalDate> lastDueDateMap = new HashMap<>();
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
@@ -1209,17 +1233,11 @@ public class MainApp extends Application {
                     reminder = getReminderMap().get(rid);
                     if (reminder == null)
                         continue; // zombie reminderTransaction
-                    account = getAccountByID(reminder.getAccountID());
-                    if (account == null)
-                        continue; // bad account in reminder setting.  skip
 
                     ridPrev = rid; // save rid to ridPrev
                 }
 
-                if (account != null) {
-                    Transaction transaction = account.getTransactionByID(tid);
-                    mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, transaction));
-                }
+                mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, tid));
             }
 
             // add one unfulfilled reminders
@@ -1229,7 +1247,7 @@ public class MainApp extends Application {
                 if (lastDueDate != null)
                     lastDueDate = lastDueDate.plusDays(1);
                 LocalDate dueDate = reminder.getDateSchedule().getNextDueDate(lastDueDate);
-                mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, null));
+                mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, -1));
             }
             mReminderTransactionList.sort(Comparator.comparing(ReminderTransaction::getDueDate));
         } catch (SQLException e) {
@@ -1475,7 +1493,7 @@ public class MainApp extends Application {
 
     // return a list of transactions sorted for Date and transaction ID for the given accountID
     private List<Transaction> getTransactionListByAccountID(int accountID) {
-        return new FilteredList<Transaction>(mTransactionListSort2, t -> t.getAccountID() == accountID);
+        return new FilteredList<>(mTransactionListSort2, t -> t.getAccountID() == accountID);
     }
 
     void putOpenedDBNames(List<String> openedDBNames) {
@@ -2044,7 +2062,7 @@ public class MainApp extends Application {
     // fixed DB inconsistency due to import
     void fixDB() {
         // load all transactions
-        final SortedList<Transaction> transactionList = new SortedList<Transaction>(mTransactionList,
+        final SortedList<Transaction> transactionList = new SortedList<>(mTransactionList,
                 Comparator.comparing(Transaction::getTDate)
                         .reversed().thenComparing(Transaction::isSplit).reversed()  // put split first
                         .thenComparing(Transaction::getAccountID));

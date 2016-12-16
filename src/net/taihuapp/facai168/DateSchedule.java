@@ -11,7 +11,6 @@ import java.util.Locale;
 import java.util.concurrent.Callable;
 
 import static java.time.temporal.ChronoUnit.DAYS;
-import static net.taihuapp.facai168.DateSchedule.BaseUnit.DAY;
 
 /**
  * Created by ghe on 11/27/16.
@@ -53,33 +52,34 @@ class DateSchedule {
     LocalDate getNextDueDate(LocalDate from) {
         if (from == null || from.isBefore(getStartDate()))
             return getStartDate();
-        if (from.isAfter(getEndDate()))
+        if (getEndDate() != null && from.isAfter(getEndDate()))
             return null; // after end date already
 
         // from is between startDate and endDate
         LocalDate to;
         switch (getBaseUnit()) {
             case DAY:
-                to = from.plus(getNumPeriod(), DAYS);
+                to = from.plusDays(getNumPeriod());
                 break;
             case WEEK:
-                to = from.plus(getNumPeriod()*7, DAYS);
+                to = from.plusDays(getNumPeriod()*7);
                 break;
             case MONTH:
                 // add one more month just to be safe
-                to = from.plus((1+getNumPeriod())*31, DAYS);
+                to = from.plusDays((1+getNumPeriod())*31);
                 break;
             case QUARTER:
-                to = from.plus((1+getNumPeriod())*92, DAYS);
+                to = from.plusDays((1+getNumPeriod())*92);
                 break;
             case YEAR:
-                to = from.plus((1+getNumPeriod())*366, DAYS);
+                to = from.plusDays((1+getNumPeriod())*366);
                 break;
             default:
                 to = from; // we shouldn't be here
                 break;
         }
-        if (to.isAfter(getEndDate()))
+
+        if (getEndDate() != null && to.isAfter(getEndDate()))
             to = getEndDate();
 
         List<LocalDate> dueDates = getDueDates(from, to);
@@ -103,7 +103,7 @@ class DateSchedule {
                     l1 = s;
                 if (e < l2)
                     l2 = e;
-                long baseCnt = (getBaseUnit() == DAY ? 1 : 7)* getNumPeriod();
+                long baseCnt = (getBaseUnit() == BaseUnit.DAY ? 1 : 7)* getNumPeriod();
                 long r = ((l1-s) % baseCnt);
                 for (long i = r == 0 ? l1 : l1 + (baseCnt-r); i <= l2; i += baseCnt) {
                     dList.add(LocalDate.ofEpochDay(i));
@@ -280,7 +280,7 @@ class DateSchedule {
                 case WEEK:
                     return "Every " + np + " " + buLowerCase
                             + (np == 1 ? "" : "s")
-                            + (getBaseUnit() == DAY ? "" :
+                            + (getBaseUnit() == BaseUnit.DAY ? "" :
                             " on " + getStartDate().getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault()));
                 case MONTH:
                 case QUARTER:

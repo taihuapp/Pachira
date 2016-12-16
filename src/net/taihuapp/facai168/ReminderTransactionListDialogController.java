@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -15,8 +16,6 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
-import static java.time.temporal.ChronoUnit.DAYS;
 
 /**
  * Created by ghe on 11/26/16.
@@ -68,9 +67,11 @@ public class ReminderTransactionListDialogController {
 
     @FXML
     private void handleSkip() {
-        Reminder reminder = mReminderTransactionTableView.getSelectionModel().getSelectedItem().getReminder();
-
+        ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+        mMainApp.insertReminderTransactions(rt, null);
+        mMainApp.initReminderTransactionList();
     }
+
     @FXML
     private void handleNew() { showEditReminderDialog(new Reminder()); }
 
@@ -114,19 +115,7 @@ public class ReminderTransactionListDialogController {
         mPayeeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getReminder().getPayeeProperty());
         mAmountTableColumn.setCellValueFactory(cellData -> cellData.getValue().getReminder().getAmountProperty());
 
-        final String OVERDUE = "Overdue";
-        final String DUESOON = "Due soon";
-        mStatusTableColumn.setCellValueFactory(cellData -> {
-            ReminderTransaction rt = cellData.getValue();
-            Reminder reminder = cellData.getValue().getReminder();
-            LocalDate today = LocalDate.now();
-            if (today.isAfter(rt.getDueDate()))
-                return new SimpleStringProperty(OVERDUE);
-            if (rt.getTransaction() == null
-                    && today.plus(reminder.getDateSchedule().getAlertDay(), DAYS).isAfter(rt.getDueDate()))
-                return new SimpleStringProperty(DUESOON);
-            return new SimpleStringProperty();
-                });
+        mStatusTableColumn.setCellValueFactory(cellData -> cellData.getValue().getStatusProperty());
         mStatusTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, String>() {
             @Override
             protected  void updateItem(String item, boolean empty) {
@@ -136,9 +125,9 @@ public class ReminderTransactionListDialogController {
                 setGraphic(null);
 
                 if (!isEmpty()) {
-                    if (item.equals(OVERDUE))
+                    if (item.equals(ReminderTransaction.OVERDUE))
                         setStyle("-fx-background-color:red");
-                    else if (item.equals(DUESOON))
+                    else if (item.equals(ReminderTransaction.DUESOON))
                         setStyle("-fx-background-color:yellow");
                 }
             }
@@ -153,13 +142,15 @@ public class ReminderTransactionListDialogController {
         mAccountTableColumn.setCellValueFactory(cellData
                 -> mMainApp.getAccountByID(cellData.getValue().getReminder().getAccountID()).getNameProperty());
 
-        mEditButton.visibleProperty().bind(Bindings.isNotEmpty(
-                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
-        mDeleteButton.visibleProperty().bind(Bindings.isNotEmpty(
-                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
-        mEnterButton.visibleProperty().bind(Bindings.isNotEmpty(
-                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
-        mSkipButton.visibleProperty().bind(Bindings.isNotEmpty(
-                mReminderTransactionTableView.getSelectionModel().getSelectedItems()));
+        BooleanBinding visibility = Bindings.createBooleanBinding(() -> {
+            ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+            return (rt != null) && !rt.getStatus().equals(ReminderTransaction.COMPLETED)
+                    && !rt.getStatus().equals(ReminderTransaction.SKIPPED);
+        }, mReminderTransactionTableView.getSelectionModel().getSelectedItems());
+
+        mEditButton.visibleProperty().bind(visibility);
+        mDeleteButton.visibleProperty().bind(visibility);
+        mEnterButton.visibleProperty().bind(visibility);
+        mSkipButton.visibleProperty().bind(visibility);
     }
 }

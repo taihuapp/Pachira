@@ -125,10 +125,18 @@ public class ReminderTransactionListDialogController {
                 setGraphic(null);
 
                 if (!isEmpty()) {
-                    if (item.equals(ReminderTransaction.OVERDUE))
-                        setStyle("-fx-background-color:red");
-                    else if (item.equals(ReminderTransaction.DUESOON))
-                        setStyle("-fx-background-color:yellow");
+                    System.err.println("color color");
+                    switch (item) {
+                        case ReminderTransaction.OVERDUE:
+                            setStyle("-fx-background-color:red");
+                            break;
+                        case ReminderTransaction.DUESOON:
+                            setStyle("-fx-background-color:yellow");
+                            break;
+                        default:
+                            setStyle("");
+                            break;
+                    }
                 }
             }
         });

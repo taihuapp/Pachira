@@ -1338,6 +1338,7 @@ public class MainApp extends Application {
         }
     }
 
+    // should be called after mTransactionList being properly initialized
     void initAccountList() {
         mAccountList.clear();
         if (mConnection == null) return;
@@ -1428,6 +1429,7 @@ public class MainApp extends Application {
     }
 
     // initialize mTransactionList order by ID
+    // mSecurityList should be loaded prior this call.
     private void initTransactionList() {
         mTransactionList.clear();
         if (mConnection == null)
@@ -2227,7 +2229,6 @@ public class MainApp extends Application {
                         + " for account [" + qa.getName() + "], skip.");
             }
         }
-        initTransactionList();
         initAccountList();
 
         List<QIFParser.Security> sList = qifParser.getSecurityList();
@@ -2287,6 +2288,7 @@ public class MainApp extends Application {
             }
         }
 
+        initTransactionList();
         System.out.println("Imported " + file);
     }
 
@@ -2427,9 +2429,7 @@ public class MainApp extends Application {
         closeConnection();
         mPrimaryStage.setTitle("FaCai168");
         setCurrentAccount(null);
-        initTransactionList(); // empty it
-        initAccountList();  // empty it
-        initSecurityList(); // empty it
+        initializeLists();
 
         // Trying to create a new db, but unable to delete existing same name db
         if (isNew && file.exists() && !file.delete()) {
@@ -2510,6 +2510,13 @@ public class MainApp extends Application {
         if (isNew) {
             initDBStructure();
         }
+
+        initializeLists();
+
+        mPrimaryStage.setTitle("FaCai168 " + dbName);
+    }
+
+    private void initializeLists() {
         // initialize
         initCategoryList();
         initTagList();
@@ -2518,8 +2525,6 @@ public class MainApp extends Application {
         initAccountList();  // this should be done after securitylist and categorylist are loaded
         initReminderMap();
         initReminderTransactionList();
-
-        mPrimaryStage.setTitle("FaCai168 " + dbName);
     }
 
     private void sqlCreateTable(String createSQL) {

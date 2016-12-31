@@ -2,10 +2,12 @@ package net.taihuapp.facai168;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 
@@ -44,6 +46,15 @@ public class EditTransactionDialogController {
         }
     }
 
+    private class AccountConverter extends StringConverter<Account> {
+        public Account fromString(String accountName) {
+            return mMainApp.getAccountByName(accountName);
+        }
+        public String toString(Account a) {
+            return a.getName();
+        }
+    }
+
     private class SecurityConverter extends StringConverter<Security> {
         public Security fromString(String s) {
             return mMainApp.getSecurityByName(s);
@@ -64,7 +75,7 @@ public class EditTransactionDialogController {
     @FXML
     private DatePicker mADatePicker;
     @FXML
-    private TextField mAccountNameTextField;
+    private ComboBox<Account> mAccountComboBox;
     @FXML
     private Label mTransferAccountLabel;
     @FXML
@@ -111,12 +122,14 @@ public class EditTransactionDialogController {
     private Label mTotalLabel;
     @FXML
     private TextField mTotalTextField;
-
+    @FXML
+    private Button mEnterNewButton;
+    @FXML
+    private Button mEnterDoneButton;
     @FXML
     private Button mSpecifyLotButton;
 
     private MainApp mMainApp;
-    private Account mAccount;
     private int mOldXferAccountID;
     private Stage mDialogStage;
 
@@ -132,15 +145,42 @@ public class EditTransactionDialogController {
         });
     }
 
+    int getTransactionID() {
+        if (mTransaction == null)
+            return -1;
+        return mTransaction.getID();
+    }
+
     // transaction can either be null, or a copy of an existing transaction in the list
-    void setMainApp(MainApp mainApp, Transaction transaction, Stage stage) {
+    void setMainApp(MainApp mainApp, Transaction transaction, Stage stage,
+                    List<Account> accountList, Account defaultAccount,
+                    List<Transaction.TradeAction> taList) {
         mDialogStage = stage;
         mMainApp = mainApp;
-        mAccount = mMainApp.getCurrentAccount();
+
+        // when being forced to close, clear out mTransaction
+        mDialogStage.setOnCloseRequest(eh -> mTransaction = null);
+
+        mAccountComboBox.setConverter(new AccountConverter());
+        mAccountComboBox.getItems().setAll(accountList);
+        mAccountComboBox.getSelectionModel().select(defaultAccount);
+
+        if (accountList.size() > 1) {
+            mEnterDoneButton.setDefaultButton(true);
+            mEnterNewButton.setDefaultButton(false);
+            mEnterNewButton.setVisible(false);
+        } else {
+            mEnterDoneButton.setDefaultButton(false);
+            mEnterNewButton.setDefaultButton(true);
+            mEnterNewButton.setVisible(true);
+        }
+
+        mTradeActionChoiceBox.getItems().setAll(taList);
 
         if (transaction == null) {
-            mTransaction = new Transaction(mAccount.getID(), LocalDate.now(),
-                    mAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
+            Account account = mAccountComboBox.getSelectionModel().getSelectedItem();
+            mTransaction = new Transaction(account.getID(), LocalDate.now(),
+                    account.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
         } else {
             mTransaction = transaction;
         }
@@ -154,6 +194,8 @@ public class EditTransactionDialogController {
     // return true if enter worked
     // false if something is not quite right
     private boolean enterTransaction() {
+        int accountID = mAccountComboBox.getSelectionModel().getSelectedItem().getID();
+        mTransaction.setAccountID(accountID);
         if (!validateTransaction())
             return false;  // invalid transaction
 
@@ -209,10 +251,10 @@ public class EditTransactionDialogController {
         }
 
         Transaction linkedTransaction = null;
-        if (xferTA != null && xferAID != mAccount.getID() && xferAmount.signum() != 0) {
+        if (xferTA != null && xferAID != accountID && xferAmount.signum() != 0) {
             // we need a transfer transaction
             linkedTransaction = new Transaction(xferAID, mTransaction.getTDate(), xferTA,
-                    -mAccount.getID());
+                    -accountID);
             linkedTransaction.setID(xferTID);
             linkedTransaction.getAmountProperty().set(xferAmount);
             linkedTransaction.setMemo(mTransaction.getMemo());
@@ -258,6 +300,8 @@ public class EditTransactionDialogController {
                 mMainApp.insertUpdatePriceToDB(securityID, date, mTransaction.getPrice(), 0);
             }
         }
+
+        mMainApp.initTransactionList();
         return true;
     }
 
@@ -300,6 +344,7 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleCancel() {
+        mTransaction = null;  // cancelled, clear out mTransaction
         mDialogStage.close();
     }
 
@@ -332,16 +377,6 @@ public class EditTransactionDialogController {
         mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
         mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
 
-        if (mAccount.getType() == Account.Type.INVESTING)
-            mTradeActionChoiceBox.getItems().setAll(Transaction.TradeAction.values());
-        else {
-            mTradeActionChoiceBox.getItems().clear();
-            mTradeActionChoiceBox.getItems().add(WITHDRAW);
-            mTradeActionChoiceBox.getItems().add(DEPOSIT);
-            mTradeActionChoiceBox.getItems().add(XIN);
-            mTradeActionChoiceBox.getItems().add(XOUT);
-        }
-
         addEventFilter(mSharesTextField);
         addEventFilter(mOldSharesTextField);
         addEventFilter(mPriceTextField);
@@ -351,7 +386,6 @@ public class EditTransactionDialogController {
         mTDatePicker.valueProperty().bindBidirectional(mTransaction.getTDateProperty());
 
         mADatePicker.valueProperty().bindBidirectional(mTransaction.getADateProperty());
-        mAccountNameTextField.setText(mAccount.getName());
 
         mMemoTextField.textProperty().unbindBidirectional(mTransaction.getMemoProperty());
         mMemoTextField.textProperty().bindBidirectional(mTransaction.getMemoProperty());
@@ -625,7 +659,7 @@ public class EditTransactionDialogController {
         mTransferAccountComboBox.getItems().add(0); // a blank account
         for (Account account : mMainApp.getAccountList(null, false, true)) {
             // get all types, non-hidden accounts, exclude deleted_account
-            if (account.getID() != mAccount.getID() || !isCashTransfer)
+            if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID() || !isCashTransfer)
                 mTransferAccountComboBox.getItems().add(-account.getID());
         }
         mTransferAccountComboBox.getSelectionModel().select(0);

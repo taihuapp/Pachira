@@ -224,10 +224,16 @@ public class Transaction {
 
     // setters
     void setID(int id) { mID = id; }
+    void setAccountID(int aid) { mAccountID = aid; }
     void setMatchID(int mid, int mSplitID) {
         mMatchID = mid;
         mMatchSplitID = mSplitID;
     }
+    // use with caution.  amount often is bind with other property.
+    void setAmount(BigDecimal amt) {
+        getAmountProperty().set(amt);
+    }
+    void setPayee(String payee) { getPayeeProperty().set(payee); }
 
     private void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity,
                                  BigDecimal commission, BigDecimal amount, boolean isXfer) {

@@ -130,6 +130,9 @@ public class MainApp extends Application {
         return fileNameList;
     }
 
+    // return accounts for given type t or all account if t is null
+    // return either hidden or nonhidden account based on hiddenflag, or all if hiddenflag is null
+    // include DELETED_ACCOUNT if exDeleted is false.
     SortedList<Account> getAccountList(Account.Type t, Boolean hidden, Boolean exDeleted) {
         FilteredList<Account> fList = new FilteredList<>(mAccountList,
                 a -> (t == null || a.getType() == t) && (hidden == null || a.getHiddenFlag() == hidden)
@@ -441,8 +444,7 @@ public class MainApp extends Application {
                 + "values (?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setInt(1, rt.getReminder().getID());
-            preparedStatement.setDate(2,
-                    Date.valueOf(t == null ? rt.getDueDate() : t.getTDate()));
+            preparedStatement.setDate(2, Date.valueOf(rt.getDueDate()));
             preparedStatement.setInt(3, tid);
             preparedStatement.executeUpdate();
             return true;
@@ -1430,7 +1432,7 @@ public class MainApp extends Application {
 
     // initialize mTransactionList order by ID
     // mSecurityList should be loaded prior this call.
-    private void initTransactionList() {
+    void initTransactionList() {
         mTransactionList.clear();
         if (mConnection == null)
             return;
@@ -1969,11 +1971,17 @@ public class MainApp extends Application {
     }
 
     void showEditTransactionDialog(Stage parent, Transaction transaction) {
-        if (mCurrentAccount == null) {
-            System.err.println("Can't show holdings for null account.");
-            return;
-        }
+        List<Transaction.TradeAction> taList = (mCurrentAccount.getType() == Account.Type.INVESTING) ?
+                Arrays.asList(Transaction.TradeAction.values()) :
+                Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT,
+                        Transaction.TradeAction.XIN, Transaction.TradeAction.XOUT);
+        showEditTransactionDialog(parent, transaction, Collections.singletonList(mCurrentAccount),
+                mCurrentAccount, taList);
+    }
 
+    // return transaction id or -1 for failure
+    int showEditTransactionDialog(Stage parent, Transaction transaction, List<Account> accountList,
+                                          Account defaultAccount, List<Transaction.TradeAction> taList) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation((MainApp.class.getResource("EditTransactionDialog.fxml")));
@@ -1985,10 +1993,12 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             EditTransactionDialogController controller = loader.getController();
-            controller.setMainApp(this, transaction, dialogStage);
+            controller.setMainApp(this, transaction, dialogStage, accountList, defaultAccount, taList);
             dialogStage.showAndWait();
+            return controller.getTransactionID();
         } catch (IOException e) {
             e.printStackTrace();
+            return -1;
         }
     }
 

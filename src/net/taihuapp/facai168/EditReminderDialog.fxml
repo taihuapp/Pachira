@@ -60,7 +60,7 @@
       <ChoiceBox fx:id="mTypeChoiceBox" prefWidth="150.0" GridPane.columnIndex="1" />
       <TextField fx:id="mPayeeTextField" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="1" />
       <TextField fx:id="mAmountTextField" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-      <ComboBox fx:id="mAccountIDComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+      <ComboBox fx:id="mAccountIDComboBox" maxWidth="1.7976931348623157E308" prefHeight="25.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="3" />
       <ComboBox fx:id="mCategoryIDComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
       <TextField fx:id="mMemoTextField" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="6" />
       <ComboBox fx:id="mTransferAccountIDComboBox" prefWidth="150.0" visible="false" GridPane.columnIndex="1" GridPane.rowIndex="4" />

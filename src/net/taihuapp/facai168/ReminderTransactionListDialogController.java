@@ -16,6 +16,7 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
 
 /**
  * Created by ghe on 11/26/16.
@@ -58,11 +59,37 @@ public class ReminderTransactionListDialogController {
     }
     @FXML
     private void handleDelete() {
-
+        System.err.println("delete reminder has not been implemented yet");
     }
+
     @FXML
     private void handleEnter() {
-
+        ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+        Reminder reminder = rt.getReminder();
+        Transaction.TradeAction ta;
+        switch (reminder.getType()) {
+            case PAYMENT:
+                ta = Transaction.TradeAction.WITHDRAW;
+                break;
+            case TRANSFER:
+                ta = Transaction.TradeAction.XOUT;
+                break;
+            case DEPOSIT:
+            default:
+                ta = Transaction.TradeAction.DEPOSIT;
+                break;
+        }
+        int accountID = reminder.getAccountID();
+        Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta, reminder.getCategoryID());
+        transaction.setAmount(reminder.getAmount());
+        transaction.setPayee(reminder.getPayee());
+        int tid = mMainApp.showEditTransactionDialog(mMainApp.getStage(), transaction,
+                mMainApp.getAccountList(Account.Type.SPENDING, null, false),
+                mMainApp.getAccountByID(reminder.getAccountID()), Collections.singletonList(ta));
+        if (tid >= 0) {
+            mMainApp.insertReminderTransactions(rt, transaction);
+            mMainApp.initReminderTransactionList();
+        }
     }
 
     @FXML

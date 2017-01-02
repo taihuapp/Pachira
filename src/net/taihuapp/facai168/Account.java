@@ -1,12 +1,10 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.property.*;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 /**
  * Created by ghe on 3/19/15.
@@ -46,14 +44,9 @@ public class Account {
     private final StringProperty mName;
     private final StringProperty mDescription;
     private final ObjectProperty<BigDecimal> mCurrentBalance;
-    private final ObservableList<Transaction> mTransactionList = FXCollections.observableArrayList();
+    private ObservableList<Transaction> mTransactionList = null;
     private final BooleanProperty mHiddenFlag = new SimpleBooleanProperty(false);
     private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(Integer.MAX_VALUE);
-
-    // default constructor
-    /*public Account() {
-        this(0, Type.SPENDING, "", "", false, Integer.MAX_VALUE, BigDecimal.ZERO);
-    }*/
 
     // detailed constructor
     public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
@@ -66,12 +59,6 @@ public class Account {
         mHiddenFlag.set(hidden);
         mDisplayOrder.set(displayOrder);
     }
-
-    // copy constructor
-    /*Account(Account account) {
-        this(account.getID(), account.getType(), account.getName(), account.getDescription(),
-                account.getHiddenFlag(), account.getDisplayOrder(), account.getCurrentBalanceProperty().get());
-    }*/
 
     // getters and setters
     public Type getType() { return mType; }
@@ -96,8 +83,8 @@ public class Account {
     String getDescription() { return mDescription.get(); }
     void setDescription(String d) { mDescription.set(d); }
 
-    void setTransactionList(List<Transaction> tList) {
-        mTransactionList.setAll(tList);
+    void setTransactionList(ObservableList<Transaction> tList) {
+        mTransactionList = tList;
         updateTransactionListBalance();
     }
     ObservableList<Transaction> getTransactionList() { return mTransactionList; }

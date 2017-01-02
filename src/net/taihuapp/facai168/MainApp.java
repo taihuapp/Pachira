@@ -1496,7 +1496,7 @@ public class MainApp extends Application {
     }
 
     // return a list of transactions sorted for Date and transaction ID for the given accountID
-    private List<Transaction> getTransactionListByAccountID(int accountID) {
+    private ObservableList<Transaction> getTransactionListByAccountID(int accountID) {
         return new FilteredList<>(mTransactionListSort2, t -> t.getAccountID() == accountID);
     }
 

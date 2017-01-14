@@ -2,12 +2,10 @@ package net.taihuapp.facai168;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 
@@ -273,7 +271,7 @@ public class EditTransactionDialogController {
             linkedTransaction.setMatchID(tid, 0);
             mTransaction.setMatchID(mMainApp.insertUpdateTransactionToDB(linkedTransaction), 0);
             mMainApp.insertUpdateTransactionToDB(mTransaction);
-        } else
+        } else if (xferTID > 0)
             mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 
         mMainApp.updateAccountBalance(mTransaction.getAccountID());
@@ -301,7 +299,6 @@ public class EditTransactionDialogController {
             }
         }
 
-        mMainApp.initTransactionList();
         return true;
     }
 
@@ -353,6 +350,7 @@ public class EditTransactionDialogController {
         mIncomeTextField.setText("0.00");
         mSharesTextField.setText("0.00");
         mCommissionTextField.setText("0.00");
+        mTotalTextField.setText("0.00");
     }
 
     @FXML

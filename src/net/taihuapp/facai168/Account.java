@@ -63,9 +63,9 @@ public class Account {
     // getters and setters
     public Type getType() { return mType; }
 
-    IntegerProperty getIDProperty() { return mID; }
-    int getID() { return mID.get(); }
-    void setID(int id) { mID.set(id); }
+    private IntegerProperty getIDProperty() { return mID; }
+    int getID() { return getIDProperty().get(); }
+    void setID(int id) { getIDProperty().set(id); }
 
     BooleanProperty getHiddenFlagProperty() { return mHiddenFlag; }
     Boolean getHiddenFlag() { return getHiddenFlagProperty().get(); }
@@ -80,26 +80,26 @@ public class Account {
     void setName(String name) { mName.set(name); }
 
     StringProperty getDescriptionProperty() { return mDescription; }
-    String getDescription() { return mDescription.get(); }
+    String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String d) { mDescription.set(d); }
 
-    void setTransactionList(ObservableList<Transaction> tList) {
-        mTransactionList = tList;
-        updateTransactionListBalance();
-    }
+    void setTransactionList(ObservableList<Transaction> tList) { mTransactionList = tList; }
+
     ObservableList<Transaction> getTransactionList() { return mTransactionList; }
 
     ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
     void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
 
-    // update balance field for each transaction for SPENDING account
-    // no-op for other types of accounts
-    private void updateTransactionListBalance() {
+    // update balance field for each transaction for non INVESTING account
+    // no-op for INVESTING accounts
+    void updateTransactionListBalance() {
+        if (getType() == Type.INVESTING)
+            return;
+
         BigDecimal b = new BigDecimal(0);
         boolean accountBalanceIsSet = false;
         for (Transaction t : getTransactionList()) {
-            if (getType() != Type.INVESTING  // investing account balance is handled differently
-                    && !accountBalanceIsSet && t.getTDateProperty().get().isAfter(LocalDate.now())) {
+            if (!accountBalanceIsSet && t.getTDateProperty().get().isAfter(LocalDate.now())) {
                 // this is a future transaction.  if account current balance is not set
                 // set it before process this future transaction
                 setCurrentBalance(b);
@@ -112,15 +112,8 @@ public class Account {
             }
         }
         // at the end of the list, if the account balance still not set, set it now.
-        if (getType() != Type.INVESTING && !accountBalanceIsSet)
+        if (!accountBalanceIsSet)
             setCurrentBalance(b);
-    }
-
-    Transaction getTransactionByID(int tid) {
-        for (Transaction t : getTransactionList())
-            if (t.getID() == tid)
-                return t;
-        return null;
     }
 
     public String toString() {

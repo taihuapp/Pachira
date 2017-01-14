@@ -223,6 +223,17 @@ public class MainApp extends Application {
             preparedStatement.setInt(1, tid);
 
             preparedStatement.executeUpdate();
+
+            // mTransactionList is sorted by tid
+            Comparator<Transaction> c = Comparator.comparing(Transaction::getID);
+            Transaction tbd = new Transaction(-1, LocalDate.MAX, Transaction.TradeAction.BUY, 0);
+            tbd.setID(tid);
+            int idx = Collections.binarySearch(mTransactionList, tbd, c);
+            if (idx < 0) {
+                System.err.println("Transaction " + tid + " not in master list? How did this happen?");
+            } else {
+                mTransactionList.remove(idx);
+            }
         } catch (SQLException e) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
@@ -520,6 +531,16 @@ public class MainApp extends Application {
                 insertUpdateSplitTransactionsToDB(t.getID(), t.getSplitTransactionList());
 
             mConnection.commit();
+
+            int idx = Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
+            if (idx < 0) {
+                // not in the list, insert a copy of t
+                mTransactionList.add(-(1+idx), new Transaction(t));
+            } else {
+                // exist in list, replace with a copy of t
+                mTransactionList.set(idx, new Transaction(t));
+            }
+
             return t.getID();
         } catch (SQLException e) {
             // something went wrong, roll back
@@ -541,15 +562,15 @@ public class MainApp extends Application {
         return 0;
     }
 
-    private void insertUpdateSplitTransactionsToDB(int tid, List<Transaction> stList) throws SQLException {
+    private void insertUpdateSplitTransactionsToDB(int tid, List<SplitTransaction> stList) throws SQLException {
         // load all existing split transactions for tid from database
-        List<Transaction> oldSTList = loadSplitTransactions(tid);
+        List<SplitTransaction> oldSTList = loadSplitTransactions(tid);
 
         // delete those split transactions not in stList
         List<Integer> exIDList = new ArrayList<>();
-        for (Transaction t0 : oldSTList) {
+        for (SplitTransaction t0 : oldSTList) {
             boolean isIn = false;
-            for (Transaction t1 : stList) {
+            for (SplitTransaction t1 : stList) {
                 if (t0.getID() == t1.getID()) {
                     isIn = true;
                     break; // old id is in the new list
@@ -579,7 +600,7 @@ public class MainApp extends Application {
 
             // insert or update stList
             for (int i = 0; i < stList.size(); i++) {
-                Transaction st = stList.get(i);
+                SplitTransaction st = stList.get(i);
                 if (st.getID() <= 0) {
                     insertStatement.setInt(1, tid);
                     insertStatement.setInt(2, st.getCategoryID());
@@ -1324,10 +1345,6 @@ public class MainApp extends Application {
             return;
         }
 
-        // load transaction list
-        // this method will set account balance for SPENDING account
-        account.setTransactionList(getTransactionListByAccountID(accountID));
-
         // update holdings and balance for INVESTING account
         if (account.getType() == Account.Type.INVESTING) {
             List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
@@ -1337,6 +1354,8 @@ public class MainApp extends Application {
             } else {
                 System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
             }
+        } else {
+            account.updateTransactionListBalance();
         }
     }
 
@@ -1365,8 +1384,12 @@ public class MainApp extends Application {
 
         // load transactions and set account balance
         // we don't care about deleted account
-        for (Account account : getAccountList(null, null, true))
+        for (Account account : getAccountList(null, null, true)) {
+            // load transaction list
+            // this method will set account balance for SPENDING account
+            account.setTransactionList(getTransactionListByAccountID(account.getID()));
             updateAccountBalance(account.getID());
+        }
     }
 
     void initSecurityList() {
@@ -1391,8 +1414,8 @@ public class MainApp extends Application {
         }
     }
 
-    private List<Transaction> loadSplitTransactions(int tid) {
-        List<Transaction> stList = new ArrayList<>();
+    private List<SplitTransaction> loadSplitTransactions(int tid) {
+        List<SplitTransaction> stList = new ArrayList<>();
 
         String sqlCmd = "select st.*, t.ACCOUNTID "
                 + "from SPLITTRANSACTIONS st inner join TRANSACTIONS t "
@@ -1411,17 +1434,7 @@ public class MainApp extends Application {
                 // do we need percentage?
                 // ignore it for now
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
-                int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
-                // we store split transaction id in the ID field
-                // ignore accountID, date, reference, payee,
-                int accountID = resultSet.getInt("ACCOUNTID");
-                int tagID = 0;
-                // set input date, reference, payee to be null
-                // split transaction table doesn't keep trade action, but
-                // keeps category/transfer and signed amount.
-                stList.add(new Transaction(id, accountID, null,
-                        mapBankingTransactionTA(cid, amount), null, null,
-                        memo, cid, tagID, amount.abs(), matchID, matchSplitID));
+                stList.add(new SplitTransaction(id, cid, memo, amount, matchID));
             }
         }  catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -1432,7 +1445,7 @@ public class MainApp extends Application {
 
     // initialize mTransactionList order by ID
     // mSecurityList should be loaded prior this call.
-    void initTransactionList() {
+    private void initTransactionList() {
         mTransactionList.clear();
         if (mConnection == null)
             return;
@@ -1780,11 +1793,8 @@ public class MainApp extends Application {
                 }
                 if (t.getTradeAction() == Transaction.TradeAction.STKSPLIT) {
                     securityHoldingList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
-                    List<Transaction> splitList = stockSplitTransactionListMap.get(t.getSecurityName());
-                    if (splitList == null) {
-                        splitList = new ArrayList<>();
-                        stockSplitTransactionListMap.put(t.getSecurityName(), splitList);
-                    }
+                    List<Transaction> splitList = stockSplitTransactionListMap.computeIfAbsent(t.getSecurityName(),
+                            k -> new ArrayList<>());
                     splitList.add(t);
                 } else {
                     securityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
@@ -2094,8 +2104,8 @@ public class MainApp extends Application {
                 int unMatched = 0;
                 for (int s = 0; s < t0.getSplitTransactionList().size(); s++) {
                     // loop through split transaction list
-                    Transaction st = t0.getSplitTransactionList().get(s);
-                    if (!st.isTransfer() || (st.getMatchID() > 0)) {
+                    SplitTransaction st = t0.getSplitTransactionList().get(s);
+                    if (!st.isTransfer(t0.getAccountID()) || (st.getMatchID() > 0)) {
                         // either not a transfer, or already matched
                         continue;
                     }
@@ -2104,16 +2114,16 @@ public class MainApp extends Application {
                     unMatched++;  // we've seen a unmatched
                     boolean modeAgg = false; // default not aggregate
                     int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
-                            st.cashFlow(), transactionList.subList(i+1, nTrans));
+                            st.getAmount().negate(), transactionList.subList(i+1, nTrans));
                     if (matchIdx < 0) {
                         // didn't find match, it's possible more than one split transaction transfering
                         // to the same account, the receiving account aggregates all into one transaction.
                         modeAgg = true; // try aggregate mode
                         BigDecimal cf = BigDecimal.ZERO;
                         for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
-                            Transaction st1 = t0.getSplitTransactionList().get(s1);
+                            SplitTransaction st1 = t0.getSplitTransactionList().get(s1);
                             if (st1.getCategoryID().equals(st.getCategoryID()))
-                                cf = cf.add(st1.cashFlow());
+                                cf = cf.add(st1.getAmount().negate());
                         }
                         matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
                                 cf, transactionList.subList(i+1, nTrans));
@@ -2126,12 +2136,12 @@ public class MainApp extends Application {
                         if (modeAgg) {
                             // found a match via modeAgg
                             for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
-                                Transaction st1 = t0.getSplitTransactionList().get(s1);
+                                SplitTransaction st1 = t0.getSplitTransactionList().get(s1);
                                 if (st1.getCategoryID().equals(st.getCategoryID()))
-                                    st1.setMatchID(t1.getID(), -1);
+                                    st1.setMatchID(t1.getID());
                             }
                         } else {
-                            st.setMatchID(t1.getID(), -1);
+                            st.setMatchID(t1.getID());
                         }
                         t1.setMatchID(t0.getID(), st.getID());
                         updateList.add(t1);

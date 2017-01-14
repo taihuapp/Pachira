@@ -327,6 +327,26 @@ public class MainController {
         mTransactionCashAmountColumn.setCellFactory(dollarCentsCF);
 
         mTransactionBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getBalanceProperty());
-        mTransactionBalanceColumn.setCellFactory(dollarCentsCF);
+        mTransactionBalanceColumn.setCellFactory(
+                new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {
+                    @Override
+                    public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> column) {
+                        return new TableCell<Transaction, BigDecimal>() {
+                            @Override
+                            protected void updateItem(BigDecimal item, boolean empty) {
+                                super.updateItem(item, empty);
+
+                                if (item == null || empty) {
+                                    setText("");
+                                } else {
+                                    // format
+                                    setText((new DecimalFormat("###,##0.00")).format(item));
+                                }
+                                setStyle("-fx-alignment: CENTER-RIGHT;");
+                            }
+                        };
+                    }
+                }
+        );
     }
 }

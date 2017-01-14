@@ -51,8 +51,8 @@ public class Transaction {
     private final StringProperty mDescriptionProperty = new SimpleStringProperty("");
     private int mMatchID = -1; // transfer transaction id
     private int mMatchSplitID = -1;
-    // we use a Transaction object for holding a split transaction
-    private final List<Transaction> mSplitTransactionList = new ArrayList<>();
+
+    private final List<SplitTransaction> mSplitTransactionList = new ArrayList<>();
 
     // getters
     int getID() { return mID; }
@@ -127,6 +127,105 @@ public class Transaction {
                 mTradeActionProperty, mQuantityProperty, mPriceProperty, mOldQuantityProperty));
     }
 
+    private void bindProperties() {
+        // mCashAmountProperty and mInvestAmountProperty depends on mTradeActionProperty and mAmountProperty
+        mCashAmountProperty.bind(Bindings.createObjectBinding(() -> {
+            switch (getTradeAction()) {
+                case BUY:
+                case CVTSHRT:
+                case MARGINT:
+                case MISCEXP:
+                    return isTransfer() ? BigDecimal.ZERO : getAmount().negate();
+                case SELL:
+                case SHTSELL:
+                case CGLONG:
+                case CGMID:
+                case CGSHORT:
+                case DIV:
+                case INTINC:
+                case MISCINC:
+                case RTRNCAP:
+                    return isTransfer() ? BigDecimal.ZERO : getAmount();
+                case REINVDIV:
+                case REINVINT:
+                case REINVLG:
+                case REINVMD:
+                case REINVSH:
+                case STKSPLIT:
+                case SHRSIN:
+                case SHRSOUT:
+                case XFRSHRS:
+                    return BigDecimal.ZERO;
+                case XIN:
+                case DEPOSIT:
+                    return getAmount();
+                case XOUT:
+                case WITHDRAW:
+                    return getAmount().negate();
+                default:
+                    System.err.println("TradingAction " + getTradeAction() + " not implement yet");
+                    return BigDecimal.ZERO;
+            }
+        }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
+
+        mInvestAmountProperty.bind(Bindings.createObjectBinding(() -> {
+            switch (getTradeAction()) {
+                case BUY:
+                case CVTSHRT:
+                case REINVDIV:
+                case REINVINT:
+                case REINVLG:
+                case REINVMD:
+                case REINVSH:
+                case SHRSIN:
+                    return getAmount();
+                case SELL:
+                case SHTSELL:
+                case SHRSOUT:
+                case RTRNCAP:
+                    return getAmount().negate();
+                case CGLONG:
+                case CGMID:
+                case CGSHORT:
+                case DIV:
+                case INTINC:
+                case MARGINT:
+                case MISCEXP:
+                case MISCINC:
+                case STKSPLIT:
+                case XFRSHRS:
+                case XIN:
+                case DEPOSIT:
+                case XOUT:
+                case WITHDRAW:
+                    return BigDecimal.ZERO;
+                default:
+                    System.err.println("TradingAction " + getTradeAction() + " not implement yet");
+                    return BigDecimal.ZERO;
+            }
+        }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
+
+        mPaymentProperty.bind(Bindings.createObjectBinding(() -> {
+            switch (getTradeAction()) {
+                case XOUT:
+                case WITHDRAW:
+                    return getAmount();
+                default:
+                    return BigDecimal.ZERO;
+            }
+        }, getTradeActionProperty(), getAmountProperty()));
+
+        mDepositProperty.bind(Bindings.createObjectBinding(() -> {
+            switch (getTradeAction()) {
+                case XIN:
+                case DEPOSIT:
+                    return getAmount();
+                default:
+                    return BigDecimal.ZERO;
+            }
+        }, getTradeActionProperty(), getAmountProperty()));
+    }
+
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
 
     LocalDate getTDate() { return mTDateProperty.get(); }
@@ -138,8 +237,8 @@ public class Transaction {
     BigDecimal getCommission() { return mCommissionProperty.get(); }
     BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
     String getSecurityName() { return mSecurityNameProperty.get();}
-    BigDecimal getCashAmount() { return mCashAmountProperty.get(); }
-    List<Transaction> getSplitTransactionList() { return mSplitTransactionList; }
+    BigDecimal getCashAmount() { return getCashAmountProperty().get(); }
+    List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
     boolean isSplit() { return getSplitTransactionList().size() > 0; }
     BigDecimal getAmount() { return mAmountProperty.get(); }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
@@ -181,7 +280,9 @@ public class Transaction {
             case SHRSIN:
             case SHRSOUT:
             case XFRSHRS:
+                return BigDecimal.ZERO;
             default:
+                System.err.println("TradingAction " + getTradeAction() + " not implement yet");
                 return BigDecimal.ZERO;
         }
     }
@@ -320,19 +421,20 @@ public class Transaction {
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
     private void setTagID(int tid) { mTagIDProperty.set(tid); }
-    void setSplitTransactionList(List<Transaction> stList) {
+    void setSplitTransactionList(List<SplitTransaction> stList) {
         mSplitTransactionList.clear();
         mSplitTransactionList.addAll(stList);
     }
 
     // minimum constructor
-    public Transaction(int accountID, LocalDate date, TradeAction ta, int categoryID) {
+    Transaction(int accountID, LocalDate date, TradeAction ta, int categoryID) {
         mAccountID = accountID;
         mTDateProperty.set(date);
         mTradeActionProperty.set(ta);
         setCategoryID(categoryID);
         mTagIDProperty.set(0); // unused for now.
 
+        bindProperties();
         // bind description property now
         bindDescriptionProperty();
     }
@@ -359,51 +461,11 @@ public class Transaction {
         mTagIDProperty.set(tagID);
         mPayeeProperty.set(payee);
         mOldQuantityProperty.set(oldQuantity);
-
-        boolean isXfer = categoryID <= -MainApp.MIN_ACCOUNT_ID && categoryID != -accountID;
-        setTradeDetails(ta, price, quantity, commission, amount, isXfer);
-
-        // bind description property now
-        bindDescriptionProperty();
-    }
-
-    // Banking Transaction constructors
-    public Transaction(int id, int accountID, LocalDate date, TradeAction ta, String reference, String payee,
-                       String memo, int categoryID, int tagID, BigDecimal amount, int matchID, int matchSplitID) {
-        mID = id;
-        mAccountID = accountID;
-        mMatchID = matchID;
-        mMatchSplitID = matchSplitID;
-        mTDateProperty.setValue(date);
-        mReferenceProperty.setValue(reference);
-        mPayeeProperty.setValue(payee);
-        mMemoProperty.setValue(memo);
-        mAmountProperty.set(amount);
-        mCategoryIDProperty.set(categoryID);
-        mTagIDProperty.set(tagID);
-
+        mQuantityProperty.set(quantity);
         mTradeActionProperty.set(ta);
+        mAmountProperty.set(amount);
 
-        switch (ta) {
-            case XIN:
-            case DEPOSIT:
-                mDepositProperty.setValue(amount);
-                mPaymentProperty.setValue(null);
-                mCashAmountProperty.setValue(amount);
-                break;
-            case XOUT:
-            case WITHDRAW:
-                mDepositProperty.setValue(null);
-                mPaymentProperty.setValue(amount);
-                mCashAmountProperty.setValue(amount);
-                break;
-            default:
-                mDepositProperty.setValue(null);
-                mPaymentProperty.setValue(null);
-                mCashAmountProperty.setValue(null);
-                break;
-        }
-
+        bindProperties();
         // bind description property now
         bindDescriptionProperty();
     }
@@ -434,7 +496,9 @@ public class Transaction {
         mMatchSplitID = t0.mMatchSplitID;
         mSplitTransactionList.addAll(t0.mSplitTransactionList);
         mOldQuantityProperty.set(t0.getOldQuantity());
+        mQuantityProperty.set(t0.getQuantity());
 
+        bindProperties();
         // bind description property now
         bindDescriptionProperty();
     }

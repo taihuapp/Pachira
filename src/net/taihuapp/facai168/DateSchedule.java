@@ -272,7 +272,6 @@ class DateSchedule {
 
     private void bindDescriptionProperty() {
         final Callable<String> converter = () -> {
-            System.out.println("callable is called");
             int np = getNumPeriod();
             String buLowerCase = getBaseUnit().toString().toLowerCase();
             switch (getBaseUnit()) {

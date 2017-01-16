@@ -347,6 +347,9 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleClear() {
+        mPayeeTextField.setText("");
+        mReferenceTextField.setText("");
+        mMemoTextField.setText("");
         mIncomeTextField.setText("0.00");
         mSharesTextField.setText("0.00");
         mCommissionTextField.setText("0.00");

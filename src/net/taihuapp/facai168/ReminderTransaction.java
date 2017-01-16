@@ -56,6 +56,7 @@ class ReminderTransaction {
     StringProperty getStatusProperty() { return mStatusProperty; }
     String getStatus() { return getStatusProperty().get(); }
     private IntegerProperty getTransactionIDProperty() { return mTransactionIDProperty; }
+    int getTransactionID() { return getTransactionIDProperty().get(); }
 
     void setTransactionID(int tid) { getTransactionIDProperty().set(tid); }
 }

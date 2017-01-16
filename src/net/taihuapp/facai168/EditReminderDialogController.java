@@ -62,6 +62,8 @@ public class EditReminderDialogController {
     @FXML
     private TextField mAmountTextField;
     @FXML
+    private TextField mEstimateNumOccuranceTextField;
+    @FXML
     private Label mAccountIDLabel;
     @FXML
     private ComboBox<Integer> mAccountIDComboBox;
@@ -97,9 +99,14 @@ public class EditReminderDialogController {
     private ToggleButton mREVToggleButton;
     @FXML
     private Label mDSDescriptionLabel;
+    @FXML
+    private RadioButton mFixedAmountRadioButton;
+    @FXML
+    private RadioButton mEstimateAmountRadioButton;
 
     private final ToggleGroup mDOMGroup = new ToggleGroup();
     private final ToggleGroup mFWDGroup = new ToggleGroup();
+    private final ToggleGroup mAmountGroup = new ToggleGroup();
 
     @FXML
     private void initialize() {
@@ -110,6 +117,13 @@ public class EditReminderDialogController {
 
         mFWDToggleButton.setToggleGroup(mFWDGroup);
         mREVToggleButton.setToggleGroup(mFWDGroup);
+
+        mFixedAmountRadioButton.setToggleGroup(mAmountGroup);
+        mEstimateAmountRadioButton.setToggleGroup(mAmountGroup);
+
+        mAmountTextField.visibleProperty().bindBidirectional(mFixedAmountRadioButton.selectedProperty());
+        mEstimateNumOccuranceTextField.visibleProperty().bindBidirectional(mEstimateAmountRadioButton.selectedProperty());
+
         // todo need a changelistenser for mCountBeforeEndTextField
 
         mTypeChoiceBox.getItems().setAll(Reminder.Type.values());
@@ -137,6 +151,8 @@ public class EditReminderDialogController {
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
         mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
                 new BigDecimalStringConverter());
+        mEstimateNumOccuranceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
+                new NumberStringConverter());
 
         mAccountIDComboBox.setConverter(new AccountIDConverter());
         mAccountIDComboBox.getItems().clear();
@@ -221,6 +237,10 @@ public class EditReminderDialogController {
     private void handleSave() {
         // validation
         // todo
+
+
+        if (!mEstimateAmountRadioButton.isSelected())
+            mReminder.setEstimateCount(0);
 
         System.out.println(mReminder.getDateSchedule().getBaseUnit() + "|"
                 + mReminder.getDateSchedule().getStartDate() + "|"

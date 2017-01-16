@@ -17,6 +17,7 @@ class Reminder {
     private final ObjectProperty<Type> mTypeProperty = new SimpleObjectProperty<>(Type.PAYMENT);
     private final StringProperty mPayeeProperty = new SimpleStringProperty("");
     private final ObjectProperty<BigDecimal> mAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final IntegerProperty mEstimateCountProperty = new SimpleIntegerProperty(0);
     private final IntegerProperty mAccountIDProperty = new SimpleIntegerProperty(0);
     private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
     private final IntegerProperty mTransferAccountIDProperty = new SimpleIntegerProperty(0);
@@ -35,16 +36,17 @@ class Reminder {
 
     // copy constructor
     Reminder(Reminder r) {
-        this(r.getID(), r.getType(), r.getPayee(), r.getAmount(), r.getAccountID(), r.getCategoryID(),
-                r.getTransferAccountID(), r.getTagID(), r.getMemo(), r.getDateSchedule());
+        this(r.getID(), r.getType(), r.getPayee(), r.getAmount(), r.getEstimateCount(), r.getAccountID(),
+                r.getCategoryID(), r.getTransferAccountID(), r.getTagID(), r.getMemo(), r.getDateSchedule());
     }
 
-    Reminder(int id, Type type, String payee, BigDecimal amount, int accountID, int categoryID,
+    Reminder(int id, Type type, String payee, BigDecimal amount, int estCnt, int accountID, int categoryID,
              int transferAccountID, int tagID, String memo, DateSchedule ds) {
         mID = id;
         mTypeProperty.set(type);
         mPayeeProperty.set(payee);
         mAmountProperty.set(amount);
+        mEstimateCountProperty.set(estCnt);
         mAccountIDProperty.set(accountID);
         mCategoryIDProperty.set(categoryID);
         mTransferAccountIDProperty.set(transferAccountID);
@@ -70,6 +72,10 @@ class Reminder {
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
     BigDecimal getAmount() { return getAmountProperty().get(); }
     void setAmount(BigDecimal a) { getAmountProperty().set(a); }
+
+    IntegerProperty getEstimateCountProperty() { return mEstimateCountProperty; }
+    Integer getEstimateCount() { return getEstimateCountProperty().get(); }
+    void setEstimateCount(int c) { getEstimateCountProperty().set(c); }
 
     IntegerProperty getAccountIDProperty() { return mAccountIDProperty; }
     Integer getAccountID() { return getAccountIDProperty().get(); }

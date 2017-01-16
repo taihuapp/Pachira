@@ -107,6 +107,13 @@ public class ReminderTransactionListDialogController {
         mDialogStage = stage;
 
         mReminderTransactionTableView.setItems(mMainApp.getReminderTransactionList());
+        int i;
+        for (i = 0; i < mMainApp.getReminderTransactionList().size(); i++) {
+            String status = mMainApp.getReminderTransactionList().get(i).getStatus();
+            if (status.equals(ReminderTransaction.DUESOON) || status.equals(ReminderTransaction.OVERDUE))
+                break;
+        }
+        mReminderTransactionTableView.scrollTo(i);
         // todo more work here
     }
 
@@ -140,7 +147,15 @@ public class ReminderTransactionListDialogController {
         mDueDateTableColumn.setCellValueFactory(cellData -> cellData.getValue().getDueDateProperty());
         mTypeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getReminder().getTypeProperty());
         mPayeeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getReminder().getPayeeProperty());
-        mAmountTableColumn.setCellValueFactory(cellData -> cellData.getValue().getReminder().getAmountProperty());
+        mAmountTableColumn.setCellValueFactory(cellData -> {
+            Transaction t = mMainApp.getTransactionByID(cellData.getValue().getTransactionID());
+            if (t != null)
+                return t.getAmountProperty();
+            if (cellData.getValue().getStatus().equals(ReminderTransaction.SKIPPED))
+                return null;
+            return cellData.getValue().getReminder().getAmountProperty();
+        });
+        mAmountTableColumn.setStyle( "-fx-alignment: CENTER-RIGHT;");
 
         mStatusTableColumn.setCellValueFactory(cellData -> cellData.getValue().getStatusProperty());
         mStatusTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, String>() {

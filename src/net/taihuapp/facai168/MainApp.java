@@ -224,11 +224,7 @@ public class MainApp extends Application {
 
             preparedStatement.executeUpdate();
 
-            // mTransactionList is sorted by tid
-            Comparator<Transaction> c = Comparator.comparing(Transaction::getID);
-            Transaction tbd = new Transaction(-1, LocalDate.MAX, Transaction.TradeAction.BUY, 0);
-            tbd.setID(tid);
-            int idx = Collections.binarySearch(mTransactionList, tbd, c);
+            int idx = getTransactionIndexByID(tid);
             if (idx < 0) {
                 System.err.println("Transaction " + tid + " not in master list? How did this happen?");
             } else {
@@ -242,6 +238,24 @@ public class MainApp extends Application {
             alert.setContentText(SQLExceptionToString(e));
             alert.showAndWait();
         }
+    }
+
+    // For Transaction with ID tid, this method returns its location index in
+    // (sorted by ID) mTransactionIndex.
+    // If transaction with tid is not found in mTransactionList by binarySearch
+    // return -(1+insertLocation).
+    private int getTransactionIndexByID(int tid) {
+        // make up a dummy transaction for search
+        Transaction t = new Transaction(-1, LocalDate.MAX, Transaction.TradeAction.BUY, 0);
+        t.setID(tid);
+        return Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
+    }
+
+    Transaction getTransactionByID(int tid) {
+        int idx = getTransactionIndexByID(tid);
+        if (idx > 0)
+            return mTransactionList.get(idx);
+        return null;
     }
 
     // http://code.makery.ch/blog/javafx-dialogs-official/
@@ -397,13 +411,13 @@ public class MainApp extends Application {
             sqlCmd = "insert into REMINDERS "
                     + "(TYPE, PAYEE, AMOUNT, ACCOUNTID, CATEGORYID, "
                     + "TRANSFERACCOUNTID, TAGID, MEMO, STARTDATE, ENDDATE, "
-                    + "BASEUNIT, NUMPERIOD, ALERTDAYS, ISDOM, ISFWD) "
-                    + "values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?)";
+                    + "BASEUNIT, NUMPERIOD, ALERTDAYS, ISDOM, ISFWD, ESTCOUNT) "
+                    + "values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?)";
         } else {
             sqlCmd = "update REMINDERS set "
                     + "TYPE = ?, PAYEE = ?, AMOUNT = ?, ACCOUNTID = ?, CATEGORYID = ?, "
                     + "TRANSFERACCOUNTID = ?, TAGID = ?, MEMO = ?, STARTDATE = ?, ENDDATE = ?, "
-                    + "BASEUNIT = ?, NUMPERIOD = ?, ALERTDAYS = ?, ISDOM = ?, ISFWD = ? "
+                    + "BASEUNIT = ?, NUMPERIOD = ?, ALERTDAYS = ?, ISDOM = ?, ISFWD = ?, ESTCOUNT = ? "
                     + "where ID = ?";
         }
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
@@ -424,8 +438,9 @@ public class MainApp extends Application {
             preparedStatement.setInt(13, reminder.getDateSchedule().getAlertDay());
             preparedStatement.setBoolean(14, reminder.getDateSchedule().isDOMBased());
             preparedStatement.setBoolean(15, reminder.getDateSchedule().isForward());
+            preparedStatement.setInt(16, reminder.getEstimateCount());
             if (reminder.getID() > 0)
-                preparedStatement.setInt(16, reminder.getID());
+                preparedStatement.setInt(17, reminder.getID());
 
             preparedStatement.executeUpdate();
             if (reminder.getID() <= 0) {
@@ -1209,6 +1224,7 @@ public class MainApp extends Application {
                 String type = resultSet.getString("TYPE");
                 String payee = resultSet.getString("PAYEE");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
+                int estCnt = resultSet.getInt("ESTCOUNT");
                 int accountID = resultSet.getInt("ACCOUNTID");
                 int categoryID = resultSet.getInt("CATEGORYID");
                 int transferAccountID = resultSet.getInt("TRANSFERACCOUNTID");
@@ -1224,7 +1240,7 @@ public class MainApp extends Application {
                 boolean isFWD = resultSet.getBoolean("ISFWD");
 
                 DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, ad, isDOM, isFWD);
-                mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount,
+                mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount, estCnt,
                         accountID, categoryID, transferAccountID, tagID, memo, ds));
             }
         } catch (SQLException e) {
@@ -1266,6 +1282,33 @@ public class MainApp extends Application {
             // add one unfulfilled reminders
             for (Integer rid : getReminderMap().keySet()) {
                 reminder = getReminderMap().get(rid);
+                if (reminder.getEstimateCount() > 0) {
+                    // estimate amount
+                    FilteredList<ReminderTransaction> frtList = new FilteredList<>(mReminderTransactionList,
+                            rt -> rt.getReminder().getID() == rid);
+                    SortedList<ReminderTransaction> sfrtList = new SortedList<>(frtList,
+                            Comparator.comparing(ReminderTransaction::getDueDate));
+                    BigDecimal amt = BigDecimal.ZERO;
+                    int numerator = 0;
+                    int cnt = 0;
+                    for (int i = sfrtList.size()-1; i >= 0 && cnt < reminder.getEstimateCount(); i--) {
+                        ReminderTransaction rt = sfrtList.get(i);
+                        int tid = rt.getTransactionID();
+                        if (tid > 0) {
+                            int idx = getTransactionIndexByID(tid);
+                            if (idx > 0) {
+                                amt = amt.add(mTransactionList.get(idx).getAmount());
+                                numerator++;
+                            } else {
+                                System.err.println("initReminderTransactionList: Transaction " + tid + " not found?!");
+                            }
+                        }
+                        cnt++; // don't count the w
+                    }
+                    if (numerator > 0)
+                        amt = amt.divide(BigDecimal.valueOf(numerator), amt.scale());
+                    reminder.setAmount(amt);
+                }
                 LocalDate lastDueDate = lastDueDateMap.get(rid);
                 if (lastDueDate != null)
                     lastDueDate = lastDueDate.plusDays(1);
@@ -2734,6 +2777,7 @@ public class MainApp extends Application {
                 + "TYPE varchar(" + 12 + "), "
                 + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
                 + "AMOUNT decimal(20, 4), "
+                + "ESTCOUNT integer, "
                 + "ACCOUNTID integer NOT NULL, "
                 + "CATEGORYID integer, "
                 + "TRANSFERACCOUNTID integer, "

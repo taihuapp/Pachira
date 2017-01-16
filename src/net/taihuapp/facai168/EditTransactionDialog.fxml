@@ -1,22 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import javafx.geometry.*?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ChoiceBox?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.DatePicker?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.ColumnConstraints?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.layout.TilePane?>
-
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditTransactionDialogController">
     <top>
         <ChoiceBox fx:id="mTradeActionChoiceBox" prefWidth="200.0" BorderPane.alignment="CENTER_LEFT" />
@@ -47,7 +33,15 @@
              <Label text="Account:" GridPane.rowIndex="3" />
              <DatePicker fx:id="mTDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="1" />
              <DatePicker fx:id="mADatePicker" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-             <Label fx:id="mSecurityNameLabel" text="Security Name:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+             <ComboBox fx:id="mAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+             <ComboBox fx:id="mTransferAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />             <Label fx:id="mSecurityNameLabel" text="Security Name:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+             <Label fx:id="mCategoryLabel" text="Category" GridPane.rowIndex="4" />
+             <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+             <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="6" />
+             <Label fx:id="mReferenceLabel" text="Number" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+             <ComboBox fx:id="mSecurityComboBox" prefWidth="150.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+             <TextField fx:id="mReferenceTextField" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+             <TextField fx:id="mPayeeTextField" GridPane.columnIndex="3" GridPane.rowIndex="2" />
              <Label fx:id="mSharesLabel" text="Number of Shares:" GridPane.columnIndex="2" GridPane.rowIndex="3" />
              <Label fx:id="mOldSharesLabel" text="Old shares:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
              <Label fx:id="mPriceLabel" text="Price per Share:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
@@ -55,24 +49,15 @@
              <Label fx:id="mTotalLabel" text="Total Cost:" GridPane.columnIndex="2" GridPane.rowIndex="7" />
              <Label fx:id="mTransferAccountLabel" text="Transfer Account:" GridPane.rowIndex="4" />
              <Label text="Memo:" GridPane.rowIndex="5" />
-             <ComboBox fx:id="mSecurityComboBox" prefWidth="150.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
              <TextField fx:id="mIncomeTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="2" />
              <TextField fx:id="mSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="3" />
              <TextField fx:id="mOldSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
              <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="5" />
              <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" editable="false" GridPane.columnIndex="3" GridPane.rowIndex="7" />
-             <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="6" />
              <TextField fx:id="mPriceTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
              <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="2" GridPane.rowIndex="6" />
              <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-             <TextField fx:id="mReferenceTextField" GridPane.columnIndex="3" GridPane.rowIndex="1" />
-             <Label fx:id="mReferenceLabel" text="Number" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-             <TextField fx:id="mPayeeTextField" GridPane.columnIndex="3" GridPane.rowIndex="2" />
              <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-            <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-            <Label fx:id="mCategoryLabel" text="Category" GridPane.rowIndex="4" />
-            <ComboBox fx:id="mTransferAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-            <ComboBox fx:id="mAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
          </children>
       </GridPane>
    </center>

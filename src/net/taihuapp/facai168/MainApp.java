@@ -1807,7 +1807,7 @@ public class MainApp extends Application {
                     // compare TradeAction if dates are the same
                     // we want to have SELL and CVTSHRT at the end
                     if (o1.getTradeAction() == SELL || o1.getTradeAction() == CVTSHRT)
-                        return 1;
+                        return (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT) ? 0 : 1;
                     if (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT)
                         return -1;
                     return o1.getTradeAction().compareTo(o2.getTradeAction());
@@ -2220,6 +2220,8 @@ public class MainApp extends Application {
         for (Transaction t : updateList) {
             if (insertUpdateTransactionToDB(t) > 0)
                 cnt++;
+            else
+                System.err.println("Updating Transaction " + t.getID() + " failed.");
         }
         System.err.println("Total " + nTrans + " transactions processed.");
         System.err.println("Found " + updateList.size() + " matching transactions.");

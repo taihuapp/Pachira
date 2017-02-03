@@ -93,13 +93,11 @@ public class Account {
     // update balance field for each transaction for non INVESTING account
     // no-op for INVESTING accounts
     void updateTransactionListBalance() {
-        if (getType() == Type.INVESTING)
-            return;
-
         BigDecimal b = new BigDecimal(0);
         boolean accountBalanceIsSet = false;
         for (Transaction t : getTransactionList()) {
-            if (!accountBalanceIsSet && t.getTDateProperty().get().isAfter(LocalDate.now())) {
+            if ((getType() != Type.INVESTING) && !accountBalanceIsSet
+                    && t.getTDateProperty().get().isAfter(LocalDate.now())) {
                 // this is a future transaction.  if account current balance is not set
                 // set it before process this future transaction
                 setCurrentBalance(b);
@@ -112,7 +110,7 @@ public class Account {
             }
         }
         // at the end of the list, if the account balance still not set, set it now.
-        if (!accountBalanceIsSet)
+        if (!accountBalanceIsSet && (getType() != Type.INVESTING))
             setCurrentBalance(b);
     }
 

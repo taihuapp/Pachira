@@ -1397,9 +1397,9 @@ public class MainApp extends Application {
             } else {
                 System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
             }
-        } else {
-            account.updateTransactionListBalance();
         }
+
+        account.updateTransactionListBalance();
     }
 
     // should be called after mTransactionList being properly initialized

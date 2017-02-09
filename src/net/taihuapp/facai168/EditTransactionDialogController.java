@@ -202,6 +202,8 @@ public class EditTransactionDialogController {
             // only SELL or CVTSHRT needs the MatchInfoList
             mMatchInfoList.clear();
         }
+        if (!Transaction.hasQuantity(ta))
+            mTransaction.setQuantity(null);
 
         // transfer transaction id
         int xferTID = mTransaction.getMatchID();
@@ -420,11 +422,6 @@ public class EditTransactionDialogController {
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
                 mSecurityComboBox.setVisible(true);
-                mSharesLabel.setText("New Shares");
-                mSharesLabel.setVisible(true);
-                mSharesTextField.setVisible(true);
-                mOldSharesLabel.setVisible(true);
-                mOldSharesTextField.setVisible(true);
                 mPriceLabel.setVisible(false);
                 mPriceTextField.setVisible(false);
                 mCommissionLabel.setVisible(false);
@@ -450,10 +447,6 @@ public class EditTransactionDialogController {
                 mPayeeTextField.setVisible(true);
                 mSecurityNameLabel.setVisible(false);
                 mSecurityComboBox.setVisible(false);
-                mSharesLabel.setVisible(false);
-                mSharesTextField.setVisible(false);
-                mOldSharesLabel.setVisible(false);
-                mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(false);
                 mPriceTextField.setVisible(false);
                 mCommissionLabel.setVisible(false);
@@ -481,10 +474,6 @@ public class EditTransactionDialogController {
                 mPayeeTextField.setVisible(true);
                 mSecurityNameLabel.setVisible(false);
                 mSecurityComboBox.setVisible(false);
-                mSharesLabel.setVisible(false);
-                mSharesTextField.setVisible(false);
-                mOldSharesLabel.setVisible(false);
-                mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(false);
                 mPriceTextField.setVisible(false);
                 mCommissionLabel.setVisible(false);
@@ -512,11 +501,6 @@ public class EditTransactionDialogController {
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
                 mSecurityComboBox.setVisible(true);
-                mSharesLabel.setText("Number of Shares");
-                mSharesLabel.setVisible(true);
-                mSharesTextField.setVisible(true);
-                mOldSharesLabel.setVisible(false);
-                mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(true);
                 mPriceTextField.setVisible(true);
                 mPriceTextField.setEditable(false);
@@ -546,11 +530,6 @@ public class EditTransactionDialogController {
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
                 mSecurityComboBox.setVisible(true);
-                mSharesLabel.setText("Number of Shares");
-                mSharesLabel.setVisible(true);
-                mSharesTextField.setVisible(true);
-                mOldSharesLabel.setVisible(false);
-                mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(tradeAction != SHRSOUT);
                 mPriceTextField.setVisible(tradeAction != SHRSOUT);
                 mPriceTextField.setEditable(false);
@@ -578,11 +557,6 @@ public class EditTransactionDialogController {
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
                 mSecurityComboBox.setVisible(true);
-                mSharesLabel.setText("Number of Shares");
-                mSharesLabel.setVisible(true);
-                mSharesTextField.setVisible(true);
-                mOldSharesLabel.setVisible(false);
-                mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(true);
                 mPriceTextField.setVisible(true);
                 mPriceTextField.setEditable(true);
@@ -625,11 +599,6 @@ public class EditTransactionDialogController {
                 mPayeeTextField.setVisible(false);
                 mSecurityNameLabel.setVisible(true);
                 mSecurityComboBox.setVisible(true);
-                mSharesLabel.setText("Number of Shares");
-                mSharesLabel.setVisible(isReinvest);
-                mSharesTextField.setVisible(isReinvest);
-                mOldSharesLabel.setVisible(false);
-                mOldSharesTextField.setVisible(false);
                 mPriceLabel.setVisible(isReinvest);
                 mPriceTextField.setVisible(isReinvest);
                 mPriceTextField.setEditable(!isReinvest);  // calculated price when Reinvest
@@ -654,6 +623,12 @@ public class EditTransactionDialogController {
                 System.err.println("TradeAction " + tradeAction + " not implemented yet.");
                 return;
         }
+
+        mSharesLabel.setVisible(Transaction.hasQuantity(tradeAction));
+        mSharesLabel.setText(tradeAction.equals(STKSPLIT) ? "New Shares" : "Number of Shares");
+        mSharesTextField.setVisible(Transaction.hasQuantity(tradeAction));
+        mOldSharesLabel.setVisible(tradeAction.equals(STKSPLIT));
+        mOldSharesTextField.setVisible(tradeAction.equals(STKSPLIT));
 
         mTransferAccountComboBox.setConverter(new AccountIDConverter());
         mTransferAccountComboBox.getItems().clear();

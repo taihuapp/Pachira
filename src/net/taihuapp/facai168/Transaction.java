@@ -472,35 +472,10 @@ public class Transaction {
 
     // copy constructor
     public Transaction(Transaction t0) {
-        mID = t0.mID;
-        mAccountID = t0.mAccountID;
-        mTDateProperty.set(t0.mTDateProperty.get());
-        mADateProperty.set(t0.mADateProperty.get());
-        mTradeActionProperty.set(t0.mTradeActionProperty.get());
-        mSecurityNameProperty.set(t0.mSecurityNameProperty.get());
-        mReferenceProperty.set(t0.mReferenceProperty.get());
-        mPayeeProperty.set(t0.mPayeeProperty.get());
-        mAmountProperty.set(t0.mAmountProperty.get());
-        mCashAmountProperty.set(t0.mCashAmountProperty.get());
-        mPaymentProperty.set(t0.mPaymentProperty.get());
-        mDepositProperty.set(t0.mDepositProperty.get());
-        mMemoProperty.set(t0.mMemoProperty.get());
-        mCategoryIDProperty.set(t0.getCategoryID());
-        mTagIDProperty.set(t0.getTagID());
-        mBalanceProperty.set(t0.mBalanceProperty.get());
-        mInvestAmountProperty.set(t0.mInvestAmountProperty.get());
-        mCommissionProperty.set(t0.mCommissionProperty.get());
-        mQuantityProperty.set(t0.mQuantityProperty.get());
-        mPriceProperty.set(t0.mPriceProperty.get());
-        mMatchID = t0.mMatchID;
-        mMatchSplitID = t0.mMatchSplitID;
-        mSplitTransactionList.addAll(t0.mSplitTransactionList);
-        mOldQuantityProperty.set(t0.getOldQuantity());
-        mQuantityProperty.set(t0.getQuantity());
-
-        bindProperties();
-        // bind description property now
-        bindDescriptionProperty();
+        this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getSecurityName(),
+                t0.getReferenceProperty().get(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
+                t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAmount(), t0.getCategoryID(),
+                t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID());
     }
 
     // return false if this is NOT a transfer
@@ -510,5 +485,41 @@ public class Transaction {
         int cid = getCategoryID();
 
         return !(cid >= -MainApp.MIN_ACCOUNT_ID || cid == -getAccountID());
+    }
+
+    // return true if the transaction may change quantity, false otherwise
+    static boolean hasQuantity(TradeAction ta) {
+        switch (ta) {
+            case BUY:
+            case SELL:
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
+            case STKSPLIT:
+            case SHRSIN:
+            case SHRSOUT:
+            case SHTSELL:
+            case CVTSHRT:
+            case XFRSHRS:
+                return true;
+            case DIV:
+            case INTINC:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
+            case MISCEXP:
+            case MISCINC:
+            case RTRNCAP:
+            case MARGINT:
+            case XIN:
+            case XOUT:
+            case DEPOSIT:
+            case WITHDRAW:
+                return false;
+            default:
+                return false;
+        }
     }
 }

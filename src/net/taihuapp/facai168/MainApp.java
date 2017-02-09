@@ -1839,7 +1839,7 @@ public class MainApp extends Application {
                     List<Transaction> splitList = stockSplitTransactionListMap.computeIfAbsent(t.getSecurityName(),
                             k -> new ArrayList<>());
                     splitList.add(t);
-                } else {
+                } else if (Transaction.hasQuantity(t.getTradeAction())) {
                     securityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
                             t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
                             getMatchInfoList(tid));

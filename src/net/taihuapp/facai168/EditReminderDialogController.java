@@ -231,6 +231,7 @@ public class EditReminderDialogController {
 
         mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
 
+        mEstimateAmountRadioButton.setSelected(mReminder.getEstimateCount() > 0);
     }
 
     @FXML
@@ -242,13 +243,6 @@ public class EditReminderDialogController {
         if (!mEstimateAmountRadioButton.isSelected())
             mReminder.setEstimateCount(0);
 
-        System.out.println(mReminder.getDateSchedule().getBaseUnit() + "|"
-                + mReminder.getDateSchedule().getStartDate() + "|"
-                + mReminder.getDateSchedule().getEndDate() + "|"
-                + mReminder.getDateSchedule().getNumPeriod() + "|"
-                + mReminder.getDateSchedule().getAlertDay() + "|"
-                + mReminder.getDateSchedule().isDOMBased() + "|"
-                + mReminder.getDateSchedule().isForward());
         // enter
         mMainApp.insertUpdateReminderToDB(mReminder);
         mMainApp.initReminderMap();

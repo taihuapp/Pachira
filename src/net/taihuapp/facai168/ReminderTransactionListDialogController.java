@@ -54,7 +54,11 @@ public class ReminderTransactionListDialogController {
 
     @FXML
     private void handleEdit() {
-        Reminder reminder = mReminderTransactionTableView.getSelectionModel().getSelectedItem().getReminder();
+        // create a copy of the reminder for editing
+        ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+        Reminder reminder = new Reminder(rt.getReminder());
+        // put the next due date as the start date for the reminder to be edited
+        reminder.getDateSchedule().setStartDate(rt.getDueDate());
         showEditReminderDialog(new Reminder(reminder));
     }
     @FXML

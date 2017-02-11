@@ -458,12 +458,7 @@ public class MainApp extends Application {
     }
 
     boolean insertReminderTransactions(ReminderTransaction rt, Transaction t) {
-        int tid = 0;
-        if (t != null) {
-            tid = insertUpdateTransactionToDB(t);
-            if (tid == 0)
-                return false;
-        }
+        int tid = t == null ? 0 : t.getID();
 
         rt.setTransactionID(tid);
         String sqlCmd = "insert into REMINDERTRANSACTIONS (REMINDERID, DUEDATE, TRANSACTIONID) "
@@ -481,6 +476,7 @@ public class MainApp extends Application {
         return false;
     }
 
+    // insert or update the input transaction into DB and master transaction list in memory
     // return affected transaction id if success, 0 for failure.
     int insertUpdateTransactionToDB(Transaction t) {
         String sqlCmd;
@@ -550,10 +546,10 @@ public class MainApp extends Application {
             int idx = Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
             if (idx < 0) {
                 // not in the list, insert a copy of t
-                mTransactionList.add(-(1+idx), new Transaction(t));
+                mTransactionList.add(-(1+idx), t);
             } else {
                 // exist in list, replace with a copy of t
-                mTransactionList.set(idx, new Transaction(t));
+                mTransactionList.set(idx, t);
             }
 
             return t.getID();

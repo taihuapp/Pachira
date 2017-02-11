@@ -260,23 +260,28 @@ public class EditTransactionDialogController {
             linkedTransaction.setMemo(mTransaction.getMemo());
         }
 
+        // we don't want to insert mTransaction into master transaction list in memory
+        // make a copy of mTransaction
+        Transaction dbCopyT = new Transaction(mTransaction);
+
         // update database for the main transaction and update account balance
-        int tid = mMainApp.insertUpdateTransactionToDB(mTransaction);
+        int tid = mMainApp.insertUpdateTransactionToDB(dbCopyT);
         if (tid == 0) {
             // insertion/updating failed
-            System.err.println("Failed insert/update transaction, ID = " + mTransaction.getID());
+            System.err.println("Failed insert/update transaction, ID = " + dbCopyT.getID());
             return false;
         }
+        mTransaction.setID(tid); // save tid for later
 
         mMainApp.putMatchInfoList(mMatchInfoList);
         if (linkedTransaction != null) {
             linkedTransaction.setMatchID(tid, 0);
-            mTransaction.setMatchID(mMainApp.insertUpdateTransactionToDB(linkedTransaction), 0);
-            mMainApp.insertUpdateTransactionToDB(mTransaction);
+            dbCopyT.setMatchID(mMainApp.insertUpdateTransactionToDB(linkedTransaction), 0);
+            mMainApp.insertUpdateTransactionToDB(dbCopyT);
         } else if (xferTID > 0)
             mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 
-        mMainApp.updateAccountBalance(mTransaction.getAccountID());
+        mMainApp.updateAccountBalance(dbCopyT.getAccountID());
 
         if (xferAID > MainApp.MIN_ACCOUNT_ID)
             mMainApp.updateAccountBalance(xferAID);
@@ -286,18 +291,14 @@ public class EditTransactionDialogController {
             mOldXferAccountID = 0;
         }
 
-        if ((mTransaction.getTradeAction() == BUY || mTransaction.getTradeAction() == SELL
-                || mTransaction.getTradeAction() == REINVDIV || mTransaction.getTradeAction() == REINVINT
-                || mTransaction.getTradeAction() == REINVLG || mTransaction.getTradeAction() == REINVMD
-                || mTransaction.getTradeAction() == REINVSH || mTransaction.getTradeAction() == SHTSELL
-                || mTransaction.getTradeAction() == CVTSHRT)
-            && (mTransaction.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
-            Security security = mMainApp.getSecurityByName(mTransaction.getSecurityName());
+        if (Transaction.hasQuantity(dbCopyT.getTradeAction())
+                && (dbCopyT.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
+            Security security = mMainApp.getSecurityByName(dbCopyT.getSecurityName());
             if (security != null) {
                 int securityID = security.getID();
-                LocalDate date = mTransaction.getTDate();
+                LocalDate date = dbCopyT.getTDate();
                 // update price table
-                mMainApp.insertUpdatePriceToDB(securityID, date, mTransaction.getPrice(), 0);
+                mMainApp.insertUpdatePriceToDB(securityID, date, dbCopyT.getPrice(), 0);
             }
         }
 

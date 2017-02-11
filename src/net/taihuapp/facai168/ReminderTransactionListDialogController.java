@@ -167,7 +167,6 @@ public class ReminderTransactionListDialogController {
                 setGraphic(null);
 
                 if (!isEmpty()) {
-                    System.err.println("color color");
                     switch (item) {
                         case ReminderTransaction.OVERDUE:
                             setStyle("-fx-background-color:red");

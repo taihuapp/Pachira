@@ -281,16 +281,7 @@ public class EditTransactionDialogController {
         } else if (xferTID > 0)
             mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 
-        mMainApp.updateAccountBalance(dbCopyT.getAccountID());
-
-        if (xferAID > MainApp.MIN_ACCOUNT_ID)
-            mMainApp.updateAccountBalance(xferAID);
-
-        if (mOldXferAccountID >= MainApp.MIN_ACCOUNT_ID) {
-            mMainApp.updateAccountBalance(mOldXferAccountID);
-            mOldXferAccountID = 0;
-        }
-
+        // update price first
         if (Transaction.hasQuantity(dbCopyT.getTradeAction())
                 && (dbCopyT.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
             Security security = mMainApp.getSecurityByName(dbCopyT.getSecurityName());
@@ -300,6 +291,17 @@ public class EditTransactionDialogController {
                 // update price table
                 mMainApp.insertUpdatePriceToDB(securityID, date, dbCopyT.getPrice(), 0);
             }
+        }
+
+        // update account Balance now
+        mMainApp.updateAccountBalance(dbCopyT.getAccountID());
+
+        if (xferAID > MainApp.MIN_ACCOUNT_ID)
+            mMainApp.updateAccountBalance(xferAID);
+
+        if (mOldXferAccountID >= MainApp.MIN_ACCOUNT_ID) {
+            mMainApp.updateAccountBalance(mOldXferAccountID);
+            mOldXferAccountID = 0;
         }
 
         return true;

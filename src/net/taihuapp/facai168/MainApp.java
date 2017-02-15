@@ -1377,6 +1377,15 @@ public class MainApp extends Application {
         }
     }
 
+    void updateAccountBalance(Security security) {
+        // update account balance for all non-hidden accounts contains security in currentsecuritylist
+        for (Account account : getAccountList(Account.Type.INVESTING, false, true)) {
+            if (account.hasSecurity(security)) {
+                updateAccountBalance(account.getID());
+            }
+        }
+    }
+
     void updateAccountBalance(int accountID) {
         Account account = getAccountByID(accountID);
         if (account == null) {
@@ -1392,6 +1401,21 @@ public class MainApp extends Application {
                 account.setCurrentBalance(totalHolding.getMarketValue());
             } else {
                 System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
+            }
+
+            ObservableList<Security> accountSecurityList = account.getCurrentSecurityList();
+            for (SecurityHolding sh : shList) {
+                String securityName = sh.getSecurityName();
+                if (!securityName.equals("TOTAL") && !securityName.equals("CASH")) {
+                    Security se = getSecurityByName(securityName);
+                    if (se == null) {
+                        System.err.println("Failed to find security with name: '" + securityName + "'");
+                    } else {
+                        accountSecurityList.add(se);
+                    }
+                }
+                // sort securities by name
+                FXCollections.sort(accountSecurityList, Comparator.comparing(Security::getName));
             }
         }
 

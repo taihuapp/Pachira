@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.property.*;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.math.BigDecimal;
@@ -47,7 +48,7 @@ public class Account {
     private ObservableList<Transaction> mTransactionList = null;
     private final BooleanProperty mHiddenFlag = new SimpleBooleanProperty(false);
     private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(Integer.MAX_VALUE);
-
+    private final ObservableList<Security> mCurrentSecurityList;
     // detailed constructor
     public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
                    BigDecimal balance) {
@@ -58,10 +59,21 @@ public class Account {
         mCurrentBalance = new SimpleObjectProperty<>(balance);
         mHiddenFlag.set(hidden);
         mDisplayOrder.set(displayOrder);
+        mCurrentSecurityList = FXCollections.observableArrayList();
     }
 
     // getters and setters
     public Type getType() { return mType; }
+
+    ObservableList<Security> getCurrentSecurityList() { return mCurrentSecurityList; }
+    boolean hasSecurity(Security security) {
+        for (Security s : getCurrentSecurityList()) {
+            // test same ID instead of test s == security
+            if (s.getID() == security.getID())
+                return true;
+        }
+        return false;
+    }
 
     private IntegerProperty getIDProperty() { return mID; }
     int getID() { return getIDProperty().get(); }

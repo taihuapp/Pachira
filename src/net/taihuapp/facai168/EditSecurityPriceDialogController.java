@@ -11,6 +11,7 @@ import javafx.util.StringConverter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Optional;
 
 /**
@@ -126,6 +127,8 @@ public class EditSecurityPriceDialogController {
                         + "Date           : " + date + "\n"
                         + "Price          : " + newPrice);
                 alert.showAndWait();
+            } else {
+                mMainApp.updateAccountBalance(mSecurity);
             }
         });
         // scroll to the last row
@@ -155,7 +158,7 @@ public class EditSecurityPriceDialogController {
     @FXML
     private void handleAdd() {
         Price newPrice = new Price(mNewDateDatePicker.getValue(), null);
-        int index = Collections.binarySearch(mPriceList, newPrice, (o1, o2) -> o1.getDate().compareTo(o2.getDate()));
+        int index = Collections.binarySearch(mPriceList, newPrice, Comparator.comparing(Price::getDate));
         if (index < 0) {
             index = -index - 1;
             mPriceList.add(index, newPrice);
@@ -166,8 +169,10 @@ public class EditSecurityPriceDialogController {
     @FXML
     private void handleDelete() {
         int index = mPriceTableView.getSelectionModel().getSelectedIndex();
-        if (index >= 0 && mMainApp.deleteSecurityPriceFromDB(mSecurity.getID(), mPriceList.get(index).getDate()))
+        if (index >= 0 && mMainApp.deleteSecurityPriceFromDB(mSecurity.getID(), mPriceList.get(index).getDate())) {
             mPriceList.remove(index);
+            mMainApp.updateAccountBalance(mSecurity);
+        }
     }
 
     @FXML

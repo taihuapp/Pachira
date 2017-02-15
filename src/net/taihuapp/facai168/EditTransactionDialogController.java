@@ -282,19 +282,18 @@ public class EditTransactionDialogController {
             mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
 
         // update price first
+        Security security = mMainApp.getSecurityByName(dbCopyT.getSecurityName());
         if (Transaction.hasQuantity(dbCopyT.getTradeAction())
-                && (dbCopyT.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
-            Security security = mMainApp.getSecurityByName(dbCopyT.getSecurityName());
-            if (security != null) {
-                int securityID = security.getID();
-                LocalDate date = dbCopyT.getTDate();
-                // update price table
-                mMainApp.insertUpdatePriceToDB(securityID, date, dbCopyT.getPrice(), 0);
-            }
+                && (security != null) && (dbCopyT.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
+            int securityID = security.getID();
+            LocalDate date = dbCopyT.getTDate();
+            // update price table
+            mMainApp.insertUpdatePriceToDB(securityID, date, dbCopyT.getPrice(), 0);
+            mMainApp.updateAccountBalance(security);
+        } else {
+            // update account Balance now
+            mMainApp.updateAccountBalance(dbCopyT.getAccountID());
         }
-
-        // update account Balance now
-        mMainApp.updateAccountBalance(dbCopyT.getAccountID());
 
         if (xferAID > MainApp.MIN_ACCOUNT_ID)
             mMainApp.updateAccountBalance(xferAID);
@@ -380,7 +379,11 @@ public class EditTransactionDialogController {
     private void setupTransactionDialog() {
 
         mSecurityComboBox.setConverter(new SecurityConverter());
+        mSecurityComboBox.getItems().clear();
         mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
+        // add account current security list in the front
+        mSecurityComboBox.getItems().addAll(mAccountComboBox.getSelectionModel().getSelectedItem()
+                .getCurrentSecurityList());
         mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
 
         addEventFilter(mSharesTextField);

@@ -258,6 +258,7 @@ public class EditTransactionDialogController {
             linkedTransaction.setID(xferTID);
             linkedTransaction.getAmountProperty().set(xferAmount);
             linkedTransaction.setMemo(mTransaction.getMemo());
+            linkedTransaction.setPayee(mTransaction.getPayee());
         }
 
         // we don't want to insert mTransaction into master transaction list in memory

@@ -61,7 +61,9 @@ public class Transaction {
     ObjectProperty<LocalDate> getADateProperty() { return mADateProperty; }
     StringProperty getReferenceProperty() { return mReferenceProperty; }
     StringProperty getPayeeProperty() { return mPayeeProperty; }
+    String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
+    String getMemo() { return getMemoProperty().get(); }
     IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
     IntegerProperty getTagIDProperty() { return mTagIDProperty; }
 
@@ -230,7 +232,6 @@ public class Transaction {
 
     LocalDate getTDate() { return mTDateProperty.get(); }
     LocalDate getADate() { return mADateProperty.get(); }
-    String getMemo() { return mMemoProperty.get(); }
     BigDecimal getPrice() { return mPriceProperty.get(); }
     BigDecimal getQuantity() { return mQuantityProperty.get(); }
     BigDecimal getOldQuantity() { return getOldQuantityProperty().get(); }

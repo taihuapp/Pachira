@@ -1404,6 +1404,7 @@ public class MainApp extends Application {
             }
 
             ObservableList<Security> accountSecurityList = account.getCurrentSecurityList();
+            accountSecurityList.clear();
             for (SecurityHolding sh : shList) {
                 String securityName = sh.getSecurityName();
                 if (!securityName.equals("TOTAL") && !securityName.equals("CASH")) {

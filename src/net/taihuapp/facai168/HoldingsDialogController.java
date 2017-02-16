@@ -196,6 +196,7 @@ public class HoldingsDialogController {
                 alert.showAndWait();
             } else {
                 updateHoldings();
+                mMainApp.updateAccountBalance(security);
             }
         });
 

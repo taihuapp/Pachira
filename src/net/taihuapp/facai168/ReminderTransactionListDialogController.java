@@ -87,6 +87,7 @@ public class ReminderTransactionListDialogController {
         Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta, reminder.getCategoryID());
         transaction.setAmount(reminder.getAmount());
         transaction.setPayee(reminder.getPayee());
+        transaction.setMemo(reminder.getMemo());
         int tid = mMainApp.showEditTransactionDialog(mMainApp.getStage(), transaction,
                 mMainApp.getAccountList(Account.Type.SPENDING, null, false),
                 mMainApp.getAccountByID(reminder.getAccountID()), Collections.singletonList(ta));

@@ -286,5 +286,6 @@ public class HoldingsDialogController {
     @FXML
     private void handleEnterTransaction() {
         mMainApp.showEditTransactionDialog((Stage) mMainPane.getScene().getWindow(),  null);
+        updateHoldings();
     }
 }

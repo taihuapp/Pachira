@@ -215,9 +215,6 @@ public class EditTransactionDialogController {
         switch (ta) {
             case BUY:
             case SHRSIN:
-            case CGLONG:
-            case CGMID:
-            case CGSHORT:
             case CVTSHRT:
             case REINVDIV:
             case REINVINT:
@@ -235,6 +232,9 @@ public class EditTransactionDialogController {
                 // no transfer, do nothing
                 break;
             case DIV:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
             case INTINC:
             case SELL:
             case SHTSELL:

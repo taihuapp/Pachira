@@ -250,6 +250,21 @@ public class EditTransactionDialogController {
                 return false;
         }
 
+        String payee;
+        switch (ta) {
+            case DEPOSIT:
+            case WITHDRAW:
+            case XIN:
+            case XOUT:
+                payee = mTransaction.getPayee();
+                break;
+            default:
+                payee = mTransaction.getSecurityName();
+                if (payee.length() == 0)
+                    payee = mTransaction.getPayee();
+                break;
+        }
+
         Transaction linkedTransaction = null;
         if (xferTA != null && xferAID != accountID && xferAmount.signum() != 0) {
             // we need a transfer transaction
@@ -258,7 +273,7 @@ public class EditTransactionDialogController {
             linkedTransaction.setID(xferTID);
             linkedTransaction.getAmountProperty().set(xferAmount);
             linkedTransaction.setMemo(mTransaction.getMemo());
-            linkedTransaction.setPayee(mTransaction.getPayee());
+            linkedTransaction.setPayee(payee);
         }
 
         // we don't want to insert mTransaction into master transaction list in memory

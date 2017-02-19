@@ -269,6 +269,42 @@ public class MainController {
             TableRow<Transaction> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if ((event.getClickCount() == 2) && (!row.isEmpty())) {
+                    Transaction transaction = row.getItem();
+                    if (transaction.getMatchID() > 0) {
+                        // this is a linked transaction
+                        if (transaction.getMatchSplitID() > 0) {
+                            showWarningDialog("Linked to A Split Transaction",
+                                    "Linked to a split transaction",
+                                    "Please edit the linked split transcation.");
+                            return;
+                        }
+
+                        Account account = mMainApp.getAccountByID(transaction.getAccountID());
+                        if (!account.getType().equals(Account.Type.INVESTING)) {
+                            // not an investing account, check linked transaction account
+                            Transaction linkedTransaction = mMainApp.getTransactionByID(transaction.getMatchID());
+                            if (linkedTransaction == null) {
+                                showWarningDialog("Linked to An Investing Transaction",
+                                        "Unable to find the linked transaction",
+                                        "Call help!");
+                                return;
+                            } else {
+                                Account linkedAccount = mMainApp.getAccountByID(linkedTransaction.getAccountID());
+                                if (linkedAccount == null) {
+                                    showWarningDialog("Linked to An Investing Transaction",
+                                            "Unable to find the account of linked transaction",
+                                            "Call help!");
+                                    return;
+                                }
+                                if (linkedAccount.getType().equals(Account.Type.INVESTING)) {
+                                    showWarningDialog("Linked to An Investing Transaction",
+                                            "Linked to an investing transaction",
+                                            "Please edit the linked investing transaction.");
+                                    return;
+                                }
+                            }
+                        }
+                    }
                     mMainApp.showEditTransactionDialog(mMainApp.getStage(), new Transaction(row.getItem()));
                 }
             });
@@ -348,5 +384,13 @@ public class MainController {
                     }
                 }
         );
+    }
+
+    private void showWarningDialog(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 }

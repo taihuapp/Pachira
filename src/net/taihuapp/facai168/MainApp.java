@@ -152,7 +152,12 @@ public class MainApp extends Application {
     }
     SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
 
-    ObservableList<ReminderTransaction> getReminderTransactionList() { return mReminderTransactionList; }
+    FilteredList<ReminderTransaction> getReminderTransactionList(boolean showCompleted) {
+        return new FilteredList<>(mReminderTransactionList,
+                rt -> (showCompleted == true || (!rt.getStatus().equals(ReminderTransaction.COMPLETED)
+                        && !rt.getStatus().equals(ReminderTransaction.SKIPPED))));
+    }
+
     private Map<Integer, Reminder> getReminderMap() { return mReminderMap; }
 
     Account getAccountByName(String name) {

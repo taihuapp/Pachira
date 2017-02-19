@@ -3,13 +3,11 @@ package net.taihuapp.facai168;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -26,6 +24,8 @@ public class ReminderTransactionListDialogController {
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;
 
+    @FXML
+    private CheckBox mShowCompletedTransactionsCheckBox;
     @FXML
     private TableView<ReminderTransaction> mReminderTransactionTableView;
     @FXML
@@ -111,15 +111,11 @@ public class ReminderTransactionListDialogController {
         mMainApp = mainApp;
         mDialogStage = stage;
 
-        mReminderTransactionTableView.setItems(mMainApp.getReminderTransactionList());
-        int i;
-        for (i = 0; i < mMainApp.getReminderTransactionList().size(); i++) {
-            String status = mMainApp.getReminderTransactionList().get(i).getStatus();
-            if (status.equals(ReminderTransaction.DUESOON) || status.equals(ReminderTransaction.OVERDUE))
-                break;
-        }
-        mReminderTransactionTableView.scrollTo(i);
-        // todo more work here
+        // uncheck the showCompletedTransactionCheckBox
+        mShowCompletedTransactionsCheckBox.setSelected(false);
+        // we need to call handleCheckBox here because setSelect don't trigger an event
+        // and won't call the event handler
+        handleCheckbox();
     }
 
     private void showEditReminderDialog(Reminder reminder) {
@@ -142,6 +138,20 @@ public class ReminderTransactionListDialogController {
     }
 
     void close() { mDialogStage.close(); }
+
+    @FXML
+    private void handleCheckbox() {
+        boolean showCompleted = mShowCompletedTransactionsCheckBox.isSelected();
+        ObservableList<ReminderTransaction> rtList = mMainApp.getReminderTransactionList(showCompleted);
+        mReminderTransactionTableView.setItems(rtList);
+        int i;
+        for (i = 0; i < rtList.size(); i++) {
+            String status = rtList.get(i).getStatus();
+            if (status.equals(ReminderTransaction.DUESOON) || status.equals(ReminderTransaction.OVERDUE))
+                break;
+        }
+        mReminderTransactionTableView.scrollTo(i < rtList.size() ? i : rtList.size()-1);
+    }
 
     @FXML
     private void handleClose() { mDialogStage.close(); }

@@ -654,7 +654,6 @@ public class EditTransactionDialogController {
 
         mTransferAccountComboBox.setConverter(new AccountIDConverter());
         mTransferAccountComboBox.getItems().clear();
-        mTransferAccountComboBox.getItems().add(0); // a blank account
         for (Account account : mMainApp.getAccountList(null, false, true)) {
             // get all types, non-hidden accounts, exclude deleted_account
             if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID() || !isCashTransfer)

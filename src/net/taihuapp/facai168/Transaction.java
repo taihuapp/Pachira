@@ -105,8 +105,6 @@ public class Transaction {
                 case MARGINT:
                 case MISCEXP:
                 case MISCINC:
-                case XIN:
-                case XOUT:
                 case DEPOSIT:
                 case WITHDRAW:
                 case DIV:
@@ -116,6 +114,9 @@ public class Transaction {
                 case INTINC:
                 case RTRNCAP:
                     return mAmountProperty.get().stripTrailingZeros().toPlainString();
+                case XIN:
+                case XOUT:
+                    return getPayee();
                 case SHRSOUT:
                     return getQuantity().stripTrailingZeros().toPlainString() + " shares";
                 case XFRSHRS:

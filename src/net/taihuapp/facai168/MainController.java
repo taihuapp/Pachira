@@ -288,7 +288,8 @@ public class MainController {
                                         "Unable to find the linked transaction",
                                         "Call help!");
                                 return;
-                            } else {
+                            } else if (linkedTransaction.getTradeAction() != Transaction.TradeAction.XIN
+                                    && linkedTransaction.getTradeAction() != Transaction.TradeAction.XOUT) {
                                 Account linkedAccount = mMainApp.getAccountByID(linkedTransaction.getAccountID());
                                 if (linkedAccount == null) {
                                     showWarningDialog("Linked to An Investing Transaction",

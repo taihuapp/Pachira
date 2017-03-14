@@ -43,113 +43,237 @@
    <center>
       <StackPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" BorderPane.alignment="CENTER">
          <children>
-            <HBox prefHeight="100.0" prefWidth="200.0">
-               <children>
-                  <VBox prefHeight="400.0" prefWidth="150.0">
-                     <children>
-                        <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Avilable Accounts" textAlignment="CENTER">
-                           <padding>
-                              <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                           </padding>
-                           <VBox.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </VBox.margin>
-                        </Label>
-                        <ListView fx:id="mAvailableAccountListView" prefWidth="135.0">
-                           <VBox.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </VBox.margin>
-                        </ListView>
-                     </children>
-                  </VBox>
-                  <TilePane alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
-                     <children>
-                        <Button fx:id="mSelectButton" mnemonicParsing="false" onAction="#handleSelect" text="=&gt;">
-                           <TilePane.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </TilePane.margin>
-                        </Button>
-                        <Button fx:id="mUnselectButton" mnemonicParsing="false" onAction="#handleUnselect" text="&lt;=">
-                           <TilePane.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </TilePane.margin>
-                        </Button>
-                     </children>
-                     <opaqueInsets>
-                        <Insets />
-                     </opaqueInsets>
-                     <HBox.margin>
-                        <Insets />
-                     </HBox.margin>
-                  </TilePane>
-                  <VBox prefHeight="400.0" prefWidth="150.0">
-                     <children>
-                        <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Selected Accounts" textAlignment="CENTER">
-                           <padding>
-                              <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                           </padding>
-                           <VBox.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </VBox.margin>
-                        </Label>
-                        <ListView fx:id="mSelectedAccountListView" prefWidth="135.0">
-                           <VBox.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </VBox.margin>
-                        </ListView>
-                     </children>
-                  </VBox>
-                  <TilePane alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
-                     <children>
-                        <Button fx:id="mUpButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleUp" text="Up">
-                           <TilePane.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </TilePane.margin>
-                        </Button>
-                        <Button fx:id="mDownButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleDown" text="Down">
-                           <TilePane.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </TilePane.margin>
-                        </Button>
-                     </children>
-                     <opaqueInsets>
-                        <Insets />
-                     </opaqueInsets>
-                  </TilePane>
-                  <VBox prefHeight="200.0" prefWidth="15.0">
-                     <HBox.margin>
-                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                     </HBox.margin>
-                  </VBox>
-                  <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
-                     <HBox.margin>
-                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                     </HBox.margin>
-                     <children>
-                        <Label fx:id="mStartDateLabel" text="Start Date">
-                           <VBox.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="25.0" />
-                           </VBox.margin>
-                        </Label>
-                        <ChoiceBox fx:id="mStartChoiceBox" prefWidth="150.0" />
-                        <DatePicker fx:id="mStartDatePicker" visible="false" />
-                        <Label fx:id="mEndDateLabel" text="End Date">
-                           <VBox.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="50.0" />
-                           </VBox.margin>
-                        </Label>
-                        <ChoiceBox fx:id="mEndChoiceBox" prefWidth="150.0" />
-                        <DatePicker fx:id="mEndDatePicker" visible="false" />
-                        <Label fx:id="mFrequencyLabel" text="Frequency">
-                           <VBox.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="50.0" />
-                           </VBox.margin>
-                        </Label>
-                        <ChoiceBox fx:id="mFrequencyChoiceBox" prefWidth="150.0" />
-                     </children>
-                  </VBox>
-               </children>
-            </HBox>
+            <TabPane fx:id="mTabPane" prefHeight="200.0" prefWidth="200.0" tabClosingPolicy="UNAVAILABLE">
+              <tabs>
+                <Tab fx:id="mDatesTab" text="Dates">
+                     <content>
+                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
+                           <children>
+                              <Label fx:id="mDatePeriodLabel" text="As Of">
+                                 <VBox.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="20.0" />
+                                 </VBox.margin>
+                              </Label>
+                              <ChoiceBox fx:id="mDatePeriodChoiceBox" prefWidth="150.0">
+                                 <VBox.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </VBox.margin></ChoiceBox>
+                              <Label fx:id="mStartDateLabel" text="Start Date">
+                                 <VBox.margin>
+                                    <Insets left="5.0" right="5.0" top="50.0" />
+                                 </VBox.margin>
+                              </Label>
+                              <DatePicker fx:id="mStartDatePicker">
+                                 <VBox.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" />
+                                 </VBox.margin></DatePicker>
+                              <Label fx:id="mEndDateLabel" text="End Date">
+                                 <VBox.margin>
+                                    <Insets left="5.0" right="5.0" top="5.0" />
+                                 </VBox.margin>
+                              </Label>
+                              <DatePicker fx:id="mEndDatePicker">
+                                 <VBox.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" />
+                                 </VBox.margin></DatePicker>
+                              <Label fx:id="mFrequencyLabel" text="Frequency">
+                                 <VBox.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="50.0" />
+                                 </VBox.margin>
+                              </Label>
+                              <ChoiceBox fx:id="mFrequencyChoiceBox" prefWidth="150.0" />
+                           </children>
+                        </VBox>
+                     </content>
+                </Tab>
+                <Tab fx:id="mAccountsTab" text="Accounts">
+                     <content>
+                        <HBox prefHeight="100.0" prefWidth="200.0">
+                           <children>
+                              <VBox prefHeight="400.0" prefWidth="150.0">
+                                 <children>
+                                    <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Avilable Accounts" textAlignment="CENTER">
+                                       <padding>
+                                          <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                                       </padding>
+                                       <VBox.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </VBox.margin>
+                                    </Label>
+                                    <ListView fx:id="mAvailableAccountListView" prefWidth="135.0">
+                                       <VBox.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </VBox.margin>
+                                    </ListView>
+                                 </children>
+                              </VBox>
+                              <TilePane alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
+                                 <children>
+                                    <Button fx:id="mSelectButton" mnemonicParsing="false" onAction="#handleSelect" text="=&gt;">
+                                       <TilePane.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </TilePane.margin>
+                                    </Button>
+                                    <Button fx:id="mUnselectButton" mnemonicParsing="false" onAction="#handleUnselect" text="&lt;=">
+                                       <TilePane.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </TilePane.margin>
+                                    </Button>
+                                 </children>
+                                 <opaqueInsets>
+                                    <Insets />
+                                 </opaqueInsets>
+                                 <HBox.margin>
+                                    <Insets />
+                                 </HBox.margin>
+                              </TilePane>
+                              <VBox prefHeight="400.0" prefWidth="150.0">
+                                 <children>
+                                    <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Selected Accounts" textAlignment="CENTER">
+                                       <padding>
+                                          <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                                       </padding>
+                                       <VBox.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </VBox.margin>
+                                    </Label>
+                                    <ListView fx:id="mSelectedAccountListView" prefWidth="135.0">
+                                       <VBox.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </VBox.margin>
+                                    </ListView>
+                                 </children>
+                              </VBox>
+                              <TilePane alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
+                                 <children>
+                                    <Button fx:id="mUpButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleUp" text="Up">
+                                       <TilePane.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </TilePane.margin>
+                                    </Button>
+                                    <Button fx:id="mDownButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleDown" text="Down">
+                                       <TilePane.margin>
+                                          <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                       </TilePane.margin>
+                                    </Button>
+                                 </children>
+                                 <opaqueInsets>
+                                    <Insets />
+                                 </opaqueInsets>
+                              </TilePane>
+                              <VBox prefHeight="200.0" prefWidth="15.0">
+                                 <HBox.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </HBox.margin>
+                              </VBox>
+                           </children>
+                        </HBox>
+                     </content>
+                </Tab>
+                  <Tab fx:id="mCategoriesTab" text="Categories">
+                    <content>
+                      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                           <children>
+                              <HBox layoutY="72.0" prefHeight="100.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                 <children>
+                                    <TableView fx:id="mCategorySelectionTableView" editable="true" prefHeight="300.0" prefWidth="400.0">
+                                      <columns>
+                                        <TableColumn fx:id="mCategoryTableColumn" prefWidth="350.0" text="Category" />
+                                          <TableColumn fx:id="mCategorySelectedTableColumn" minWidth="30.0" prefWidth="30.0" />
+                                      </columns>
+                                    </TableView>
+                                    <TilePane alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
+                                       <children>
+                                          <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSelectAll" text="Select All">
+                                             <TilePane.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </TilePane.margin>
+                                          </Button>
+                                          <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClearAll" text="Clear All">
+                                             <TilePane.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </TilePane.margin>
+                                          </Button>
+                                       </children>
+                                       <opaqueInsets>
+                                          <Insets />
+                                       </opaqueInsets>
+                                    </TilePane>
+                                 </children>
+                              </HBox>
+                           </children></AnchorPane>
+                    </content>
+                  </Tab>
+                  <Tab fx:id="mSecuritiesTab" text="Securities">
+                    <content>
+                      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                           <children>
+                              <HBox prefHeight="100.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                 <children>
+                                    <TableView fx:id="mSecuritySelectionTableView" editable="true" prefHeight="300.0" prefWidth="400.0">
+                                       <columns>
+                                          <TableColumn fx:id="mSecurityTableColumn" prefWidth="350.0" text="Security" />
+                                          <TableColumn fx:id="mSecuritySelectedTableColumn" minWidth="30.0" prefWidth="30.0" />
+                                       </columns>
+                                    </TableView>
+                                    <TilePane alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
+                                       <children>
+                                          <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSelectAll" text="Select All">
+                                             <TilePane.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </TilePane.margin>
+                                          </Button>
+                                          <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClearAll" text="Clear All">
+                                             <TilePane.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </TilePane.margin>
+                                          </Button>
+                                       </children>
+                                       <opaqueInsets>
+                                          <Insets />
+                                       </opaqueInsets>
+                                    </TilePane>
+                                 </children>
+                              </HBox>
+                           </children></AnchorPane>
+                    </content>
+                  </Tab>
+                  <Tab fx:id="mTradeActionTab" text="Actions">
+                    <content>
+                      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                           <children>
+                              <HBox prefHeight="100.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                 <children>
+                                    <TableView fx:id="mTradeActionSelectionTableView" editable="true" prefHeight="300.0" prefWidth="400.0">
+                                       <columns>
+                                          <TableColumn fx:id="mTradeActionTableColumn" prefWidth="350.0" text="Action" />
+                                          <TableColumn fx:id="mTradeActionSelectedTableColumn" minWidth="30.0" prefWidth="30.0" />
+                                       </columns>
+                                    </TableView>
+                                    <TilePane alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
+                                       <children>
+                                          <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSelectAll" text="Select All">
+                                             <TilePane.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </TilePane.margin>
+                                          </Button>
+                                          <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClearAll" text="Clear All">
+                                             <TilePane.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </TilePane.margin>
+                                          </Button>
+                                       </children>
+                                       <opaqueInsets>
+                                          <Insets />
+                                       </opaqueInsets>
+                                    </TilePane>
+                                 </children>
+                              </HBox>
+                           </children></AnchorPane>
+                    </content>
+                  </Tab>
+              </tabs>
+            </TabPane>
             <TextArea fx:id="mReportTextArea" editable="false" prefHeight="200.0" prefWidth="200.0" visible="false">
                <StackPane.margin>
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />

@@ -302,42 +302,57 @@ public class MainApp extends Application {
     // if id > 0, load the setting with given id, return a list of length 1 (or 0 if no matching id found)
     List<ReportDialogController.Setting> loadReportSetting(int id) {
         List<ReportDialogController.Setting> settingList = new ArrayList<>();
-        String sqlCmd = "select * from SAVEDREPORTS ";
+        String sqlCmd = "select s.*, d.* from SAVEDREPORTS s left join SAVEDREPORTDETAILS d "
+                + "on s.ID = d.REPORTID ";
         if (id > 0)
-            sqlCmd += "where ID = " + id;
+            sqlCmd += "where s.ID = " + id;
         else
-            sqlCmd += " order by id";
-        String sqlCmd1 = "select * from SAVEDREPORTACCOUNTS where REPORTID = ? order by SELECTEDORDER";
+            sqlCmd += " order by s.ID";
+
         try (Statement statement = mConnection.createStatement();
-             PreparedStatement preparedStatement1 = mConnection.prepareStatement(sqlCmd1);
              ResultSet rs = statement.executeQuery(sqlCmd)) {
+            ReportDialogController.Setting setting = null;
             while (rs.next()) {
-                ReportDialogController.Setting setting = new ReportDialogController.Setting(id,
-                        ReportDialogController.ReportType.valueOf(rs.getString("TYPE")));
-                setting.setID(rs.getInt("ID"));
-                setting.setName(rs.getString("NAME"));
-                setting.setStart(ReportDialogController.SpecialDay.valueOf(rs.getString("START")));
-                setting.setStartDate(rs.getDate("SDATE").toLocalDate());
-                setting.setEnd(ReportDialogController.SpecialDay.valueOf(rs.getString("END")));
-                setting.setEndDate(rs.getDate("EDATE").toLocalDate());
-
-                List<ReportDialogController.SelectedAccount> saList = setting.getSelectedAccountList();
-
-                preparedStatement1.setInt(1, setting.getID());
-                try (ResultSet rs1 = preparedStatement1.executeQuery()) {
-                    while (rs1.next()) {
-                        saList.add(new ReportDialogController.SelectedAccount(getAccountByID(rs1.getInt("ACCOUNTID")),
-                                rs1.getInt("SELECTEDORDER")));
-                    }
+                int sID = rs.getInt("ID");
+                if (setting == null || sID != setting.getID()) {
+                    // a new Setting
+                    setting = new ReportDialogController.Setting(sID,
+                            ReportDialogController.ReportType.valueOf(rs.getString("TYPE")));
+                    settingList.add(setting);
+                    setting.setName(rs.getString("NAME"));
+                    setting.setDatePeriod(ReportDialogController.DatePeriod.valueOf(rs.getString("DATEPERIOD")));
+                    setting.setStartDate(rs.getDate("SDATE").toLocalDate());
+                    setting.setEndDate(rs.getDate("EDATE").toLocalDate());
+                    setting.setFrequency(ReportDialogController.Frequency.valueOf(rs.getString("FREQUENCY")));
                 }
-                settingList.add(setting);
-
+                String itemName = rs.getString("ITEMNAME");
+                if (itemName != null)
+                switch (ReportDialogController.ItemName.valueOf(itemName)) {
+                    case ACCOUNTID:
+                        int accountID = Integer.parseInt(rs.getString("ITEMVALUE"));
+                        int selectedOrder = rs.getInt("SELECTEDORDER");
+                        setting.getSelectedAccountList().add(new ReportDialogController.SelectedAccount(
+                                getAccountByID(accountID), selectedOrder));
+                        break;
+                    case CATEGORYID:
+                        setting.getSelectedCategoryIDSet().add(Integer.parseInt(rs.getString("ITEMVALUE")));
+                        break;
+                    case SECURITYID:
+                        setting.getSelectedSecurityIDSet().add(Integer.parseInt(rs.getString("ITEMVALUE")));
+                        break;
+                    case TRADEACTION:
+                        setting.getSelectedTradeActionSet().add(
+                                Transaction.TradeAction.valueOf(rs.getString("ITEMVALUE")));
+                        break;
+                    default:
+                        System.err.println("loadReportSetting: ItemName " + itemName + " not implemented yet");
+                        break;
+                }
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
-
         return settingList;
     }
 
@@ -347,24 +362,23 @@ public class MainApp extends Application {
         if (id <= 0) {
             // new setting, insert
             sqlCmd = "insert into SAVEDREPORTS "
-                    + "(NAME, TYPE, START, SDATE, END, EDATE, FREQUENCY) "
-                    + "values (?, ?, ?, ?, ?, ?, ?)";
+                    + "(NAME, TYPE, DATEPERIOD, SDATE, EDATE, FREQUENCY) "
+                    + "values (?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update SAVEDREPORTS set "
-                    + "NAME = ?, TYPE = ?, START = ?, SDATE = ?, END = ?, EDATE = ?, FREQUENCY = ? "
+                    + "NAME = ?, TYPE = ?, DATEPERIOD = ?, SDATE = ?, EDATE = ?, FREQUENCY = ? "
                     + "where ID = ?";
         }
-
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            mConnection.setAutoCommit(false);
             preparedStatement.setString(1, setting.getName());
             preparedStatement.setString(2, setting.getType().name());
-            preparedStatement.setString(3, setting.getStart().name());
+            preparedStatement.setString(3, setting.getDatePeriod().name());
             preparedStatement.setDate(4, Date.valueOf(setting.getStartDate()));
-            preparedStatement.setString(5, setting.getEnd().name());
-            preparedStatement.setDate(6, Date.valueOf(setting.getEndDate()));
-            preparedStatement.setString(7, setting.getFrequency().name());
+            preparedStatement.setDate(5, Date.valueOf(setting.getEndDate()));
+            preparedStatement.setString(6, setting.getFrequency().name());
             if (id > 0)
-                preparedStatement.setInt(8, id);
+                preparedStatement.setInt(7, id);
             preparedStatement.executeUpdate();
             if (id <= 0) {
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
@@ -378,15 +392,45 @@ public class MainApp extends Application {
                 }
             }
 
-            // now deal with account list
-            String sqlCmd1 = "insert into SAVEDREPORTACCOUNTS (REPORTID, ACCOUNTID, SELECTEDORDER) values (?, ?, ?)";
+            // now deal with setting details
+            String sqlCmd1 = "insert into SAVEDREPORTDETAILS (REPORTID, ITEMNAME, ITEMVALUE, SELECTEDORDER) "
+                    + "values (?, ?, ?, ?)";
             try (Statement statement = mConnection.createStatement();
                  PreparedStatement preparedStatement1 = mConnection.prepareStatement(sqlCmd1)) {
-                statement.execute("delete from SAVEDREPORTACCOUNTS where REPORTID = " + id);
+                statement.execute("delete from SAVEDREPORTDETAILS where REPORTID = " + id);
+                // loop through account list
                 for (ReportDialogController.SelectedAccount sa : setting.getSelectedAccountList()) {
                     preparedStatement1.setInt(1, id);
-                    preparedStatement1.setInt(2, sa.getID());
-                    preparedStatement1.setInt(3, sa.getSelectedOrder());
+                    preparedStatement1.setString(2, ReportDialogController.ItemName.ACCOUNTID.name());
+                    preparedStatement1.setString(3, String.valueOf(sa.getID()));
+                    preparedStatement1.setInt(4, sa.getSelectedOrder());
+
+                    preparedStatement1.executeUpdate();
+                }
+
+                for (Integer cid : setting.getSelectedCategoryIDSet()) {
+                    preparedStatement1.setInt(1, id);
+                    preparedStatement1.setString(2, ReportDialogController.ItemName.CATEGORYID.name());
+                    preparedStatement1.setString(3, String.valueOf(cid));
+                    preparedStatement1.setInt(4, 0);  // not used
+
+                    preparedStatement1.executeUpdate();
+                }
+
+                for (Integer sid : setting.getSelectedSecurityIDSet()) {
+                    preparedStatement1.setInt(1, id);
+                    preparedStatement1.setString(2, ReportDialogController.ItemName.SECURITYID.name());
+                    preparedStatement1.setString(3, String.valueOf(sid));
+                    preparedStatement1.setInt(4, 0);  // not used
+
+                    preparedStatement1.executeUpdate();
+                }
+
+                for (Transaction.TradeAction ta : setting.getSelectedTradeActionSet()) {
+                    preparedStatement1.setInt(1, id);
+                    preparedStatement1.setString(2, ReportDialogController.ItemName.TRADEACTION.name());
+                    preparedStatement1.setString(3, ta.name());
+                    preparedStatement1.setInt(4, 0);  // not used
 
                     preparedStatement1.executeUpdate();
                 }
@@ -395,14 +439,22 @@ public class MainApp extends Application {
                 e.printStackTrace();
                 return 0;
             }
-
+            mConnection.commit();
             return id;
-
         } catch (SQLException e) {
             String title = "Database Error";
             String header = "Unable to insert/update SAVEDREPORTS Setting";
             String content = SQLExceptionToString(e);
             showExceptionDialog(title, header, content, e);
+        } finally {
+            try {
+                mConnection.setAutoCommit(true);
+            } catch (SQLException e) {
+                String title = "Database Error";
+                String header = "Unable to set DB autocommit";
+                String content = SQLExceptionToString(e);
+                showExceptionDialog(title, header, content, e);
+            }
         }
 
         return 0;
@@ -767,7 +819,7 @@ public class MainApp extends Application {
     }
 
     // construct a wrapped account name
-    private static String getWrappedAccountName(Account a) {
+    static String getWrappedAccountName(Account a) {
         if (a == null)
             return "";
         return "[" + a.getName() + "]";
@@ -2775,21 +2827,20 @@ public class MainApp extends Application {
         // SavedReports table
         sqlCmd = "create table SAVEDREPORTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
-                + "NAME varchar (16) UNIQUE NOT NULL, "       // name of the report
+                + "NAME varchar (32) UNIQUE NOT NULL, "       // name of the report
                 + "TYPE varchar (16) NOT NULL, "              // type of the report
-                + "START varchar (16) NOT NULL, "             // enum for start time
+                + "DATEPERIOD varchar (16) NOT NULL, "        // enum for dateperiod
                 + "SDATE date NOT NULL, "                              // customized start date
-                + "END varchar (16) NOT NULL, "               // enum for start time
                 + "EDATE date NOT NULL, "                              // customized start date
                 + "FREQUENCY varchar (16) NOT NULL);";                 // frequency enum
         sqlCreateTable(sqlCmd);
 
-        // SavedReportAccounts table
-        sqlCmd = "create table SAVEDREPORTACCOUNTS ("
+        // SavedReportDetails table
+        sqlCmd = "create table SAVEDREPORTDETAILS ("
                 + "REPORTID integer NOT NULL, "
-                + "ACCOUNTID integer NOT NULL, "
-                + "SELECTEDORDER integer NOT NULL); ";
-        sqlCreateTable(sqlCmd);
+                + "ITEMNAME varchar(16) NOT NULL, "
+                + "ITEMVALUE varchar(16) NOT NULL, "
+                + "SELECTEDORDER integer NOT NULL);";
 
         // Tag table
         sqlCmd = "create table TAGS ("

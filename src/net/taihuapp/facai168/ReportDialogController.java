@@ -1,14 +1,14 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.Observable;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -16,10 +16,8 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.time.temporal.WeekFields;
+import java.util.*;
 
 /**
  * Created by ghe on 10/13/16.
@@ -27,9 +25,23 @@ import java.util.Optional;
  */
 public class ReportDialogController {
 
-    enum ReportType { NAV }
+    enum ReportType { NAV, INVESTTRANS, BANKTRANS }
     enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
-    enum SpecialDay { TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMIZED }
+    enum DatePeriod {
+        TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE,
+        WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
+        LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR,
+        LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD;
+
+        static EnumSet<DatePeriod> groupD = EnumSet.of(TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE);
+        static EnumSet<DatePeriod> groupP = EnumSet.of(WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
+                LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD);
+    };
+
+    enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
+
+    private static final String NOSECURITY = "No Security";
+    private static final String NOCATEGORY = "No Category";
 
     static class SelectedAccount {
         Account mAccount;
@@ -55,21 +67,33 @@ public class ReportDialogController {
         private int mID = -1;
         private String mName = "";
         private final ReportType mType;
-        private SpecialDay mStart;
+        private DatePeriod mDatePeriod;
         private LocalDate mStartDate;
-        private SpecialDay mEnd;
         private LocalDate mEndDate;
         private Frequency mFrequency;
-        private final List<SelectedAccount> mSelectedAccountList = new ArrayList<>();
+        private List<SelectedAccount> mSelectedAccountList = new ArrayList<>();
+        private Set<Integer> mSelectedCategoryIDSet = new HashSet<>();
+        private Set<Integer> mSelectedSecurityIDSet = new HashSet<>();
+        private Set<Transaction.TradeAction> mSelectedTradeActionSet = new HashSet<>();
 
-        // default Constructor
-        Setting(ReportType type) { this(-1, type); }
+        Setting(ReportType type) {
+            this(-1, type);
+        }
+
         Setting(int id, ReportType type) {
             mID = id;
             mType = type;
-            mStart = SpecialDay.TODAY;
+            switch (type) {
+                case NAV:
+                    mDatePeriod = DatePeriod.TODAY;
+                    break;
+                case INVESTTRANS:
+                case BANKTRANS:
+                    mDatePeriod = DatePeriod.LASTMONTH;
+                    break;
+            }
+
             mStartDate = LocalDate.now();
-            mEnd = SpecialDay.TODAY;
             mEndDate = LocalDate.now();
             mFrequency = Frequency.DAILY;
         }
@@ -78,19 +102,20 @@ public class ReportDialogController {
         int getID() { return mID; }
         String getName() { return mName; }
         ReportType getType() { return mType; }
-        SpecialDay getStart() { return mStart; }
+        DatePeriod getDatePeriod() { return mDatePeriod; }
         LocalDate getStartDate() { return mStartDate; }
-        SpecialDay getEnd() { return mEnd; }
         LocalDate getEndDate() { return mEndDate; }
         Frequency getFrequency() { return mFrequency; }
         List<SelectedAccount> getSelectedAccountList() { return mSelectedAccountList; }
+        Set<Integer> getSelectedCategoryIDSet() { return mSelectedCategoryIDSet; }
+        Set<Integer> getSelectedSecurityIDSet() { return mSelectedSecurityIDSet; }
+        Set<Transaction.TradeAction> getSelectedTradeActionSet() { return mSelectedTradeActionSet; }
 
         // setters
         void setID(int id) { mID = id; }
         void setName(String name) { mName = name; }
-        void setStart(SpecialDay start) { mStart = start; }
+        void setDatePeriod(DatePeriod dp) { mDatePeriod = dp; }
         void setStartDate(LocalDate date) { mStartDate = date; }
-        void setEnd(SpecialDay end) { mEnd = end; }
         void setEndDate(LocalDate date) { mEndDate = date; }
         void setFrequency(Frequency f) { mFrequency = f; }
         void setSelectedAccountList(List<SelectedAccount> selectedAccountList) {
@@ -104,6 +129,58 @@ public class ReportDialogController {
             a -> new Observable[] { a.getSelectedOrderProperty() });
 
     @FXML
+    private TabPane mTabPane;
+
+    @FXML
+    private Tab mDatesTab;
+    @FXML
+    Label mDatePeriodLabel;
+    @FXML
+    ChoiceBox<DatePeriod> mDatePeriodChoiceBox;
+    @FXML
+    Label mStartDateLabel;
+    @FXML
+    DatePicker mStartDatePicker;
+    @FXML
+    Label mEndDateLabel;
+    @FXML
+    DatePicker mEndDatePicker;
+    @FXML
+    Label mFrequencyLabel;
+    @FXML
+    ChoiceBox<Frequency> mFrequencyChoiceBox;
+
+    @FXML
+    private Tab mAccountsTab;
+
+    @FXML
+    private Tab mCategoriesTab;
+    @FXML
+    private TableView<Pair<Pair<String, Integer>, BooleanProperty>> mCategorySelectionTableView;
+    @FXML
+    private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, String> mCategoryTableColumn;
+    @FXML
+    private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, Boolean> mCategorySelectedTableColumn;
+
+    @FXML
+    private Tab mSecuritiesTab;
+    @FXML
+    private TableView<Pair<Pair<String, Integer>, BooleanProperty>> mSecuritySelectionTableView;
+    @FXML
+    private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, String> mSecurityTableColumn;
+    @FXML
+    private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, Boolean> mSecuritySelectedTableColumn;
+
+    @FXML
+    private Tab mTradeActionTab;
+    @FXML
+    private TableView<Pair<Transaction.TradeAction, BooleanProperty>> mTradeActionSelectionTableView;
+    @FXML
+    private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, String> mTradeActionTableColumn;
+    @FXML
+    private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, Boolean> mTradeActionSelectedTableColumn;
+
+    @FXML
     private Button mSelectButton;
     @FXML
     Button mUnselectButton;
@@ -111,22 +188,6 @@ public class ReportDialogController {
     Button mUpButton;
     @FXML
     Button mDownButton;
-    @FXML
-    Label mStartDateLabel;
-    @FXML
-    ChoiceBox<SpecialDay> mStartChoiceBox;
-    @FXML
-    DatePicker mStartDatePicker;
-    @FXML
-    Label mEndDateLabel;
-    @FXML
-    ChoiceBox<SpecialDay> mEndChoiceBox;
-    @FXML
-    DatePicker mEndDatePicker;
-    @FXML
-    Label mFrequencyLabel;
-    @FXML
-    ChoiceBox<Frequency> mFrequencyChoiceBox;
 
     @FXML
     TextArea mReportTextArea;
@@ -200,28 +261,108 @@ public class ReportDialogController {
         mReportTextArea.setVisible(false);
         mReportTextArea.setStyle("-fx-font-family: monospace");
 
-        mStartChoiceBox.getSelectionModel().select(setting.getStart());
-        mStartDatePicker.setValue(setting.getStartDate());
-        mEndChoiceBox.getSelectionModel().select(setting.getEnd());
-        mEndDatePicker.setValue(setting.getEndDate());
-        mFrequencyChoiceBox.getSelectionModel().select(setting.getFrequency());
-
         switch (mSetting.getType()) {
             case NAV:
-                mStartDateLabel.setText("As of:");
-                mStartChoiceBox.setVisible(true);
-                mStartDatePicker.setVisible(true);
-                mStartDatePicker.setValue(LocalDate.now());
-
-                mEndDateLabel.setVisible(false);
-                mEndChoiceBox.setVisible(false);
-                mEndDatePicker.setVisible(false);
-
-                mFrequencyLabel.setVisible(false);
-                mFrequencyChoiceBox.setVisible(false);
+                setupNAVReport();
+                break;
+            case INVESTTRANS:
+                setupInvestTransactionReport();
+                break;
+            case BANKTRANS:
                 break;
             default:
         }
+    }
+
+    private void setupNAVReport() {
+        mCategoriesTab.setDisable(true);
+        mSecuritiesTab.setDisable(true);
+        mTradeActionTab.setDisable(true);
+
+        // one one date
+        setupDatesTab(false, false);
+    }
+
+    private void setupInvestTransactionReport() {
+        setupDatesTab(true, false);
+        setupCategoriesTab();
+        setupSecuritiesTab();
+        setupTradeActionTab();
+    }
+
+    private void setupDatesTab(boolean showPeriod, boolean showFreq) {
+        if (showPeriod)
+            mDatePeriodLabel.setText("Date Range:");
+        mDatePeriodChoiceBox.getItems().setAll(
+                showPeriod ? DatePeriod.groupP : DatePeriod.groupD);
+
+        mStartDateLabel.setVisible(showPeriod);
+        mStartDatePicker.setVisible(showPeriod);
+        mEndDateLabel.setText(showPeriod ? "End Date" : "As Of");
+        mDatePeriodChoiceBox.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
+            mSetting.setDatePeriod(nv);
+            mStartDatePicker.setDisable(nv != DatePeriod.CUSTOMPERIOD);
+            mStartDatePicker.setValue(mapDatePeriod(nv).getFirst());
+            mEndDatePicker.setDisable(nv != DatePeriod.CUSTOMPERIOD && nv != DatePeriod.CUSTOMDATE);
+            mEndDatePicker.setValue(mapDatePeriod(nv).getSecond());
+        });
+
+        mFrequencyChoiceBox.getItems().setAll(Frequency.values());
+        mFrequencyChoiceBox.getSelectionModel().select(0);
+        mFrequencyLabel.setVisible(showFreq);
+        mFrequencyChoiceBox.setVisible(showFreq);
+
+        mDatePeriodChoiceBox.getSelectionModel().select(mSetting.getDatePeriod());
+        mFrequencyChoiceBox.getSelectionModel().select(mSetting.getFrequency());
+    }
+
+    private void setupCategoriesTab() {
+        ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
+        sibList.add(new Pair<>(new Pair<>(NOCATEGORY, 0),
+                new SimpleBooleanProperty(mSetting.getSelectedCategoryIDSet().contains(0))));
+        for (Category c : mMainApp.getCategoryList()) {
+            sibList.add(new Pair<>(new Pair<>(c.getNameProperty().get(), c.getID()),
+                    new SimpleBooleanProperty(mSetting.getSelectedCategoryIDSet().contains(c.getID()))));
+        }
+        for (Account a : mMainApp.getAccountList(null, false, true)) {
+            sibList.add(new Pair<>(new Pair<>(MainApp.getWrappedAccountName(a), -a.getID()),
+                    new SimpleBooleanProperty(mSetting.getSelectedCategoryIDSet().contains(-a.getID()))));
+        }
+        mCategorySelectionTableView.setItems(sibList);
+        mCategoryTableColumn.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().getFirst().getFirst()));
+        mCategorySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getSecond());
+        mCategorySelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mCategorySelectedTableColumn));
+        mCategorySelectedTableColumn.setEditable(true);
+    }
+
+    private void setupSecuritiesTab() {
+        ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
+        sibList.add(new Pair<>(new Pair<>(NOSECURITY, 0),
+                new SimpleBooleanProperty(mSetting.getSelectedSecurityIDSet().contains(0))));
+        for (Security s : mMainApp.getSecurityList()) {
+            sibList.add(new Pair<>(new Pair<>(s.getNameProperty().get(), s.getID()),
+                    new SimpleBooleanProperty(mSetting.getSelectedSecurityIDSet().contains(s.getID()))));
+        }
+        mSecuritySelectionTableView.setItems(sibList);
+        mSecurityTableColumn.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().getFirst().getFirst()));
+        mSecuritySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getSecond());
+        mSecuritySelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mSecuritySelectedTableColumn));
+        mSecuritySelectedTableColumn.setEditable(true);
+    }
+
+    private void setupTradeActionTab() {
+        ObservableList<Pair<Transaction.TradeAction, BooleanProperty>> tabList = FXCollections.observableArrayList();
+        for (Transaction.TradeAction ta : Transaction.TradeAction.values()) {
+            tabList.add(new Pair<>(ta, new SimpleBooleanProperty(mSetting.getSelectedTradeActionSet().contains(ta))));
+        }
+        mTradeActionSelectionTableView.setItems(tabList);
+        mTradeActionTableColumn.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().getFirst().name()));
+        mTradeActionSelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getSecond());
+        mTradeActionSelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mTradeActionSelectedTableColumn));
+        mTradeActionSelectedTableColumn.setEditable(true);
     }
 
     @FXML
@@ -264,15 +405,46 @@ public class ReportDialogController {
     }
 
     @FXML
+    private void handleSelectAll() {
+        handleSetAll(true);
+    }
+    @FXML
+    private void handleClearAll() {
+        handleSetAll(false);
+    }
+
+    private void handleSetAll(boolean selected) {
+        Tab currentTab = mTabPane.getSelectionModel().getSelectedItem();
+        if (currentTab.equals(mCategoriesTab)) {
+            for (Pair<Pair<String, Integer>, BooleanProperty> cib : mCategorySelectionTableView.getItems())
+                cib.getSecond().set(selected);
+        } else if (currentTab.equals(mSecuritiesTab)) {
+            for (Pair<Pair<String, Integer>, BooleanProperty> sib : mSecuritySelectionTableView.getItems())
+                sib.getSecond().set(selected);
+        } else if (currentTab.equals(mTradeActionTab)) {
+            for (Pair<Transaction.TradeAction, BooleanProperty> tab : mTradeActionSelectionTableView.getItems())
+                tab.getSecond().set(selected);
+        } else
+            System.out.println("Other tab?");
+    }
+
+    @FXML
     private void handleClose() {
         close();
     }
 
     @FXML
     private void handleShowReport() {
+        updateSetting();
         switch (mSetting.getType()) {
             case NAV:
                 mReportTextArea.setText(NAVReport());
+                break;
+            case INVESTTRANS:
+                mReportTextArea.setText(InvestTransReport());
+                break;
+            case BANKTRANS:
+                mReportTextArea.setText(BankTransReport());
                 break;
             default:
                 mReportTextArea.setText("Report type " + mSetting.getType() + " not implemented yet");
@@ -310,14 +482,41 @@ public class ReportDialogController {
         mShowSettingButton.setDisable(true);
     }
 
-    @FXML
-    private void handleSaveSetting() {
-        mSetting.setStart(mStartChoiceBox.getValue());
+    private void updateSetting() {
         mSetting.setStartDate(mStartDatePicker.getValue());
-        mSetting.setEnd(mEndChoiceBox.getValue());
         mSetting.setEndDate(mEndDatePicker.getValue());
         mSetting.setFrequency(mFrequencyChoiceBox.getValue());
         mSetting.setSelectedAccountList(mSelectedAccountListView.getItems());
+
+        if (!mCategoriesTab.isDisable()) {
+            // handle category selection
+            mSetting.getSelectedCategoryIDSet().clear();
+            for (Pair<Pair<String, Integer>, BooleanProperty> sib : mCategorySelectionTableView.getItems()) {
+                if (sib.getSecond().get())
+                    mSetting.getSelectedCategoryIDSet().add(sib.getFirst().getSecond());
+            }
+        }
+
+        if (!mSecuritiesTab.isDisable()) {
+            mSetting.getSelectedSecurityIDSet().clear();
+            for (Pair<Pair<String, Integer>, BooleanProperty> sib : mSecuritySelectionTableView.getItems()) {
+                if (sib.getSecond().get())
+                    mSetting.getSelectedSecurityIDSet().add(sib.getFirst().getSecond());
+            }
+        }
+
+        if (!mTradeActionTab.isDisable()) {
+            mSetting.getSelectedTradeActionSet().clear();
+            for (Pair<Transaction.TradeAction, BooleanProperty> tb : mTradeActionSelectionTableView.getItems()) {
+                if (tb.getSecond().get())
+                    mSetting.getSelectedTradeActionSet().add(tb.getFirst());
+            }
+        }
+    }
+
+    @FXML
+    private void handleSaveSetting() {
+        updateSetting();
 
         TextInputDialog tiDialog = new TextInputDialog(mSetting.getName());
         tiDialog.setTitle("Save Report Setting:");
@@ -357,8 +556,48 @@ public class ReportDialogController {
 
     void close() { mDialogStage.close(); }
 
+/*    private List<Category> getSelectedCategoryList() {
+        List<Category> cList = new ArrayList<>();
+        for (Pair<Category, BooleanProperty> cb : mCategorySelectionTableView.getItems()) {
+            if (cb.getSecond().get())
+                cList.add(cb.getFirst());
+        }
+        return cList;
+    }
+    */
+
+/*    private List<Security> getSelectedSecurityList() {
+        List<Security> cList = new ArrayList<>();
+        for (Pair<Security, BooleanProperty> sb : mSecuritySelectionTableView.getItems()) {
+            if (sb.getSecond().get())
+                cList.add(sb.getFirst());
+        }
+        return cList;
+    }
+    */
+
+    private String InvestTransReport() {
+        String reportStr = "Investment Transaction Report\n";
+        reportStr += "total " + mSetting.getSelectedAccountList().size() + " accounts\n"
+                + "total " + mSetting.getSelectedCategoryIDSet().size() + " categories\n"
+                + "total " + mSetting.getSelectedSecurityIDSet().size() + " securities\n"
+                + "total " + mSetting.getSelectedTradeActionSet().size() + " TradeActions\n"
+        ;
+/*
+        for (Category c : getSelectedCategoryList()) {
+            reportStr += c.getName() + "\n";
+        }
+*/
+        return reportStr;
+    }
+
+    private String BankTransReport() {
+        String reportStr = "Banking Transaction Report";
+        return reportStr;
+    }
+
     private String NAVReport() {
-        final LocalDate date = mStartDatePicker.getValue();
+        final LocalDate date = mSetting.getEndDate();
         String outputStr = "NAV Report as of " + date + "\n\n";
 
         BigDecimal total = BigDecimal.ZERO;
@@ -399,6 +638,143 @@ public class ReportDialogController {
         return outputStr;
     }
 
+    private Pair<LocalDate, LocalDate> mapDatePeriod(DatePeriod dp) {
+        LocalDate startDate, endDate, today = LocalDate.now();
+        int year, month;
+        switch (dp) {
+            case YESTERDAY:
+                startDate = today.minusDays(1);
+                endDate = today.minusDays(1);
+                break;
+            case LASTEOM:
+                startDate = today.minusDays(today.getDayOfMonth());
+                endDate = today.minusDays(today.getDayOfMonth());
+                break;
+            case LASTEOQ:
+                year = today.getYear();
+                month = today.getMonthValue();
+                switch (month) {
+                    case 1:
+                    case 2:
+                    case 3:
+                        startDate = LocalDate.of(year-1, 12, 31);
+                        endDate = LocalDate.of(year-1, 12, 31);
+                        break;
+                    case 4:
+                    case 5:
+                    case 6:
+                        startDate =  LocalDate.of(year, 3, 31);
+                        endDate = LocalDate.of(year, 3, 31);
+                        break;
+                    case 7:
+                    case 8:
+                    case 9:
+                        startDate = LocalDate.of(year, 6, 30);
+                        endDate = LocalDate.of(year, 6, 30);
+                        break;
+                    case 10:
+                    case 11:
+                    case 12:
+                    default:
+                        startDate = LocalDate.of(year, 9, 30);
+                        endDate = LocalDate.of(year, 9, 30);
+                        break;
+                }
+                break;
+            case LASTEOY:
+                startDate = LocalDate.of(today.getYear()-1, 12, 31);
+                endDate = LocalDate.of(today.getYear()-1, 12, 31);
+                break;
+            case WEEKTODATE:
+                // todo: this supposely handles locale correctly, need to test
+                startDate = today.with(WeekFields.of(Locale.getDefault()).dayOfWeek(), 1);
+                endDate = today;
+                break;
+            case MONTHTODATE:
+                startDate = mapDatePeriod(DatePeriod.LASTEOM).getFirst().plusDays(1);
+                endDate = today;
+                break;
+            case QUARTERTODATE:
+                startDate = mapDatePeriod(DatePeriod.LASTEOQ).getFirst().plusDays(1);
+                endDate = today;
+                break;
+            case YEARTODATE:
+                startDate = mapDatePeriod(DatePeriod.LASTEOY).getFirst().plusDays(1);
+                endDate = today;
+                break;
+            case EPOCHTODATE:
+                startDate = LocalDate.MIN;
+                endDate = today;
+                break;
+            case LASTWEEK:
+                startDate = mapDatePeriod(DatePeriod.WEEKTODATE).getFirst().minusDays(7);
+                endDate = startDate.plusDays(6);
+                break;
+            case LASTMONTH:
+                endDate = mapDatePeriod(DatePeriod.LASTEOM).getFirst();
+                startDate = endDate.minusDays(endDate.getDayOfMonth()-1);
+                break;
+            case LASTQUARTER:
+                year = today.getYear();
+                month = today.getMonthValue();
+                switch (month) {
+                    case 1:
+                    case 2:
+                    case 3:
+                        startDate = LocalDate.of(year-1, 10, 1);
+                        endDate = LocalDate.of(year-1, 12, 31);
+                        break;
+                    case 4:
+                    case 5:
+                    case 6:
+                        startDate =  LocalDate.of(year, 1, 1);
+                        endDate = LocalDate.of(year, 3, 31);
+                        break;
+                    case 7:
+                    case 8:
+                    case 9:
+                        startDate = LocalDate.of(year, 4, 1);
+                        endDate = LocalDate.of(year, 6, 30);
+                        break;
+                    case 10:
+                    case 11:
+                    case 12:
+                    default:
+                        startDate = LocalDate.of(year, 7, 1);
+                        endDate = LocalDate.of(year, 9, 30);
+                        break;
+                }
+                break;
+            case LASTYEAR:
+                year = today.getYear();
+                startDate = LocalDate.of(year-1, 1, 1);
+                endDate = LocalDate.of(year-1,12,31);
+                break;
+            case LAST7DAYS:
+                startDate = today.minusDays(6);
+                endDate = today;
+                break;
+            case LAST30DAYS:
+                startDate = today.minusDays(29);
+                endDate = today;
+                break;
+            case LAST365DAYS:
+                startDate = today.minusDays(364);
+                endDate = today;
+                break;
+            case TODAY:
+            case CUSTOMDATE:
+            case CUSTOMPERIOD:
+            default:
+                startDate = today;
+                endDate = today;
+                break;
+        }
+
+        return new Pair<>(startDate, endDate);
+    }
+
+/*
     private LocalDate mapSpecialDate(SpecialDay sd) {
         LocalDate today = LocalDate.now();
         switch (sd) {
@@ -438,9 +814,11 @@ public class ReportDialogController {
                 return today;
         }
     }
+*/
 
     @FXML
     private void initialize() {
+/*
         mFrequencyChoiceBox.getItems().setAll(Frequency.values());
         mFrequencyChoiceBox.getSelectionModel().select(0);
         mStartChoiceBox.getItems().setAll(SpecialDay.values());
@@ -457,6 +835,7 @@ public class ReportDialogController {
 
         mStartChoiceBox.getSelectionModel().select(0);
         mEndChoiceBox.getSelectionModel().select(0);
+*/
 
         mSaveReportButton.setDisable(true);
         mShowSettingButton.setDisable(true);

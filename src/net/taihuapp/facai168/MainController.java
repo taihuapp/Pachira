@@ -155,6 +155,17 @@ public class MainController {
         updateSavedReportsMenu();
     }
 
+    @FXML
+    private void handleInvestingTransactions() {
+        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTTRANS));
+        updateSavedReportsMenu();
+    }
+
+    @FXML
+    private void handleBankingTransactions() {
+        System.out.println("Banking Transaction Report Not Implemented Yet.");
+    }
+
     private void updateSavedReportsMenu() {
         List<MenuItem> menuItemList = new ArrayList<>();
         for (ReportDialogController.Setting setting : mMainApp.loadReportSetting(0)) {

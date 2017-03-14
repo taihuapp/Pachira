@@ -43,6 +43,8 @@
                   </Menu>
                   <SeparatorMenuItem mnemonicParsing="false" />
                 <MenuItem mnemonicParsing="false" onAction="#handleNAVReport" text="Net Asset Value" />
+                  <MenuItem mnemonicParsing="false" onAction="#handleBankingTransactions" text="Banking Transactions" />
+                  <MenuItem mnemonicParsing="false" onAction="#handleInvestingTransactions" text="Investing Transactions" />
               </items>
             </Menu>
           <Menu mnemonicParsing="false" text="Help">

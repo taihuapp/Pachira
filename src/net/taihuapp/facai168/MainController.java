@@ -162,8 +162,15 @@ public class MainController {
     }
 
     @FXML
+    private void handleInvestingIncome() {
+        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTTRANS));
+        updateSavedReportsMenu();
+    }
+
+    @FXML
     private void handleBankingTransactions() {
-        System.out.println("Banking Transaction Report Not Implemented Yet.");
+        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.BANKTRANS));
+        updateSavedReportsMenu();
     }
 
     private void updateSavedReportsMenu() {

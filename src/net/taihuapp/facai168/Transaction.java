@@ -60,6 +60,7 @@ public class Transaction {
     ObjectProperty<LocalDate> getTDateProperty() { return mTDateProperty; }
     ObjectProperty<LocalDate> getADateProperty() { return mADateProperty; }
     StringProperty getReferenceProperty() { return mReferenceProperty; }
+    String getReference() { return getReferenceProperty().get(); }
     StringProperty getPayeeProperty() { return mPayeeProperty; }
     String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
@@ -230,6 +231,7 @@ public class Transaction {
     }
 
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
+    String getDescription() { return getDescriptionProperty().get(); }
 
     LocalDate getTDate() { return mTDateProperty.get(); }
     LocalDate getADate() { return mADateProperty.get(); }
@@ -476,7 +478,7 @@ public class Transaction {
     // copy constructor
     public Transaction(Transaction t0) {
         this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getSecurityName(),
-                t0.getReferenceProperty().get(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
+                t0.getReference(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
                 t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAmount(), t0.getCategoryID(),
                 t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID());
     }

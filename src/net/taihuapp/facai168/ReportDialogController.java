@@ -25,7 +25,7 @@ import java.util.*;
  */
 public class ReportDialogController {
 
-    enum ReportType { NAV, INVESTTRANS, BANKTRANS }
+    enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS }
     enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
     enum DatePeriod {
         TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE,
@@ -88,6 +88,7 @@ public class ReportDialogController {
                 case NAV:
                     mDatePeriod = DatePeriod.TODAY;
                     break;
+                case INVESTINCOME:
                 case INVESTTRANS:
                 case BANKTRANS:
                     mDatePeriod = DatePeriod.LASTMONTH;
@@ -224,6 +225,9 @@ public class ReportDialogController {
             case NAV:
                 setupNAVReport();
                 break;
+            case INVESTINCOME:
+                setupInvestIncomeReport();
+                break;
             case INVESTTRANS:
                 setupInvestTransactionReport();
                 break;
@@ -243,6 +247,10 @@ public class ReportDialogController {
         mTradeActionTab.setDisable(true);
     }
 
+    private void setupInvestIncomeReport() {
+        // todo here
+    }
+
     private void setupInvestTransactionReport() {
         setupDatesTab(true, false);
         setupAccountsTab(Account.Type.INVESTING); // show investing accounts only
@@ -256,7 +264,7 @@ public class ReportDialogController {
         setupAccountsTab(null); // show all accounts
         setupCategoriesTab();
         setupSecuritiesTab();
-        setupTradeActionTab();
+        mTradeActionTab.setDisable(true); // no need for TradeAction
     }
 
     private void setupDatesTab(boolean showPeriod, boolean showFreq) {
@@ -452,6 +460,9 @@ public class ReportDialogController {
             case NAV:
                 mReportTextArea.setText(NAVReport());
                 break;
+            case INVESTINCOME:
+                mReportTextArea.setText(InvestIncomeReport());
+                break;
             case INVESTTRANS:
                 mReportTextArea.setText(InvestTransReport());
                 break;
@@ -568,14 +579,28 @@ public class ReportDialogController {
 
     void close() { mDialogStage.close(); }
 
-    private String InvestTransReport() {
-        String reportStr = "Investment Transaction Report from "
+    private String InvestIncomeReport() {
+        String reportStr = "Investment Income Report from "
                 + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
+
         if (mSetting.getSelectedTradeActionSet().size() == 0) {
             reportStr += "No TradeAction selected.";
             return reportStr;
         }
 
+
+        return reportStr;
+    }
+
+    private String InvestTransReport() {
+        String reportStr = "Investment Transaction Report from "
+                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
+        if (mSetting.getSelectedTradeActionSet().isEmpty()) {
+            reportStr += "No TradeAction selected.";
+            return reportStr;
+        }
+
+        // Transaction has only security name, not id, so we convert ids to names.
         Set<String> securityNameSet = new HashSet<>();
         for (Integer sid : mSetting.getSelectedSecurityIDSet()) {
             Security security = mMainApp.getSecurityByID(sid);
@@ -595,8 +620,8 @@ public class ReportDialogController {
             private String invAmt = "";
         }
 
-        List<Line> lineList = new ArrayList<>();
-        Line title = new Line();
+        final List<Line> lineList = new ArrayList<>();
+        final Line title = new Line();
         title.date = "Date";
         title.aName = "Account";
         title.ta = "Action";
@@ -628,7 +653,7 @@ public class ReportDialogController {
                 if (securityNameSet.contains(sName)
                         && mSetting.getSelectedTradeActionSet().contains(t.getTradeAction())) {
                     Line line = new Line();
-                    line.date = t.getTDate().toString();
+                    line.date = tDate.toString();
                     line.aName = account.getName();
                     line.ta = t.getTradeAction().name();
                     line.sName = t.getSecurityName();
@@ -693,7 +718,7 @@ public class ReportDialogController {
                 invAmtLen = line.invAmt.length();
         }
 
-        String formatStr = "%" + dateLen + "s"
+        final String formatStr = "%=" + dateLen + "s" // left adjust date
                 + "%" + (2+aNameLen) + "s"
                 + "%" + (2+taLen) + "s"
                 + "%" + (2+sNameLen) + "s"
@@ -705,7 +730,7 @@ public class ReportDialogController {
                 + "%" + (2+invAmtLen) + "s"
                 + "\n";
 
-        String separator = new String(new char[dateLen + (2+aNameLen) + (2+taLen) + (2+sNameLen) + (2+memoLen)
+        final String separator = new String(new char[dateLen + (2+aNameLen) + (2+taLen) + (2+sNameLen) + (2+memoLen)
                 + (2+priceLen) + (2+quantityLen) + (2+commissionLen) + (2+cashAmtLen) + (2+invAmtLen)])
                 .replace("\0", "=");
         reportStr += separator + "\n";
@@ -720,7 +745,120 @@ public class ReportDialogController {
     }
 
     private String BankTransReport() {
-        String reportStr = "Banking Transaction Report";
+        String reportStr = "Banking Transaction Report from "
+                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
+
+        if (mSetting.getSelectedCategoryIDSet().isEmpty()) {
+            reportStr += "No Category selected.";
+            return reportStr;
+        }
+
+        if (mSetting.getSelectedSecurityIDSet().isEmpty()) {
+            reportStr += "No Security selected.";
+        }
+
+        // Transaction has only security name, not id, so we convert ids to names.
+        Set<String> securityNameSet = new HashSet<>();
+        for (Integer sid : mSetting.getSelectedSecurityIDSet()) {
+            Security security = mMainApp.getSecurityByID(sid);
+            securityNameSet.add(security == null ? null : security.getName());
+        }
+
+        class Line {
+            private String date = "";
+            private String aName = "";
+            private String num = "";
+            private String desc = "";
+            private String memo = "";
+            private String category = "";
+            private String amount = "";
+        }
+
+        final List<Line> lineList = new ArrayList<>();
+        final Line title = new Line();
+        title.date = "Date";
+        title.aName = "Account";
+        title.num = "Num";
+        title.desc = "Description";
+        title.memo = "Memo";
+        title.category = "Category";
+        title.amount = "Amount";
+        lineList.add(title);
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
+        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
+            Account account = sa.getAccount();
+            for (Transaction t : account.getTransactionList()) {
+                LocalDate tDate = t.getTDate();
+                if (tDate.isBefore(mSetting.getStartDate()))
+                    continue;
+                if (tDate.isAfter(mSetting.getEndDate()))
+                    break; // we are done with this account
+
+                if (mSetting.getSelectedCategoryIDSet().contains(t.getCategoryID())
+                        && securityNameSet.contains(t.getSecurityName())) {
+                    Line line = new Line();
+                    line.date = tDate.toString();
+                    line.aName = account.getName();
+                    if (account.getType().equals(Account.Type.INVESTING))
+                        line.num = t.getTradeAction().name();
+                    else
+                        line.num = t.getReference() == null ? "" : t.getReference();
+                    line.memo = t.getMemo() == null ? "" : t.getMemo();
+                    line.category = mMainApp.mapCategoryOrAccountIDToName(t.getCategoryID());
+                    BigDecimal amount;
+                    if (account.getType().equals(Account.Type.INVESTING)) {
+                        line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
+                        amount = t.getCashAmount();
+                    } else {
+                        line.desc = t.getPayee() == null ? "" : t.getPayee();
+                        amount = t.getDepositeProperty().get().subtract(t.getPaymentProperty().get());
+                    }
+                    line.amount = dcFormat.format(amount);
+                    totalAmount = totalAmount.add(amount);
+
+                    lineList.add(line);
+                }
+            }
+        }
+        Line total = new Line();
+        total.date = "Total";
+        total.amount = dcFormat.format(totalAmount);
+        lineList.add(total);
+
+        int dateLen = 11;
+        int aNameLen = 12;
+        int numLen = 6;
+        int descLen = 16;
+        int memoLen = 16;
+        int categoryLen = 10;
+        int amountLen = 10;
+        for (Line line : lineList) {
+            aNameLen = Math.max(aNameLen, line.aName.length());
+            numLen = Math.max(numLen, line.num.length());
+            descLen = Math.max(descLen, line.desc.length());
+            memoLen = Math.max(memoLen, line.memo.length());
+            categoryLen = Math.max(categoryLen, line.category.length());
+            amountLen = Math.max(amountLen, line.amount.length());
+        }
+
+        final String formatStr = "%-" + dateLen + "s" // left adjust date
+                + "%" + (2+aNameLen) + "s"
+                + "%" + (2+numLen) + "s"
+                + "%" + (2+descLen) + "s"
+                + "%" + (2+memoLen) + "s"
+                + "%" + (2+categoryLen) + "s"
+                + "%" + (2+amountLen) + "s"
+                + "\n";
+        final String separator = new String(new char[dateLen + (2+aNameLen) + (2+numLen) + (2+descLen)
+               + (2+memoLen) + (2+categoryLen)+ (2+amountLen)]).replace("\0", "=");
+        for (int i = 0; i < lineList.size(); i++) {
+            Line l = lineList.get(i);
+            reportStr += String.format(formatStr, l.date, l.aName, l.num, l.desc, l.memo, l.category, l.amount);
+            if (i == 0 || i == lineList.size()-2)
+                reportStr += separator + "\n";
+        }
         return reportStr;
     }
 

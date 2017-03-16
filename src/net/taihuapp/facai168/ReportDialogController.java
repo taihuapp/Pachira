@@ -36,7 +36,7 @@ public class ReportDialogController {
         static EnumSet<DatePeriod> groupD = EnumSet.of(TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE);
         static EnumSet<DatePeriod> groupP = EnumSet.of(WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
                 LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD);
-    };
+    }
 
     enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
 
@@ -56,9 +56,10 @@ public class ReportDialogController {
         Integer getSelectedOrder() { return getSelectedOrderProperty().get(); }
         void setSelectedOrder(int s) { mSelectedOrderProperty.set(s); }
 
-        Account.Type getType() { return mAccount.getType(); }
+        Account getAccount() { return mAccount; }
+        Account.Type getType() { return getAccount().getType(); }
         int getDisplayOrder() { return mAccount.getDisplayOrder(); }
-        int getID() { return mAccount.getID(); }
+        int getID() { return getAccount().getID(); }
 
         public String toString() { return mAccount.getName(); }
     }
@@ -219,48 +220,6 @@ public class ReportDialogController {
         // set window title
         mDialogStage.setTitle(mSetting.getType() + " Report");
 
-        // initialize account selection controls and time period selection controls
-        mAccountList.clear();
-        for (Account a : mMainApp.getAccountList(null, null, true)) {
-            int selectedOrder = -1;
-            for (SelectedAccount sa : setting.getSelectedAccountList())
-                if (sa.getID() == a.getID())
-                    selectedOrder = sa.getSelectedOrder();
-            mAccountList.add(new SelectedAccount(a, selectedOrder));
-        }
-
-        SortedList<SelectedAccount> availableAccountList
-                = new SortedList<>(new FilteredList<>(mAccountList, a->(a.getSelectedOrder() < 0)),
-                Comparator.comparing(SelectedAccount::getType).thenComparing(SelectedAccount::getDisplayOrder)
-                        .thenComparing(SelectedAccount::getID));
-
-        SortedList<SelectedAccount> selectedAccountList
-                = new SortedList<>(new FilteredList<>(mAccountList, a->(a.getSelectedOrder() >= 0)),
-                Comparator.comparing(SelectedAccount::getSelectedOrder));
-
-        mAvailableAccountListView.setItems(availableAccountList);
-        mSelectedAccountListView.setItems(selectedAccountList);
-
-        // add a selection change listener to the lists
-        mAvailableAccountListView.getSelectionModel().selectedItemProperty().addListener(
-                (ob, ov, nv)-> mSelectButton.setDisable(nv == null));
-        mSelectedAccountListView.getSelectionModel().selectedItemProperty().addListener(
-                (ob, ov, nv) -> {
-                    int selectedIdx = mSelectedAccountListView.getSelectionModel().getSelectedIndex();
-                    int numberOfRows = mSelectedAccountListView.getItems().size();
-                    mUnselectButton.setDisable(nv == null);
-                    mUpButton.setDisable(nv == null || selectedIdx == 0);
-                    mDownButton.setDisable(nv == null || selectedIdx == numberOfRows-1);
-                });
-
-        // nothing is selected in either listview, disable these buttons
-        mSelectButton.setDisable(true);
-        mUnselectButton.setDisable(true);
-        mUpButton.setDisable(true);
-        mDownButton.setDisable(true);
-        mReportTextArea.setVisible(false);
-        mReportTextArea.setStyle("-fx-font-family: monospace");
-
         switch (mSetting.getType()) {
             case NAV:
                 setupNAVReport();
@@ -269,22 +228,32 @@ public class ReportDialogController {
                 setupInvestTransactionReport();
                 break;
             case BANKTRANS:
+                setupBankTransactionReport();
                 break;
             default:
+                break;
         }
     }
 
     private void setupNAVReport() {
+        setupDatesTab(false, false);  // just one date
+        setupAccountsTab(null); // show all accounts
         mCategoriesTab.setDisable(true);
         mSecuritiesTab.setDisable(true);
         mTradeActionTab.setDisable(true);
-
-        // one one date
-        setupDatesTab(false, false);
     }
 
     private void setupInvestTransactionReport() {
         setupDatesTab(true, false);
+        setupAccountsTab(Account.Type.INVESTING); // show investing accounts only
+        mCategoriesTab.setDisable(true);
+        setupSecuritiesTab();
+        setupTradeActionTab();
+    }
+
+    private void setupBankTransactionReport() {
+        setupDatesTab(true, false);
+        setupAccountsTab(null); // show all accounts
         setupCategoriesTab();
         setupSecuritiesTab();
         setupTradeActionTab();
@@ -314,6 +283,49 @@ public class ReportDialogController {
 
         mDatePeriodChoiceBox.getSelectionModel().select(mSetting.getDatePeriod());
         mFrequencyChoiceBox.getSelectionModel().select(mSetting.getFrequency());
+    }
+
+    private void setupAccountsTab(Account.Type t) {
+
+        // nothing is selected in either listview, disable these buttons
+        mSelectButton.setDisable(true);
+        mUnselectButton.setDisable(true);
+        mUpButton.setDisable(true);
+        mDownButton.setDisable(true);
+
+        mAccountList.clear();
+
+        for (Account a : mMainApp.getAccountList(t,null, true)) {
+            int selectedOrder = -1;
+            for (SelectedAccount sa : mSetting.getSelectedAccountList())
+                if (sa.getID() == a.getID())
+                    selectedOrder = sa.getSelectedOrder();
+            mAccountList.add(new SelectedAccount(a, selectedOrder));
+        }
+
+        SortedList<SelectedAccount> availableAccountList
+                = new SortedList<>(new FilteredList<>(mAccountList, a->(a.getSelectedOrder() < 0)),
+                Comparator.comparing(SelectedAccount::getType).thenComparing(SelectedAccount::getDisplayOrder)
+                        .thenComparing(SelectedAccount::getID));
+
+        SortedList<SelectedAccount> selectedAccountList
+                = new SortedList<>(new FilteredList<>(mAccountList, a->(a.getSelectedOrder() >= 0)),
+                Comparator.comparing(SelectedAccount::getSelectedOrder));
+
+        mAvailableAccountListView.setItems(availableAccountList);
+        mSelectedAccountListView.setItems(selectedAccountList);
+
+        // add a selection change listener to the lists
+        mAvailableAccountListView.getSelectionModel().selectedItemProperty().addListener(
+                (ob, ov, nv)-> mSelectButton.setDisable(nv == null));
+        mSelectedAccountListView.getSelectionModel().selectedItemProperty().addListener(
+                (ob, ov, nv) -> {
+                    int selectedIdx = mSelectedAccountListView.getSelectionModel().getSelectedIndex();
+                    int numberOfRows = mSelectedAccountListView.getItems().size();
+                    mUnselectButton.setDisable(nv == null);
+                    mUpButton.setDisable(nv == null || selectedIdx == 0);
+                    mDownButton.setDisable(nv == null || selectedIdx == numberOfRows-1);
+                });
     }
 
     private void setupCategoriesTab() {
@@ -556,38 +568,154 @@ public class ReportDialogController {
 
     void close() { mDialogStage.close(); }
 
-/*    private List<Category> getSelectedCategoryList() {
-        List<Category> cList = new ArrayList<>();
-        for (Pair<Category, BooleanProperty> cb : mCategorySelectionTableView.getItems()) {
-            if (cb.getSecond().get())
-                cList.add(cb.getFirst());
-        }
-        return cList;
-    }
-    */
-
-/*    private List<Security> getSelectedSecurityList() {
-        List<Security> cList = new ArrayList<>();
-        for (Pair<Security, BooleanProperty> sb : mSecuritySelectionTableView.getItems()) {
-            if (sb.getSecond().get())
-                cList.add(sb.getFirst());
-        }
-        return cList;
-    }
-    */
-
     private String InvestTransReport() {
-        String reportStr = "Investment Transaction Report\n";
-        reportStr += "total " + mSetting.getSelectedAccountList().size() + " accounts\n"
-                + "total " + mSetting.getSelectedCategoryIDSet().size() + " categories\n"
-                + "total " + mSetting.getSelectedSecurityIDSet().size() + " securities\n"
-                + "total " + mSetting.getSelectedTradeActionSet().size() + " TradeActions\n"
-        ;
-/*
-        for (Category c : getSelectedCategoryList()) {
-            reportStr += c.getName() + "\n";
+        String reportStr = "Investment Transaction Report from "
+                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
+        if (mSetting.getSelectedTradeActionSet().size() == 0) {
+            reportStr += "No TradeAction selected.";
+            return reportStr;
         }
-*/
+
+        Set<String> securityNameSet = new HashSet<>();
+        for (Integer sid : mSetting.getSelectedSecurityIDSet()) {
+            Security security = mMainApp.getSecurityByID(sid);
+            securityNameSet.add(security == null ? null : security.getName());
+        }
+
+        class Line {
+            private String date = "";
+            private String aName = "";
+            private String ta = "";
+            private String sName = "";
+            private String memo = "";
+            private String price = "";
+            private String quantity = "";
+            private String commission = "";
+            private String cashAmt = "";
+            private String invAmt = "";
+        }
+
+        List<Line> lineList = new ArrayList<>();
+        Line title = new Line();
+        title.date = "Date";
+        title.aName = "Account";
+        title.ta = "Action";
+        title.sName = "Security";
+        title.memo = "Memo";
+        title.price = "Price";
+        title.quantity = "Quantity";
+        title.commission = "Commission";
+        title.cashAmt = "Cash Amount";
+        title.invAmt = "Inv. Amount";
+        lineList.add(title);
+
+        final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
+        final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
+
+        BigDecimal totalCommissionAmt = BigDecimal.ZERO;
+        BigDecimal totalCashAmt = BigDecimal.ZERO;
+        BigDecimal totalInvAmt = BigDecimal.ZERO;
+        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
+            Account account = sa.getAccount();
+            for (Transaction t : account.getTransactionList()) {
+                LocalDate tDate = t.getTDate();
+                if (tDate.isBefore(mSetting.getStartDate()))
+                    continue;
+                if(tDate.isAfter(mSetting.getEndDate()))
+                    break; // we are done with this account
+
+                String sName = t.getSecurityName();
+                if (securityNameSet.contains(sName)
+                        && mSetting.getSelectedTradeActionSet().contains(t.getTradeAction())) {
+                    Line line = new Line();
+                    line.date = t.getTDate().toString();
+                    line.aName = account.getName();
+                    line.ta = t.getTradeAction().name();
+                    line.sName = t.getSecurityName();
+                    line.memo = t.getMemo();
+                    line.price = t.getPrice() == null ? "" : qpFormat.format(t.getPrice());
+                    line.quantity = t.getQuantity() == null ? "" : qpFormat.format(t.getQuantity());
+                    BigDecimal comm = t.getCommission();
+                    if (comm != null) {
+                        line.commission = dcFormat.format(t.getCommission());
+                        totalCommissionAmt = totalCommissionAmt.add(comm);
+                    }
+                    BigDecimal cash = t.getCashAmount();
+                    if (cash != null) {
+                        line.cashAmt = dcFormat.format(t.getCashAmount());
+                        totalCashAmt = totalCashAmt.add(cash);
+                    }
+                    BigDecimal inv = t.getInvestAmount();
+                    if (inv != null) {
+                        line.invAmt = dcFormat.format(t.getInvestAmount());
+                        totalInvAmt = totalInvAmt.add(inv);
+                    }
+                    lineList.add(line);
+                }
+            }
+        }
+        Line total = new Line();
+        total.date = "Total";
+        total.commission = dcFormat.format(totalCommissionAmt);
+        total.cashAmt = dcFormat.format(totalCashAmt);
+        total.invAmt = dcFormat.format(totalInvAmt);
+        lineList.add(total);
+
+        int dateLen = 11;
+        int aNameLen = 12;
+        int taLen = 10;
+        int sNameLen = 24;
+        int memoLen = 12;
+        int priceLen = 12;
+        int quantityLen = 16;
+        int commissionLen = 10;
+        int cashAmtLen = 10;
+        int invAmtLen = 10;
+
+        for (Line line : lineList) {
+            if (line.aName.length() > aNameLen)
+                aNameLen = line.aName.length();
+            if (line.ta.length() > taLen)
+                taLen = line.ta.length();
+            if (line.sName.length() > sNameLen)
+                sNameLen = line.sName.length();
+            if (line.memo.length() > memoLen)
+                memoLen = line.memo.length();
+            if (line.price.length() > priceLen)
+                priceLen = line.price.length();
+            if (line.quantity.length() > quantityLen)
+                quantityLen = line.quantity.length();
+            if (line.commission.length() > commissionLen)
+                commissionLen = line.commission.length();
+            if (line.cashAmt.length() > cashAmtLen)
+                cashAmtLen = line.cashAmt.length();
+            if (line.invAmt.length() > invAmtLen)
+                invAmtLen = line.invAmt.length();
+        }
+
+        String formatStr = "%" + dateLen + "s"
+                + "%" + (2+aNameLen) + "s"
+                + "%" + (2+taLen) + "s"
+                + "%" + (2+sNameLen) + "s"
+                + "%" + (2+memoLen) + "s"
+                + "%" + (2+priceLen) + "s"
+                + "%" + (2+quantityLen) + "s"
+                + "%" + (2+commissionLen) + "s"
+                + "%" + (2+cashAmtLen) + "s"
+                + "%" + (2+invAmtLen) + "s"
+                + "\n";
+
+        String separator = new String(new char[dateLen + (2+aNameLen) + (2+taLen) + (2+sNameLen) + (2+memoLen)
+                + (2+priceLen) + (2+quantityLen) + (2+commissionLen) + (2+cashAmtLen) + (2+invAmtLen)])
+                .replace("\0", "=");
+        reportStr += separator + "\n";
+        for (int i = 0; i < lineList.size(); i++) {
+            Line l = lineList.get(i);
+            reportStr += String.format(formatStr, l.date, l.aName, l.ta, l.sName,
+                    l.memo, l.price, l.quantity, l.commission, l.cashAmt, l.invAmt);
+            if (i == 0 || i == lineList.size()-2)
+                reportStr += separator + "\n";
+        }
         return reportStr;
     }
 
@@ -774,70 +902,11 @@ public class ReportDialogController {
         return new Pair<>(startDate, endDate);
     }
 
-/*
-    private LocalDate mapSpecialDate(SpecialDay sd) {
-        LocalDate today = LocalDate.now();
-        switch (sd) {
-            case TODAY:
-                return today;
-            case YESTERDAY:
-                return today.minusDays(1);
-            case LASTEOM:
-                return today.minusDays(today.getDayOfMonth());
-            case LASTEOQ:
-                int year = today.getYear();
-                int month = today.getMonthValue();
-                switch (month) {
-                    case 1:
-                    case 2:
-                    case 3:
-                        return LocalDate.of(year-1, 12, 31);
-                    case 4:
-                    case 5:
-                    case 6:
-                        return LocalDate.of(year, 3, 31);
-                    case 7:
-                    case 8:
-                    case 9:
-                        return LocalDate.of(year, 6, 30);
-                    case 10:
-                    case 11:
-                    case 12:
-                        return LocalDate.of(year, 9, 30);
-                }
-            case LASTEOY:
-                return LocalDate.of(today.getYear()-1, 12, 31);
-            case CUSTOMIZED:
-                return today;
-            default:
-                System.err.println("Unimplemented case in mapSpecialDate " + sd);
-                return today;
-        }
-    }
-*/
-
     @FXML
     private void initialize() {
-/*
-        mFrequencyChoiceBox.getItems().setAll(Frequency.values());
-        mFrequencyChoiceBox.getSelectionModel().select(0);
-        mStartChoiceBox.getItems().setAll(SpecialDay.values());
-        mEndChoiceBox.getItems().setAll(SpecialDay.values());
-
-        mStartChoiceBox.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
-            mStartDatePicker.setDisable(nv != SpecialDay.CUSTOMIZED);
-            mStartDatePicker.setValue(mapSpecialDate(nv));
-        });
-        mEndChoiceBox.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
-            mEndDatePicker.setDisable(nv != SpecialDay.CUSTOMIZED);
-            mEndDatePicker.setValue(mapSpecialDate(nv));
-        });
-
-        mStartChoiceBox.getSelectionModel().select(0);
-        mEndChoiceBox.getSelectionModel().select(0);
-*/
-
         mSaveReportButton.setDisable(true);
         mShowSettingButton.setDisable(true);
+        mReportTextArea.setVisible(false);
+        mReportTextArea.setStyle("-fx-font-family: monospace");
     }
 }

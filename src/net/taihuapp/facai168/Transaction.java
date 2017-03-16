@@ -29,7 +29,7 @@ public class Transaction {
     private final ObjectProperty<LocalDate> mADateProperty = new SimpleObjectProperty<>(null);
     //private StringProperty mTradeActionProperty = new SimpleStringProperty("BUY");
     private final ObjectProperty<TradeAction> mTradeActionProperty = new SimpleObjectProperty<>(TradeAction.BUY);
-    private StringProperty mSecurityNameProperty = new SimpleStringProperty("");
+    private final StringProperty mSecurityNameProperty = new SimpleStringProperty("");
     private final StringProperty mReferenceProperty = new SimpleStringProperty("");
     private final StringProperty mPayeeProperty = new SimpleStringProperty("");
     // amount property,
@@ -240,6 +240,7 @@ public class Transaction {
     BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
     String getSecurityName() { return mSecurityNameProperty.get();}
     BigDecimal getCashAmount() { return getCashAmountProperty().get(); }
+    BigDecimal getInvestAmount() { return getInvestAmountProperty().get(); }
     List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
     boolean isSplit() { return getSplitTransactionList().size() > 0; }
     BigDecimal getAmount() { return mAmountProperty.get(); }

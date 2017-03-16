@@ -154,7 +154,7 @@ public class MainApp extends Application {
 
     FilteredList<ReminderTransaction> getReminderTransactionList(boolean showCompleted) {
         return new FilteredList<>(mReminderTransactionList,
-                rt -> (showCompleted == true || (!rt.getStatus().equals(ReminderTransaction.COMPLETED)
+                rt -> (showCompleted || (!rt.getStatus().equals(ReminderTransaction.COMPLETED)
                         && !rt.getStatus().equals(ReminderTransaction.SKIPPED))));
     }
 
@@ -177,7 +177,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    private Security getSecurityByID(int id) {
+    Security getSecurityByID(int id) {
         for (Security s : getSecurityList()) {
             if (s.getID() == id)
                 return s;
@@ -2841,6 +2841,7 @@ public class MainApp extends Application {
                 + "ITEMNAME varchar(16) NOT NULL, "
                 + "ITEMVALUE varchar(16) NOT NULL, "
                 + "SELECTEDORDER integer NOT NULL);";
+        sqlCreateTable(sqlCmd);
 
         // Tag table
         sqlCmd = "create table TAGS ("

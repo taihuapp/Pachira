@@ -40,8 +40,8 @@ public class ReportDialogController {
 
     enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
 
-    private static final String NOSECURITY = "No Security";
-    private static final String NOCATEGORY = "No Category";
+    private static final String NOSECURITY = "(No Security)";
+    private static final String NOCATEGORY = "(No Category)";
 
     static class SelectedAccount {
         Account mAccount;
@@ -248,7 +248,11 @@ public class ReportDialogController {
     }
 
     private void setupInvestIncomeReport() {
-        // todo here
+        setupDatesTab(true, false);
+        setupAccountsTab(Account.Type.INVESTING); // show investing accounts only
+        mCategoriesTab.setDisable(true);
+        setupSecuritiesTab();
+        setupTradeActionTab();
     }
 
     private void setupInvestTransactionReport() {
@@ -338,15 +342,19 @@ public class ReportDialogController {
 
     private void setupCategoriesTab() {
         ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
+        boolean newSetting = mSetting.getID() < 0;  // we pre-select all categories for new setting
         sibList.add(new Pair<>(new Pair<>(NOCATEGORY, 0),
-                new SimpleBooleanProperty(mSetting.getSelectedCategoryIDSet().contains(0))));
+                new SimpleBooleanProperty(newSetting
+                        || mSetting.getSelectedCategoryIDSet().contains(0))));
         for (Category c : mMainApp.getCategoryList()) {
             sibList.add(new Pair<>(new Pair<>(c.getNameProperty().get(), c.getID()),
-                    new SimpleBooleanProperty(mSetting.getSelectedCategoryIDSet().contains(c.getID()))));
+                    new SimpleBooleanProperty(newSetting
+                            || mSetting.getSelectedCategoryIDSet().contains(c.getID()))));
         }
         for (Account a : mMainApp.getAccountList(null, false, true)) {
             sibList.add(new Pair<>(new Pair<>(MainApp.getWrappedAccountName(a), -a.getID()),
-                    new SimpleBooleanProperty(mSetting.getSelectedCategoryIDSet().contains(-a.getID()))));
+                    new SimpleBooleanProperty(newSetting
+                            || mSetting.getSelectedCategoryIDSet().contains(-a.getID()))));
         }
         mCategorySelectionTableView.setItems(sibList);
         mCategoryTableColumn.setCellValueFactory(cellData ->
@@ -358,11 +366,13 @@ public class ReportDialogController {
 
     private void setupSecuritiesTab() {
         ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
+        boolean newSetting = mSetting.getID() < 0;
         sibList.add(new Pair<>(new Pair<>(NOSECURITY, 0),
-                new SimpleBooleanProperty(mSetting.getSelectedSecurityIDSet().contains(0))));
+                new SimpleBooleanProperty(newSetting || mSetting.getSelectedSecurityIDSet().contains(0))));
         for (Security s : mMainApp.getSecurityList()) {
             sibList.add(new Pair<>(new Pair<>(s.getNameProperty().get(), s.getID()),
-                    new SimpleBooleanProperty(mSetting.getSelectedSecurityIDSet().contains(s.getID()))));
+                    new SimpleBooleanProperty(newSetting
+                            || mSetting.getSelectedSecurityIDSet().contains(s.getID()))));
         }
         mSecuritySelectionTableView.setItems(sibList);
         mSecurityTableColumn.setCellValueFactory(cellData ->
@@ -374,8 +384,10 @@ public class ReportDialogController {
 
     private void setupTradeActionTab() {
         ObservableList<Pair<Transaction.TradeAction, BooleanProperty>> tabList = FXCollections.observableArrayList();
+        boolean newSetting = mSetting.getID() < 0;
         for (Transaction.TradeAction ta : Transaction.TradeAction.values()) {
-            tabList.add(new Pair<>(ta, new SimpleBooleanProperty(mSetting.getSelectedTradeActionSet().contains(ta))));
+            tabList.add(new Pair<>(ta, new SimpleBooleanProperty(newSetting
+                    || mSetting.getSelectedTradeActionSet().contains(ta))));
         }
         mTradeActionSelectionTableView.setItems(tabList);
         mTradeActionTableColumn.setCellValueFactory(cellData ->
@@ -582,13 +594,261 @@ public class ReportDialogController {
     private String InvestIncomeReport() {
         String reportStr = "Investment Income Report from "
                 + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
-
-        if (mSetting.getSelectedTradeActionSet().size() == 0) {
+        if (mSetting.getSelectedTradeActionSet().isEmpty()) {
             reportStr += "No TradeAction selected.";
             return reportStr;
         }
 
+        class Income {
+            private BigDecimal divident = BigDecimal.ZERO;
+            private BigDecimal interest = BigDecimal.ZERO;
+            private BigDecimal ltcgdist = BigDecimal.ZERO;
+            private BigDecimal mtcgdist = BigDecimal.ZERO;
+            private BigDecimal stcgdist = BigDecimal.ZERO;
+            private BigDecimal realized = BigDecimal.ZERO;
+            private BigDecimal miscinc = BigDecimal.ZERO;
 
+            BigDecimal total() {
+                return divident.add(interest).add(ltcgdist).add(mtcgdist).add(stcgdist).add(realized).add(miscinc);
+            }
+            Income add(Income addend) {
+                Income i = new Income();
+                i.divident = this.divident.add(addend.divident);
+                i.interest = this.interest.add(addend.interest);
+                i.ltcgdist = this.ltcgdist.add(addend.ltcgdist);
+                i.mtcgdist = this.mtcgdist.add(addend.mtcgdist);
+                i.stcgdist = this.stcgdist.add(addend.stcgdist);
+                i.realized = this.realized.add(addend.realized);
+                i.miscinc = this.miscinc.add(addend.miscinc);
+                return i;
+            }
+        }
+
+        Income fieldUsed = new Income(); // use this to keep track the field being used
+        List<Map<String, Income>> accountSecurityIncomeList = new ArrayList<>();
+        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
+            Map<String, Income> securityIncomeMap = new TreeMap<>();
+            accountSecurityIncomeList.add(securityIncomeMap);
+            Account account = sa.getAccount();
+            for (Transaction t : account.getTransactionList()) {
+                LocalDate tDate = t.getTDate();
+                String sName = t.getSecurityName();
+                if (sName == null || sName.equals(""))
+                    sName = NOSECURITY;
+                if (tDate.isBefore(mSetting.getStartDate()))
+                    continue;
+                if (tDate.isAfter(mSetting.getEndDate()))
+                    break; // we are done with this account
+
+                Income income = securityIncomeMap.get(sName);
+                if (income == null)
+                    income = new Income();
+                switch (t.getTradeAction()) {
+                    case BUY:
+                        break;
+                    case SELL:
+                        fieldUsed.realized = BigDecimal.ONE;
+                        securityIncomeMap.put(sName, income);
+                        break;
+                    case DIV:
+                    case REINVDIV:
+                        fieldUsed.divident = BigDecimal.ONE;
+                        income.divident = income.divident.add(t.getAmount());
+                        securityIncomeMap.put(sName, income);
+                        break;
+                    case INTINC:
+                    case REINVINT:
+                        fieldUsed.interest = BigDecimal.ONE;
+                        income.interest = income.interest.add(t.getAmount());
+                        break;
+                    case CGLONG:
+                    case REINVLG:
+                        fieldUsed.ltcgdist = BigDecimal.ONE;
+                        income.ltcgdist = income.ltcgdist.add(t.getAmount());
+                        break;
+                    case CGMID:
+                    case REINVMD:
+                        fieldUsed.mtcgdist = BigDecimal.ONE;
+                        income.mtcgdist = income.mtcgdist.add(t.getAmount());
+                        break;
+                    case CGSHORT:
+                    case REINVSH:
+                        fieldUsed.stcgdist = BigDecimal.ONE;
+                        income.stcgdist = income.stcgdist.add(t.getAmount());
+                        break;
+                    case STKSPLIT:
+                        break;
+                    case SHRSIN:
+                        break;
+                    case SHRSOUT:
+                        break;
+                    case MISCEXP:
+                        fieldUsed.miscinc = BigDecimal.ONE;
+                        income.miscinc = income.miscinc.subtract(t.getAmount());
+                        break;
+                    case MISCINC:
+                        fieldUsed.miscinc = BigDecimal.ONE;
+                        income.miscinc = income.miscinc.add(t.getAmount());
+                        break;
+                    case RTRNCAP:
+                        break;
+                    case SHTSELL:
+                        break;
+                    case CVTSHRT:
+                        fieldUsed.realized = BigDecimal.ONE;
+                        break;
+                    case MARGINT:
+                    case XFRSHRS:
+                    case XIN:
+                    case XOUT:
+                    case DEPOSIT:
+                    case WITHDRAW:
+                    default:
+                        break;
+                }
+            }
+        }
+
+        class Line {
+            private String sName = "";
+            private String divident = "";
+            private String interest = "";
+            private String ltcgdist = "";
+            private String mtcgdist = "";
+            private String stcgdist = "";
+            private String realized = "";
+            private String miscinc = "";
+            private String total = "";
+
+            // default constructor
+            private Line() {}
+
+            private Line(String sn, Income income, DecimalFormat df) {
+                sName = sn;
+                divident = df.format(income.divident);
+                interest = df.format(income.interest);
+                ltcgdist = df.format(income.ltcgdist);
+                mtcgdist = df.format(income.mtcgdist);
+                stcgdist = df.format(income.stcgdist);
+                realized = df.format(income.realized);
+                miscinc = df.format(income.miscinc);
+                total = df.format(income.total());
+            }
+        }
+
+        int gap = 2;
+        int sNameLen = 10;
+        int dividentLen = 4;
+        int interestLen = 4;
+        int ltcgdistLen = 4;
+        int mtcgdistLen = 4;
+        int stcgdistLen = 4;
+        int realizedLen = 4;
+        int miscincLen = 4;
+        int totalLen = 4;
+
+        final List<Line> lineList = new ArrayList<>();
+        final Line title = new Line();
+        title.divident = "Dividend";
+        title.interest = "Interest";
+        title.ltcgdist = "LT CG Dist.";
+        title.mtcgdist = "MT CG Dist.";
+        title.stcgdist = "ST CG Dist.";
+        title.realized = "Realized CG";
+        title.miscinc = "Misc Inc";
+        title.total = "Total";
+
+        final Line separator0 = new Line();
+        final Line separator1 = new Line();
+        final Line emptyLine = new Line();
+
+        lineList.add(title);
+
+        final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
+        Income totalTotal = new Income();
+        int accountIdx = 0;
+        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
+            final Map<String, Income> securityIncomeMap = accountSecurityIncomeList.get(accountIdx++);
+
+            final Line accountLine = new Line();
+            accountLine.sName = sa.getAccount().getName();
+            lineList.add(separator0);
+            lineList.add(accountLine);
+            lineList.add(separator1);
+            Income accountTotal = new Income();
+            for (String sName : securityIncomeMap.keySet()) {
+                Income income = securityIncomeMap.get(sName);
+                final Line line = new Line(sName, income, dcFormat);
+                accountTotal = accountTotal.add(income);
+                lineList.add(line);
+            }
+
+            lineList.add(separator1);
+            final Line accountTotalLine = new Line(sa.getAccount().getName()+ " Total",
+                    accountTotal, dcFormat);
+
+            totalTotal = totalTotal.add(accountTotal);
+
+            lineList.add(accountTotalLine);
+            lineList.add(emptyLine);
+        }
+
+        if (mSetting.getSelectedAccountList().size() > 1) {
+            lineList.add(separator0);
+            lineList.add(new Line("Total", totalTotal, dcFormat));
+        }
+
+        for (Line line : lineList) {
+            sNameLen = Math.max(sNameLen, line.sName.length());
+            dividentLen = Math.max(dividentLen, line.divident.length());
+            interestLen = Math.max(interestLen, line.interest.length());
+            ltcgdistLen = Math.max(ltcgdistLen, line.ltcgdist.length());
+            mtcgdistLen = Math.max(mtcgdistLen, line.mtcgdist.length());
+            stcgdistLen = Math.max(stcgdistLen, line.stcgdist.length());
+            realizedLen = Math.max(realizedLen, line.realized.length());
+            miscincLen = Math.max(miscincLen, line.miscinc.length());
+            totalLen = Math.max(totalLen, line.total.length());
+        }
+
+        separator0.sName = new String(new char[sNameLen]).replace("\0", "=");
+        separator0.divident = new String(new char[dividentLen+gap]).replace("\0", "=");
+        separator0.interest = new String(new char[interestLen+gap]).replace("\0", "=");
+        separator0.ltcgdist = new String(new char[ltcgdistLen+gap]).replace("\0", "=");
+        separator0.mtcgdist = new String(new char[mtcgdistLen+gap]).replace("\0", "=");
+        separator0.stcgdist = new String(new char[stcgdistLen+gap]).replace("\0", "=");
+        separator0.realized = new String(new char[realizedLen+gap]).replace("\0", "=");
+        separator0.miscinc = new String(new char[miscincLen+gap]).replace("\0", "=");
+        separator0.total = new String(new char[totalLen+gap]).replace("\0", "=");
+
+        separator1.sName = new String(new char[sNameLen]).replace("\0", "-");
+        separator1.divident = new String(new char[dividentLen+gap]).replace("\0", "-");
+        separator1.interest = new String(new char[interestLen+gap]).replace("\0", "-");
+        separator1.ltcgdist = new String(new char[ltcgdistLen+gap]).replace("\0", "-");
+        separator1.mtcgdist = new String(new char[mtcgdistLen+gap]).replace("\0", "-");
+        separator1.stcgdist = new String(new char[stcgdistLen+gap]).replace("\0", "-");
+        separator1.realized = new String(new char[realizedLen+gap]).replace("\0", "-");
+        separator1.miscinc = new String(new char[miscincLen+gap]).replace("\0", "-");
+        separator1.total = new String(new char[totalLen+gap]).replace("\0", "-");
+
+        for (Line l : lineList) {
+            reportStr += String.format("%-" + sNameLen + "s", l.sName);
+            if (!fieldUsed.divident.equals(BigDecimal.ZERO))
+                reportStr +=  String.format("%" + (dividentLen + gap) + "s", l.divident);
+            if (!fieldUsed.interest.equals(BigDecimal.ZERO))
+                reportStr +=  String.format("%" + (interestLen + gap) + "s", l.interest);
+            if (!fieldUsed.ltcgdist.equals(BigDecimal.ZERO))
+                reportStr +=  String.format("%" + (ltcgdistLen + gap) + "s", l.ltcgdist);
+            if (!fieldUsed.mtcgdist.equals(BigDecimal.ZERO))
+                reportStr +=  String.format("%" + (mtcgdistLen + gap) + "s", l.mtcgdist);
+            if (!fieldUsed.stcgdist.equals(BigDecimal.ZERO))
+                reportStr +=  String.format("%" + (stcgdistLen + gap) + "s", l.stcgdist);
+            if (!fieldUsed.realized.equals(BigDecimal.ZERO))
+                reportStr +=  String.format("%" + (realizedLen + gap) + "s", l.realized);
+            if (!fieldUsed.miscinc.equals(BigDecimal.ZERO))
+                reportStr +=  String.format("%" + (miscincLen + gap) + "s", l.miscinc);
+
+            reportStr +=  String.format("%" + (totalLen + gap) + "s\n", l.total);
+        }
         return reportStr;
     }
 
@@ -604,7 +864,7 @@ public class ReportDialogController {
         Set<String> securityNameSet = new HashSet<>();
         for (Integer sid : mSetting.getSelectedSecurityIDSet()) {
             Security security = mMainApp.getSecurityByID(sid);
-            securityNameSet.add(security == null ? null : security.getName());
+            securityNameSet.add(security == null ? NOSECURITY : security.getName());
         }
 
         class Line {
@@ -649,15 +909,15 @@ public class ReportDialogController {
                 if(tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                String sName = t.getSecurityName();
+                String sName = t.getSecurityName() == null ? NOSECURITY : t.getSecurityName();
                 if (securityNameSet.contains(sName)
                         && mSetting.getSelectedTradeActionSet().contains(t.getTradeAction())) {
                     Line line = new Line();
                     line.date = tDate.toString();
                     line.aName = account.getName();
                     line.ta = t.getTradeAction().name();
-                    line.sName = t.getSecurityName();
-                    line.memo = t.getMemo();
+                    line.sName = sName;
+                    line.memo = t.getMemo() == null ? "" : t.getMemo();
                     line.price = t.getPrice() == null ? "" : qpFormat.format(t.getPrice());
                     line.quantity = t.getQuantity() == null ? "" : qpFormat.format(t.getQuantity());
                     BigDecimal comm = t.getCommission();
@@ -698,41 +958,33 @@ public class ReportDialogController {
         int invAmtLen = 10;
 
         for (Line line : lineList) {
-            if (line.aName.length() > aNameLen)
-                aNameLen = line.aName.length();
-            if (line.ta.length() > taLen)
-                taLen = line.ta.length();
-            if (line.sName.length() > sNameLen)
-                sNameLen = line.sName.length();
-            if (line.memo.length() > memoLen)
-                memoLen = line.memo.length();
-            if (line.price.length() > priceLen)
-                priceLen = line.price.length();
-            if (line.quantity.length() > quantityLen)
-                quantityLen = line.quantity.length();
-            if (line.commission.length() > commissionLen)
-                commissionLen = line.commission.length();
-            if (line.cashAmt.length() > cashAmtLen)
-                cashAmtLen = line.cashAmt.length();
-            if (line.invAmt.length() > invAmtLen)
-                invAmtLen = line.invAmt.length();
+            aNameLen = Math.max(line.aName.length(), aNameLen);
+            taLen = Math.max(line.ta.length(), taLen);
+            sNameLen = Math.max(line.sName.length(), sNameLen);
+            memoLen = Math.max(line.memo.length(), memoLen);
+            priceLen = Math.max(line.price.length(), priceLen);
+            quantityLen = Math.max(line.quantity.length(), quantityLen);
+            commissionLen = Math.max(line.commission.length(), commissionLen);
+            cashAmtLen = Math.max(line.cashAmt.length(), cashAmtLen);
+            invAmtLen = Math.max(line.invAmt.length(), invAmtLen);
         }
 
-        final String formatStr = "%=" + dateLen + "s" // left adjust date
-                + "%" + (2+aNameLen) + "s"
-                + "%" + (2+taLen) + "s"
-                + "%" + (2+sNameLen) + "s"
-                + "%" + (2+memoLen) + "s"
-                + "%" + (2+priceLen) + "s"
-                + "%" + (2+quantityLen) + "s"
-                + "%" + (2+commissionLen) + "s"
-                + "%" + (2+cashAmtLen) + "s"
-                + "%" + (2+invAmtLen) + "s"
+        int gap = 2;
+        final String formatStr = "%-" + dateLen + "s" // left adjust date
+                + "%" + (gap+aNameLen) + "s"
+                + "%" + (gap+taLen) + "s"
+                + "%" + (gap+sNameLen) + "s"
+                + "%" + (gap+memoLen) + "s"
+                + "%" + (gap+priceLen) + "s"
+                + "%" + (gap+quantityLen) + "s"
+                + "%" + (gap+commissionLen) + "s"
+                + "%" + (gap+cashAmtLen) + "s"
+                + "%" + (gap+invAmtLen) + "s"
                 + "\n";
 
-        final String separator = new String(new char[dateLen + (2+aNameLen) + (2+taLen) + (2+sNameLen) + (2+memoLen)
-                + (2+priceLen) + (2+quantityLen) + (2+commissionLen) + (2+cashAmtLen) + (2+invAmtLen)])
-                .replace("\0", "=");
+        final String separator = new String(new char[dateLen + (gap+aNameLen) + (gap+taLen) + (gap+sNameLen)
+                + (gap+memoLen) + (gap+priceLen) + (gap+quantityLen) + (gap+commissionLen) + (gap+cashAmtLen)
+                + (gap+invAmtLen)]).replace("\0", "=");
         reportStr += separator + "\n";
         for (int i = 0; i < lineList.size(); i++) {
             Line l = lineList.get(i);
@@ -827,6 +1079,7 @@ public class ReportDialogController {
         total.amount = dcFormat.format(totalAmount);
         lineList.add(total);
 
+        int gap = 2;
         int dateLen = 11;
         int aNameLen = 12;
         int numLen = 6;
@@ -844,15 +1097,15 @@ public class ReportDialogController {
         }
 
         final String formatStr = "%-" + dateLen + "s" // left adjust date
-                + "%" + (2+aNameLen) + "s"
-                + "%" + (2+numLen) + "s"
-                + "%" + (2+descLen) + "s"
-                + "%" + (2+memoLen) + "s"
-                + "%" + (2+categoryLen) + "s"
-                + "%" + (2+amountLen) + "s"
+                + "%" + (gap+aNameLen) + "s"
+                + "%" + (gap+numLen) + "s"
+                + "%" + (gap+descLen) + "s"
+                + "%" + (gap+memoLen) + "s"
+                + "%" + (gap+categoryLen) + "s"
+                + "%" + (gap+amountLen) + "s"
                 + "\n";
-        final String separator = new String(new char[dateLen + (2+aNameLen) + (2+numLen) + (2+descLen)
-               + (2+memoLen) + (2+categoryLen)+ (2+amountLen)]).replace("\0", "=");
+        final String separator = new String(new char[dateLen + (gap+aNameLen) + (gap+numLen) + (gap+descLen)
+               + (gap+memoLen) + (gap+categoryLen)+ (gap+amountLen)]).replace("\0", "=");
         for (int i = 0; i < lineList.size(); i++) {
             Line l = lineList.get(i);
             reportStr += String.format(formatStr, l.date, l.aName, l.num, l.desc, l.memo, l.category, l.amount);

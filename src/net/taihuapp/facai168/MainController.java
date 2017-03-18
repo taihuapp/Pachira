@@ -163,7 +163,7 @@ public class MainController {
 
     @FXML
     private void handleInvestingIncome() {
-        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTTRANS));
+        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTINCOME));
         updateSavedReportsMenu();
     }
 

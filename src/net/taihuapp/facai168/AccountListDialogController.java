@@ -197,23 +197,23 @@ public class AccountListDialogController {
             tableView.getColumns().add(accountHiddenFlagTableColumn);
 
             // add a selection change listener to the table
-            tableView.getSelectionModel().selectedItemProperty().addListener((ob, ov, nv) -> {
+            tableView.getSelectionModel().selectedIndexProperty().addListener((ob, ov, nv) -> {
                 // is it possible nv is null?
                 mEditButton.setDisable(nv == null); // if we have a selection, edit and unhide should be enabled
 
                 // disable move up button if
                 // 1) nv is null or at the top (selectedIdx <= 0)
                 // 2) nv is with different type from the account above it
-                int selectedIdx = tableView.getSelectionModel().getSelectedIndex();
                 int numberOfRows = tableView.getItems().size();
-                mMoveUpButton.setDisable(nv == null || selectedIdx == 0
-                        || nv.getType() != tableView.getItems().get(selectedIdx-1).getType());
+                Account newAccount = tableView.getItems().get((int) nv);
+                mMoveUpButton.setDisable((nv == null) || (nv.intValue() == 0)
+                        || (newAccount.getType() != tableView.getItems().get(nv.intValue() - 1).getType()));
 
                 // disable move down button if
                 // 1) nv is null or at the bottom (selectedIdx < 0 || selectedIdx > numberOfRows)
                 // 2) nv is with different type from the account below it
-                mMoveDownButton.setDisable(nv == null || selectedIdx == numberOfRows-1
-                        || nv.getType() != tableView.getItems().get(selectedIdx+1).getType());
+                mMoveDownButton.setDisable((nv == null) || (nv.intValue() == (numberOfRows - 1))
+                        || (newAccount.getType() != tableView.getItems().get(nv.intValue() + 1).getType()));
             });
 
             // add the borderPane to tab

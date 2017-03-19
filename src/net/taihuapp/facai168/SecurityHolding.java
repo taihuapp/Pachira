@@ -87,7 +87,7 @@ public class SecurityHolding extends LotHolding {
     }
 
     static class MatchInfo {
-        private final int mTransactionID;
+        private int mTransactionID;
         private final int mMatchTransactionID;
         private final BigDecimal mMatchQuantity;  // always positive
 
@@ -96,6 +96,9 @@ public class SecurityHolding extends LotHolding {
             mMatchTransactionID = mid;
             mMatchQuantity = q;
         }
+
+        // we need a setting for mTransactionID
+        void setTransactionID(int id) { mTransactionID = id; }
 
         // getters
         int getTransactionID() { return mTransactionID; }

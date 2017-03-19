@@ -1819,12 +1819,13 @@ public class MainApp extends Application {
         }
     }
 
-    // update HoldingsList to date but exclude transaction exTid
+    // update HoldingsList to date but exclude transaction exTid and after.
     // an list of cash and total is returned if the account is not an investing account
     List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
         // empty the list first
         List<SecurityHolding> securityHoldingList = new ArrayList<>();
         if (account.getType() != Account.Type.INVESTING) {
+            // deal with non investing account here
             BigDecimal totalCash = null;
             int n = account.getTransactionList().size();
             if (n == 0) {
@@ -1832,7 +1833,7 @@ public class MainApp extends Application {
             } else {
                 for (int i = 0; i < account.getTransactionList().size(); i++) {
                     Transaction t = account.getTransactionList().get(i);
-                    if (t.getTDate().isAfter(date)) {
+                    if (t.getTDate().isAfter(date) || t.getID() == exTid) {
                         if (i == 0) {
                             // all transaction are after given date, balance is zero
                             totalCash = BigDecimal.ZERO;
@@ -1868,6 +1869,16 @@ public class MainApp extends Application {
             return securityHoldingList;
         }
 
+        // deal with Investing account here
+        ObservableList<Transaction> tList = FXCollections.observableArrayList();
+        for (int i = 0; i < account.getTransactionList().size(); i++) {
+            // copy over the transactions we are interested
+            Transaction t = account.getTransactionList().get(i);
+            if (t.getTDate().isAfter(date) || t.getID() == exTid)
+                break;
+            tList.add(t);
+        }
+
         BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
         Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
@@ -1875,29 +1886,23 @@ public class MainApp extends Application {
         // sort the transaction list first
         // we want to sort the transactions by dates first, then by TradeAction, in which we want to put
         // SELL and CVSHRT at the end in case the transaction is closing the positions opened on the same date
-        SortedList<Transaction> sortedTransactionList = new SortedList<>(account.getTransactionList(),
-                (o1, o2) -> {
-                    // first compare dates
-                    int dateComparison = o1.getTDate().compareTo(o2.getTDate());
-                    if (dateComparison != 0)
-                        return dateComparison;
+        SortedList<Transaction> sortedTransactionList = new SortedList<>(tList, (o1, o2) -> {
+            // first compare dates
+            int dateComparison = o1.getTDate().compareTo(o2.getTDate());
+            if (dateComparison != 0)
+                return dateComparison;
 
-                    // compare TradeAction if dates are the same
-                    // we want to have SELL and CVTSHRT at the end
-                    if (o1.getTradeAction() == SELL || o1.getTradeAction() == CVTSHRT)
-                        return (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT) ? 0 : 1;
-                    if (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT)
-                        return -1;
-                    return o1.getTradeAction().compareTo(o2.getTradeAction());
-                });
+            // compare TradeAction if dates are the same
+            // we want to have SELL and CVTSHRT at the end
+            if (o1.getTradeAction() == SELL || o1.getTradeAction() == CVTSHRT)
+                return (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT) ? 0 : 1;
+            if (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT)
+                return -1;
+            return o1.getTradeAction().compareTo(o2.getTradeAction());
+        });
 
         for (Transaction t : sortedTransactionList) {
-            if (t.getTDate().isAfter(date))
-                break; // we are done
-
             int tid = t.getID();
-            if (tid == exTid)
-                continue;  // exclude exTid from the holdings list
 
             totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHolding.CURRENCYDECIMALLEN,
                     RoundingMode.HALF_UP));
@@ -2890,6 +2895,56 @@ public class MainApp extends Application {
             e = e.getNextException();
         }
         return s;
+    }
+
+    // take a Transaction input (with SELL or CVTSHRT), compute the realize gain
+    BigDecimal calcRealizedGain(Transaction transaction) {
+        Transaction.TradeAction ta = transaction.getTradeAction();
+        if (!ta.equals(SELL) && !ta.equals(CVTSHRT))
+            return BigDecimal.ZERO;
+
+        BigDecimal costBasis = BigDecimal.ZERO;
+        BigDecimal matchQ = BigDecimal.ZERO;
+        int scale = transaction.getAmount().scale();
+        List<SecurityHolding.MatchInfo> matchInfoList = getMatchInfoList(transaction.getID());
+        if (matchInfoList.size() == 0) {
+            // didn't have specific lots, use FIFO
+            Account account = getAccountByID(transaction.getAccountID());
+            List<SecurityHolding> securityHoldingList = updateAccountSecurityHoldingList(account,
+                    transaction.getTDate(), transaction.getID());
+            for (SecurityHolding sh : securityHoldingList) {
+                if (sh.getSecurityName().equals(transaction.getSecurityName())) {
+                    // we found the right security holding
+                    BigDecimal remainQ = transaction.getQuantity();
+                    for (SecurityHolding.LotInfo li : sh.getLotInfoList()) {
+                        if (li.getQuantity().compareTo(remainQ) <= 0) {
+                            costBasis = costBasis.add(li.getCostBasis());
+                            remainQ = remainQ.subtract(li.getQuantity());
+                        } else {
+                            costBasis = costBasis.add(li.getCostBasis().multiply(remainQ)
+                                    .divide(li.getQuantity(), scale, RoundingMode.HALF_UP));
+                            remainQ = BigDecimal.ZERO;
+                        }
+                        if (remainQ.compareTo(BigDecimal.ZERO) == 0)
+                            return transaction.getAmount().subtract(costBasis);
+                    }
+                }
+            }
+
+            return null; // something wrong, we shouldn't be here
+        } else {
+            for (SecurityHolding.MatchInfo mi : matchInfoList) {
+                Transaction matchTransaction = getTransactionByID(mi.getMatchTransactionID());
+                costBasis = costBasis.add(matchTransaction.getCostBasis().multiply(mi.getMatchQuantity())
+                        .divide(matchTransaction.getQuantity(), scale, RoundingMode.HALF_UP));
+                matchQ = matchQ.add(mi.getMatchQuantity());
+            }
+
+            if (matchQ.compareTo(transaction.getQuantity()) != 0) {
+                return null;
+            }
+        }
+        return transaction.getAmount().subtract(costBasis);
     }
 
     // init the main layout

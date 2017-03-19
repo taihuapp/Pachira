@@ -289,6 +289,11 @@ public class EditTransactionDialogController {
         }
         mTransaction.setID(tid); // save tid for later
 
+        // for new transactions, tid in elements of mMatchInfoList is -1, need to update
+        for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+            mi.setTransactionID(tid);
+        }
+
         mMainApp.putMatchInfoList(mMatchInfoList);
         if (linkedTransaction != null) {
             linkedTransaction.setMatchID(tid, 0);

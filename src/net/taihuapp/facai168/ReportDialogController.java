@@ -624,6 +624,7 @@ public class ReportDialogController {
             }
         }
 
+        final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
         Income fieldUsed = new Income(); // use this to keep track the field being used
         List<Map<String, Income>> accountSecurityIncomeList = new ArrayList<>();
         for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
@@ -647,14 +648,27 @@ public class ReportDialogController {
                     case BUY:
                         break;
                     case SELL:
+                    case CVTSHRT:
                         fieldUsed.realized = BigDecimal.ONE;
                         securityIncomeMap.put(sName, income);
+                        BigDecimal realized = mMainApp.calcRealizedGain(t);
+                        if (realized == null) {
+                            reportStr += ("**********************\n"
+                                    +     "* Lot Matching Error *\n"
+                                    +     "* Account:  " + account.getName() + "\n"
+                                    +     "* Date:     " + t.getTDate() + "\n"
+                                    +     "* Security: " + t.getSecurityName() + "\n"
+                                    +     "* Action:   " + t.getTradeAction().name() + "\n"
+                                    +     "* Quantity: " + qpFormat.format(t.getQuantity()) + "\n");
+                            return reportStr;
+                        }
+                        income.realized = income.realized.add(mMainApp.calcRealizedGain(t));
                         break;
                     case DIV:
                     case REINVDIV:
                         fieldUsed.divident = BigDecimal.ONE;
-                        income.divident = income.divident.add(t.getAmount());
                         securityIncomeMap.put(sName, income);
+                        income.divident = income.divident.add(t.getAmount());
                         break;
                     case INTINC:
                     case REINVINT:
@@ -693,9 +707,6 @@ public class ReportDialogController {
                     case RTRNCAP:
                         break;
                     case SHTSELL:
-                        break;
-                    case CVTSHRT:
-                        fieldUsed.realized = BigDecimal.ONE;
                         break;
                     case MARGINT:
                     case XFRSHRS:
@@ -832,19 +843,19 @@ public class ReportDialogController {
 
         for (Line l : lineList) {
             reportStr += String.format("%-" + sNameLen + "s", l.sName);
-            if (!fieldUsed.divident.equals(BigDecimal.ZERO))
+            if (fieldUsed.divident.compareTo(BigDecimal.ZERO) != 0)
                 reportStr +=  String.format("%" + (dividentLen + gap) + "s", l.divident);
-            if (!fieldUsed.interest.equals(BigDecimal.ZERO))
+            if (fieldUsed.interest.compareTo(BigDecimal.ZERO) != 0)
                 reportStr +=  String.format("%" + (interestLen + gap) + "s", l.interest);
-            if (!fieldUsed.ltcgdist.equals(BigDecimal.ZERO))
+            if (fieldUsed.ltcgdist.compareTo(BigDecimal.ZERO) != 0)
                 reportStr +=  String.format("%" + (ltcgdistLen + gap) + "s", l.ltcgdist);
-            if (!fieldUsed.mtcgdist.equals(BigDecimal.ZERO))
+            if (fieldUsed.mtcgdist.compareTo(BigDecimal.ZERO) != 0)
                 reportStr +=  String.format("%" + (mtcgdistLen + gap) + "s", l.mtcgdist);
-            if (!fieldUsed.stcgdist.equals(BigDecimal.ZERO))
+            if (fieldUsed.stcgdist.compareTo(BigDecimal.ZERO) != 0)
                 reportStr +=  String.format("%" + (stcgdistLen + gap) + "s", l.stcgdist);
-            if (!fieldUsed.realized.equals(BigDecimal.ZERO))
+            if (fieldUsed.realized.compareTo(BigDecimal.ZERO) != 0)
                 reportStr +=  String.format("%" + (realizedLen + gap) + "s", l.realized);
-            if (!fieldUsed.miscinc.equals(BigDecimal.ZERO))
+            if (fieldUsed.miscinc.compareTo(BigDecimal.ZERO) != 0)
                 reportStr +=  String.format("%" + (miscincLen + gap) + "s", l.miscinc);
 
             reportStr +=  String.format("%" + (totalLen + gap) + "s\n", l.total);

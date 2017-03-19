@@ -11,6 +11,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -283,9 +284,9 @@ public class ReportDialogController {
         mDatePeriodChoiceBox.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
             mSetting.setDatePeriod(nv);
             mStartDatePicker.setDisable(nv != DatePeriod.CUSTOMPERIOD);
-            mStartDatePicker.setValue(mapDatePeriod(nv).getFirst());
+            mStartDatePicker.setValue(mapDatePeriod(nv).getKey());
             mEndDatePicker.setDisable(nv != DatePeriod.CUSTOMPERIOD && nv != DatePeriod.CUSTOMDATE);
-            mEndDatePicker.setValue(mapDatePeriod(nv).getSecond());
+            mEndDatePicker.setValue(mapDatePeriod(nv).getValue());
         });
 
         mFrequencyChoiceBox.getItems().setAll(Frequency.values());
@@ -358,8 +359,8 @@ public class ReportDialogController {
         }
         mCategorySelectionTableView.setItems(sibList);
         mCategoryTableColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getFirst().getFirst()));
-        mCategorySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getSecond());
+                new SimpleStringProperty(cellData.getValue().getKey().getKey()));
+        mCategorySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
         mCategorySelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mCategorySelectedTableColumn));
         mCategorySelectedTableColumn.setEditable(true);
     }
@@ -376,8 +377,8 @@ public class ReportDialogController {
         }
         mSecuritySelectionTableView.setItems(sibList);
         mSecurityTableColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getFirst().getFirst()));
-        mSecuritySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getSecond());
+                new SimpleStringProperty(cellData.getValue().getKey().getKey()));
+        mSecuritySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
         mSecuritySelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mSecuritySelectedTableColumn));
         mSecuritySelectedTableColumn.setEditable(true);
     }
@@ -391,8 +392,8 @@ public class ReportDialogController {
         }
         mTradeActionSelectionTableView.setItems(tabList);
         mTradeActionTableColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getFirst().name()));
-        mTradeActionSelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getSecond());
+                new SimpleStringProperty(cellData.getValue().getKey().name()));
+        mTradeActionSelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
         mTradeActionSelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mTradeActionSelectedTableColumn));
         mTradeActionSelectedTableColumn.setEditable(true);
     }
@@ -449,13 +450,13 @@ public class ReportDialogController {
         Tab currentTab = mTabPane.getSelectionModel().getSelectedItem();
         if (currentTab.equals(mCategoriesTab)) {
             for (Pair<Pair<String, Integer>, BooleanProperty> cib : mCategorySelectionTableView.getItems())
-                cib.getSecond().set(selected);
+                cib.getValue().set(selected);
         } else if (currentTab.equals(mSecuritiesTab)) {
             for (Pair<Pair<String, Integer>, BooleanProperty> sib : mSecuritySelectionTableView.getItems())
-                sib.getSecond().set(selected);
+                sib.getValue().set(selected);
         } else if (currentTab.equals(mTradeActionTab)) {
             for (Pair<Transaction.TradeAction, BooleanProperty> tab : mTradeActionSelectionTableView.getItems())
-                tab.getSecond().set(selected);
+                tab.getValue().set(selected);
         } else
             System.out.println("Other tab?");
     }
@@ -527,24 +528,24 @@ public class ReportDialogController {
             // handle category selection
             mSetting.getSelectedCategoryIDSet().clear();
             for (Pair<Pair<String, Integer>, BooleanProperty> sib : mCategorySelectionTableView.getItems()) {
-                if (sib.getSecond().get())
-                    mSetting.getSelectedCategoryIDSet().add(sib.getFirst().getSecond());
+                if (sib.getValue().get())
+                    mSetting.getSelectedCategoryIDSet().add(sib.getKey().getValue());
             }
         }
 
         if (!mSecuritiesTab.isDisable()) {
             mSetting.getSelectedSecurityIDSet().clear();
             for (Pair<Pair<String, Integer>, BooleanProperty> sib : mSecuritySelectionTableView.getItems()) {
-                if (sib.getSecond().get())
-                    mSetting.getSelectedSecurityIDSet().add(sib.getFirst().getSecond());
+                if (sib.getValue().get())
+                    mSetting.getSelectedSecurityIDSet().add(sib.getKey().getValue());
             }
         }
 
         if (!mTradeActionTab.isDisable()) {
             mSetting.getSelectedTradeActionSet().clear();
             for (Pair<Transaction.TradeAction, BooleanProperty> tb : mTradeActionSelectionTableView.getItems()) {
-                if (tb.getSecond().get())
-                    mSetting.getSelectedTradeActionSet().add(tb.getFirst());
+                if (tb.getValue().get())
+                    mSetting.getSelectedTradeActionSet().add(tb.getKey());
             }
         }
     }
@@ -1221,15 +1222,15 @@ public class ReportDialogController {
                 endDate = today;
                 break;
             case MONTHTODATE:
-                startDate = mapDatePeriod(DatePeriod.LASTEOM).getFirst().plusDays(1);
+                startDate = mapDatePeriod(DatePeriod.LASTEOM).getKey().plusDays(1);
                 endDate = today;
                 break;
             case QUARTERTODATE:
-                startDate = mapDatePeriod(DatePeriod.LASTEOQ).getFirst().plusDays(1);
+                startDate = mapDatePeriod(DatePeriod.LASTEOQ).getKey().plusDays(1);
                 endDate = today;
                 break;
             case YEARTODATE:
-                startDate = mapDatePeriod(DatePeriod.LASTEOY).getFirst().plusDays(1);
+                startDate = mapDatePeriod(DatePeriod.LASTEOY).getKey().plusDays(1);
                 endDate = today;
                 break;
             case EPOCHTODATE:
@@ -1237,11 +1238,11 @@ public class ReportDialogController {
                 endDate = today;
                 break;
             case LASTWEEK:
-                startDate = mapDatePeriod(DatePeriod.WEEKTODATE).getFirst().minusDays(7);
+                startDate = mapDatePeriod(DatePeriod.WEEKTODATE).getKey().minusDays(7);
                 endDate = startDate.plusDays(6);
                 break;
             case LASTMONTH:
-                endDate = mapDatePeriod(DatePeriod.LASTEOM).getFirst();
+                endDate = mapDatePeriod(DatePeriod.LASTEOM).getKey();
                 startDate = endDate.minusDays(endDate.getDayOfMonth()-1);
                 break;
             case LASTQUARTER:

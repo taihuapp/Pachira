@@ -28,8 +28,6 @@ public class AccountListDialogController {
     private Button mMoveUpButton;
     @FXML
     private Button mMoveDownButton;
-    @FXML
-    private Button mUnhideButton;
 
     @FXML
     private void handleNew() {
@@ -108,7 +106,6 @@ public class AccountListDialogController {
             return;  // is this necessary?
         // working on the account in mMainApp.mAccountList
         account.setHiddenFlag(!account.getHiddenFlag());
-        mUnhideButton.setText(account.getHiddenFlag() ? "Unhide" : "Hide");
         mMainApp.insertUpdateAccountToDB(account);
     }
 
@@ -146,7 +143,7 @@ public class AccountListDialogController {
             }
 
             tableView.setItems(mMainApp.getAccountList(t, null, true)); // hidden accounts should be shown here
-
+            tableView.setEditable(true);
             TableColumn<Account, String> accountNameTableColumn = new TableColumn<>("Name");
             accountNameTableColumn.setCellValueFactory(cellData -> cellData.getValue().getNameProperty());
 
@@ -172,6 +169,7 @@ public class AccountListDialogController {
                 }
             });
             TableColumn<Account, Boolean> accountHiddenFlagTableColumn = new TableColumn<>("Hidden");
+            accountHiddenFlagTableColumn.setEditable(true);
             accountHiddenFlagTableColumn.setCellValueFactory(cellData -> cellData.getValue().getHiddenFlagProperty());
             accountHiddenFlagTableColumn.setCellFactory(c -> new CheckBoxTableCell<>());
 
@@ -202,9 +200,6 @@ public class AccountListDialogController {
             tableView.getSelectionModel().selectedItemProperty().addListener((ob, ov, nv) -> {
                 // is it possible nv is null?
                 mEditButton.setDisable(nv == null); // if we have a selection, edit and unhide should be enabled
-                mUnhideButton.setDisable(nv == null);
-                if (nv != null)
-                    mUnhideButton.setText(nv.getHiddenFlag() ? "Unhide" : "Hide");
 
                 // disable move up button if
                 // 1) nv is null or at the top (selectedIdx <= 0)
@@ -235,7 +230,6 @@ public class AccountListDialogController {
                 mEditButton.setDisable(true);
                 mMoveUpButton.setDisable(true);
                 mMoveDownButton.setDisable(true);
-                mUnhideButton.setDisable(true);
                 return;
             }
             @SuppressWarnings("unchecked")
@@ -246,9 +240,6 @@ public class AccountListDialogController {
                     null : tableView.getSelectionModel().getSelectedItem();
 
             mEditButton.setDisable(nv == null); // if we have a selection, edit and unhide should be enabled
-            mUnhideButton.setDisable(nv == null);
-            if (nv != null)
-                mUnhideButton.setText(nv.getHiddenFlag() ? "Unhide" : "Hide");
 
             // disable move up button if
             // 1) nv is null or at the top (selectedIdx <= 0)
@@ -267,7 +258,6 @@ public class AccountListDialogController {
         mEditButton.setDisable(true);
         mMoveUpButton.setDisable(true);
         mMoveDownButton.setDisable(true);
-        mUnhideButton.setDisable(true);
     }
 
     void close() { mDialogStage.close(); }

@@ -310,11 +310,13 @@ public class EditTransactionDialogController {
             LocalDate date = dbCopyT.getTDate();
             // update price table
             mMainApp.insertUpdatePriceToDB(securityID, date, dbCopyT.getPrice(), 0);
+            // price changed for this security, let's update balances for all account has this security
             mMainApp.updateAccountBalance(security);
-        } else {
-            // update account Balance now
-            mMainApp.updateAccountBalance(dbCopyT.getAccountID());
         }
+
+        // This security might be new in this account, which means this account balance was
+        // not updated in updateAccountBaance(security), let's make sure it is updated now
+        mMainApp.updateAccountBalance(dbCopyT.getAccountID());
 
         if (xferAID > MainApp.MIN_ACCOUNT_ID)
             mMainApp.updateAccountBalance(xferAID);
@@ -533,7 +535,7 @@ public class EditTransactionDialogController {
                 mPriceTextField.setEditable(false);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
-                mSpecifyLotButton.setVisible(false);
+                mSpecifyLotButton.setVisible(tradeAction == CVTSHRT);
                 mTransferAccountLabel.setVisible(true);
                 mTransferAccountComboBox.setVisible(true);
                 mADatePickerLabel.setVisible(false);

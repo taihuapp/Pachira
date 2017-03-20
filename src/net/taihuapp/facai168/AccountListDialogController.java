@@ -10,6 +10,8 @@ import javafx.util.StringConverter;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by ghe on 9/13/16.
@@ -123,9 +125,10 @@ public class AccountListDialogController {
 
         // first make sure all account display order is set properly
         for (Account.Type t : Account.Type.values()) {
-            final SortedList<Account> sortedAccountList = mMainApp.getAccountList(t, null, true);
-            for (int i = 0; i < sortedAccountList.size(); i++) {
-                Account a = sortedAccountList.get(i);
+            final List<Account> accountList = new ArrayList<>();
+            accountList.addAll(mMainApp.getAccountList(t, null, true));
+            for (int i = 0; i < accountList.size(); i++) {
+                Account a = accountList.get(i);
                 if (a.getDisplayOrder() != i) {
                     a.setDisplayOrder(i);
                     mMainApp.insertUpdateAccountToDB(a); // save to DB

@@ -1,7 +1,6 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.property.SimpleStringProperty;
-import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
@@ -157,15 +156,16 @@ public class AccountListDialogController {
             // 1) nv is null or at the top (selectedIdx <= 0)
             // 2) nv is with different type from the account above it
             int numberOfRows = mAccountTableView.getItems().size();
-            Account newAccount = mAccountTableView.getItems().get((int) nv);
-            mMoveUpButton.setDisable((nv == null) || (nv.intValue() == 0)
+            Account newAccount = (nv == null || nv.intValue() < 0 || nv.intValue() >= numberOfRows) ?
+                    null : mAccountTableView.getItems().get(nv.intValue());
+            mMoveUpButton.setDisable((nv == null) || (nv.intValue() == 0) || (newAccount == null)
                     || (newAccount.getType() != mAccountTableView.getItems().get(nv.intValue() - 1).getType()));
 
             // disable move down button if
             // 1) nv is null or at the bottom (selectedIdx < 0 || selectedIdx > numberOfRows)
             // 2) nv is with different type from the account below it
-            mMoveDownButton.setDisable((nv == null) || (nv.intValue() == (numberOfRows - 1))
-                    || (newAccount.getType() != mAccountTableView.getItems().get(nv.intValue() + 1).getType()));
+            mMoveDownButton.setDisable((nv == null) || (nv.intValue() == (numberOfRows-1))  || (newAccount == null)
+                    || (newAccount.getType() != mAccountTableView.getItems().get(nv.intValue()+1).getType()));
         });
 
         mAccountNameTableColumn.setCellValueFactory(cellData -> cellData.getValue().getNameProperty());

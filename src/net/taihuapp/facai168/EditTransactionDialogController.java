@@ -363,7 +363,7 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleSpecifyLots() {
-        mMainApp.showSpecifyLotsDialog(mTransaction, mMatchInfoList);
+        mMainApp.showSpecifyLotsDialog(mDialogStage, mTransaction, mMatchInfoList);
     }
 
     @FXML
@@ -706,8 +706,11 @@ public class EditTransactionDialogController {
                             || mTransaction.getQuantity().signum() == 0 || mTransaction.getCommission() == null)
                         return null;
 
+                    if (tradeAction == SELL || tradeAction == SHTSELL)
+                        return mTransaction.getAmount().add(mTransaction.getCommission())
+                                .divide(mTransaction.getQuantity(), MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                     return mTransaction.getAmount().subtract(mTransaction.getCommission())
-                            .divide(mTransaction.getQuantity(), 6, RoundingMode.HALF_UP);
+                            .divide(mTransaction.getQuantity(), MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                 }
             };
             mTransaction.getPriceProperty().bind(price);

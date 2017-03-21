@@ -51,7 +51,6 @@ public class SpecifyLotsDialogController {
         }
     }
 
-    private MainApp mMainApp;
     private Transaction mTransaction;
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
     private Stage mDialogStage;
@@ -146,22 +145,28 @@ public class SpecifyLotsDialogController {
 
     void setMainApp(MainApp mainApp, Transaction t,
                     List<SecurityHolding.MatchInfo> matchInfoList, Stage stage) {
-        mMainApp = mainApp;
         mMatchInfoList = matchInfoList;  // a link point to the input list
         mTransaction = t;
         mDialogStage = stage;
 
-        String actionWord = "sold";
-        mMainLabel0.setText("" + mTransaction.getQuantity() + " shares of "
-                + mTransaction.getSecurityName() + " " + actionWord
-                + " at " + mTransaction.getPrice() + "/share");
-        mMainLabel1.setText("Please select share(s) to be " + actionWord);
+        if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
+            mMainLabel0.setText("" + mTransaction.getQuantity() + " shares of "
+                    + mTransaction.getSecurityName() + " sold at "
+                    + mTransaction.getPrice() + " per share");
+            mMainLabel1.setText("Please select share(s) to be sold");
+        } else {
+            // should be CVTSHRT
+            mMainLabel0.setText("" + mTransaction.getQuantity() + " shares of "
+                    + mTransaction.getSecurityName() + " bought at "
+                    + mTransaction.getPrice() + " per share");
+            mMainLabel1.setText("Please select share(s) to be covered");
+        }
         mTotalSharesLabel.setText(""+mTransaction.getQuantity());
 
-        mMainApp.setCurrentAccountSecurityHoldingList(mTransaction.getTDate(), t.getID());
+        mainApp.setCurrentAccountSecurityHoldingList(mTransaction.getTDate(), t.getID());
 
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
-        for (SecurityHolding s : mMainApp.getSecurityHoldingList()) {
+        for (SecurityHolding s : mainApp.getSecurityHoldingList()) {
             if (s.getSecurityName().equals(mTransaction.getSecurityName())) {
                 // we found the right security
                 for (SecurityHolding.LotInfo sl : s.getLotInfoList()) {
@@ -193,7 +198,7 @@ public class SpecifyLotsDialogController {
         mDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
         mTypeColumn.setCellValueFactory(cellData->cellData.getValue().getTradeActionProperty());
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
-        mQuantityColumn.setCellValueFactory(cellData->cellData.getValue().getQuantityProperty());
+        mQuantityColumn.setCellValueFactory(cellData->new SimpleObjectProperty<>(cellData.getValue().getQuantity().abs()));
         mSelectedColumn.setCellValueFactory(cellData->cellData.getValue().getSelectedSharesProperty());
         mPNLColumn.setCellValueFactory(cellData->cellData.getValue().getRealizedPNLProperty());
 

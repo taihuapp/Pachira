@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
+<?import java.lang.*?>
+<?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.SpecifyLotsDialogController">
    <bottom>
       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
@@ -16,8 +18,14 @@
    <top>
       <VBox prefHeight="51.0" prefWidth="600.0" BorderPane.alignment="CENTER">
          <children>
-            <Label fx:id="mMainLabel0" text="Label" />
-            <Label fx:id="mMainLabel1" text="Label" />
+            <Label fx:id="mMainLabel0" text="Label">
+               <VBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </VBox.margin></Label>
+            <Label fx:id="mMainLabel1" text="Label">
+               <VBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </VBox.margin></Label>
          </children>
       </VBox>
    </top>
@@ -42,6 +50,9 @@
                   <TableColumn fx:id="mSelectedColumn" text="Selected" />
                   <TableColumn fx:id="mPNLColumn" prefWidth="130.0" text="P&amp;L" />
               </columns>
+               <GridPane.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </GridPane.margin>
             </TableView>
             <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">
               <columnConstraints>
@@ -56,15 +67,42 @@
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
               </rowConstraints>
                <children>
-                  <Label text="Total:" GridPane.rowIndex="1" />
-                  <Label text="Selected:" GridPane.rowIndex="2" />
-                  <Label text="Shares" GridPane.columnIndex="1" />
-                  <Label text="Remaining:" GridPane.rowIndex="3" />
-                  <Label text="P&amp;L" GridPane.columnIndex="2" />
-                  <Label fx:id="mTotalSharesLabel" text="Label" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                  <Label fx:id="mSelectedSharesLabel" text="Label" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                  <Label fx:id="mRemainingSharesLabel" text="Label" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                  <Label fx:id="mPNLLabel" text="Label" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                  <Label text="Total:" GridPane.rowIndex="1">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label text="Selected:" GridPane.rowIndex="2">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label text="Shares" GridPane.columnIndex="1">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label text="Remaining:" GridPane.rowIndex="3">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label text="P&amp;L" GridPane.columnIndex="2">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label fx:id="mTotalSharesLabel" text="Label" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label fx:id="mSelectedSharesLabel" text="Label" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label fx:id="mRemainingSharesLabel" text="Label" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
+                  <Label fx:id="mPNLLabel" text="Label" GridPane.columnIndex="2" GridPane.rowIndex="2">
+                     <GridPane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </GridPane.margin></Label>
                </children>
                <GridPane.margin>
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />

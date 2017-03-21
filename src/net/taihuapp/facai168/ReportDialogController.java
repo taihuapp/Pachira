@@ -663,7 +663,7 @@ public class ReportDialogController {
                                     +     "* Quantity: " + qpFormat.format(t.getQuantity()) + "\n");
                             return reportStr;
                         }
-                        income.realized = income.realized.add(mMainApp.calcRealizedGain(t));
+                        income.realized = income.realized.add(realized);
                         break;
                     case DIV:
                     case REINVDIV:

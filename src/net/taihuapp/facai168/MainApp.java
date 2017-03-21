@@ -72,11 +72,12 @@ public class MainApp extends Application {
     private static int AMORTLINELEN = 32;
 
     private static final int PRICE_TOTAL_LEN = 20;
-    final static int PRICE_FRACTION_LEN = 8;
+    static final int PRICE_FRACTION_LEN = 8;
+    static final int PRICE_FRACTION_DISP_LEN = 6;
 
     private static final int QUANTITY_TOTAL_LEN = 20;
     static final int QUANTITY_FRACTION_LEN = 8;
-
+    static final int QUANTITY_FRACTION_DISP_LEN = 6;
 
     // Category And Transfer Account are often shared as the following:
     // String     #    Meaning
@@ -2088,7 +2089,7 @@ public class MainApp extends Application {
         }
     }
 
-    void showSpecifyLotsDialog(Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
+    void showSpecifyLotsDialog(Stage parent, Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("SpecifyLotsDialog.fxml"));
@@ -2096,7 +2097,7 @@ public class MainApp extends Application {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Specify Lots...");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.initOwner(parent);
             dialogStage.setScene(new Scene(loader.load()));
             SpecifyLotsDialogController controller = loader.getController();
             controller.setMainApp(this, t, matchInfoList, dialogStage);
@@ -2825,7 +2826,7 @@ public class MainApp extends Application {
         sqlCmd = "create table LOTMATCH ("
                 + "TransID integer NOT NULL, "
                 + "MatchID integer NOT NULL, "
-                + "MatchQuantity decimal(20,6), "
+                + "MatchQuantity decimal(" + QUANTITY_TOTAL_LEN + ","  + QUANTITY_FRACTION_LEN + "), "
                 + "Constraint UniquePair unique (TransID, MatchID));";
         sqlCreateTable(sqlCmd);
 
@@ -2944,7 +2945,7 @@ public class MainApp extends Application {
                 return null;
             }
         }
-        return transaction.getAmount().subtract(costBasis);
+        return transaction.getCashAmount().subtract(costBasis);
     }
 
     // init the main layout

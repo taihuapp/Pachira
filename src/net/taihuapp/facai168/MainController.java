@@ -91,6 +91,9 @@ public class MainController {
 
         // get accounts with hiddenFlag == false and exDelete = true
         mAccountTableView.setItems(mMainApp.getAccountList(null, false, true));
+
+        if (mMainApp.getAcknowledgeTimeStamp() == null)
+            mMainApp.showSplashScreen();
     }
 
     @FXML
@@ -293,7 +296,7 @@ public class MainController {
                         if (transaction.getMatchSplitID() > 0) {
                             showWarningDialog("Linked to A Split Transaction",
                                     "Linked to a split transaction",
-                                    "Please edit the linked split transcation.");
+                                    "Please edit the linked split transaction.");
                             return;
                         }
 

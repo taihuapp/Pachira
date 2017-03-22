@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -25,7 +26,9 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
@@ -45,6 +48,7 @@ public class MainApp extends Application {
         return false;
     }
 
+    private static String ACKNOWLEDGETIMESTAMP = "ACKDT";
     private static int MAXOPENEDDBHIST = 5; // keep max 5 opened files
     private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     private static String DBOWNER = "FC168ADM";
@@ -129,6 +133,27 @@ public class MainApp extends Application {
             }
         }
         return fileNameList;
+    }
+
+    LocalDateTime getAcknowledgeTimeStamp() {
+        String ldtStr = mPrefs.get(ACKNOWLEDGETIMESTAMP, null);
+        if (ldtStr == null)
+            return null;
+        try {
+            return LocalDateTime.parse(ldtStr);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    void putAcknowledgeTimeStamp(LocalDateTime ldt) {
+        mPrefs.put(ACKNOWLEDGETIMESTAMP, ldt.toString());
+        try {
+            mPrefs.flush();
+        } catch (BackingStoreException be) {
+            System.err.println("BackingStoreException encountered when storing Acknowledge date time.\n"
+                    + be.getMessage());
+        }
     }
 
     // return accounts for given type t or all account if t is null
@@ -1657,6 +1682,31 @@ public class MainApp extends Application {
         }
 
         return openedDBNames;
+    }
+
+    void showSplashScreen() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("SplashScreenDialog.fxml"));
+            Stage dialogStage = new Stage();
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            SplashScreenDialogController controller = loader.getController();
+            if (controller == null) {
+                System.err.println("Null SplashScreenDialogController");
+                Platform.exit();
+                System.exit(0);
+            }
+            controller.setMainApp(this, dialogStage);
+            dialogStage.setOnCloseRequest(e -> {
+                Platform.exit();
+                System.exit(0);
+            });
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     void showReportDialog(ReportDialogController.Setting setting) {

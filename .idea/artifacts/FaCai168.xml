@@ -1,0 +1,21 @@
+<component name="ArtifactManager">
+  <artifact type="javafx" build-on-make="true" name="FaCai168">
+    <output-path>$PROJECT_DIR$/out/artifacts/FaCai168</output-path>
+    <properties id="javafx-properties">
+      <options>
+        <option name="appClass" value="net.taihuapp.facai168.MainApp" />
+        <option name="description" value="" />
+        <option name="htmlPlaceholderId" value="" />
+        <option name="title" value="" />
+        <option name="vendor" value="" />
+        <option name="version" value="" />
+      </options>
+    </properties>
+    <root id="root">
+      <element id="archive" name="FaCai168.jar">
+        <element id="module-output" name="FaCai168" />
+      </element>
+      <element id="file-copy" path="$PROJECT_DIR$/../../../../opt/h2/bin/h2-1.3.176.jar" />
+    </root>
+  </artifact>
+</component>

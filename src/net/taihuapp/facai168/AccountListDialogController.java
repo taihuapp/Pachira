@@ -1,6 +1,7 @@
 package net.taihuapp.facai168;
 
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
@@ -10,7 +11,9 @@ import javafx.util.StringConverter;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by ghe on 9/13/16.
@@ -19,6 +22,7 @@ import java.util.List;
 public class AccountListDialogController {
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;
+    private Map<Integer, ChangeListener<Boolean>> mHiddenFlagChangeListenerMap = new HashMap<>();
 
     @FXML
     private ChoiceBox<Account.Type> mTypeChoiceBox;
@@ -190,11 +194,21 @@ public class AccountListDialogController {
         mAccountHiddenFlagTableColumn.setCellValueFactory(cellData -> cellData.getValue().getHiddenFlagProperty());
         mAccountHiddenFlagTableColumn.setCellFactory(c -> new CheckBoxTableCell<>());
 
+
         mTypeChoiceBox.setConverter(new AccountTypeConverter());
         mTypeChoiceBox.getItems().setAll(Account.Type.values());
         mTypeChoiceBox.getItems().add(null);
         mTypeChoiceBox.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
             mAccountTableView.setItems(mMainApp.getAccountList(n, null, true));
+            for (Account a : mAccountTableView.getItems()) {
+                ChangeListener<Boolean> listener = mHiddenFlagChangeListenerMap.get(a.getID());
+                if (listener == null) {
+                    listener = (observable, ov, nv)
+                            -> mMainApp.insertUpdateAccountToDB(a);
+                    a.getHiddenFlagProperty().addListener(listener);
+                    mHiddenFlagChangeListenerMap.put(a.getID(), listener);
+                }
+            }
             mEditButton.setDisable(true);
             mMoveUpButton.setDisable(true);
             mMoveDownButton.setDisable(true);
@@ -202,5 +216,12 @@ public class AccountListDialogController {
         mTypeChoiceBox.getSelectionModel().selectFirst();
     }
 
-    void close() { mDialogStage.close(); }
+    void close() {
+        for (Integer id : mHiddenFlagChangeListenerMap.keySet()) {
+            Account a = mMainApp.getAccountByID(id);
+            a.getHiddenFlagProperty().removeListener(mHiddenFlagChangeListenerMap.get(id));
+        }
+        mHiddenFlagChangeListenerMap.clear();
+        mDialogStage.close();
+    }
 }

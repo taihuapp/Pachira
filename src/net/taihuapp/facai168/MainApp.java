@@ -2533,6 +2533,7 @@ public class MainApp extends Application {
         int passwordChanged = 0;
         PreparedStatement preparedStatement = null;
         try {
+            Class.forName("org.h2.Driver");
             String url = mConnection.getMetaData().getURL();
             File dbFile = new File(getDBFileNameFromURL(url));
             // backup database first
@@ -2554,6 +2555,8 @@ public class MainApp extends Application {
             showExceptionDialog("Exception", "SQLException", e.getMessage(), e);
         } catch (IllegalArgumentException e) {
             showExceptionDialog("Exception", "IllegalArgumentException", e.getMessage(), e);
+        } catch (ClassNotFoundException e) {
+            showExceptionDialog("Exception", "ClassNotFoundException", e.getMessage(), e);
         } finally {
             try {
                 if (preparedStatement != null)
@@ -2667,6 +2670,7 @@ public class MainApp extends Application {
                 url += IFEXISTCLAUSE;
             }
             // we use same password for file encryption and admin user
+            Class.forName("org.h2.Driver");
             mConnection = DriverManager.getConnection(url, DBOWNER, password + ' ' + password);
         } catch (SQLException e) {
             int errorCode = e.getErrorCode();
@@ -2697,6 +2701,8 @@ public class MainApp extends Application {
                     break;
             }
             alert.showAndWait();
+        } catch (ClassNotFoundException e){
+            showExceptionDialog("Exception", "ClassNotFoundException", e.getMessage(), e);
         }
 
         if (mConnection == null) {

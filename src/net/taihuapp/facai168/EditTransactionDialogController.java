@@ -260,7 +260,7 @@ public class EditTransactionDialogController {
                 break;
             default:
                 payee = mTransaction.getSecurityName();
-                if (payee.length() == 0)
+                if (payee == null || payee.length() == 0)
                     payee = mTransaction.getPayee();
                 break;
         }

@@ -98,11 +98,14 @@ public class Transaction {
                 case REINVLG:
                 case REINVMD:
                 case REINVSH:
-                    return mQuantityProperty.get().stripTrailingZeros().toPlainString() + " shares @ "
-                            + mPriceProperty.get().stripTrailingZeros().toPlainString();
+                    return (getQuantity() == null ? "" : getQuantity().stripTrailingZeros().toPlainString())
+                            + " shares @ "
+                            + (getPrice() == null ? "" : getPrice().stripTrailingZeros().toPlainString());
                 case STKSPLIT:
-                    return mQuantityProperty.get().stripTrailingZeros().toPlainString() + " for "
-                            + mOldQuantityProperty.get().stripTrailingZeros().toPlainString() + " split";
+                    return (getQuantity() == null ? "" : getQuantity().stripTrailingZeros().toPlainString())
+                            + " for "
+                            + (getOldQuantity() == null ? "" : getOldQuantity().stripTrailingZeros().toPlainString())
+                            + " split";
                 case MARGINT:
                 case MISCEXP:
                 case MISCINC:

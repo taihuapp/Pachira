@@ -305,7 +305,8 @@ public class EditTransactionDialogController {
         // update price first
         Security security = mMainApp.getSecurityByName(dbCopyT.getSecurityName());
         if (Transaction.hasQuantity(dbCopyT.getTradeAction())
-                && (security != null) && (dbCopyT.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
+                && (security != null) && (dbCopyT.getPrice() != null)
+                && (dbCopyT.getPrice().compareTo(BigDecimal.ZERO) != 0)) {
             int securityID = security.getID();
             LocalDate date = dbCopyT.getTDate();
             // update price table

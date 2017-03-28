@@ -289,6 +289,21 @@ public class MainApp extends Application {
         return null;
     }
 
+    private void showInformationDialog(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.initOwner(mPrimaryStage);
+        alert.initModality(Modality.WINDOW_MODAL);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+
+        // work around for non resizable alert dialog truncates message
+        alert.setResizable(true);
+        alert.getDialogPane().setPrefSize(480, 320);
+
+        alert.showAndWait();
+    }
+
     // http://code.makery.ch/blog/javafx-dialogs-official/
     private void showExceptionDialog(String title, String header, String content, Exception e) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -319,6 +334,7 @@ public class MainApp extends Application {
 
             alert.getDialogPane().setExpandableContent(expContent);
         }
+        alert.setResizable(true);
         alert.showAndWait();
     }
 
@@ -2503,6 +2519,8 @@ public class MainApp extends Application {
             backupFileName = getBackupDBFileName();
             preparedStatement.setString(1, backupFileName);
             preparedStatement.execute();
+            showInformationDialog("Backup Information", "Successful",
+                    "Backup to " + backupFileName + " successful");
         } catch (SQLException e) {
             showExceptionDialog("Exception Dialog", "SQLException", "Backup failed", e);
         }

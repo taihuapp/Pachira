@@ -178,10 +178,12 @@ public class ReminderTransactionListDialogController {
             protected  void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
 
-                setText(empty ? "" : getItem());
                 setGraphic(null);
-
-                if (!isEmpty()) {
+                if (item == null || empty) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
                     switch (item) {
                         case ReminderTransaction.OVERDUE:
                             setStyle("-fx-background-color:red");

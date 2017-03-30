@@ -564,28 +564,34 @@ public class ReportDialogController {
 
         Optional<String> result = tiDialog.showAndWait();
         if (result.isPresent()) {
-            if (result.get().length() == 0) {
+            String settingName = result.get();
+            if (settingName.length() == 0) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setTitle("Warning Dialog");
                 alert.setHeaderText("Bad Report Setting Name");
                 alert.setContentText("Name cannot be empty");
                 alert.showAndWait();
-                return;
-            }
-
-            int oldID = mSetting.getID();
-            if (!result.get().equals(mSetting.getName())) {
-                // name has changed, need to save as new
-                mSetting.setID(-1);
-            }
-            mSetting.setName(result.get());
-            if (mMainApp.insertUpdateReportSettingToDB(mSetting) <= 0) {
-                mSetting.setID(oldID);  // put back oldID
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Error Dialog");
-                alert.setHeaderText("Failed to save report setting!");
-                alert.setContentText("Make sure the name is not being used");
+            } else if (settingName.length() > MainApp.SAVEDREPORTSNAMELEN) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning Dialog");
+                alert.setHeaderText("Bad Report Setting Name");
+                alert.setContentText("Name cannot exceed 32 characters");
                 alert.showAndWait();
+            } else {
+                int oldID = mSetting.getID();
+                if (!result.get().equals(mSetting.getName())) {
+                    // name has changed, need to save as new
+                    mSetting.setID(-1);
+                }
+                mSetting.setName(result.get());
+                if (mMainApp.insertUpdateReportSettingToDB(mSetting) <= 0) {
+                    mSetting.setID(oldID);  // put back oldID
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error Dialog");
+                    alert.setHeaderText("Failed to save report setting!");
+                    alert.setContentText("Make sure the name is not being used");
+                    alert.showAndWait();
+                }
             }
         }
     }
@@ -593,11 +599,11 @@ public class ReportDialogController {
     void close() { mDialogStage.close(); }
 
     private String InvestIncomeReport() {
-        String reportStr = "Investment Income Report from "
-                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
+        StringBuilder reportStr = new StringBuilder("Investment Income Report from "
+                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
         if (mSetting.getSelectedTradeActionSet().isEmpty()) {
-            reportStr += "No TradeAction selected.";
-            return reportStr;
+            reportStr.append("No TradeAction selected.");
+            return reportStr.toString();
         }
 
         class Income {
@@ -654,14 +660,8 @@ public class ReportDialogController {
                         securityIncomeMap.put(sName, income);
                         BigDecimal realized = mMainApp.calcRealizedGain(t);
                         if (realized == null) {
-                            reportStr += ("**********************\n"
-                                    +     "* Lot Matching Error *\n"
-                                    +     "* Account:  " + account.getName() + "\n"
-                                    +     "* Date:     " + t.getTDate() + "\n"
-                                    +     "* Security: " + t.getSecurityName() + "\n"
-                                    +     "* Action:   " + t.getTradeAction().name() + "\n"
-                                    +     "* Quantity: " + qpFormat.format(t.getQuantity()) + "\n");
-                            return reportStr;
+                            reportStr.append("**********************\n" + "* Lot Matching Error *\n" + "* Account:  ").append(account.getName()).append("\n").append("* Date:     ").append(t.getTDate()).append("\n").append("* Security: ").append(t.getSecurityName()).append("\n").append("* Action:   ").append(t.getTradeAction().name()).append("\n").append("* Quantity: ").append(qpFormat.format(t.getQuantity())).append("\n");
+                            return reportStr.toString();
                         }
                         income.realized = income.realized.add(realized);
                         break;
@@ -843,33 +843,33 @@ public class ReportDialogController {
         separator1.total = new String(new char[totalLen+gap]).replace("\0", "-");
 
         for (Line l : lineList) {
-            reportStr += String.format("%-" + sNameLen + "s", l.sName);
+            reportStr.append(String.format("%-" + sNameLen + "s", l.sName));
             if (fieldUsed.divident.compareTo(BigDecimal.ZERO) != 0)
-                reportStr +=  String.format("%" + (dividentLen + gap) + "s", l.divident);
+                reportStr.append(String.format("%" + (dividentLen + gap) + "s", l.divident));
             if (fieldUsed.interest.compareTo(BigDecimal.ZERO) != 0)
-                reportStr +=  String.format("%" + (interestLen + gap) + "s", l.interest);
+                reportStr.append(String.format("%" + (interestLen + gap) + "s", l.interest));
             if (fieldUsed.ltcgdist.compareTo(BigDecimal.ZERO) != 0)
-                reportStr +=  String.format("%" + (ltcgdistLen + gap) + "s", l.ltcgdist);
+                reportStr.append(String.format("%" + (ltcgdistLen + gap) + "s", l.ltcgdist));
             if (fieldUsed.mtcgdist.compareTo(BigDecimal.ZERO) != 0)
-                reportStr +=  String.format("%" + (mtcgdistLen + gap) + "s", l.mtcgdist);
+                reportStr.append(String.format("%" + (mtcgdistLen + gap) + "s", l.mtcgdist));
             if (fieldUsed.stcgdist.compareTo(BigDecimal.ZERO) != 0)
-                reportStr +=  String.format("%" + (stcgdistLen + gap) + "s", l.stcgdist);
+                reportStr.append(String.format("%" + (stcgdistLen + gap) + "s", l.stcgdist));
             if (fieldUsed.realized.compareTo(BigDecimal.ZERO) != 0)
-                reportStr +=  String.format("%" + (realizedLen + gap) + "s", l.realized);
+                reportStr.append(String.format("%" + (realizedLen + gap) + "s", l.realized));
             if (fieldUsed.miscinc.compareTo(BigDecimal.ZERO) != 0)
-                reportStr +=  String.format("%" + (miscincLen + gap) + "s", l.miscinc);
+                reportStr.append(String.format("%" + (miscincLen + gap) + "s", l.miscinc));
 
-            reportStr +=  String.format("%" + (totalLen + gap) + "s\n", l.total);
+            reportStr.append(String.format("%" + (totalLen + gap) + "s\n", l.total));
         }
-        return reportStr;
+        return reportStr.toString();
     }
 
     private String InvestTransReport() {
-        String reportStr = "Investment Transaction Report from "
-                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
+        StringBuilder reportStr = new StringBuilder("Investment Transaction Report from "
+                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
         if (mSetting.getSelectedTradeActionSet().isEmpty()) {
-            reportStr += "No TradeAction selected.";
-            return reportStr;
+            reportStr.append("No TradeAction selected.");
+            return reportStr.toString();
         }
 
         // Transaction has only security name, not id, so we convert ids to names.
@@ -997,28 +997,28 @@ public class ReportDialogController {
         final String separator = new String(new char[dateLen + (gap+aNameLen) + (gap+taLen) + (gap+sNameLen)
                 + (gap+memoLen) + (gap+priceLen) + (gap+quantityLen) + (gap+commissionLen) + (gap+cashAmtLen)
                 + (gap+invAmtLen)]).replace("\0", "=");
-        reportStr += separator + "\n";
+        reportStr.append(separator).append("\n");
         for (int i = 0; i < lineList.size(); i++) {
             Line l = lineList.get(i);
-            reportStr += String.format(formatStr, l.date, l.aName, l.ta, l.sName,
-                    l.memo, l.price, l.quantity, l.commission, l.cashAmt, l.invAmt);
+            reportStr.append(String.format(formatStr, l.date, l.aName, l.ta, l.sName,
+                    l.memo, l.price, l.quantity, l.commission, l.cashAmt, l.invAmt));
             if (i == 0 || i == lineList.size()-2)
-                reportStr += separator + "\n";
+                reportStr.append(separator).append("\n");
         }
-        return reportStr;
+        return reportStr.toString();
     }
 
     private String BankTransReport() {
-        String reportStr = "Banking Transaction Report from "
-                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n";
+        StringBuilder reportStr = new StringBuilder("Banking Transaction Report from "
+                + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
 
         if (mSetting.getSelectedCategoryIDSet().isEmpty()) {
-            reportStr += "No Category selected.";
-            return reportStr;
+            reportStr.append("No Category selected.");
+            return reportStr.toString();
         }
 
         if (mSetting.getSelectedSecurityIDSet().isEmpty()) {
-            reportStr += "No Security selected.";
+            reportStr.append("No Security selected.");
         }
 
         // Transaction has only security name, not id, so we convert ids to names.
@@ -1120,16 +1120,16 @@ public class ReportDialogController {
                + (gap+memoLen) + (gap+categoryLen)+ (gap+amountLen)]).replace("\0", "=");
         for (int i = 0; i < lineList.size(); i++) {
             Line l = lineList.get(i);
-            reportStr += String.format(formatStr, l.date, l.aName, l.num, l.desc, l.memo, l.category, l.amount);
+            reportStr.append(String.format(formatStr, l.date, l.aName, l.num, l.desc, l.memo, l.category, l.amount));
             if (i == 0 || i == lineList.size()-2)
-                reportStr += separator + "\n";
+                reportStr.append(separator).append("\n");
         }
-        return reportStr;
+        return reportStr.toString();
     }
 
     private String NAVReport() {
         final LocalDate date = mSetting.getEndDate();
-        String outputStr = "NAV Report as of " + date + "\n\n";
+        StringBuilder outputStr = new StringBuilder("NAV Report as of " + date + "\n\n");
 
         BigDecimal total = BigDecimal.ZERO;
         String separator0 = new String(new char[90]).replace("\0", "-");
@@ -1145,10 +1145,10 @@ public class ReportDialogController {
             total = total.add(shList.get(shListLen-1).getMarketValue());
 
             // print account total
-            outputStr += String.format("%-55s%35s\n", s.toString(),
-                    dcFormat.format(shList.get(shListLen-1).getMarketValue()));
+            outputStr.append(String.format("%-55s%35s\n", s.toString(),
+                    dcFormat.format(shList.get(shListLen - 1).getMarketValue())));
 
-            outputStr += separator0 + "\n";
+            outputStr.append(separator0).append("\n");
 
             // print out positions
             BigDecimal q, p;
@@ -1156,17 +1156,18 @@ public class ReportDialogController {
                 SecurityHolding sh = shList.get(i);
                 q = sh.getQuantity();
                 p = sh.getPrice();
-                outputStr += String.format("  %-50s%12s%10s%14s\n", sh.getLabel(), q == null ? "" : qpFormat.format(q),
-                        p == null ? "" : qpFormat.format(p), dcFormat.format(sh.getMarketValue()));
+                outputStr.append(String.format("  %-50s%12s%10s%14s\n", sh.getLabel(),
+                        q == null ? "" : qpFormat.format(q),
+                        p == null ? "" : qpFormat.format(p), dcFormat.format(sh.getMarketValue())));
             }
-            outputStr += separator1 + "\n";
-            outputStr += "\n";
+            outputStr.append(separator1).append("\n");
+            outputStr.append("\n");
         }
 
         // print out total
-        outputStr += String.format("%-55s%35s\n", "Total", dcFormat.format(total));
+        outputStr.append(String.format("%-55s%35s\n", "Total", dcFormat.format(total)));
 
-        return outputStr;
+        return outputStr.toString();
     }
 
     private Pair<LocalDate, LocalDate> mapDatePeriod(DatePeriod dp) {

@@ -80,6 +80,8 @@ public class MainApp extends Application {
     static final int QUANTITY_FRACTION_LEN = 8;
     static final int QUANTITY_FRACTION_DISP_LEN = 6;
 
+    static final int SAVEDREPORTSNAMELEN = 32;
+
     // Category And Transfer Account are often shared as the following:
     // String     #    Meaning
     // Blank      0    no transfer, no category
@@ -945,21 +947,21 @@ public class MainApp extends Application {
     private int insertAddressToDB(List<String> address) {
         int rowID = -1;
         int nLines = Math.min(6, address.size());  // max 6 lines
-        String sqlCmd = "insert into ADDRESSES (";
+        StringBuilder sqlCmd = new StringBuilder("insert into ADDRESSES (");
         for (int i = 0; i < nLines; i++) {
-            sqlCmd += ("LINE" + i);
+            sqlCmd.append("LINE").append(i);
             if (i < nLines-1)
-                sqlCmd += ",";
+                sqlCmd.append(",");
         }
-        sqlCmd += ") values (";
+        sqlCmd.append(") values (");
         for (int i = 0; i < nLines; i++) {
-            sqlCmd += "?";
+            sqlCmd.append("?");
             if (i < nLines-1)
-                sqlCmd += ",";
+                sqlCmd.append(",");
         }
-        sqlCmd += ")";
+        sqlCmd.append(")");
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd.toString())) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, address.get(i));
 
@@ -980,21 +982,21 @@ public class MainApp extends Application {
     private int insertAmortizationToDB(String[] amortLines) {
         int rowID = -1;
         int nLines = 7;
-        String sqlCmd = "insert into AMORTIZATIONLINES (";
+        StringBuilder sqlCmd = new StringBuilder("insert into AMORTIZATIONLINES (");
         for (int i = 0; i < nLines; i++) {
-            sqlCmd += ("LINE" + i);
+            sqlCmd.append("LINE").append(i);
             if (i < nLines-1)
-                sqlCmd += ",";
+                sqlCmd.append(",");
         }
-        sqlCmd += ") values (";
+        sqlCmd.append(") values (");
         for (int i = 0; i < nLines; i++) {
-            sqlCmd += "?";
+            sqlCmd.append("?");
             if (i < nLines-1)
-                sqlCmd += ",";
+                sqlCmd.append(",");
         }
-        sqlCmd += ")";
+        sqlCmd.append(")");
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd.toString())) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, amortLines[i]);
 
@@ -2403,7 +2405,7 @@ public class MainApp extends Application {
             return;
         }
 
-        QIFParser qifParser = new QIFParser(result.isPresent() ? result.get() : "");
+        QIFParser qifParser = new QIFParser(result.orElse(""));
         try {
             if (qifParser.parseFile(file) < 0) {
                 System.err.println("Failed to parse " + file);
@@ -2457,10 +2459,7 @@ public class MainApp extends Application {
         HashMap<String, Integer> tickerIDMap = new HashMap<>();
         for (QIFParser.Price p : pList) {
             String security = p.getSecurity();
-            Integer id = tickerIDMap.get(security);
-            if (id == null) {
-                tickerIDMap.put(security, id = getSecurityID(security));
-            }
+            Integer id = tickerIDMap.computeIfAbsent(security, this::getSecurityID);
             if (!insertUpdatePriceToDB(id, p.getDate(), p.getPrice(), 3)) {
                 System.err.println("Insert to PRICE failed with "
                         + security + "(" + id + ")," + p.getDate() + "," + p.getPrice());
@@ -2907,7 +2906,7 @@ public class MainApp extends Application {
         // SavedReports table
         sqlCmd = "create table SAVEDREPORTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
-                + "NAME varchar (32) UNIQUE NOT NULL, "       // name of the report
+                + "NAME varchar (" + SAVEDREPORTSNAMELEN + ") UNIQUE NOT NULL, "       // name of the report
                 + "TYPE varchar (16) NOT NULL, "              // type of the report
                 + "DATEPERIOD varchar (16) NOT NULL, "        // enum for dateperiod
                 + "SDATE date NOT NULL, "                              // customized start date
@@ -2962,14 +2961,13 @@ public class MainApp extends Application {
     }
 
     private static String SQLExceptionToString(SQLException e) {
-        String s = "";
+        StringBuilder s = new StringBuilder();
         while (e != null) {
-            s += ("--- SQLException ---" +
-                    "  SQL State: " + e.getSQLState() +
-                    "  Message:   " + e.getMessage()) + "\n";
+            s.append("--- SQLException ---" + "  SQL State: ").append(e.getSQLState())
+                    .append("  Message:   ").append(e.getMessage()).append("\n");
             e = e.getNextException();
         }
-        return s;
+        return s.toString();
     }
 
     // take a Transaction input (with SELL or CVTSHRT), compute the realize gain

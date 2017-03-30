@@ -32,9 +32,6 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
-import static net.taihuapp.facai168.Transaction.TradeAction.CVTSHRT;
-import static net.taihuapp.facai168.Transaction.TradeAction.SELL;
-
 public class MainApp extends Application {
 
     // these characters are not allowed in account names and
@@ -1621,7 +1618,7 @@ public class MainApp extends Application {
                 int aid = resultSet.getInt("ACCOUNTID");
                 LocalDate tDate = resultSet.getDate("DATE").toLocalDate();
                 Date sqlDate = resultSet.getDate("ADATE");
-                LocalDate aDate = tDate;
+                LocalDate aDate = null;
                 if (sqlDate != null)
                     aDate = sqlDate.toLocalDate();
                 String reference = resultSet.getString("REFERENCE");
@@ -1961,9 +1958,12 @@ public class MainApp extends Application {
 
             // compare TradeAction if dates are the same
             // we want to have SELL and CVTSHRT at the end
-            if (o1.getTradeAction() == SELL || o1.getTradeAction() == CVTSHRT)
-                return (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT) ? 0 : 1;
-            if (o2.getTradeAction() == SELL || o2.getTradeAction() == CVTSHRT)
+            if (o1.getTradeAction() == Transaction.TradeAction.SELL
+                    || o1.getTradeAction() == Transaction.TradeAction.CVTSHRT)
+                return (o2.getTradeAction() == Transaction.TradeAction.SELL
+                        || o2.getTradeAction() == Transaction.TradeAction.CVTSHRT) ? 0 : 1;
+            if (o2.getTradeAction() == Transaction.TradeAction.SELL
+                    || o2.getTradeAction() == Transaction.TradeAction.CVTSHRT)
                 return -1;
             return o1.getTradeAction().compareTo(o2.getTradeAction());
         });
@@ -2975,7 +2975,7 @@ public class MainApp extends Application {
     // take a Transaction input (with SELL or CVTSHRT), compute the realize gain
     BigDecimal calcRealizedGain(Transaction transaction) {
         Transaction.TradeAction ta = transaction.getTradeAction();
-        if (!ta.equals(SELL) && !ta.equals(CVTSHRT))
+        if (!ta.equals(Transaction.TradeAction.SELL) && !ta.equals(Transaction.TradeAction.CVTSHRT))
             return BigDecimal.ZERO;
 
         BigDecimal costBasis = BigDecimal.ZERO;

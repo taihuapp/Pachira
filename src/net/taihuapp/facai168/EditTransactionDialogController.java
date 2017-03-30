@@ -435,6 +435,21 @@ public class EditTransactionDialogController {
         mTradeActionChoiceBox.getSelectionModel().select(mTransaction.getTradeAction());
         mTradeActionChoiceBox.valueProperty().unbindBidirectional(mTransaction.getTradeActionProperty());
         mTradeActionChoiceBox.valueProperty().bindBidirectional(mTransaction.getTradeActionProperty());
+
+        Integer cid = mTransaction.getCategoryID();
+        if (cid >= 0) {
+            mCategoryComboBox.getSelectionModel().select(cid);
+            mTransferAccountComboBox.getSelectionModel().selectFirst();
+        } else {
+            mCategoryComboBox.getSelectionModel().selectFirst();
+            mTransferAccountComboBox.getSelectionModel().select(cid);
+        }
+
+        mTransferAccountComboBox.getSelectionModel().selectedItemProperty()
+                .addListener((ob, o, n) -> {if (n != null) mTransaction.getCategoryIDProperty().set(n);});
+
+        mCategoryComboBox.getSelectionModel().selectedItemProperty()
+                .addListener((ob, o, n) -> {if (n != null) mTransaction.getCategoryIDProperty().set(n);});
     }
 
     private void setupInvestmentTransactionDialog(Transaction.TradeAction tradeAction) {
@@ -715,17 +730,6 @@ public class EditTransactionDialogController {
                 }
             };
             mTransaction.getPriceProperty().bind(price);
-        }
-
-        Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
-        Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
-        if (mTransaction.getTradeAction() == Transaction.TradeAction.WITHDRAW
-                || mTransaction.getTradeAction() == Transaction.TradeAction.DEPOSIT) {
-            Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
-                    mTransaction.getCategoryIDProperty().asObject());
-        } else {
-            Bindings.bindBidirectional(mTransferAccountComboBox.valueProperty(),
-                    mTransaction.getCategoryIDProperty().asObject());
         }
 
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());

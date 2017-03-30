@@ -17,10 +17,21 @@ import java.util.concurrent.Callable;
 public class Transaction {
 
     enum TradeAction {
-        BUY, SELL, DIV, REINVDIV, INTINC, REINVINT, CGLONG, CGMID, CGSHORT,
-        REINVLG, REINVMD, REINVSH, STKSPLIT, SHRSIN, SHRSOUT, MISCEXP, MISCINC,
-        RTRNCAP, SHTSELL, CVTSHRT, MARGINT,
-        XFRSHRS, XIN, XOUT, DEPOSIT, WITHDRAW
+        BUY("Buy Shares"), SELL("Sell Shares"), DIV("Dividend"), REINVDIV("Reinvest Dividend"),
+        INTINC("Interest"), REINVINT("Reinvest Interest"),
+        CGLONG("Long-term Cap Gain"), CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain"),
+        REINVLG("Reinvest LT Cap Gain"), REINVMD("Reinvest Mid-term Cap Gain"), REINVSH("Reinvest Short-term Cap Gain"),
+        STKSPLIT("Stock Split"), SHRSIN("Shares Transferred In"), SHRSOUT("Shares Transferred Out"),
+        MISCEXP("Misc Expense"), MISCINC("Misc Income"), RTRNCAP("Return Capital"),
+        SHTSELL("Short Sell"), CVTSHRT("Cover Short Sell"), MARGINT("Margin Interest"),
+        XFRSHRS("Shares Transferred"), XIN("Cash Transferred In"), XOUT("Cash Transferred Out"),
+        DEPOSIT("Deposit"), WITHDRAW("Withdraw");
+
+        private String mValue;
+        TradeAction(String v) { mValue = v; }
+
+        @Override
+        public String toString() { return mValue; }
     }
 
     private int mID = -1;

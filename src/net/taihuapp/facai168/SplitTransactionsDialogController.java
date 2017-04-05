@@ -1,5 +1,7 @@
 package net.taihuapp.facai168;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ComboBoxTableCell;
@@ -24,14 +26,14 @@ public class SplitTransactionsDialogController {
         public String toString(Integer cid) {
             if (cid >= MainApp.MIN_CATEGORY_ID) {
                 Category c = mMainApp.getCategoryByID(cid);
-                return c == null ? null : c.getName();
+                return c == null ? "" : c.getName();
             }
 
             if (cid <= -MainApp.MIN_ACCOUNT_ID) {
                 Account a = mMainApp.getAccountByID(-cid);
-                return a == null ? null : MainApp.getWrappedAccountName(a);
+                return a == null ? "" : MainApp.getWrappedAccountName(a);
             }
-            return null;
+            return "";
         }
     }
 
@@ -56,9 +58,9 @@ public class SplitTransactionsDialogController {
     @FXML
     private Button mAddButton;
     @FXML
-    private Button mEditButton;
-    @FXML
     private Button mDeleteButton;
+    @FXML
+    private Button mOKButton;
 
     // the content of stList is copied, the original content is unchanged.
     void setMainApp(MainApp mainApp, Stage stage, List<SplitTransaction> stList, BigDecimal netAmount) {
@@ -68,13 +70,14 @@ public class SplitTransactionsDialogController {
 
         mCategoryIDComboBox.setConverter(new CategoryTransferToStringConverter());
         mCategoryIDComboBox.getItems().clear();
-        mCategoryIDComboBox.getItems().add(null); // add a blank
+        mCategoryIDComboBox.getItems().add(0); // add a blank
         for (Category c : mMainApp.getCategoryList()) {
             mCategoryIDComboBox.getItems().add(c.getID());
         }
         for (Account a : mMainApp.getAccountList(null, null, true)) {
             mCategoryIDComboBox.getItems().add(-a.getID());
         }
+        mCategoryIDComboBox.getSelectionModel().selectFirst();
 
         mSplitTransactionsTableView.setEditable(true);
         mSplitTransactionsTableView.getItems().clear();
@@ -121,6 +124,21 @@ public class SplitTransactionsDialogController {
         mCategoryTableColumn.widthProperty().addListener((ob, o, n) -> mCategoryIDComboBox.setPrefWidth(n.doubleValue()));
         mMemoTableColumn.widthProperty().addListener((ob, o, n) -> mMemoTextField.setPrefWidth(n.doubleValue()));
         mAmountTableColumn.widthProperty().addListener((ob, o, n) -> mAmountTextField.setPrefWidth(n.doubleValue()));
+
+        BooleanBinding remaining = Bindings.createBooleanBinding(() -> {
+            try {
+                return (new BigDecimal(mAmountTextField.getText())).compareTo(BigDecimal.ZERO) != 0;
+            } catch (NumberFormatException e) {
+                return true;
+            }
+        }, mAmountTextField.textProperty());
+
+        mAddButton.disableProperty().bind(remaining.not());
+        mOKButton.disableProperty().bind(remaining);
+
+        mDeleteButton.disableProperty().bind(Bindings.createBooleanBinding(()
+                        -> (mSplitTransactionsTableView.getSelectionModel().getSelectedItem() == null),
+                mSplitTransactionsTableView.getSelectionModel().getSelectedItems()));
     }
 
     @FXML
@@ -136,9 +154,16 @@ public class SplitTransactionsDialogController {
     }
 
     @FXML
-    private void handleAdd() { System.out.println("Add"); }
+    private void handleAdd() {
+        mSplitTransactionsTableView.getItems().add(new SplitTransaction(-1, mCategoryIDComboBox.getValue(),
+                mMemoTextField.getText(), new BigDecimal(mAmountTextField.getText()), -1));
+        mMemoTextField.setText("");
+        updateRemainingAmount();
+    }
     @FXML
-    private void handleEdit() { System.out.println("Edit"); }
-    @FXML
-    private void handleDelete() { System.out.println("Delete"); }
+    private void handleDelete() {
+        SplitTransaction st = mSplitTransactionsTableView.getSelectionModel().getSelectedItem();
+        mSplitTransactionsTableView.getItems().remove(st);
+        updateRemainingAmount();
+    }
 }

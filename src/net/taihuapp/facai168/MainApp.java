@@ -623,7 +623,7 @@ public class MainApp extends Application {
                 preparedStatement.setDate(16, Date.valueOf(t.getADate()));
             preparedStatement.setBigDecimal(17, t.getOldQuantity());
             preparedStatement.setString(18, t.getReferenceProperty().get());
-            preparedStatement.setBoolean(19, t.getSplitTransactionList().isEmpty());
+            preparedStatement.setBoolean(19, !t.getSplitTransactionList().isEmpty());
             if (t.getID() > 0)
                 preparedStatement.setInt(20, t.getID());
 

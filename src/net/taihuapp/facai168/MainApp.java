@@ -90,7 +90,7 @@ public class MainApp extends Application {
     // Cat Name   CID  category with id = CID
     static final int MIN_ACCOUNT_ID = 10;
     static final String DELETED_ACCOUNT_NAME = "Deleted Account";
-    private static final int MIN_CATEGORY_ID = 10;
+    static final int MIN_CATEGORY_ID = 10;
 
     private Preferences mPrefs;
     private Stage mPrimaryStage;
@@ -584,15 +584,15 @@ public class MainApp extends Application {
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                     "CLEARED, CATEGORYID, TAGID, MEMO, PRICE, QUANTITY, COMMISSION, " +
                     "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY, " +
-                    "REFERENCE) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "REFERENCE, SPLITFLAG) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
                     "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, TAGID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
-                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ? , REFERENCE = ? " +
+                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ?, REFERENCE = ?, SPLITFLAG = ? " +
                     "where ID = ?";
         }
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
@@ -623,8 +623,9 @@ public class MainApp extends Application {
                 preparedStatement.setDate(16, Date.valueOf(t.getADate()));
             preparedStatement.setBigDecimal(17, t.getOldQuantity());
             preparedStatement.setString(18, t.getReferenceProperty().get());
+            preparedStatement.setBoolean(19, t.getSplitTransactionList().isEmpty());
             if (t.getID() > 0)
-                preparedStatement.setInt(19, t.getID());
+                preparedStatement.setInt(20, t.getID());
 
             if (preparedStatement.executeUpdate() == 0)
                 throw(new SQLException("Failure: " + sqlCmd));
@@ -888,7 +889,7 @@ public class MainApp extends Application {
     // if a wrapped name cannot be mapped to a valid account, then the Deleted Account is used
     // if a valid category name is seen, the corresponding id is returned
     // otherwise, 0 is returned
-    private int mapCategoryOrAccountNameToID(String name) {
+    int mapCategoryOrAccountNameToID(String name) {
         if (name == null)
             return 0;
         if (name.startsWith("[") && name.endsWith("]")) {
@@ -1654,13 +1655,10 @@ public class MainApp extends Application {
                     if (security != null)
                         name = security.getName();
                 }
+
                 Transaction transaction = new Transaction(id, aid, tDate, aDate, tradeAction, name, reference,
                         payee, price, quantity, oldQuantity, memo, commission, amount, cid, tagID, matchID,
-                        matchSplitID);
-
-                if (resultSet.getBoolean("SPLITFLAG")) {
-                    transaction.setSplitTransactionList(loadSplitTransactions(transaction.getID()));
-                }
+                        matchSplitID, resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null);
 
                 mTransactionList.add(transaction);
             }
@@ -2154,6 +2152,29 @@ public class MainApp extends Application {
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
+        }
+    }
+
+    // return true if splittransaction list is changed, false if not.
+    List<SplitTransaction> showSplitTransactionsDialog(Stage parent, List<SplitTransaction> stList,
+                                                       BigDecimal netAmount) {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("SplitTransactionsDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Split Transaction");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(parent);
+            dialogStage.setScene(new Scene(loader.load()));
+            dialogStage.setUserData(false);
+            SplitTransactionsDialogController controller = loader.getController();
+            controller.setMainApp(this, dialogStage, stList, netAmount);
+            dialogStage.showAndWait();
+            return (List<SplitTransaction>) dialogStage.getUserData();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 

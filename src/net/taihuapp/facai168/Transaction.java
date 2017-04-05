@@ -260,6 +260,8 @@ public class Transaction {
     List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
     boolean isSplit() { return getSplitTransactionList().size() > 0; }
     BigDecimal getAmount() { return mAmountProperty.get(); }
+    BigDecimal getPayment() { return mPaymentProperty.get(); }
+    BigDecimal getDeposit() { return mDepositProperty.get(); }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
     Integer getTagID() { return getTagIDProperty().get(); }
     int getMatchID() { return mMatchID; }  // this is for linked transactions
@@ -464,7 +466,7 @@ public class Transaction {
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
                        String reference, String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity,
                        String memo, BigDecimal commission, BigDecimal amount, int categoryID, int tagID, int matchID,
-                       int matchSplitID) {
+                       int matchSplitID, List<SplitTransaction> stList) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -483,6 +485,8 @@ public class Transaction {
         mQuantityProperty.set(quantity);
         mTradeActionProperty.set(ta);
         mAmountProperty.set(amount);
+        if (stList != null)
+            mSplitTransactionList.addAll(stList);
 
         bindProperties();
         // bind description property now
@@ -494,7 +498,7 @@ public class Transaction {
         this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getSecurityName(),
                 t0.getReference(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
                 t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAmount(), t0.getCategoryID(),
-                t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID());
+                t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID(), t0.getSplitTransactionList());
     }
 
     // return false if this is NOT a transfer

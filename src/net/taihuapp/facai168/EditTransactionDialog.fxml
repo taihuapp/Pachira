@@ -58,6 +58,7 @@
              <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="2" GridPane.rowIndex="6" />
              <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
              <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+            <Button fx:id="mSplitTransactionButton" mnemonicParsing="false" onAction="#handleSplitTransactions" text="Split" GridPane.rowIndex="7" />
          </children>
       </GridPane>
    </center>

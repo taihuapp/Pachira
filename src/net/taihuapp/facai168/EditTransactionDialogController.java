@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static net.taihuapp.facai168.Transaction.TradeAction.*;
 
@@ -126,10 +127,13 @@ public class EditTransactionDialogController {
     private Button mEnterDoneButton;
     @FXML
     private Button mSpecifyLotButton;
+    @FXML
+    private Button mSplitTransactionButton;
 
     private MainApp mMainApp;
     private int mOldXferAccountID;
     private Stage mDialogStage;
+    private List<SplitTransaction> mNewSplitTransactionList = null;
 
     private Transaction mTransaction = null;
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;  // lot match list
@@ -368,7 +372,32 @@ public class EditTransactionDialogController {
     }
 
     @FXML
+    private void handleSplitTransactions() {
+        List<SplitTransaction> inputSplitTransactionList, outputSplitTransactionList;
+        if (mNewSplitTransactionList == null)
+            inputSplitTransactionList = mTransaction.getSplitTransactionList();
+        else
+            inputSplitTransactionList = mNewSplitTransactionList;
+
+        outputSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage, inputSplitTransactionList,
+                mTransaction.getPayment().subtract(mTransaction.getDeposit()));
+
+        if (outputSplitTransactionList != null) // splittransactionlist changed
+            mNewSplitTransactionList = outputSplitTransactionList;
+    }
+
+    @FXML
     private void handleCancel() {
+        if (mNewSplitTransactionList != null) {
+            // ask if user want to save changed splittransaction
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Split Transactions were changed.");
+            alert.setHeaderText("Are you sure to discard the change?");
+            alert.setContentText("OK to discard change, Cancel to go back.");
+            Optional<ButtonType> result = alert.showAndWait();
+            if (!(result.isPresent() && result.get() == ButtonType.OK))
+                return; // do nothing
+        }
         mTransaction = null;  // cancelled, clear out mTransaction
         mDialogStage.close();
     }

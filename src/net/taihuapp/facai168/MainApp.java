@@ -95,6 +95,7 @@ public class MainApp extends Application {
     private Preferences mPrefs;
     private Stage mPrimaryStage;
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
+    private Savepoint mSavepoint = null;
 
     // mTransactionList is ordered by ID.  It's important for getTransactionByID to work
     // mTransactionListSort2 is ordered by accountID, Date, and ID
@@ -253,13 +254,6 @@ public class MainApp extends Application {
             preparedStatement.setInt(1, tid);
 
             preparedStatement.executeUpdate();
-
-            int idx = getTransactionIndexByID(tid);
-            if (idx < 0) {
-                System.err.println("Transaction " + tid + " not in master list? How did this happen?");
-            } else {
-                mTransactionList.remove(idx);
-            }
         } catch (SQLException e) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
@@ -270,15 +264,21 @@ public class MainApp extends Application {
         }
     }
 
+    // Given a transaction t, find a index location in (sorted by ID) mTransactionList
+    // for the matching ID.
+    private int getTransactionIndex(Transaction t) {
+        return Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
+    }
+
     // For Transaction with ID tid, this method returns its location index in
-    // (sorted by ID) mTransactionIndex.
+    // (sorted by ID) mTransactionList.
     // If transaction with tid is not found in mTransactionList by binarySearch
     // return -(1+insertLocation).
     private int getTransactionIndexByID(int tid) {
         // make up a dummy transaction for search
         Transaction t = new Transaction(-1, LocalDate.MAX, Transaction.TradeAction.BUY, 0);
         t.setID(tid);
-        return Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
+        return getTransactionIndex(t);
     }
 
     Transaction getTransactionByID(int tid) {
@@ -304,7 +304,7 @@ public class MainApp extends Application {
     }
 
     // http://code.makery.ch/blog/javafx-dialogs-official/
-    private void showExceptionDialog(String title, String header, String content, Exception e) {
+    void showExceptionDialog(String title, String header, String content, Exception e) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.initOwner(mPrimaryStage);
         alert.setTitle(title);
@@ -397,7 +397,29 @@ public class MainApp extends Application {
         return settingList;
     }
 
-    int insertUpdateReportSettingToDB(ReportDialogController.Setting setting) {
+    // return true if a savepoint is set here.
+    // false if a savepoint was previously set elsewhere
+    boolean setDBSavepoint() throws SQLException {
+        if (mSavepoint != null)
+            return false;  // was set at some place else.
+        mSavepoint = mConnection.setSavepoint();
+        mConnection.setAutoCommit(false);
+        return true;
+    }
+    void releaseDBSavepoint() throws SQLException {
+        mConnection.setAutoCommit(true);
+        mConnection.releaseSavepoint(mSavepoint);
+        mSavepoint = null;
+    }
+    void rollbackDB() throws SQLException {
+        if (mSavepoint != null)
+            mConnection.rollback(mSavepoint);
+    }
+    void commitDB() throws SQLException {
+        mConnection.commit();
+    }
+
+    void insertUpdateReportSettingToDB(ReportDialogController.Setting setting) throws SQLException {
         String sqlCmd;
         int id = setting.getID();
         if (id <= 0) {
@@ -410,8 +432,11 @@ public class MainApp extends Application {
                     + "NAME = ?, TYPE = ?, DATEPERIOD = ?, SDATE = ?, EDATE = ?, FREQUENCY = ? "
                     + "where ID = ?";
         }
+
+        boolean savepointSetHere = false;  // did I set savepoint?
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
-            mConnection.setAutoCommit(false);
+            savepointSetHere = setDBSavepoint();
+
             preparedStatement.setString(1, setting.getName());
             preparedStatement.setString(2, setting.getType().name());
             preparedStatement.setString(3, setting.getDatePeriod().name());
@@ -427,9 +452,6 @@ public class MainApp extends Application {
                         setting.setID(id = resultSet.getInt(1));
                     else
                         throw new SQLException(("Insert into SAVEDREPORTS failed."));
-                } catch (SQLException e) {
-                    System.err.println(e.getMessage());
-                    throw e;
                 }
             }
 
@@ -475,30 +497,40 @@ public class MainApp extends Application {
 
                     preparedStatement1.executeUpdate();
                 }
-            } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
-                return 0;
             }
-            mConnection.commit();
-            return id;
+            if (savepointSetHere) {// only commit if a savepoint is set here otherwise, pass to the caller.
+                commitDB();
+            }
         } catch (SQLException e) {
-            String title = "Database Error";
-            String header = "Unable to insert/update SAVEDREPORTS Setting";
-            String content = SQLExceptionToString(e);
-            showExceptionDialog(title, header, content, e);
+            if (savepointSetHere) {
+                try {
+                    String title = "Database Error";
+                    String header = "Unable to insert/update SAVEDREPORTS Setting";
+                    String content = SQLExceptionToString(e);
+                    showExceptionDialog(title, header, content, e);
+                    rollbackDB();
+                } catch (SQLException e1) {
+                    String title = "Database Error";
+                    String header = "Unable to roll back";
+                    String content = SQLExceptionToString(e1);
+                    showExceptionDialog(title, header, content, e1);
+                }
+            } else {
+                // savepoint was set by the caller, throw.
+                throw e;
+            }
         } finally {
-            try {
-                mConnection.setAutoCommit(true);
-            } catch (SQLException e) {
-                String title = "Database Error";
-                String header = "Unable to set DB autocommit";
-                String content = SQLExceptionToString(e);
-                showExceptionDialog(title, header, content, e);
+            if (savepointSetHere) {
+                try {
+                    releaseDBSavepoint();
+                } catch (SQLException e) {
+                    String title = "Database Error";
+                    String header = "Unable to release savepoint and set DB autocommit";
+                    String content = SQLExceptionToString(e);
+                    showExceptionDialog(title, header, content, e);
+                }
             }
         }
-
-        return 0;
     }
 
     // insert or update reminder
@@ -574,9 +606,33 @@ public class MainApp extends Application {
         return false;
     }
 
+    // insert or update transaction in the master list.
+    void insertUpdateTransactionToMasterList(Transaction t) {
+        int idx = getTransactionIndex(t);
+        if (idx < 0) {
+            // not in the list, insert a copy of t
+            mTransactionList.add(-(1+idx), t);
+        } else {
+            // exist in list, replace with a copy of t
+            mTransactionList.set(idx, t);
+        }
+    }
+
+    // delete transaction from mTransactionList
+    // return false for not finding matching ID in mTransactionList
+    // true otherwise
+    boolean deleteTransactionFromMasterList(int tid) {
+        int idx = getTransactionIndexByID(tid);
+        if (idx < 0)
+            return false;
+
+        mTransactionList.remove(idx);
+        return true;
+    }
+
     // insert or update the input transaction into DB and master transaction list in memory
     // return affected transaction id if success, 0 for failure.
-    int insertUpdateTransactionToDB(Transaction t) {
+    int insertUpdateTransactionToDB(Transaction t) throws SQLException {
         String sqlCmd;
         // be extra careful about the order of the columns
         if (t.getID() <= 0) {
@@ -595,8 +651,10 @@ public class MainApp extends Application {
                     "PAYEE = ?, ADATE = ?, OLDQUANTITY = ?, REFERENCE = ?, SPLITFLAG = ? " +
                     "where ID = ?";
         }
+
+        boolean savepointSetHere = false; // did I set savepoint?
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
-            mConnection.setAutoCommit(false);
+            savepointSetHere = setDBSavepoint();
 
             preparedStatement.setInt(1, t.getAccountID());
             preparedStatement.setDate(2, Date.valueOf(t.getTDate()));
@@ -640,33 +698,32 @@ public class MainApp extends Application {
             if (!t.getSplitTransactionList().isEmpty())
                 insertUpdateSplitTransactionsToDB(t.getID(), t.getSplitTransactionList());
 
-            mConnection.commit();
-
-            int idx = Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
-            if (idx < 0) {
-                // not in the list, insert a copy of t
-                mTransactionList.add(-(1+idx), t);
-            } else {
-                // exist in list, replace with a copy of t
-                mTransactionList.set(idx, t);
+            if (savepointSetHere) {
+                commitDB();
             }
 
             return t.getID();
         } catch (SQLException e) {
-            // something went wrong, roll back
-            try {
-                showExceptionDialog("Database Error", "update transaction failed", SQLExceptionToString(e), e);
-                mConnection.rollback();
-            } catch (SQLException e1) {
-                // error in rollback
-                showExceptionDialog("Database Error", "Failed to rollback transaction database update",
-                        SQLExceptionToString(e1), e1);
+            // something went wrong
+            if (savepointSetHere) {
+                try {
+                    showExceptionDialog("Database Error", "update transaction failed", SQLExceptionToString(e), e);
+                    rollbackDB();
+                } catch (SQLException e1) {
+                    // error in rollback
+                    showExceptionDialog("Database Error", "Failed to rollback transaction database update",
+                            SQLExceptionToString(e1), e1);
+                }
+            } else {
+                throw e;
             }
         } finally {
-            try {
-                mConnection.setAutoCommit(true);
-            } catch (SQLException e) {
-                showExceptionDialog("Database Error", "set autocommit failed", SQLExceptionToString(e), e);
+            if (savepointSetHere) {
+                try {
+                    releaseDBSavepoint();
+                } catch (SQLException e) {
+                    showExceptionDialog("Database Error", "set autocommit failed", SQLExceptionToString(e), e);
+                }
             }
         }
         return 0;
@@ -1030,8 +1087,7 @@ public class MainApp extends Application {
         }
 
         boolean success = true;
-
-        mConnection.setAutoCommit(false);
+        boolean savepointSetHere = setDBSavepoint();
 
         List<String> address = bt.getAddressList();
         int addressID = -1;
@@ -1093,12 +1149,18 @@ public class MainApp extends Application {
         if (success && !splitList.isEmpty() && (insertSplitBTToDB(rowID, splitList) != splitList.size()))
             success = false;
 
-        if (!success) {
-            mConnection.rollback();
+        if (savepointSetHere) {
+            if (!success) {
+                rollbackDB();
+            } else {
+                commitDB();
+            }
+            releaseDBSavepoint();
         } else {
-            mConnection.commit();
+            if (!success) {
+                throw new SQLException("SQL Error in insertTransactionToDB");
+            }
         }
-        mConnection.setAutoCommit(true);
 
         return rowID;
     }
@@ -2391,15 +2453,24 @@ public class MainApp extends Application {
 
         int cnt = 0;
         for (Transaction t : updateList) {
-            if (insertUpdateTransactionToDB(t) > 0)
+            try {
+                insertUpdateTransactionToDB(t);
+                insertUpdateTransactionToMasterList(t);
                 cnt++;
-            else
-                System.err.println("Updating Transaction " + t.getID() + " failed.");
+            } catch (SQLException e) {
+                showExceptionDialog("FixDB Failed", "Failed updating Transaction",
+                        t.getTDate() + "\n" + getAccountByID(t.getAccountID()).getName() + "\n"
+                                + t.getAmount() + "\n"+ t.getDescription() + "\n", e);
+            }
         }
-        System.err.println("Total " + nTrans + " transactions processed.");
-        System.err.println("Found " + updateList.size() + " matching transactions.");
-        System.err.println("Updated " + cnt + " transactions.");
-        System.err.println(unMatchedList.size() + " unmatched transactions.");
+
+        String message = "Total " + nTrans + " transactions processed." + "\n"
+                + "Found " + updateList.size() + " matching transactions." + "\n"
+                + "Updated " + cnt + " transactions." + "\n"
+                + "Remain " + unMatchedList.size() + " unmatched transactions.";
+
+        showInformationDialog("FixDB", "Information", message);
+        System.err.println(message);
     }
 
     // import data from QIF file
@@ -2981,7 +3052,7 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
     }
 
-    private static String SQLExceptionToString(SQLException e) {
+    static String SQLExceptionToString(SQLException e) {
         StringBuilder s = new StringBuilder();
         while (e != null) {
             s.append("--- SQLException ---" + "  SQL State: ").append(e.getSQLState())

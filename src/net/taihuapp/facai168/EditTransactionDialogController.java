@@ -11,9 +11,9 @@ import javafx.util.converter.BigDecimalStringConverter;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static net.taihuapp.facai168.Transaction.TradeAction.*;
 
@@ -131,11 +131,10 @@ public class EditTransactionDialogController {
     private Button mSplitTransactionButton;
 
     private MainApp mMainApp;
-    private int mOldXferAccountID;
     private Stage mDialogStage;
-    private List<SplitTransaction> mNewSplitTransactionList = null;
-
-    private Transaction mTransaction = null;
+    private Transaction mTransactionOrig = null;  // original copy of transaction
+    private Transaction mTransaction = null; // working copy of transaction
+    private boolean mSplitTransactionListChanged = false;
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;  // lot match list
 
     // used for mSharesTextField, mPriceTextField, mCommissionTextField, mOldSharesTextField
@@ -153,7 +152,7 @@ public class EditTransactionDialogController {
         return mTransaction.getID();
     }
 
-    // transaction can either be null, or a copy of an existing transaction in the list
+    // transaction can either be null, or an existing transaction
     void setMainApp(MainApp mainApp, Transaction transaction, Stage stage,
                     List<Account> accountList, Account defaultAccount,
                     List<Transaction.TradeAction> taList) {
@@ -179,16 +178,15 @@ public class EditTransactionDialogController {
 
         mTradeActionChoiceBox.getItems().setAll(taList);
 
-        if (transaction == null) {
+        mTransactionOrig = transaction;
+        if (mTransactionOrig == null) {
             Account account = mAccountComboBox.getSelectionModel().getSelectedItem();
             mTransaction = new Transaction(account.getID(), LocalDate.now(),
                     account.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
         } else {
-            mTransaction = transaction;
+            mTransaction = new Transaction(mTransactionOrig);
         }
         mMatchInfoList = mMainApp.getMatchInfoList(mTransaction.getID());
-
-        mOldXferAccountID = -mTransaction.getCategoryID();
 
         setupTransactionDialog();
     }
@@ -209,11 +207,6 @@ public class EditTransactionDialogController {
         if (!Transaction.hasQuantity(ta))
             mTransaction.setQuantity(null);
 
-        // transfer transaction id
-        int xferTID = mTransaction.getMatchID();
-        int xferAID = -mTransaction.getCategoryID();
-        BigDecimal xferAmount = mTransaction.getAmount();
-
         // setup transfer Transaction if needed
         Transaction.TradeAction xferTA = null;
         switch (ta) {
@@ -230,7 +223,7 @@ public class EditTransactionDialogController {
             case STKSPLIT:
             case XIN:
             case MARGINT:
-                if (xferAID >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XIN)
+                if (-mTransaction.getCategoryID() >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XIN)
                     xferTA = Transaction.TradeAction.XOUT;
 
                 // no transfer, do nothing
@@ -243,7 +236,7 @@ public class EditTransactionDialogController {
             case SELL:
             case SHTSELL:
             case XOUT:
-                if (xferAID >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XOUT)
+                if (-mTransaction.getCategoryID() >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XOUT)
                     xferTA = Transaction.TradeAction.XIN;
                 break;
             case SHRSOUT:
@@ -269,42 +262,140 @@ public class EditTransactionDialogController {
                 break;
         }
 
-        Transaction linkedTransaction = null;
-        if (xferTA != null && xferAID != accountID && xferAmount.signum() != 0) {
-            // we need a transfer transaction
-            linkedTransaction = new Transaction(xferAID, mTransaction.getTDate(), xferTA,
-                    -accountID);
-            linkedTransaction.setID(xferTID);
-            linkedTransaction.getAmountProperty().set(xferAmount);
-            linkedTransaction.setMemo(mTransaction.getMemo());
-            linkedTransaction.setPayee(payee);
-        }
-
         // we don't want to insert mTransaction into master transaction list in memory
         // make a copy of mTransaction
         Transaction dbCopyT = new Transaction(mTransaction);
 
-        // update database for the main transaction and update account balance
-        int tid = mMainApp.insertUpdateTransactionToDB(dbCopyT);
-        if (tid == 0) {
-            // insertion/updating failed
-            System.err.println("Failed insert/update transaction, ID = " + dbCopyT.getID());
-            return false;
-        }
-        mTransaction.setID(tid); // save tid for later
+        // this is a list of transactions to be updated in master list.
+        List<Transaction> updateTList = new ArrayList<>();
+        updateTList.add(dbCopyT);
 
-        // for new transactions, tid in elements of mMatchInfoList is -1, need to update
-        for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
-            mi.setTransactionID(tid);
+        // this is a list of transaction id to be deleted in master list
+        List<Integer> deleteList = new ArrayList<>();
+
+        // this is the set of account ids which involved in this and all linked transactions
+        Set<Integer> accountSet = new HashSet<>();
+        accountSet.add(dbCopyT.getAccountID());
+
+        Transaction linkedT = null;
+        if (xferTA != null && -mTransaction.getCategoryID() != accountID && mTransaction.getAmount().signum() != 0) {
+            // we need a transfer transaction
+            linkedT = new Transaction(-mTransaction.getCategoryID(), dbCopyT.getTDate(), xferTA, -accountID);
+            linkedT.setID(mTransactionOrig.getMatchID());
+            linkedT.getAmountProperty().set(mTransaction.getAmount());
+            linkedT.setMemo(dbCopyT.getMemo());
+            linkedT.setPayee(payee);
+
+            updateTList.add(linkedT);
+            accountSet.add(linkedT.getAccountID());
         }
 
-        mMainApp.putMatchInfoList(mMatchInfoList);
-        if (linkedTransaction != null) {
-            linkedTransaction.setMatchID(tid, 0);
-            dbCopyT.setMatchID(mMainApp.insertUpdateTransactionToDB(linkedTransaction), 0);
+
+        // new code here
+        try {
+            if (!mMainApp.setDBSavepoint()) {
+                showWarningDialog("Unexpected situation", "Database savepoint already set?",
+                        "Please restart application");
+                return false;
+            }
             mMainApp.insertUpdateTransactionToDB(dbCopyT);
-        } else if (xferTID > 0)
-            mMainApp.deleteTransactionFromDB(xferTID);  // delete the orphan matching transaction
+
+            // for new transactions, tid in elements of mMatchInfoList is -1, need to update
+            for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+                mi.setTransactionID(dbCopyT.getID());
+            }
+            mMainApp.putMatchInfoList(mMatchInfoList);
+
+            // handle linked transactions here
+            boolean hasLink = false;
+            if (linkedT != null) {
+                linkedT.setMatchID(dbCopyT.getAccountID(), 0);
+                mMainApp.insertUpdateTransactionToDB(linkedT);
+                dbCopyT.setMatchID(linkedT.getID(), 0);
+
+                hasLink = true;
+                accountSet.add(linkedT.getAccountID());
+            }
+
+            for (SplitTransaction st : dbCopyT.getSplitTransactionList()) {
+                if (st.getCategoryID() <= -MainApp.MIN_ACCOUNT_ID && st.getAmount().compareTo(BigDecimal.ZERO) != 0) {
+                    // this is a transfer
+                    Transaction stLinkedT = new Transaction(-st.getCategoryID(), dbCopyT.getTDate(),
+                            st.getAmount().compareTo(BigDecimal.ZERO) > 0 ? XOUT : XIN, -dbCopyT.getAccountID());
+                    stLinkedT.setID(st.getMatchID());
+                    stLinkedT.setAmount(st.getAmount().abs());
+                    stLinkedT.setMemo(st.getMemo());
+                    stLinkedT.setPayee(dbCopyT.getPayee());
+                    stLinkedT.setMatchID(dbCopyT.getID(), st.getID());
+
+                    mMainApp.insertUpdateTransactionToDB(stLinkedT);
+                    st.setMatchID(stLinkedT.getID());
+                    hasLink = true;
+
+                    updateTList.add(stLinkedT);
+                    accountSet.add(stLinkedT.getAccountID());
+                } else {
+                    // not linked to any other transaction
+                    st.setMatchID(0);
+                }
+            }
+            if (hasLink)
+                mMainApp.insertUpdateTransactionToDB(dbCopyT);
+
+            for (SplitTransaction st : mTransactionOrig.getSplitTransactionList()) {
+                if (st.getMatchID() > 0) {
+                    // matchID was in
+                    boolean delete = true;
+                    for (Transaction t : updateTList) {
+                        if (t.getID() == st.getMatchID())
+                            delete = false;
+                    }
+                    if (delete) {
+                        Transaction t = mMainApp.getTransactionByID(st.getMatchID());
+                        accountSet.add(t.getAccountID());
+                        deleteList.add(st.getMatchID());
+                        mMainApp.deleteTransactionFromDB(st.getMatchID());
+                    }
+                }
+            }
+
+            if (mTransactionOrig.getCategoryID() <= -MainApp.MIN_ACCOUNT_ID)
+                accountSet.add(-mTransactionOrig.getCategoryID());
+
+            if (mTransactionOrig.getMatchID() > 0 && mTransactionOrig.getMatchID() != dbCopyT.getMatchID()) {
+                Transaction t = mMainApp.getTransactionByID(mTransactionOrig.getMatchID());
+                if (t != null) {
+                    accountSet.add(t.getAccountID());
+                    deleteList.add(mTransactionOrig.getMatchID());
+                    mMainApp.deleteTransactionFromDB(mTransactionOrig.getMatchID());
+                }
+            }
+            mMainApp.commitDB();
+            // end database work here
+
+            // update master list here
+            for (Integer deleteID : deleteList)
+                mMainApp.deleteTransactionFromMasterList(deleteID);
+            for (Transaction t : updateTList)
+                mMainApp.insertUpdateTransactionToMasterList(t);
+        } catch (SQLException e) {
+            try {
+                mMainApp.rollbackDB();
+            } catch (SQLException e1) {
+                mMainApp.showExceptionDialog("Database Error", "Unable to rollback to savepoint",
+                        MainApp.SQLExceptionToString(e1), e1);
+            }
+        } finally {
+            try {
+                mMainApp.releaseDBSavepoint();
+            } catch (SQLException e) {
+                mMainApp.showExceptionDialog("Database Error",
+                        "Unable to release savepoint and set DB autocommit",
+                        MainApp.SQLExceptionToString(e), e);
+            }
+        }
+
+        // new code end here
 
         // update price first
         Security security = mMainApp.getSecurityByName(dbCopyT.getSecurityName());
@@ -320,15 +411,9 @@ public class EditTransactionDialogController {
         }
 
         // This security might be new in this account, which means this account balance was
-        // not updated in updateAccountBaance(security), let's make sure it is updated now
-        mMainApp.updateAccountBalance(dbCopyT.getAccountID());
-
-        if (xferAID > MainApp.MIN_ACCOUNT_ID)
-            mMainApp.updateAccountBalance(xferAID);
-
-        if (mOldXferAccountID >= MainApp.MIN_ACCOUNT_ID) {
-            mMainApp.updateAccountBalance(mOldXferAccountID);
-            mOldXferAccountID = 0;
+        // not updated in updateAccountBalance(security), let's make sure it is updated now
+        for (Integer aid : accountSet) {
+            mMainApp.updateAccountBalance(aid);
         }
 
         return true;
@@ -373,22 +458,20 @@ public class EditTransactionDialogController {
 
     @FXML
     private void handleSplitTransactions() {
-        List<SplitTransaction> inputSplitTransactionList, outputSplitTransactionList;
-        if (mNewSplitTransactionList == null)
-            inputSplitTransactionList = mTransaction.getSplitTransactionList();
-        else
-            inputSplitTransactionList = mNewSplitTransactionList;
-
-        outputSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage, inputSplitTransactionList,
+        List<SplitTransaction> outputSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage,
+                mTransaction.getSplitTransactionList(),
                 mTransaction.getPayment().subtract(mTransaction.getDeposit()));
 
-        if (outputSplitTransactionList != null) // splittransactionlist changed
-            mNewSplitTransactionList = outputSplitTransactionList;
+        if (outputSplitTransactionList != null) {
+            // splittransactionlist changed
+            mSplitTransactionListChanged = true;
+            mTransaction.setSplitTransactionList(outputSplitTransactionList);
+        }
     }
 
     @FXML
     private void handleCancel() {
-        if (mNewSplitTransactionList != null) {
+        if (mSplitTransactionListChanged) {
             // ask if user want to save changed splittransaction
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Split Transactions were changed.");

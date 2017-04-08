@@ -15,6 +15,7 @@ import javafx.util.Pair;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.temporal.WeekFields;
@@ -584,13 +585,12 @@ public class ReportDialogController {
                     mSetting.setID(-1);
                 }
                 mSetting.setName(result.get());
-                if (mMainApp.insertUpdateReportSettingToDB(mSetting) <= 0) {
+                try {
+                    mMainApp.insertUpdateReportSettingToDB(mSetting);
+                } catch (SQLException e) {
                     mSetting.setID(oldID);  // put back oldID
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Error Dialog");
-                    alert.setHeaderText("Failed to save report setting!");
-                    alert.setContentText("Make sure the name is not being used");
-                    alert.showAndWait();
+                    mMainApp.showExceptionDialog("Error Dialog", "Failed to save report setting!",
+                            "Make sure the name is not already used.", e);
                 }
             }
         }

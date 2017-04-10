@@ -342,34 +342,38 @@ public class EditTransactionDialogController {
             if (hasLink)
                 mMainApp.insertUpdateTransactionToDB(dbCopyT);
 
-            for (SplitTransaction st : mTransactionOrig.getSplitTransactionList()) {
-                if (st.getMatchID() > 0) {
-                    // matchID was in
-                    boolean delete = true;
-                    for (Transaction t : updateTList) {
-                        if (t.getID() == st.getMatchID())
-                            delete = false;
-                    }
-                    if (delete) {
+            if (mTransactionOrig != null) {
+                for (SplitTransaction st : mTransactionOrig.getSplitTransactionList()) {
+                    if (st.getMatchID() > 0) {
+                        // matchID was in
+                        boolean delete = true;
+                        for (Transaction t : updateTList) {
+                            if (t.getID() == st.getMatchID())
+                                delete = false;
+                        }
                         Transaction t = mMainApp.getTransactionByID(st.getMatchID());
+                        // the transaction might changed, let's update account balance.
                         accountSet.add(t.getAccountID());
-                        deleteList.add(st.getMatchID());
-                        mMainApp.deleteTransactionFromDB(st.getMatchID());
+                        if (delete) {
+                            deleteList.add(st.getMatchID());
+                            mMainApp.deleteTransactionFromDB(st.getMatchID());
+                        }
+                    }
+                }
+
+                if (mTransactionOrig.getCategoryID() <= -MainApp.MIN_ACCOUNT_ID)
+                    accountSet.add(-mTransactionOrig.getCategoryID());
+
+                if (mTransactionOrig.getMatchID() > 0 && mTransactionOrig.getMatchID() != dbCopyT.getMatchID()) {
+                    Transaction t = mMainApp.getTransactionByID(mTransactionOrig.getMatchID());
+                    if (t != null) {
+                        accountSet.add(t.getAccountID());
+                        deleteList.add(mTransactionOrig.getMatchID());
+                        mMainApp.deleteTransactionFromDB(mTransactionOrig.getMatchID());
                     }
                 }
             }
 
-            if (mTransactionOrig.getCategoryID() <= -MainApp.MIN_ACCOUNT_ID)
-                accountSet.add(-mTransactionOrig.getCategoryID());
-
-            if (mTransactionOrig.getMatchID() > 0 && mTransactionOrig.getMatchID() != dbCopyT.getMatchID()) {
-                Transaction t = mMainApp.getTransactionByID(mTransactionOrig.getMatchID());
-                if (t != null) {
-                    accountSet.add(t.getAccountID());
-                    deleteList.add(mTransactionOrig.getMatchID());
-                    mMainApp.deleteTransactionFromDB(mTransactionOrig.getMatchID());
-                }
-            }
             mMainApp.commitDB();
             // end database work here
 
@@ -424,6 +428,28 @@ public class EditTransactionDialogController {
         Security security = mSecurityComboBox.getValue();
         if (security != null && security.getID() > 0)  // has a valid security
             return true;
+
+        int accountID = mTransaction.getAccountID();
+
+        // check self transfer in splittransaction
+        for (SplitTransaction st : mTransaction.getSplitTransactionList()) {
+            if (st.getCategoryID() == -accountID) {
+                showWarningDialog("Warning", "Self Transfer in Split Transactions",
+                        "Please make sure account is different from transfer account.");
+                return false;
+            }
+        }
+
+        Transaction.TradeAction ta = mTransaction.getTradeAction();
+        // check self transfer in
+        if (ta == XIN || ta == XOUT) {
+            if (accountID == -mTransaction.getCategoryID()) {
+                showWarningDialog("Warning", "Self Transfer",
+                        "Please make sure account is different from transfer account.");
+                return false;
+            }
+        }
+
 
         // empty security here
         // for cash related transaction, return true

@@ -30,6 +30,10 @@ class SplitTransaction {
 
     private int mMatchID;  // the id of the transaction is matched up to this split transaction
 
+    SplitTransaction(SplitTransaction st) {
+        this(st.getID(), st.getCategoryID(), st.getMemo(), st.getAmount(), st.getMatchID());
+    }
+
     SplitTransaction(int id, int cid, String memo, BigDecimal amount, int matchTid) {
         mID = id;
         mCategoryIDProperty.set(cid);

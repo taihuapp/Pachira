@@ -4,6 +4,8 @@ import javafx.beans.property.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by ghe on 11/29/16.
@@ -23,7 +25,7 @@ class Reminder {
     private final IntegerProperty mTransferAccountIDProperty = new SimpleIntegerProperty(0);
     private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
-
+    private final List<SplitTransaction> mSplitTransactionList = new ArrayList<>();
     private DateSchedule mDateSchedule;
 
     // default constructor
@@ -37,11 +39,13 @@ class Reminder {
     // copy constructor
     Reminder(Reminder r) {
         this(r.getID(), r.getType(), r.getPayee(), r.getAmount(), r.getEstimateCount(), r.getAccountID(),
-                r.getCategoryID(), r.getTransferAccountID(), r.getTagID(), r.getMemo(), r.getDateSchedule());
+                r.getCategoryID(), r.getTransferAccountID(), r.getTagID(), r.getMemo(), r.getDateSchedule(),
+                r.getSplitTransactionList());
     }
 
     Reminder(int id, Type type, String payee, BigDecimal amount, int estCnt, int accountID, int categoryID,
-             int transferAccountID, int tagID, String memo, DateSchedule ds) {
+             int transferAccountID, int tagID, String memo, DateSchedule ds,
+             List<SplitTransaction> stList) {
         mID = id;
         mTypeProperty.set(type);
         mPayeeProperty.set(payee);
@@ -53,6 +57,9 @@ class Reminder {
         mTagIDProperty.set(tagID);
         mMemoProperty.set(memo);
         mDateSchedule = ds;
+
+        for (SplitTransaction st : stList)
+            mSplitTransactionList.add(new SplitTransaction(st));
     }
 
     DateSchedule getDateSchedule() { return mDateSchedule; }
@@ -96,4 +103,11 @@ class Reminder {
     StringProperty getMemoProperty() { return mMemoProperty; }
     String getMemo() { return getMemoProperty().get(); }
     void setMemo(String m) { getMemoProperty().set(m); }
+
+    List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
+    void setSplitTransactionList(List<SplitTransaction> stList) {
+        mSplitTransactionList.clear();
+        for (SplitTransaction st : stList)
+            mSplitTransactionList.add(new SplitTransaction(st));
+    }
 }

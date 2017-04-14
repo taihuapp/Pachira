@@ -178,13 +178,14 @@ public class EditTransactionDialogController {
 
         mTradeActionChoiceBox.getItems().setAll(taList);
 
-        mTransactionOrig = transaction;
-        if (mTransactionOrig == null) {
+        if (transaction == null) {
             Account account = mAccountComboBox.getSelectionModel().getSelectedItem();
             mTransaction = new Transaction(account.getID(), LocalDate.now(),
                     account.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
         } else {
-            mTransaction = new Transaction(mTransactionOrig);
+            mTransaction = new Transaction(transaction);
+            if (transaction.getID() > 0)
+                mTransactionOrig = transaction;
         }
         mMatchInfoList = mMainApp.getMatchInfoList(mTransaction.getID());
 
@@ -281,7 +282,7 @@ public class EditTransactionDialogController {
         if (xferTA != null && -mTransaction.getCategoryID() != accountID && mTransaction.getAmount().signum() != 0) {
             // we need a transfer transaction
             linkedT = new Transaction(-mTransaction.getCategoryID(), dbCopyT.getTDate(), xferTA, -accountID);
-            linkedT.setID(mTransactionOrig.getMatchID());
+            linkedT.setID(mTransaction.getMatchID());
             linkedT.getAmountProperty().set(mTransaction.getAmount());
             linkedT.setMemo(dbCopyT.getMemo());
             linkedT.setPayee(payee);
@@ -298,7 +299,7 @@ public class EditTransactionDialogController {
                         "Please restart application");
                 return false;
             }
-            mMainApp.insertUpdateTransactionToDB(dbCopyT);
+            mTransaction.setID(mMainApp.insertUpdateTransactionToDB(dbCopyT));
 
             // for new transactions, tid in elements of mMatchInfoList is -1, need to update
             for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
@@ -428,6 +429,18 @@ public class EditTransactionDialogController {
         Security security = mSecurityComboBox.getValue();
         if (security != null && security.getID() > 0)  // has a valid security
             return true;
+
+        if (!mTransaction.getSplitTransactionList().isEmpty()) {
+            BigDecimal netAmount = mTransaction.getPayment().subtract(mTransaction.getDeposit());
+            for (SplitTransaction st : mTransaction.getSplitTransactionList()) {
+                netAmount = netAmount.add(st.getAmount());
+            }
+            if (netAmount.compareTo(BigDecimal.ZERO) != 0) {
+                showWarningDialog("Warning", "Split transaction amount net matching with total amount.",
+                        "Please check split transactions and total amount.");
+                return false;
+            }
+        }
 
         int accountID = mTransaction.getAccountID();
 

@@ -88,11 +88,12 @@ public class ReminderTransactionListDialogController {
         transaction.setAmount(reminder.getAmount());
         transaction.setPayee(reminder.getPayee());
         transaction.setMemo(reminder.getMemo());
+        transaction.setSplitTransactionList(reminder.getSplitTransactionList());
         int tid = mMainApp.showEditTransactionDialog(mMainApp.getStage(), transaction,
                 mMainApp.getAccountList(Account.Type.SPENDING, null, false),
                 mMainApp.getAccountByID(reminder.getAccountID()), Collections.singletonList(ta));
         if (tid >= 0) {
-            mMainApp.insertReminderTransactions(rt, transaction);
+            mMainApp.insertReminderTransactions(rt, tid);
             mMainApp.initReminderTransactionList();
         }
     }
@@ -100,7 +101,7 @@ public class ReminderTransactionListDialogController {
     @FXML
     private void handleSkip() {
         ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
-        mMainApp.insertReminderTransactions(rt, null);
+        mMainApp.insertReminderTransactions(rt, 0);
         mMainApp.initReminderTransactionList();
     }
 

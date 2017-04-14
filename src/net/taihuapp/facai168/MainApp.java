@@ -412,7 +412,6 @@ public class MainApp extends Application {
         mSavepoint = null;
     }
     void rollbackDB() throws SQLException {
-        if (mSavepoint != null)
             mConnection.rollback(mSavepoint);
     }
     void commitDB() throws SQLException {
@@ -535,7 +534,7 @@ public class MainApp extends Application {
 
     // insert or update reminder
     // return affected reminder id if success, 0 for failure.
-    int insertUpdateReminderToDB(Reminder reminder) {
+    int insertUpdateReminderToDB(Reminder reminder) throws SQLException {
         String sqlCmd;
         if (reminder.getID() <= 0) {
             sqlCmd = "insert into REMINDERS "
@@ -550,7 +549,11 @@ public class MainApp extends Application {
                     + "BASEUNIT = ?, NUMPERIOD = ?, ALERTDAYS = ?, ISDOM = ?, ISFWD = ?, ESTCOUNT = ? "
                     + "where ID = ?";
         }
+
+        boolean savepointSetHere = false; // did I set it?
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            savepointSetHere = setDBSavepoint();
+
             preparedStatement.setString(1, reminder.getType().name());
             preparedStatement.setString(2, reminder.getPayee());
             preparedStatement.setBigDecimal(3, reminder.getAmount());
@@ -579,17 +582,43 @@ public class MainApp extends Application {
                     reminder.setID(resultSet.getInt(1));
                 }
             }
+
+            if (!reminder.getSplitTransactionList().isEmpty()) {
+                insertUpdateSplitTransactionsToDB(-reminder.getID(), reminder.getSplitTransactionList());
+            }
+
+            if (savepointSetHere) {
+                commitDB();
+            }
+
             return reminder.getID();
         } catch (SQLException e) {
-            showExceptionDialog("Database Error", "insert/update Reminder failed",
-                    SQLExceptionToString(e), e);
+            if (savepointSetHere) {
+                try {
+                    showExceptionDialog("Database Error", "insert/update Reminder failed",
+                            SQLExceptionToString(e), e);
+                    rollbackDB();
+                } catch (SQLException e1) {
+                    showExceptionDialog("Database Error", "Failed to rollback reminder database update",
+                            SQLExceptionToString(e1), e1);
+                }
+            } else {
+                throw e;
+            }
+        } finally {
+            if (savepointSetHere) {
+                try {
+                    releaseDBSavepoint();
+                } catch (SQLException e) {
+                    showExceptionDialog("Database Error", "after insertUpdateReminber, set autocommit failed",
+                            SQLExceptionToString(e), e);
+                }
+            }
         }
         return 0; // failed
     }
 
-    boolean insertReminderTransactions(ReminderTransaction rt, Transaction t) {
-        int tid = t == null ? 0 : t.getID();
-
+    boolean insertReminderTransactions(ReminderTransaction rt, int tid) {
         rt.setTransactionID(tid);
         String sqlCmd = "insert into REMINDERTRANSACTIONS (REMINDERID, DUEDATE, TRANSACTIONID) "
                 + "values (?, ?, ?)";
@@ -1398,7 +1427,7 @@ public class MainApp extends Application {
 
                 DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, ad, isDOM, isFWD);
                 mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount, estCnt,
-                        accountID, categoryID, transferAccountID, tagID, memo, ds));
+                        accountID, categoryID, transferAccountID, tagID, memo, ds, loadSplitTransactions(-id)));
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -1642,9 +1671,8 @@ public class MainApp extends Application {
     private List<SplitTransaction> loadSplitTransactions(int tid) {
         List<SplitTransaction> stList = new ArrayList<>();
 
-        String sqlCmd = "select st.*, t.ACCOUNTID "
-                + "from SPLITTRANSACTIONS st inner join TRANSACTIONS t "
-                + "where st.TRANSACTIONID = t.ID and t.ID = " + tid + " order by st.ID";
+        String sqlCmd = "select * from SPLITTRANSACTIONS where TRANSACTIONID = " + tid + " order by ID";
+
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
@@ -2258,6 +2286,7 @@ public class MainApp extends Application {
         }
     }
 
+    // The input transaction is not changed.
     void showEditTransactionDialog(Stage parent, Transaction transaction) {
         List<Transaction.TradeAction> taList = (mCurrentAccount.getType() == Account.Type.INVESTING) ?
                 Arrays.asList(Transaction.TradeAction.values()) :
@@ -2268,6 +2297,7 @@ public class MainApp extends Application {
     }
 
     // return transaction id or -1 for failure
+    // The input transaction is not changed.
     int showEditTransactionDialog(Stage parent, Transaction transaction, List<Account> accountList,
                                           Account defaultAccount, List<Transaction.TradeAction> taList) {
         try {

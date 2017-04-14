@@ -8,6 +8,9 @@ import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.NumberStringConverter;
 
+import java.math.BigDecimal;
+import java.sql.SQLException;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
@@ -235,16 +238,80 @@ public class EditReminderDialogController {
     }
 
     @FXML
+    private void handleSplit() {
+        BigDecimal netAmount = BigDecimal.ZERO;
+        if (mFixedAmountRadioButton.isSelected()) {
+            netAmount = mReminder.getAmount();
+            if (mReminder.getType() == Reminder.Type.DEPOSIT)
+                netAmount = netAmount.negate();
+        }
+
+        List<SplitTransaction> outputSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage,
+                mReminder.getSplitTransactionList(), netAmount);
+
+        if (outputSplitTransactionList != null) {
+            // splitTransactionList changed
+            mReminder.setSplitTransactionList(outputSplitTransactionList);
+        }
+    }
+
+    @FXML
     private void handleSave() {
         // validation
         // todo
 
+        List<SplitTransaction> stList = mReminder.getSplitTransactionList();
+        if (!stList.isEmpty()) {
+            BigDecimal netAmount = mReminder.getAmount();
+            if (mReminder.getType() == Reminder.Type.DEPOSIT)
+                netAmount = netAmount.negate();
+            for (SplitTransaction st : stList) {
+                netAmount = netAmount.add(st.getAmount());
+            }
+            if (netAmount.compareTo(BigDecimal.ZERO) != 0) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning");
+                alert.setHeaderText("Split Transaction amount not match with total amount.");
+                alert.setContentText("Please check split");
+                alert.showAndWait();
+                return;
+            }
+        }
 
         if (!mEstimateAmountRadioButton.isSelected())
             mReminder.setEstimateCount(0);
 
         // enter
-        mMainApp.insertUpdateReminderToDB(mReminder);
+        try {
+            if (!mMainApp.setDBSavepoint()) {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setHeaderText("DB Save Point unexpected set.");
+                alert.setContentText("Something is wrong.  Please restart.");
+                alert.showAndWait();
+                return;
+            }
+            mMainApp.insertUpdateReminderToDB(mReminder);
+            mMainApp.commitDB();
+        } catch (SQLException e) {
+            try {
+                mMainApp.showExceptionDialog("Datebase Error", "insert or update Reminder failed",
+                        MainApp.SQLExceptionToString(e), e);
+                mMainApp.rollbackDB();
+            } catch (SQLException e1) {
+                mMainApp.showExceptionDialog("Database Error",
+                        "Failed to rollback reminder database update",
+                        MainApp.SQLExceptionToString(e), e);
+            }
+        } finally {
+            try {
+                mMainApp.releaseDBSavepoint();
+            } catch (SQLException e) {
+                mMainApp.showExceptionDialog("Database Error",
+                        "set autocommit failed after insert update reminder",
+                        MainApp.SQLExceptionToString(e), e);
+            }
+        }
         mMainApp.initReminderMap();
         mMainApp.initReminderTransactionList();
         close();

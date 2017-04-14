@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.lang.*?>
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+
 <GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditReminderDialogController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" maxWidth="110.0" minWidth="10.0" prefWidth="110.0" />
@@ -113,5 +115,6 @@
             </GridPane.margin></ToggleButton>
         <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="4" GridPane.columnSpan="2" GridPane.rowIndex="3" />
         <DatePicker fx:id="mEndDatePicker" GridPane.columnIndex="4" GridPane.rowIndex="6" />
+      <Button mnemonicParsing="false" onAction="#handleSplit" text="Split" GridPane.columnIndex="3" GridPane.rowIndex="7" />
     </children>
 </GridPane>

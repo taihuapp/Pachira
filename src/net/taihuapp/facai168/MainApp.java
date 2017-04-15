@@ -779,11 +779,11 @@ public class MainApp extends Application {
 
         final int[] idArray = new int[stList.size()];
         String insertSQL = "insert into SPLITTRANSACTIONS "
-                            + "(TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, MATCHTRANSACTIONID) "
-                            + "values (?, ?, ?, ?, ?)";
+                + "(TRANSACTIONID, CATEGORYID, PAYEE, MEMO, AMOUNT, MATCHTRANSACTIONID) "
+                + "values (?, ?, ?, ?, ?, ?)";
         String updateSQL = "update SPLITTRANSACTIONS set "
-                            + "TRANSACTIONID = ?, CATEGORYID = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ? "
-                            + "where ID = ?";
+                + "TRANSACTIONID = ?, CATEGORYID = ?, PAYEE = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ? "
+                + "where ID = ?";
         try (Statement statement = mConnection.createStatement();
              PreparedStatement insertStatement = mConnection.prepareStatement(insertSQL);
              PreparedStatement updateStatement = mConnection.prepareStatement(updateSQL)) {
@@ -797,12 +797,19 @@ public class MainApp extends Application {
             // insert or update stList
             for (int i = 0; i < stList.size(); i++) {
                 SplitTransaction st = stList.get(i);
+                String payee = st.getPayee();
+                if (payee != null && payee.length() > TRANSACTIONPAYEELEN)
+                    payee = payee.substring(0, TRANSACTIONPAYEELEN);
+                String memo = st.getMemo();
+                if (memo != null && memo.length() > TRANSACTIONMEMOLEN)
+                    memo = memo.substring(0, TRANSACTIONMEMOLEN);
                 if (st.getID() <= 0) {
                     insertStatement.setInt(1, tid);
                     insertStatement.setInt(2, st.getCategoryID());
-                    insertStatement.setString(3, st.getMemo());
-                    insertStatement.setBigDecimal(4, st.getAmount());
-                    insertStatement.setInt(5, st.getMatchID());
+                    insertStatement.setString(3, payee);
+                    insertStatement.setString(4, memo);
+                    insertStatement.setBigDecimal(5, st.getAmount());
+                    insertStatement.setInt(6, st.getMatchID());
 
                     if (insertStatement.executeUpdate() == 0) {
                         throw new SQLException("Insert to splittransactions failed");
@@ -816,10 +823,11 @@ public class MainApp extends Application {
 
                     updateStatement.setInt(1, tid);
                     updateStatement.setInt(2, st.getCategoryID());
-                    updateStatement.setString(3, st.getMemo());
-                    updateStatement.setBigDecimal(4, st.getAmount());
-                    updateStatement.setInt(5, st.getMatchID());
-                    updateStatement.setInt(6, st.getID());
+                    updateStatement.setString(3, payee);
+                    updateStatement.setString(4, memo);
+                    updateStatement.setBigDecimal(5, st.getAmount());
+                    updateStatement.setInt(6, st.getMatchID());
+                    updateStatement.setInt(7, st.getID());
 
                     updateStatement.executeUpdate();
                 }
@@ -1678,6 +1686,7 @@ public class MainApp extends Application {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
                 int cid = resultSet.getInt("CATEGORYID");
+                String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
                 if (amount == null) {
@@ -1687,7 +1696,7 @@ public class MainApp extends Application {
                 // do we need percentage?
                 // ignore it for now
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
-                stList.add(new SplitTransaction(id, cid, memo, amount, matchID));
+                stList.add(new SplitTransaction(id, cid, payee, memo, amount, matchID));
             }
         }  catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
@@ -2952,6 +2961,7 @@ public class MainApp extends Application {
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "
                 + "TRANSACTIONID integer NOT NULL, "
                 + "CATEGORYID integer, "
+                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
                 + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
                 + "AMOUNT decimal(20,4), "
                 + "PERCENTAGE decimal(20,4), "

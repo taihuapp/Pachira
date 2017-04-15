@@ -8,6 +8,7 @@
       <TableView fx:id="mSplitTransactionsTableView" editable="true" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
         <columns>
           <TableColumn fx:id="mCategoryTableColumn" prefWidth="75.0" sortable="false" text="Category/Transfer" />
+            <TableColumn fx:id="mPayeeTableColumn" prefWidth="75.0" text="Payee" />
           <TableColumn fx:id="mMemoTableColumn" prefWidth="75.0" sortable="false" text="Memo" />
             <TableColumn fx:id="mAmountTableColumn" prefWidth="75.0" sortable="false" text="Amount" />
         </columns>
@@ -29,6 +30,7 @@
                         <Insets left="5.0" />
                      </HBox.margin>
                   </ComboBox>
+                  <TextField fx:id="mPayeeTextField" />
                   <TextField fx:id="mMemoTextField" />
                   <TextField fx:id="mAmountTextField" alignment="CENTER_RIGHT">
                      <HBox.margin>

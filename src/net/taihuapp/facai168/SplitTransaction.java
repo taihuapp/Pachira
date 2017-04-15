@@ -21,6 +21,7 @@ class SplitTransaction {
     // negative for negative of Transfer Account ID
     private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
 
+    private final StringProperty mPayeeProperty = new SimpleStringProperty();
     private final StringProperty mMemoProperty = new SimpleStringProperty();
 
     // amount can be positive or negative
@@ -31,12 +32,13 @@ class SplitTransaction {
     private int mMatchID;  // the id of the transaction is matched up to this split transaction
 
     SplitTransaction(SplitTransaction st) {
-        this(st.getID(), st.getCategoryID(), st.getMemo(), st.getAmount(), st.getMatchID());
+        this(st.getID(), st.getCategoryID(), st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID());
     }
 
-    SplitTransaction(int id, int cid, String memo, BigDecimal amount, int matchTid) {
+    SplitTransaction(int id, int cid, String payee, String memo, BigDecimal amount, int matchTid) {
         mID = id;
         mCategoryIDProperty.set(cid);
+        mPayeeProperty.set(payee);
         mMemoProperty.set(memo);
         mAmountProperty.set(amount);
         mMatchID = matchTid;
@@ -45,6 +47,8 @@ class SplitTransaction {
     int getID() { return mID; }
     IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
+    StringProperty getPayeeProperty() { return mPayeeProperty; }
+    String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
     String getMemo() { return getMemoProperty().get(); }
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
@@ -53,8 +57,9 @@ class SplitTransaction {
 
     void setID(int id) { mID = id; }
     void setMatchID(int mid) { mMatchID = mid; }
-    void setMemo(String memo) { mMemoProperty.set(memo); }
-    void setAmount(BigDecimal amount) { mAmountProperty.set(amount); }
+    void setPayee(String payee) { getPayeeProperty().set(payee); }
+    void setMemo(String memo) { getMemoProperty().set(memo); }
+    void setAmount(BigDecimal amount) { getAmountProperty().set(amount); }
 
     boolean isTransfer(int exAid) {
         int cid = getCategoryID();

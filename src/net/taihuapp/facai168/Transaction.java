@@ -444,7 +444,9 @@ public class Transaction {
     private void setTagID(int tid) { mTagIDProperty.set(tid); }
     void setSplitTransactionList(List<SplitTransaction> stList) {
         mSplitTransactionList.clear();
-        mSplitTransactionList.addAll(stList);
+        if (stList != null)
+            for (SplitTransaction st : stList)
+                mSplitTransactionList.add(new SplitTransaction(st));
     }
 
     // minimum constructor
@@ -485,8 +487,10 @@ public class Transaction {
         mQuantityProperty.set(quantity);
         mTradeActionProperty.set(ta);
         mAmountProperty.set(amount);
-        if (stList != null)
-            mSplitTransactionList.addAll(stList);
+        if (stList != null) {
+            for (SplitTransaction st : stList)
+                mSplitTransactionList.add(new SplitTransaction(st));
+        }
 
         bindProperties();
         // bind description property now

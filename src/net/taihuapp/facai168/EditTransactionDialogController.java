@@ -325,6 +325,7 @@ public class EditTransactionDialogController {
                             st.getAmount().compareTo(BigDecimal.ZERO) > 0 ? XOUT : XIN, -dbCopyT.getAccountID());
                     stLinkedT.setID(st.getMatchID());
                     stLinkedT.setAmount(st.getAmount().abs());
+                    stLinkedT.setPayee(st.getPayee());
                     stLinkedT.setMemo(st.getMemo());
                     stLinkedT.setPayee(dbCopyT.getPayee());
                     stLinkedT.setMatchID(dbCopyT.getID(), st.getID());

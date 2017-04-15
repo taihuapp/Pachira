@@ -46,11 +46,15 @@ public class SplitTransactionsDialogController {
     @FXML
     private TableColumn<SplitTransaction, Integer> mCategoryTableColumn;
     @FXML
+    private TableColumn<SplitTransaction, String> mPayeeTableColumn;
+    @FXML
     private TableColumn<SplitTransaction, String> mMemoTableColumn;
     @FXML
     private TableColumn<SplitTransaction, BigDecimal> mAmountTableColumn;
     @FXML
     private ComboBox<Integer> mCategoryIDComboBox;
+    @FXML
+    private TextField mPayeeTextField;
     @FXML
     private TextField mMemoTextField;
     @FXML
@@ -83,12 +87,17 @@ public class SplitTransactionsDialogController {
         mSplitTransactionsTableView.getItems().clear();
         for (SplitTransaction st : stList) {
             mSplitTransactionsTableView.getItems().add(new SplitTransaction(st.getID(), st.getCategoryID(),
-                    st.getMemo(), st.getAmount(), st.getMatchID()));
+                    st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID()));
         }
 
         mCategoryTableColumn.setCellValueFactory(cd -> cd.getValue().getCategoryIDProperty().asObject());
         mCategoryTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(new CategoryTransferToStringConverter(),
                 mCategoryIDComboBox.getItems()));
+
+        mPayeeTableColumn.setCellValueFactory(cd -> cd.getValue().getPayeeProperty());
+        mPayeeTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        mPayeeTableColumn.setOnEditCommit(e
+                -> e.getTableView().getItems().get(e.getTablePosition().getRow()).setPayee(e.getNewValue()));
 
         mMemoTableColumn.setCellValueFactory(cd -> cd.getValue().getMemoProperty());
         mMemoTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
@@ -118,10 +127,12 @@ public class SplitTransactionsDialogController {
     @FXML
     private void initialize() {
         mCategoryIDComboBox.setPrefWidth(mCategoryTableColumn.getWidth());
+        mPayeeTextField.setPrefWidth((mPayeeTableColumn.getWidth()));
         mMemoTextField.setPrefWidth(mMemoTableColumn.getWidth());
         mAmountTextField.setPrefWidth(mAmountTableColumn.getWidth());
 
         mCategoryTableColumn.widthProperty().addListener((ob, o, n) -> mCategoryIDComboBox.setPrefWidth(n.doubleValue()));
+        mPayeeTableColumn.widthProperty().addListener((ob, o, n) -> mPayeeTextField.setPrefWidth(n.doubleValue()));
         mMemoTableColumn.widthProperty().addListener((ob, o, n) -> mMemoTextField.setPrefWidth(n.doubleValue()));
         mAmountTableColumn.widthProperty().addListener((ob, o, n) -> mAmountTextField.setPrefWidth(n.doubleValue()));
 
@@ -156,7 +167,7 @@ public class SplitTransactionsDialogController {
     @FXML
     private void handleAdd() {
         mSplitTransactionsTableView.getItems().add(new SplitTransaction(-1, mCategoryIDComboBox.getValue(),
-                mMemoTextField.getText(), new BigDecimal(mAmountTextField.getText()), -1));
+                mPayeeTextField.getText(), mMemoTextField.getText(), new BigDecimal(mAmountTextField.getText()), -1));
         mMemoTextField.setText("");
         updateRemainingAmount();
     }

@@ -106,16 +106,17 @@ public class MainApp extends Application {
 
     // we want to watch the change of hiddenflag and displayOrder
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList(
-            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty() });
+            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(),
+                    a.getCurrentBalanceProperty() });
     private ObservableList<Tag> mTagList = FXCollections.observableArrayList();
     private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
     private SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
 
-    private Map<Integer, Reminder> mReminderMap = new HashMap<>();
+    private final Map<Integer, Reminder> mReminderMap = new HashMap<>();
 
-    private ObservableList<ReminderTransaction> mReminderTransactionList = FXCollections.observableArrayList();
+    private final ObservableList<ReminderTransaction> mReminderTransactionList = FXCollections.observableArrayList();
 
     private Account mCurrentAccount = null;
 
@@ -1637,7 +1638,7 @@ public class MainApp extends Application {
                 String description = rs.getString("DESCRIPTION");
                 Boolean hiddenFlag = rs.getBoolean("HIDDENFLAG");
                 Integer displayOrder = rs.getInt("DISPLAYORDER");
-                mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder, null));
+                mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder, BigDecimal.ZERO));
             }
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));

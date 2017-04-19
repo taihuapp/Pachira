@@ -2,6 +2,8 @@ package net.taihuapp.facai168;
 
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -37,11 +39,11 @@ public class MainController {
     @FXML
     private MenuItem mFixDBMenuItem;
     @FXML
-    private TableView<Account> mAccountTableView;
+    private TreeTableView<Account> mAccountTreeTableView;
     @FXML
-    private TableColumn<Account, String> mAccountColumn;
+    private TreeTableColumn<Account, String> mAccountNameTreeTableColumn;
     @FXML
-    private TableColumn<Account, BigDecimal> mAccountBalanceColumn;
+    private TreeTableColumn<Account, BigDecimal> mAccountBalanceTreeTableColumn;
 
     @FXML
     private VBox mTransactionVBox;
@@ -83,17 +85,69 @@ public class MainController {
     @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn;
 
+    private ObservableList<Account> mAccountList;
 
     void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
-        // get accounts with hiddenFlag == false and exDelete = true
-        mAccountTableView.setItems(mMainApp.getAccountList(null, false, true));
-
         if (mMainApp.getAcknowledgeTimeStamp() == null)
             mMainApp.showSplashScreen();
+
+        populateTreeTable();
+
+        // get accounts with hiddenFlag == false and exDelete = true
+        mAccountList = mMainApp.getAccountList(null, false, true);
+        mAccountList.addListener((ListChangeListener<Account>) c -> {
+            while (c.next()) {
+                populateTreeTable();
+            }
+        });
+    }
+
+    private void populateTreeTable() {
+        BigDecimal netWorth = BigDecimal.ZERO;
+        if (mAccountTreeTableView.getRoot() == null) {
+            // don't have a root yet, create one
+            TreeItem<Account> root = new TreeItem<>((new Account(-1, null, "Total",
+                    "Placeholder for total asset", false, -1, BigDecimal.ZERO)));
+            root.setExpanded(true);
+            mAccountTreeTableView.setRoot(root);
+        }
+
+        ObservableList<TreeItem<Account>> oldAccountTypeGroups = mAccountTreeTableView.getRoot().getChildren();
+        ObservableList<TreeItem<Account>> newAccountTypeGroups = FXCollections.observableArrayList();
+        for (Account.Type t : Account.Type.values()) {
+            List<Account> accountList = mMainApp.getAccountList(t, false, true);
+            if (accountList.isEmpty())
+                continue; // don't do anything with this type
+
+            TreeItem<Account> ati = null;
+            // first try to see if it exists
+            for (TreeItem<Account> ati0 : oldAccountTypeGroups) {
+                if (ati0.getValue().getType() == t)
+                    ati = ati0;
+            }
+            if (ati == null) {
+                // didn't find it, create it new
+                ati = new TreeItem<>(new Account(-1, t, t.toString(), "Placeholder for " + t.toString(),
+                        false, -1, BigDecimal.ZERO));
+                ati.setExpanded(true);  // start expand first
+            }
+
+            newAccountTypeGroups.add(ati);
+            BigDecimal subTotal = BigDecimal.ZERO;
+            ati.getChildren().clear();
+            for (Account a : accountList) {
+                ati.getChildren().add(new TreeItem<>(a));
+                subTotal = subTotal.add(a.getCurrentBalanceProperty().get());
+            }
+            ati.getValue().setCurrentBalance(subTotal);
+            netWorth = netWorth.add(subTotal);
+        }
+        mAccountTreeTableView.getRoot().getValue().setCurrentBalance(netWorth);
+        mAccountTreeTableView.getRoot().getChildren().setAll(newAccountTypeGroups);
     }
 
     @FXML
@@ -194,7 +248,7 @@ public class MainController {
         mBackupMenuItem.setVisible(isConnected);
         mImportQIFMenuItem.setVisible(isConnected);
         mFixDBMenuItem.setVisible(isConnected);
-        mAccountTableView.setVisible(isConnected);
+        mAccountTreeTableView.setVisible(isConnected);
         mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
         if (isConnected)
             updateSavedReportsMenu();
@@ -263,10 +317,10 @@ public class MainController {
 
     @FXML
     private void initialize() {
-        mAccountColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());
-        mAccountBalanceColumn.setCellValueFactory(cellData -> cellData.getValue().getCurrentBalanceProperty());
+        mAccountNameTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getNameProperty());
+        mAccountBalanceTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getCurrentBalanceProperty());
 
-        mAccountBalanceColumn.setCellFactory(column -> new TableCell<Account, BigDecimal>() {
+        mAccountBalanceTreeTableColumn.setCellFactory(column -> new TreeTableCell<Account, BigDecimal>() {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
@@ -282,8 +336,11 @@ public class MainController {
             }
         });
 
-        mAccountTableView.getSelectionModel().selectedItemProperty().addListener(
-                (observable, oldValue, newValue) -> showAccountTransactions(newValue));
+        mAccountTreeTableView.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> {
+            if (nv != null && nv.getValue().getID() >= MainApp.MIN_ACCOUNT_ID) {
+                showAccountTransactions(nv.getValue());
+            }
+        });
 
         // double click to edit the transaction
         mTransactionTableView.setRowFactory(tv -> {

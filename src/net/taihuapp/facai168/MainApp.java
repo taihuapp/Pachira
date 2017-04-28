@@ -1585,6 +1585,7 @@ public class MainApp extends Application {
         }
     }
 
+    // update account balances and Account::mCurrentSecurityList (sorted by Name).
     void updateAccountBalance(int accountID) {
         Account account = getAccountByID(accountID);
         if (account == null) {
@@ -2572,7 +2573,7 @@ public class MainApp extends Application {
             }
             if (at != null) {
                 insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
-                        Integer.MAX_VALUE, null));
+                        Integer.MAX_VALUE, BigDecimal.ZERO));
             } else {
                 System.err.println("Unknown account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
@@ -2868,6 +2869,17 @@ public class MainApp extends Application {
         initializeLists();
 
         mPrimaryStage.setTitle("FaCai168 " + dbName);
+    }
+
+    TreeSet<String> getPayeeSet() {
+        TreeSet<String> allPayees = new TreeSet<>(Comparator.comparing(String::toLowerCase));
+        for (Transaction t : mTransactionList) {
+            String payee = t.getPayee();
+            if (payee != null && payee.length() > 0) {
+                allPayees.add(t.getPayee());
+            }
+        }
+        return allPayees;
     }
 
     private void initializeLists() {

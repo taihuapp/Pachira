@@ -59,6 +59,8 @@ public class Account {
         mCurrentBalance = new SimpleObjectProperty<>(balance);
         mHiddenFlag.set(hidden);
         mDisplayOrder.set(displayOrder);
+
+        // sorted by Name
         mCurrentSecurityList = FXCollections.observableArrayList();
     }
 

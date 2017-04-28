@@ -58,11 +58,7 @@ public class EditTransactionDialogController {
         public Security fromString(String s) {
             return mMainApp.getSecurityByName(s);
         }
-        public String toString(Security security) {
-            if (security == null)
-                return null;
-            return security.getName();
-        }
+        public String toString(Security security) { return security == null ? "" : security.getName(); }
     }
 
     @FXML
@@ -136,6 +132,10 @@ public class EditTransactionDialogController {
     private Transaction mTransaction = null; // working copy of transaction
     private boolean mSplitTransactionListChanged = false;
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;  // lot match list
+
+    private AutoCompleteComboBoxHelper<Integer> mCategoryAutoCompletionHelper = null;
+    private AutoCompleteComboBoxHelper<Security> mSecurityAutoCompletionHelper = null;
+    private AutoCompleteTextFieldHelper mPayeeAutoCompletionHelper = null;
 
     // used for mSharesTextField, mPriceTextField, mCommissionTextField, mOldSharesTextField
     private void addEventFilter(TextField tf) {
@@ -557,10 +557,17 @@ public class EditTransactionDialogController {
         mSecurityComboBox.setConverter(new SecurityConverter());
         mSecurityComboBox.getItems().clear();
         mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
-        // add account current security list in the front
-        mSecurityComboBox.getItems().addAll(mAccountComboBox.getSelectionModel().getSelectedItem()
-                .getCurrentSecurityList());
-        mSecurityComboBox.getItems().addAll(mMainApp.getSecurityList());
+
+        // add account current security list in the front, the list is sorted by Name
+        TreeSet<Security> accountSecuritySet = new TreeSet<>(Comparator.comparing(Security::getName));
+        accountSecuritySet.addAll(mAccountComboBox.getSelectionModel().getSelectedItem().getCurrentSecurityList());
+        TreeSet<Security> allSecuritySet = new TreeSet<>(Comparator.comparing(Security::getName));
+        allSecuritySet.addAll(mMainApp.getSecurityList());
+        allSecuritySet.removeAll(accountSecuritySet);
+        mSecurityComboBox.getItems().addAll(accountSecuritySet);
+        mSecurityComboBox.getItems().addAll(allSecuritySet);
+        if (mSecurityAutoCompletionHelper == null)
+            mSecurityAutoCompletionHelper = new AutoCompleteComboBoxHelper<>(mSecurityComboBox);
 
         addEventFilter(mSharesTextField);
         addEventFilter(mOldSharesTextField);
@@ -580,6 +587,8 @@ public class EditTransactionDialogController {
 
         mPayeeTextField.textProperty().unbindBidirectional(mTransaction.getPayeeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
+        if (mPayeeAutoCompletionHelper == null)
+            mPayeeAutoCompletionHelper = new AutoCompleteTextFieldHelper(mPayeeTextField, mMainApp.getPayeeSet());
 
         mTradeActionChoiceBox.getSelectionModel().selectedItemProperty()
                 .addListener((ob, o, n) -> { if (n != null) setupInvestmentTransactionDialog(n); });
@@ -843,6 +852,8 @@ public class EditTransactionDialogController {
         for (Category c : mMainApp.getCategoryList())
             mCategoryComboBox.getItems().add(c.getID());
         mCategoryComboBox.getSelectionModel().select(0);
+        if (mCategoryAutoCompletionHelper == null)
+            mCategoryAutoCompletionHelper = new AutoCompleteComboBoxHelper<>(mCategoryComboBox);
 
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();

@@ -53,7 +53,7 @@ public class Security {
     // default constructor
     public Security() {
         // 0 is not a legit security ID in database
-        this(0, null, null, Type.STOCK);
+        this(0, "", "", Type.STOCK);
     }
 
     public Security(int id, String ticker, String name, Type type) {

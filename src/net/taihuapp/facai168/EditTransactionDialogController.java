@@ -596,21 +596,6 @@ public class EditTransactionDialogController {
         mTradeActionChoiceBox.getSelectionModel().select(mTransaction.getTradeAction());
         mTradeActionChoiceBox.valueProperty().unbindBidirectional(mTransaction.getTradeActionProperty());
         mTradeActionChoiceBox.valueProperty().bindBidirectional(mTransaction.getTradeActionProperty());
-
-        Integer cid = mTransaction.getCategoryID();
-        if (cid >= 0) {
-            mCategoryComboBox.getSelectionModel().select(cid);
-            mTransferAccountComboBox.getSelectionModel().selectFirst();
-        } else {
-            mCategoryComboBox.getSelectionModel().selectFirst();
-            mTransferAccountComboBox.getSelectionModel().select(cid);
-        }
-
-        mTransferAccountComboBox.getSelectionModel().selectedItemProperty()
-                .addListener((ob, o, n) -> {if (n != null) mTransaction.getCategoryIDProperty().set(n);});
-
-        mCategoryComboBox.getSelectionModel().selectedItemProperty()
-                .addListener((ob, o, n) -> {if (n != null) mTransaction.getCategoryIDProperty().set(n);});
     }
 
     private void setupInvestmentTransactionDialog(Transaction.TradeAction tradeAction) {
@@ -836,24 +821,32 @@ public class EditTransactionDialogController {
         mOldSharesLabel.setVisible(tradeAction.equals(STKSPLIT));
         mOldSharesTextField.setVisible(tradeAction.equals(STKSPLIT));
 
-        mTransferAccountComboBox.setConverter(new AccountIDConverter());
-        mTransferAccountComboBox.getItems().clear();
-        mTransferAccountComboBox.getItems().add(0); // a blank account
-        for (Account account : mMainApp.getAccountList(null, false, true)) {
-            // get all types, non-hidden accounts, exclude deleted_account
-            if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID() || !isCashTransfer)
-                mTransferAccountComboBox.getItems().add(-account.getID());
+        Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
+        Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
+        if (mTransferAccountComboBox.isVisible()) {
+            mTransferAccountComboBox.setConverter(new AccountIDConverter());
+            mTransferAccountComboBox.getItems().clear();
+            mTransferAccountComboBox.getItems().add(0); // a blank account
+            for (Account account : mMainApp.getAccountList(null, false, true)) {
+                // get all types, non-hidden accounts, exclude deleted_account
+                if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID() || !isCashTransfer)
+                    mTransferAccountComboBox.getItems().add(-account.getID());
+            }
+            Bindings.bindBidirectional(mTransferAccountComboBox.valueProperty(),
+                    mTransaction.getCategoryIDProperty().asObject());
         }
-        mTransferAccountComboBox.getSelectionModel().select(0);
 
-        mCategoryComboBox.setConverter(new CategoryIDConverter());
-        mCategoryComboBox.getItems().clear();
-        mCategoryComboBox.getItems().add(0);
-        for (Category c : mMainApp.getCategoryList())
-            mCategoryComboBox.getItems().add(c.getID());
-        mCategoryComboBox.getSelectionModel().select(0);
-        if (mCategoryAutoCompletionHelper == null)
-            mCategoryAutoCompletionHelper = new AutoCompleteComboBoxHelper<>(mCategoryComboBox);
+        if (mCategoryComboBox.isVisible()) {
+            mCategoryComboBox.setConverter(new CategoryIDConverter());
+            mCategoryComboBox.getItems().clear();
+            mCategoryComboBox.getItems().add(0);
+            for (Category c : mMainApp.getCategoryList())
+                mCategoryComboBox.getItems().add(c.getID());
+            if (mCategoryAutoCompletionHelper == null)
+                mCategoryAutoCompletionHelper = new AutoCompleteComboBoxHelper<>(mCategoryComboBox);
+            Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
+                    mTransaction.getCategoryIDProperty().asObject());
+        }
 
         // make sure it is not bind
         mTransaction.getAmountProperty().unbind();

@@ -93,7 +93,7 @@ public class Account {
     String getName() { return mName.get(); }
     void setName(String name) { mName.set(name); }
 
-    StringProperty getDescriptionProperty() { return mDescription; }
+    private StringProperty getDescriptionProperty() { return mDescription; }
     String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String d) { mDescription.set(d); }
 
@@ -129,7 +129,8 @@ public class Account {
     }
 
     public String toString() {
-        return "mID:" + mID.get() + ";mType:" + mType.name()
-                + ";mName:" + mName.get() + ";mDescription:" + mDescription.get();
+        return "mID:" + mID.get() + ";mType:" +
+                (mType == null ? "Null Type" : mType.name()) + ";mName:" +
+                mName.get() + ";mDescription:" + mDescription.get();
     }
 }

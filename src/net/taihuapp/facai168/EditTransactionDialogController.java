@@ -29,7 +29,7 @@ public class EditTransactionDialogController {
             return c == null ? 0 : c.getID();
         }
         public String toString(Integer cid) {
-            Category c = mMainApp.getCategoryByID(cid);
+            Category c = cid == null ? null : mMainApp.getCategoryByID(cid);
             return c == null ? "" : c.getName();
         }
     }
@@ -132,10 +132,6 @@ public class EditTransactionDialogController {
     private Transaction mTransaction = null; // working copy of transaction
     private boolean mSplitTransactionListChanged = false;
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;  // lot match list
-
-    private AutoCompleteComboBoxHelper<Integer> mCategoryAutoCompletionHelper = null;
-    private AutoCompleteComboBoxHelper<Security> mSecurityAutoCompletionHelper = null;
-    private AutoCompleteTextFieldHelper mPayeeAutoCompletionHelper = null;
 
     // used for mSharesTextField, mPriceTextField, mCommissionTextField, mOldSharesTextField
     private void addEventFilter(TextField tf) {
@@ -455,11 +451,17 @@ public class EditTransactionDialogController {
         }
 
         Transaction.TradeAction ta = mTransaction.getTradeAction();
-        // check self transfer in
+        // check transfer account
         if (ta == XIN || ta == XOUT) {
             if (accountID == -mTransaction.getCategoryID()) {
                 showWarningDialog("Warning", "Self Transfer",
                         "Please make sure account is different from transfer account.");
+                return false;
+            }
+
+            if (mTransaction.getCategoryID() > -MainApp.MIN_ACCOUNT_ID) {
+                showWarningDialog("Warning", "Invalid Transfer Account",
+                        "Please select a valid account to transfer.");
                 return false;
             }
         }
@@ -566,8 +568,7 @@ public class EditTransactionDialogController {
         allSecuritySet.removeAll(accountSecuritySet);
         mSecurityComboBox.getItems().addAll(accountSecuritySet);
         mSecurityComboBox.getItems().addAll(allSecuritySet);
-        if (mSecurityAutoCompletionHelper == null)
-            mSecurityAutoCompletionHelper = new AutoCompleteComboBoxHelper<>(mSecurityComboBox);
+        new AutoCompleteComboBoxHelper<>(mSecurityComboBox);
 
         addEventFilter(mSharesTextField);
         addEventFilter(mOldSharesTextField);
@@ -587,8 +588,25 @@ public class EditTransactionDialogController {
 
         mPayeeTextField.textProperty().unbindBidirectional(mTransaction.getPayeeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
-        if (mPayeeAutoCompletionHelper == null)
-            mPayeeAutoCompletionHelper = new AutoCompleteTextFieldHelper(mPayeeTextField, mMainApp.getPayeeSet());
+        new AutoCompleteTextFieldHelper(mPayeeTextField, mMainApp.getPayeeSet());
+
+        // populate Category ComboBox
+        mCategoryComboBox.setConverter(new CategoryIDConverter());
+        mCategoryComboBox.getItems().clear(); // just to be safe
+        mCategoryComboBox.getItems().add(0); // add an blank category
+        for (Category c : mMainApp.getCategoryList())
+            mCategoryComboBox.getItems().add(c.getID());
+        new AutoCompleteComboBoxHelper<>(mCategoryComboBox);
+
+        // populate TransferAccount Combobox
+        mTransferAccountComboBox.setConverter(new AccountIDConverter());
+        mTransferAccountComboBox.getItems().clear();
+        mTransferAccountComboBox.getItems().add(0); // a blank account
+        for (Account account : mMainApp.getAccountList(null, false, true)) {
+            // get all types, non-hidden accounts, exclude deleted_account
+            if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID())
+                mTransferAccountComboBox.getItems().add(-account.getID());
+        }
 
         mTradeActionChoiceBox.getSelectionModel().selectedItemProperty()
                 .addListener((ob, o, n) -> { if (n != null) setupInvestmentTransactionDialog(n); });
@@ -824,28 +842,19 @@ public class EditTransactionDialogController {
         Bindings.unbindBidirectional(mTransferAccountComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
         Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
         if (mTransferAccountComboBox.isVisible()) {
-            mTransferAccountComboBox.setConverter(new AccountIDConverter());
-            mTransferAccountComboBox.getItems().clear();
-            mTransferAccountComboBox.getItems().add(0); // a blank account
-            for (Account account : mMainApp.getAccountList(null, false, true)) {
-                // get all types, non-hidden accounts, exclude deleted_account
-                if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID() || !isCashTransfer)
-                    mTransferAccountComboBox.getItems().add(-account.getID());
-            }
             Bindings.bindBidirectional(mTransferAccountComboBox.valueProperty(),
                     mTransaction.getCategoryIDProperty().asObject());
+        } else {
+            mTransferAccountComboBox.getSelectionModel().selectFirst(); // make sure it selects something not null
         }
 
         if (mCategoryComboBox.isVisible()) {
-            mCategoryComboBox.setConverter(new CategoryIDConverter());
-            mCategoryComboBox.getItems().clear();
-            mCategoryComboBox.getItems().add(0);
-            for (Category c : mMainApp.getCategoryList())
-                mCategoryComboBox.getItems().add(c.getID());
-            if (mCategoryAutoCompletionHelper == null)
-                mCategoryAutoCompletionHelper = new AutoCompleteComboBoxHelper<>(mCategoryComboBox);
+            int cid = mTransaction.getCategoryID();
             Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
                     mTransaction.getCategoryIDProperty().asObject());
+            mCategoryComboBox.getSelectionModel().select(new Integer(cid));
+        } else {
+            mCategoryComboBox.getSelectionModel().selectFirst();  // make sure it selects something not null
         }
 
         // make sure it is not bind

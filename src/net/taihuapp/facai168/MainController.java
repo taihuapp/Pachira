@@ -118,6 +118,11 @@ public class MainController {
 
         ObservableList<TreeItem<Account>> oldAccountTypeGroups = mAccountTreeTableView.getRoot().getChildren();
         ObservableList<TreeItem<Account>> newAccountTypeGroups = FXCollections.observableArrayList();
+
+        // the rebuilding of TreeTable will mess up the selection, which in turn will mess up
+        // mMainApp::mCurrentAccount.  It is bad.  So we save a copy of mCurrentAccount here
+        Account currentAccount = mMainApp.getCurrentAccount();
+        TreeItem<Account> currentSelection = null;
         for (Account.Type t : Account.Type.values()) {
             List<Account> accountList = mMainApp.getAccountList(t, false, true);
             if (accountList.isEmpty())
@@ -140,7 +145,10 @@ public class MainController {
             BigDecimal subTotal = BigDecimal.ZERO;
             ati.getChildren().clear();
             for (Account a : accountList) {
-                ati.getChildren().add(new TreeItem<>(a));
+                TreeItem<Account> ti = new TreeItem<>(a);
+                if (currentAccount != null && currentAccount.getID() == a.getID())
+                    currentSelection = ti;
+                ati.getChildren().add(ti);
                 subTotal = subTotal.add(a.getCurrentBalanceProperty().get());
             }
             ati.getValue().setCurrentBalance(subTotal);
@@ -148,6 +156,8 @@ public class MainController {
         }
         mAccountTreeTableView.getRoot().getValue().setCurrentBalance(netWorth);
         mAccountTreeTableView.getRoot().getChildren().setAll(newAccountTypeGroups);
+        if (currentSelection != null)
+            mAccountTreeTableView.getSelectionModel().select(currentSelection);
     }
 
     @FXML

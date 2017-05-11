@@ -11,7 +11,7 @@ import java.util.function.Predicate;
  * Created by ghe on 4/26/17.
  *
  */
-public class AutoCompleteComboBoxHelper<T> {
+class AutoCompleteComboBoxHelper<T> {
     private final ComboBox<T> mComboBox;
     private final FilteredList<T> mFilteredItems;
     private boolean mKeyEvent;
@@ -27,7 +27,12 @@ public class AutoCompleteComboBoxHelper<T> {
         // this line suppose to work around for JavaFX needing an enter to commit combobox edit
         mComboBox.getEditor().setTextFormatter(new TextFormatter<>(TextFormatter.IDENTITY_STRING_CONVERTER));
 
-        mComboBox.getEditor().setOnKeyPressed(event -> mKeyEvent = true);
+        mComboBox.getEditor().setOnKeyPressed(event -> {
+            // once we are in editing mode, existing selection is not longer valid
+            // clear out now.  Otherwise, ComboBox will clear it and causes exception
+            mComboBox.getSelectionModel().clearSelection();
+            mKeyEvent = true;
+        });
         mComboBox.getEditor().setOnKeyReleased(event -> mKeyEvent = false);
 
         mComboBox.getEditor().textProperty().addListener((obs, ov, nv) -> {
@@ -40,7 +45,11 @@ public class AutoCompleteComboBoxHelper<T> {
             }
 
             Predicate<? super T> oldPredicate = mFilteredItems.getPredicate();
-            mFilteredItems.setPredicate(item -> mComboBox.getConverter().toString(item).toLowerCase().contains(nv.toLowerCase()));
+            // setPredicate sometime (why?) trigs a change in mComboBox.getEditor().textProperty()
+            // we don't want to process that.  set mKeyEvent to false here
+            mKeyEvent = false;
+            mFilteredItems.setPredicate(item ->
+                    mComboBox.getConverter().toString(item).toLowerCase().contains(nv.toLowerCase()));
             if (mFilteredItems.size() == 0) {
                 // nv is not contained in any items, reject it, put back ov.
                 int c = mComboBox.getEditor().getCaretPosition();

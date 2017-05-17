@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.*;
 import java.sql.Date;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -45,39 +46,44 @@ public class MainApp extends Application {
         return false;
     }
 
-    private static String ACKNOWLEDGETIMESTAMP = "ACKDT";
-    private static int MAXOPENEDDBHIST = 5; // keep max 5 opened files
-    private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
-    private static String DBOWNER = "FC168ADM";
-    private static String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
-    private static String URLPREFIX = "jdbc:h2:";
-    private static String CIPHERCLAUSE="CIPHER=AES;";
-    private static String IFEXISTCLAUSE="IFEXISTS=TRUE;";
+    static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00");
+
+    private static final String ACKNOWLEDGETIMESTAMP = "ACKDT";
+    private static final int MAXOPENEDDBHIST = 5; // keep max 5 opened files
+    private static final String KEY_OPENEDDBPREFIX = "OPENEDDB#";
+    private static final String DBOWNER = "FC168ADM";
+    private static final String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
+    private static final String URLPREFIX = "jdbc:h2:";
+    private static final String CIPHERCLAUSE="CIPHER=AES;";
+    private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
 
-    private static int ACCOUNTNAMELEN = 40;
-    private static int ACCOUNTDESCLEN = 256;
-    private static int SECURITYTICKERLEN = 16;
-    private static int SECURITYNAMELEN = 64;
+    private static final int ACCOUNTNAMELEN = 40;
+    private static final int ACCOUNTDESCLEN = 256;
+    private static final int SECURITYTICKERLEN = 16;
+    private static final int SECURITYNAMELEN = 64;
 
-    private static int CATEGORYNAMELEN = 40;
-    private static int CATEGORYDESCLEN = 256;
+    private static final int CATEGORYNAMELEN = 40;
+    private static final int CATEGORYDESCLEN = 256;
 
-    private static int TRANSACTIONMEMOLEN = 64;
-    private static int TRANSACTIONREFLEN = 8;
-    private static int TRANSACTIONPAYEELEN = 64;
-    private static int TRANSACTIONTRACEACTIONLEN = 16;
-    private static int TRANSACTIONTRANSFERREMINDERLEN = 40;
-    private static int ADDRESSLINELEN = 32;
+    private static final int AMOUNT_TOTAL_LEN = 20;
+    private static final int AMOUNT_FRACTION_LEN = 4;
 
-    private static int AMORTLINELEN = 32;
+    private static final int TRANSACTIONMEMOLEN = 64;
+    private static final int TRANSACTIONREFLEN = 8;
+    private static final int TRANSACTIONPAYEELEN = 64;
+    private static final int TRANSACTIONTRACEACTIONLEN = 16;
+    private static final int TRANSACTIONTRANSFERREMINDERLEN = 40;
+    private static final int ADDRESSLINELEN = 32;
+
+    private static final int AMORTLINELEN = 32;
 
     private static final int PRICE_TOTAL_LEN = 20;
     static final int PRICE_FRACTION_LEN = 8;
     static final int PRICE_FRACTION_DISP_LEN = 6;
 
     private static final int QUANTITY_TOTAL_LEN = 20;
-    static final int QUANTITY_FRACTION_LEN = 8;
+    private static final int QUANTITY_FRACTION_LEN = 8;
     static final int QUANTITY_FRACTION_DISP_LEN = 6;
 
     static final int SAVEDREPORTSNAMELEN = 32;
@@ -1502,6 +1508,7 @@ public class MainApp extends Application {
                     }
                     if (numerator > 0)
                         amt = amt.divide(BigDecimal.valueOf(numerator), amt.scale());
+                    amt = amt.setScale(AMOUNT_FRACTION_LEN, BigDecimal.ROUND_HALF_UP);
                     reminder.setAmount(amt);
                 }
                 LocalDate lastDueDate = lastDueDateMap.get(rid);
@@ -2976,7 +2983,7 @@ public class MainApp extends Application {
                 + "CATEGORYID integer, "
                 + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
                 + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
-                + "AMOUNT decimal(20,4), "
+                + "AMOUNT decimal(" + AMOUNT_TOTAL_LEN + "," + AMOUNT_FRACTION_LEN + "), "
                 + "PERCENTAGE decimal(20,4), "
                 + "MATCHTRANSACTIONID integer, "
                 + "MATCHSPLITTRANSACTIONID integer, "

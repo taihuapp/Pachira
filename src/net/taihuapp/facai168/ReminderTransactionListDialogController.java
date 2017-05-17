@@ -171,7 +171,20 @@ public class ReminderTransactionListDialogController {
                 return null;
             return cellData.getValue().getReminder().getAmountProperty();
         });
-        mAmountTableColumn.setStyle( "-fx-alignment: CENTER-RIGHT;");
+        mAmountTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, BigDecimal>() {
+            @Override
+            protected void updateItem(BigDecimal item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (item == null || empty) {
+                    setText("");
+                } else {
+                    // format
+                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
+                }
+                setStyle("-fx-alignment: CENTER-RIGHT;");
+            }
+        });
 
         mStatusTableColumn.setCellValueFactory(cellData -> cellData.getValue().getStatusProperty());
         mStatusTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, String>() {

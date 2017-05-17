@@ -152,6 +152,8 @@ public class EditReminderDialogController {
         // seems no need to do unbindbidirectional
         mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
+        new AutoCompleteTextFieldHelper(mPayeeTextField, mMainApp.getPayeeSet());
+
         mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
                 new BigDecimalStringConverter());
         mEstimateNumOccuranceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
@@ -170,6 +172,7 @@ public class EditReminderDialogController {
         mCategoryIDComboBox.getItems().add(0);
         for (Category c : mMainApp.getCategoryList())
             mCategoryIDComboBox.getItems().add(c.getID());
+        new AutoCompleteComboBoxHelper<>(mCategoryIDComboBox);
         Bindings.bindBidirectional(mCategoryIDComboBox.valueProperty(), mReminder.getCategoryIDProperty().asObject());
 
         mTagIDComboBox.setConverter(new TagIDConverter());

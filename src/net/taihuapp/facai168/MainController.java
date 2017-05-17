@@ -13,7 +13,6 @@ import javafx.scene.layout.VBox;
 import javafx.util.Callback;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -339,8 +338,7 @@ public class MainController {
                     setText("");
                 } else {
                     // format
-                    //setText((new DecimalFormat("#0.00")).format(item));
-                    setText((new DecimalFormat("###,##0.00")).format(item));
+                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }
@@ -431,7 +429,7 @@ public class MainController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(item.signum() == 0 ? "" : (new DecimalFormat("###,##0.00")).format(item));
+                                    setText(item.signum() == 0 ? "" : MainApp.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }
@@ -465,7 +463,7 @@ public class MainController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText((new DecimalFormat("###,##0.00")).format(item));
+                                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }

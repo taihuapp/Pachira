@@ -113,7 +113,7 @@ public class HoldingsDialogController {
                             return null;
                         // format to 6 decimal places
                         DecimalFormat df = new DecimalFormat();
-                        df.setMaximumFractionDigits(MainApp.PRICE_FRACTION_LEN-2);
+                        df.setMaximumFractionDigits(MainApp.PRICE_FRACTION_DISP_LEN);
                         df.setMinimumFractionDigits(0);
                         return df.format(object);
                     }
@@ -213,7 +213,7 @@ public class HoldingsDialogController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText((new DecimalFormat("###,##0.00")).format(item));
+                                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }
@@ -236,7 +236,7 @@ public class HoldingsDialogController {
                         } else {
                             // format
                             DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_LEN-2);
+                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_DISP_LEN);
                             df.setMinimumFractionDigits(0);
                             setText(df.format(item));
                         }

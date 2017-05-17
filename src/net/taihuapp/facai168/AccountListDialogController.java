@@ -9,7 +9,6 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -185,8 +184,7 @@ public class AccountListDialogController {
                     setText("");
                 } else {
                     // format
-                    //setText((new DecimalFormat("#0.00")).format(item));
-                    setText((new DecimalFormat("###,##0.00")).format(item));
+                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }

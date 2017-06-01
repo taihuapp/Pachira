@@ -12,6 +12,7 @@ import javafx.util.converter.BigDecimalStringConverter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -29,8 +30,14 @@ public class EditTransactionDialogController {
             return c == null ? 0 : c.getID();
         }
         public String toString(Integer cid) {
-            Category c = cid == null ? null : mMainApp.getCategoryByID(cid);
+            Category c = (cid == null) ? null : mMainApp.getCategoryByID(cid);
             return c == null ? "" : c.getName();
+        }
+    }
+
+    private class MyBigDecimalStringConverter extends BigDecimalStringConverter {
+        public String toString(BigDecimal b) {
+            return MainApp.DOLLAR_CENT_FORMAT.format(b);
         }
     }
 
@@ -40,7 +47,7 @@ public class EditTransactionDialogController {
             return a == null ? 0 : -a.getID();
         }
         public String toString(Integer negAID) {
-            Account a = mMainApp.getAccountByID(-negAID);
+            Account a = (negAID == null) ? null : mMainApp.getAccountByID(-negAID);
             return a == null ? "" : a.getName();
         }
     }
@@ -916,6 +923,6 @@ public class EditTransactionDialogController {
                 new BigDecimalStringConverter());
 
         mTotalTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
-                new BigDecimalStringConverter());
+                new MyBigDecimalStringConverter());
     }
 }

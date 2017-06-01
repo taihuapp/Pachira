@@ -46,7 +46,8 @@ public class MainApp extends Application {
         return false;
     }
 
-    static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00");
+    // minimum 2 decimal places, maximum 4 decimal places
+    static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
 
     private static final String ACKNOWLEDGETIMESTAMP = "ACKDT";
     private static final int MAXOPENEDDBHIST = 5; // keep max 5 opened files

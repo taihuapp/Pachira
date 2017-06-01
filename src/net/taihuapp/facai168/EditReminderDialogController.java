@@ -25,7 +25,7 @@ public class EditReminderDialogController {
             return t == null ? 0 : t.getID();
         }
         public String toString(Integer tid) {
-            Tag t = mMainApp.getTagByID(tid);
+            Tag t = (tid == null) ? null : mMainApp.getTagByID(tid);
             return t == null ? "" : t.getName();
         }
     }
@@ -36,7 +36,7 @@ public class EditReminderDialogController {
             return c == null ? 0 : c.getID();
         }
         public String toString(Integer cid) {
-            Category c = mMainApp.getCategoryByID(cid);
+            Category c = (cid == null) ? null : mMainApp.getCategoryByID(cid);
             return c == null ? "" : c.getName();
         }
     }
@@ -49,7 +49,7 @@ public class EditReminderDialogController {
             return a == null ? 0 : a.getID();
         }
         public String toString(Integer aid) {
-            Account a = mMainApp.getAccountByID(aid);
+            Account a = (aid == null) ? null : mMainApp.getAccountByID(aid);
             return a == null ? "" : a.getName();
         }
     }

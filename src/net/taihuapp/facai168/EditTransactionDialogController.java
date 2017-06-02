@@ -311,14 +311,13 @@ public class EditTransactionDialogController {
             mMainApp.putMatchInfoList(mMatchInfoList);
 
             // handle linked transactions here
-            boolean hasLink = false;
             if (linkedT != null) {
                 linkedT.setMatchID(dbCopyT.getAccountID(), 0);
                 mMainApp.insertUpdateTransactionToDB(linkedT);
                 dbCopyT.setMatchID(linkedT.getID(), 0);
-
-                hasLink = true;
                 accountSet.add(linkedT.getAccountID());
+            } else {
+                dbCopyT.setMatchID(-1, -1);
             }
 
             for (SplitTransaction st : dbCopyT.getSplitTransactionList()) {
@@ -335,7 +334,6 @@ public class EditTransactionDialogController {
 
                     mMainApp.insertUpdateTransactionToDB(stLinkedT);
                     st.setMatchID(stLinkedT.getID());
-                    hasLink = true;
 
                     updateTList.add(stLinkedT);
                     accountSet.add(stLinkedT.getAccountID());
@@ -344,8 +342,9 @@ public class EditTransactionDialogController {
                     st.setMatchID(0);
                 }
             }
-            if (hasLink)
-                mMainApp.insertUpdateTransactionToDB(dbCopyT);
+
+            // update MatchID info.
+            mMainApp.insertUpdateTransactionToDB(dbCopyT);
 
             if (mTransactionOrig != null) {
                 for (SplitTransaction st : mTransactionOrig.getSplitTransactionList()) {

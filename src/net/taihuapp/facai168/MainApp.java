@@ -420,7 +420,8 @@ public class MainApp extends Application {
         mSavepoint = null;
     }
     void rollbackDB() throws SQLException {
-            mConnection.rollback(mSavepoint);
+            //mConnection.rollback(mSavepoint);
+        mConnection.rollback();
     }
     void commitDB() throws SQLException {
         mConnection.commit();

@@ -37,7 +37,7 @@ public class EditTransactionDialogController {
 
     private class MyBigDecimalStringConverter extends BigDecimalStringConverter {
         public String toString(BigDecimal b) {
-            return MainApp.DOLLAR_CENT_FORMAT.format(b);
+            return (b == null) ? "" : MainApp.DOLLAR_CENT_FORMAT.format(b);
         }
     }
 

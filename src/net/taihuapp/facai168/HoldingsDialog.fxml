@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.*?>
-<?import javafx.scene.control.*?>
-<?import java.lang.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.TreeTableColumn?>
+<?import javafx.scene.control.TreeTableView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
 
-<AnchorPane fx:id="mMainPane" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.HoldingsDialogController">
+<AnchorPane fx:id="mMainPane" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.HoldingsDialogController">
    <children>
       <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
@@ -15,7 +18,7 @@
                </VBox.margin></DatePicker>
             <TreeTableView fx:id="mSecurityHoldingTreeTableView">
               <columns>
-                <TreeTableColumn fx:id="mNameColumn" prefWidth="150.0" text="Name" />
+                <TreeTableColumn fx:id="mNameColumn" prefWidth="150.0" sortable="false" text="Name" />
                 <TreeTableColumn fx:id="mPriceColumn" prefWidth="100.0" sortable="false" text="Price" />
                   <TreeTableColumn fx:id="mQuantityColumn" prefWidth="120.0" text="Quantity" />
                   <TreeTableColumn fx:id="mMarketValueColumn" prefWidth="120.0" text="Market Value" />

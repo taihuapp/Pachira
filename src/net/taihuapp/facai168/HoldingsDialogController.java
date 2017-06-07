@@ -72,31 +72,6 @@ public class HoldingsDialogController {
 
         mNameColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, String> p) ->
                 new ReadOnlyStringWrapper(p.getValue().getValue().getLabel()));
-        mNameColumn.setComparator((o1, o2) -> {
-            if (mNameColumn.getSortType() == TreeTableColumn.SortType.ASCENDING) {
-                // sorting ascending
-                if (o1.equals("TOTAL"))
-                    return 1;
-                if (o2.equals("TOTAL"))
-                    return -1;
-                if (o1.equals("CASH"))
-                    return 1;
-                if (o2.equals("CASH"))
-                    return -1;
-                return o1.compareTo(o2);
-            }
-
-            // sorting descending
-            if (o1.equals("TOTAL"))
-                return -1;
-            if (o2.equals("TOTAL"))
-                return 1;
-            if (o1.equals("CASH"))
-                return -1;
-            if (o2.equals("CASH"))
-                return 1;
-            return o1.compareTo(o2);
-        });
 
         mPriceColumn.setCellValueFactory(p -> p.getValue().getValue().getPriceProperty());
         mPriceColumn.setComparator(null);

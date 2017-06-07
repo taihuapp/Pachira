@@ -2038,6 +2038,8 @@ public class MainApp extends Application {
             totalHolding.getPriceProperty().set(null); // don't want to display any price
             totalHolding.updatePctRet();
 
+            // nothing to sort here, but for symmetry...
+            securityHoldingList.sort(Comparator.comparing(SecurityHolding::getSecurityName));
             securityHoldingList.add(cashHolding);
             securityHoldingList.add(totalHolding);
             return securityHoldingList;
@@ -2159,6 +2161,7 @@ public class MainApp extends Application {
         totalHolding.getPriceProperty().set(null); // don't want to display any price
         totalHolding.updatePctRet();
 
+        securityHoldingList.sort(Comparator.comparing(SecurityHolding::getSecurityName));
         // put cash holding at the bottom
         if (totalCash.signum() != 0)
             securityHoldingList.add(cashHolding);

@@ -213,6 +213,14 @@ public class MainController {
     }
 
     @FXML
+    private void handleEditCategoryList() {
+        mMainApp.showCategoryListDialog();
+    }
+
+    @FXML
+    private void handleEditTagList() { mMainApp.showTagListDialog(); }
+
+    @FXML
     private void handleReminderList() { mMainApp.showBillIncomeReminderDialog(); }
 
     @FXML

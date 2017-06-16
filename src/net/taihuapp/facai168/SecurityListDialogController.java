@@ -116,7 +116,8 @@ public class SecurityListDialogController {
 
     @FXML
     private void handleDelete() {
-        System.out.println("Delete, to be implemented");
+        mMainApp.showExceptionDialog("Exception", "Action Not Implemented",
+                "Delete security action not implemented", null);
     }
 
     @FXML

@@ -17,13 +17,15 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.h2.tools.ChangeFileEncryption;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.*;
 import java.sql.Date;
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -848,6 +850,71 @@ public class MainApp extends Application {
         }
     }
 
+    boolean insertUpdateTagToDB(Tag tag) {
+        String sqlCmd;
+        if (tag.getID() <= 0) {
+            sqlCmd = "insert into TAGS (NAME, DESCRIPTION) values (?, ?)";
+        } else {
+            sqlCmd = "update TAGS set NAME = ?, DESCRIPTION = ? where ID = ?";
+        }
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setString(1, tag.getName());
+            preparedStatement.setString(2, tag.getDescription());
+            if (tag.getID() > 0) {
+                preparedStatement.setInt(3, tag.getID());
+            }
+            preparedStatement.executeUpdate();
+
+            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                if (resultSet.next()) {
+                    tag.setID(resultSet.getInt(1));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            showExceptionDialog("Database Error", "Insert/Update Tag Failed", SQLExceptionToString(e), e);
+        } catch (NullPointerException e) {
+            showExceptionDialog("Database Error", "mConnection is null", "Database not connected", e);
+        }
+        return false;
+    }
+
+    boolean insertUpdateCategoryToDB(Category category) {
+        String sqlCmd;
+        if (category.getID() <= 0) {
+            sqlCmd = "insert into CATEGORIES (NAME, DESCRIPTION, INCOMEFLAG, TAXREFNUM, BUDGETAMOUNT) "
+                    + "values (?, ?, ?, ?, ?)";
+        } else {
+            sqlCmd = "update CATEGORIES set NAME = ?, DESCRIPTION = ?, INCOMEFLAG = ?, TAXREFNUM = ?, BUDGETAMOUNT = ? "
+                    + "where ID = ?";
+        }
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setString(1, category.getName());
+            preparedStatement.setString(2, category.getDescription());
+            preparedStatement.setBoolean(3, category.getIsIncome());
+            preparedStatement.setInt(4, category.getTaxRefNum());
+            preparedStatement.setBigDecimal(5, category.getBudgetAmount());
+            if (category.getID() > 0) {
+                preparedStatement.setInt(6, category.getID());
+            }
+            preparedStatement.executeUpdate();
+
+            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                if (resultSet.next()) {
+                    category.setID(resultSet.getInt(1));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            showExceptionDialog("Database Error", "Insert/Update Category Failed", SQLExceptionToString(e), e);
+        } catch (NullPointerException e) {
+            showExceptionDialog("Database Error", "mConnection is null", "Database not connected", e);
+        }
+        return false;
+    }
+
     // return true for DB operation success
     // false otherwise
     boolean insertUpdateSecurityToDB(Security security) {
@@ -1526,7 +1593,7 @@ public class MainApp extends Application {
         }
     }
 
-    private void initTagList() {
+    void initTagList() {
         if (mConnection == null) return;
 
         mTagList.clear();
@@ -1545,7 +1612,7 @@ public class MainApp extends Application {
         }
     }
 
-    private void initCategoryList() {
+    void initCategoryList() {
         if (mConnection == null) return;
 
         mCategoryList.clear();
@@ -1897,6 +1964,50 @@ public class MainApp extends Application {
             dialogStage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    void showTagListDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("TagListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Tag List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            TagListDialogController controller = loader.getController();
+            controller.setMainApp(this, dialogStage);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            showExceptionDialog("Exception", "IO Exception", "showTagListDialog IO Exception", e);
+        } catch (NullPointerException e) {
+            showExceptionDialog("Exception", "Null pointer exception",
+                    "showTagListDialog null pointer exception", e);
+        }
+    }
+
+    void showCategoryListDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("CategoryListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Category List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            CategoryListDialogController controller = loader.getController();
+            controller.setMainApp(this, dialogStage);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            showExceptionDialog("Exception", "IO Exception", "showCategoryListDialog IO Exception", e);
+        } catch (NullPointerException e) {
+            showExceptionDialog("Exception", "Null pointer exception",
+                    "showCategoryListDialog null pointer exception", e);
         }
     }
 
@@ -3207,6 +3318,7 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
         // set error stream to a file in the current directory
+/*
         try {
             File file = File.createTempFile("FC168-", ".err", new File(System.getProperty("user.dir")));
             System.err.println("Redirect System.err to " + file.getCanonicalPath());
@@ -3215,6 +3327,7 @@ public class MainApp extends Application {
         } catch (IOException e) {
             e.printStackTrace();
         }
+*/
 
         launch(args);
     }

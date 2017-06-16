@@ -32,6 +32,9 @@ public class Category {
         mBudgetAmountProperty = new SimpleObjectProperty<>(null);
     }
 
+    // copy Constructor
+    Category(Category c) { this(c.getID(), c.getName(), c.getDescription(), c.getIsIncome(), c.getTaxRefNum()); }
+
     // default constructor
     public Category() {
         this(0, "", "", true, -1);
@@ -48,11 +51,11 @@ public class Category {
     String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String des) { getDescriptionProperty().set(des); }
 
-    ObjectProperty<Boolean> getIsIncomeProperty() { return mIsIncomeProperty; }
+    private ObjectProperty<Boolean> getIsIncomeProperty() { return mIsIncomeProperty; }
     Boolean getIsIncome() { return getIsIncomeProperty().get(); }
     void setIsIncome(boolean isIncome) { getIsIncomeProperty().set(isIncome); }
 
-    void setIsTaxRelated(boolean t) {
+    private void setIsTaxRelated(boolean t) {
         if (t && (getTaxRefNum() < 0)) {
             setTaxRefNum(0); // set it to be tax related
         } else if (!t) {
@@ -61,11 +64,11 @@ public class Category {
     }
     boolean isTaxRelated() { return getTaxRefNum() >= 0; }
 
-    IntegerProperty getTaxRefNumProperty() { return mTaxRefNumProperty; }
+    private IntegerProperty getTaxRefNumProperty() { return mTaxRefNumProperty; }
     int getTaxRefNum() { return getTaxRefNumProperty().get(); }
     void setTaxRefNum(int r) { mTaxRefNumProperty.set(r); }
 
-    ObjectProperty<BigDecimal> getBudgetAmountProperty() { return mBudgetAmountProperty; }
+    private ObjectProperty<BigDecimal> getBudgetAmountProperty() { return mBudgetAmountProperty; }
     BigDecimal getBudgetAmount() { return getBudgetAmountProperty().get(); }
     void setBudgetAmount(BigDecimal b) { getBudgetAmountProperty().set(b); }
 

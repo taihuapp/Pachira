@@ -19,6 +19,15 @@ class Tag {
         mDescriptionProperty = new SimpleStringProperty(desc);
     }
 
+    // default constructor
+    Tag() {
+        this(-1, "", "");
+    }
+    // copy constructor
+    Tag(Tag tag) {
+        this(tag.getID(), tag.getName(), tag.getDescription());
+    }
+
     int getID() { return mID; }
     void setID(int i) { mID = i; }
 

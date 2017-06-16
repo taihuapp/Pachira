@@ -12,7 +12,6 @@ import javafx.util.converter.BigDecimalStringConverter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.SQLException;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -429,6 +428,20 @@ public class EditTransactionDialogController {
 
     // return true if the transaction is validated, false otherwise
     private boolean validateTransaction() {
+        // sometimes the selected cid/tid is not corrected reflected in mTransaction
+        // make sure it is correct.
+        Integer cid = mCategoryComboBox.getSelectionModel().getSelectedItem();
+        Integer tid = mTransferAccountComboBox.getSelectionModel().getSelectedItem();
+        if (cid == null && tid == null) {
+            showWarningDialog("Warning", "Category ID is null?", "Is that right?");
+            return false;
+        } else if ((cid == null && !tid.equals(mTransaction.getCategoryID()))
+                || (tid == null && !cid.equals(mTransaction.getCategoryID()))) {
+            showWarningDialog("Warning", "GUI problem",
+                    "CategoryID/Transfer AccountID not match selection");
+            return false;
+        }
+
         Security security = mSecurityComboBox.getValue();
         if (security != null && security.getID() > 0)  // has a valid security
             return true;

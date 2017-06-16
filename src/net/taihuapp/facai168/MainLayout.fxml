@@ -26,9 +26,11 @@
           </Menu>
           <Menu fx:id="mEditMenu" mnemonicParsing="false" text="Edit" visible="false">
                <items>
-                  <MenuItem mnemonicParsing="false" onAction="#handleEditAccountList" text="Account List" />
-                  <MenuItem mnemonicParsing="false" onAction="#handleEditSecurityList" text="Security List" />
                   <MenuItem mnemonicParsing="false" onAction="#handleReminderList" text="Bill &amp; Income Reminders" />
+                  <MenuItem mnemonicParsing="false" onAction="#handleEditAccountList" text="Account List" />
+                   <MenuItem mnemonicParsing="false" onAction="#handleEditSecurityList" text="Security List" />
+                   <MenuItem mnemonicParsing="false" onAction="#handleEditCategoryList" text="Category List" />
+                   <MenuItem mnemonicParsing="false" onAction="#handleEditTagList" text="Tag List" />
                </items>
           </Menu>
             <Menu fx:id="mReportsMenu" mnemonicParsing="false" text="Reports" visible="false">

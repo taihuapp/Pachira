@@ -3193,8 +3193,8 @@ public class MainApp extends Application {
         // Tag table
         sqlCmd = "create table TAGS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), " // starting 1
-                + "NAME varchar(20), "
-                + "DESCRIPTION varchar(80), "
+                + "NAME varchar(20) UNIQUE NOT NULL, "
+                + "DESCRIPTION varchar(80) NOT NULL, "
                 + "primary key(ID));";
         sqlCreateTable(sqlCmd);
 

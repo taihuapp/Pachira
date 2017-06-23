@@ -569,6 +569,7 @@ public class EditTransactionDialogController {
             // new transaction, set transaction id, matchID, matchSplitID
             mTransaction.setID(0);
             mTransaction.setMatchID(-1, -1);
+            mTransactionOrig = null;
             handleClear();
         }
     }

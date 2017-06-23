@@ -17,15 +17,13 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.h2.tools.ChangeFileEncryption;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.*;
 import java.sql.Date;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -670,7 +668,7 @@ public class MainApp extends Application {
         return true;
     }
 
-    // insert or update the input transaction into DB and master transaction list in memory
+    // insert or update the input transaction into DB
     // return affected transaction id if success, 0 for failure.
     int insertUpdateTransactionToDB(Transaction t) throws SQLException {
         String sqlCmd;
@@ -3318,7 +3316,6 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
         // set error stream to a file in the current directory
-/*
         try {
             File file = File.createTempFile("FC168-", ".err", new File(System.getProperty("user.dir")));
             System.err.println("Redirect System.err to " + file.getCanonicalPath());
@@ -3327,7 +3324,6 @@ public class MainApp extends Application {
         } catch (IOException e) {
             e.printStackTrace();
         }
-*/
 
         launch(args);
     }

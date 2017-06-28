@@ -1417,6 +1417,8 @@ public class MainApp extends Application {
             if (a == null) {
                 // new account, add
                 mAccountList.add(account);
+                account.setTransactionList(getTransactionListByAccountID(account.getID()));
+                updateAccountBalance(account.getID());
             } else if (a != account) {
                 // old account, replace
                 System.err.println("insertupdateaccounttodb, how did we get here");

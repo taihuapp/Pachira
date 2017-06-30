@@ -2345,15 +2345,11 @@ public class MainApp extends Application {
 
     // take a list of MatchInfo, delete all MatchInfo in the database with same TransactionID
     // save new MatchInfo
-    void putMatchInfoList(List<SecurityHolding.MatchInfo> matchInfoList) {
-        if (matchInfoList.size() == 0)
-            return;
+    void putMatchInfoList(int tid, List<SecurityHolding.MatchInfo> matchInfoList) {
         if (mConnection == null) {
             System.err.println("DB connection down?!");
             return;
         }
-
-        int tid = matchInfoList.get(0).getTransactionID();
 
         // delete any existing
         try (Statement statement = mConnection.createStatement()) {
@@ -2362,6 +2358,9 @@ public class MainApp extends Application {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();
         }
+
+        if (matchInfoList.size() == 0)
+            return;
 
         // insert list
         String sqlCmd = "insert into LOTMATCH (TRANSID, MATCHID, MATCHQUANTITY) values (?, ?, ?)";

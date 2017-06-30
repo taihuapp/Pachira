@@ -307,7 +307,7 @@ public class EditTransactionDialogController {
             for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
                 mi.setTransactionID(dbCopyT.getID());
             }
-            mMainApp.putMatchInfoList(mMatchInfoList);
+            mMainApp.putMatchInfoList(dbCopyT.getID(), mMatchInfoList);
 
             // handle linked transactions here
             if (linkedT != null) {
@@ -443,8 +443,11 @@ public class EditTransactionDialogController {
         }
 
         Security security = mSecurityComboBox.getValue();
-        if (security != null && security.getID() > 0)  // has a valid security
-            return true;
+        if (security != null && security.getID() <= 0) {
+            //  invalid security
+            showWarningDialog("Warning", "Invalid Security", "Please select a valid security.");
+            return false;
+        }
 
         if (!mTransaction.getSplitTransactionList().isEmpty()) {
             BigDecimal netAmount = mTransaction.getPayment().subtract(mTransaction.getDeposit());
@@ -483,25 +486,39 @@ public class EditTransactionDialogController {
                         "Please select a valid account to transfer.");
                 return false;
             }
+        } else if ((ta == SELL || ta == CVTSHRT) && !mMatchInfoList.isEmpty()) {
+            BigDecimal matchQ = BigDecimal.ZERO;
+            for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+                matchQ = matchQ.add(mi.getMatchQuantity());
+            }
+            if (matchQ.compareTo(mTransaction.getQuantity()) != 0) {
+                showWarningDialog("Warning", "Mismatching Specify Lot Quantity",
+                        "Please check specify lots.");
+                return false;
+            }
         }
 
 
         // empty security here
         // for cash related transaction, return true
-        switch (mTransaction.getTradeAction()) {
-            case DIV:
-            case INTINC:
-            case XIN:
-            case XOUT:
-            case DEPOSIT:
-            case WITHDRAW:
-            case MARGINT:
-                return true;
-            default:
-                // return false for all other transactions without security
-                showWarningDialog("Warning", "Empty Security", "Please select a valid security");
-                return false;
+        if (security == null) {
+            switch (mTransaction.getTradeAction()) {
+                case DIV:
+                case INTINC:
+                case XIN:
+                case XOUT:
+                case DEPOSIT:
+                case WITHDRAW:
+                case MARGINT:
+                    return true;
+                default:
+                    // return false for all other transactions without security
+                    showWarningDialog("Warning", "Empty Security", "Please select a valid security");
+                    return false;
+            }
         }
+
+        return true;
     }
 
     private void showWarningDialog(String title, String header, String content) {

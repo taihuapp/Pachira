@@ -23,8 +23,8 @@ public class SpecifyLotsDialogController {
 
     private static class SpecifyLotInfo extends SecurityHolding.LotInfo {
 
-        private ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>();
-        private ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>();
+        private ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+        private ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
         // constructor
         SpecifyLotInfo(SecurityHolding.LotInfo lotInfo) {
@@ -41,6 +41,11 @@ public class SpecifyLotsDialogController {
 
         // update realized pnl against a trade
         void updateRealizedPNL(Transaction t) {
+            // if t has zero quantity, there shouldn't be any cost basis,
+            // simply skip
+            if (t.getQuantity().signum() == 0)
+                return;
+
             int scale = getCostBasis().scale();
             BigDecimal c0 = getCostBasis().multiply(getSelectedShares())
                     .divide(getQuantity().abs(), scale, RoundingMode.HALF_UP);
@@ -176,7 +181,7 @@ public class SpecifyLotsDialogController {
             }
         }
         if (mSpecifyLotInfoList == null) {
-            System.err.println("Null LotInfoList in SpecifiyLots...");
+            System.err.println("Null LotInfoList in SpecifyLots...");
             return;
         }
 

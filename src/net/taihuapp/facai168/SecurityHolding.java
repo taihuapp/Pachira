@@ -28,7 +28,7 @@ public class SecurityHolding extends LotHolding {
         private ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
         private ObjectProperty<Transaction.TradeAction> mTradeActionProperty = new SimpleObjectProperty<>();
 
-        // copy construcgtor
+        // copy constructor
         // how to chain constructor???
         public LotInfo(LotInfo li0) {
             super(li0.getSecurityName());
@@ -131,7 +131,7 @@ public class SecurityHolding extends LotHolding {
         return oldC.multiply(newQ).divide(oldQ, oldC.scale(), RoundingMode.HALF_UP);
     }
 
-    // update marketvalue and PNL
+    // update market value and PNL
     @Override
     protected void updateMarketValue(BigDecimal p) {
         setPrice(p);
@@ -159,7 +159,7 @@ public class SecurityHolding extends LotHolding {
 
         // update total quantity here
         BigDecimal lotInfoQuantity = lotInfo.getQuantity();
-        if (lotInfoQuantity == null) {
+        if (lotInfoQuantity == null || lotInfoQuantity.signum() == 0) {
             // no change in quantity, check cost basis
             setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
             return;
@@ -275,7 +275,7 @@ public class SecurityHolding extends LotHolding {
                 matchLot.setQuantity(newQ);
                 matchLot.setCostBasis(newC);
             }
-            setQuantity(getQuantity().add(newQ).subtract(oldQ));
+
             setCostBasis(getCostBasis().add(newC).subtract(oldC));
 
             // update lotInfo Q and C

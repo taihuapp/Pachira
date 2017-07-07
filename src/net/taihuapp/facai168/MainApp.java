@@ -3306,7 +3306,10 @@ public class MainApp extends Application {
     }
 
     @Override
-    public void init() { mPrefs = Preferences.userNodeForPackage(MainApp.class); }
+    public void init() {
+        mPrefs = Preferences.userNodeForPackage(MainApp.class);
+        DOLLAR_CENT_FORMAT.setParseBigDecimal(true);  // always parse BigDecimal
+    }
 
     @Override
     public void start(final Stage stage) throws Exception {

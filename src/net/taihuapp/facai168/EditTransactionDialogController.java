@@ -12,6 +12,7 @@ import javafx.util.converter.BigDecimalStringConverter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -37,6 +38,18 @@ public class EditTransactionDialogController {
     private class MyBigDecimalStringConverter extends BigDecimalStringConverter {
         public String toString(BigDecimal b) {
             return (b == null) ? "" : MainApp.DOLLAR_CENT_FORMAT.format(b);
+        }
+        public BigDecimal fromString(String s) {
+            BigDecimal b = BigDecimal.ZERO;
+            if (s == null)
+                return b;
+
+            try {
+                b = (BigDecimal) MainApp.DOLLAR_CENT_FORMAT.parse(s);
+            } catch (ParseException e) {
+                // do nothing, return BigDecimal.ZERO
+            }
+            return b;
         }
     }
 
@@ -311,7 +324,7 @@ public class EditTransactionDialogController {
 
             // handle linked transactions here
             if (linkedT != null) {
-                linkedT.setMatchID(dbCopyT.getAccountID(), 0);
+                linkedT.setMatchID(dbCopyT.getID(), 0);
                 mMainApp.insertUpdateTransactionToDB(linkedT);
                 dbCopyT.setMatchID(linkedT.getID(), 0);
                 accountSet.add(linkedT.getAccountID());

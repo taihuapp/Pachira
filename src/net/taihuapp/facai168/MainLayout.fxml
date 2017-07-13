@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="1000.0" stylesheets="@Main.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.MainController">
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TreeTableColumn?>
+<?import javafx.scene.control.TreeTableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="1000.0" stylesheets="@Main.css" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.MainController">
    <top>
       <MenuBar prefHeight="30.0" prefWidth="1000.0" BorderPane.alignment="CENTER">
         <menus>
@@ -101,8 +113,8 @@
    <left>
       <TreeTableView fx:id="mAccountTreeTableView" BorderPane.alignment="CENTER">
         <columns>
-          <TreeTableColumn fx:id="mAccountNameTreeTableColumn" maxWidth="199.0" minWidth="100.0" prefWidth="174.0" text="Account" />
-          <TreeTableColumn fx:id="mAccountBalanceTreeTableColumn" maxWidth="155.0" minWidth="36.0" prefWidth="124.0" text="Balance" />
+          <TreeTableColumn fx:id="mAccountNameTreeTableColumn" maxWidth="199.0" minWidth="100.0" prefWidth="174.0" sortable="false" text="Account" />
+          <TreeTableColumn fx:id="mAccountBalanceTreeTableColumn" maxWidth="155.0" minWidth="36.0" prefWidth="124.0" sortable="false" text="Balance" />
         </columns>
          <BorderPane.margin>
             <Insets bottom="5.0" left="5.0" />

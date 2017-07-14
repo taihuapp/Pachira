@@ -41,6 +41,8 @@ public class ReminderTransactionListDialogController {
     @FXML
     private TableColumn<ReminderTransaction, BigDecimal> mAmountTableColumn;
     @FXML
+    private TableColumn<ReminderTransaction, Integer> mTagTableColumn;
+    @FXML
     private TableColumn<ReminderTransaction, String> mFrequencyTableColumn;
 
     @FXML
@@ -83,6 +85,7 @@ public class ReminderTransactionListDialogController {
                 ta = Transaction.TradeAction.DEPOSIT;
                 break;
         }
+
         int accountID = reminder.getAccountID();
         Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta, reminder.getCategoryID());
         transaction.setAmount(reminder.getAmount());
@@ -217,6 +220,21 @@ public class ReminderTransactionListDialogController {
             DateSchedule ds = cellData.getValue().getReminder().getDateSchedule();
             return new SimpleStringProperty("Every " + ds.getNumPeriod() + " "
                     + ds.getBaseUnit().toString().toLowerCase());
+        });
+
+        mTagTableColumn.setCellValueFactory(cd -> cd.getValue().getReminder().getTagIDProperty().asObject());
+        mTagTableColumn.setCellFactory(c -> new TableCell<ReminderTransaction, Integer>() {
+            @Override
+            protected void updateItem(Integer item, boolean empty) {
+                super.updateItem(item, empty);
+
+                Tag t;
+                if (item == null || empty || (t = mMainApp.getTagByID(item)) == null) {
+                    setText(null);
+                } else {
+                    setText(t.getName());
+                }
+            }
         });
 
         mAccountTableColumn.setCellValueFactory(cellData

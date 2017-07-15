@@ -100,9 +100,6 @@
                   <TableColumn fx:id="mTransactionDepositColumn" prefWidth="100.0" text="Deposit" />
                   <TableColumn fx:id="mTransactionBalanceColumn" prefWidth="100.0" text="Balance" />
               </columns>
-               <columnResizePolicy>
-                  <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-               </columnResizePolicy>
             </TableView>
          </children>
          <BorderPane.margin>

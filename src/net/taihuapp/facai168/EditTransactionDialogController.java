@@ -142,8 +142,8 @@ public class EditTransactionDialogController {
     private Button mEnterDoneButton;
     @FXML
     private Button mSpecifyLotButton;
-    @FXML
-    private Button mSplitTransactionButton;
+    //@FXML
+    //private Button mSplitTransactionButton;
 
     private MainApp mMainApp;
     private Stage mDialogStage;
@@ -494,7 +494,8 @@ public class EditTransactionDialogController {
                 return false;
             }
 
-            if (mTransaction.getCategoryID() > -MainApp.MIN_ACCOUNT_ID) {
+            if ((mTransaction.getCategoryID() > -MainApp.MIN_ACCOUNT_ID)
+                    && mTransaction.getSplitTransactionList().isEmpty()) {
                 showWarningDialog("Warning", "Invalid Transfer Account",
                         "Please select a valid account to transfer.");
                 return false;
@@ -557,6 +558,15 @@ public class EditTransactionDialogController {
             // splittransactionlist changed
             mSplitTransactionListChanged = true;
             mTransaction.setSplitTransactionList(outputSplitTransactionList);
+        }
+
+        if (!mTransaction.getSplitTransactionList().isEmpty()) {
+            // has split
+            // unset category or transfer
+            if (mCategoryComboBox.isVisible())
+                mCategoryComboBox.getSelectionModel().select(new Integer(0));
+            if (mTransferAccountComboBox.isVisible())
+                mTransferAccountComboBox.getSelectionModel().select(new Integer(0));
         }
     }
 

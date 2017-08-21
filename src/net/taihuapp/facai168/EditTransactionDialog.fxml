@@ -3,7 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditTransactionDialogController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.EditTransactionDialogController">
     <top>
         <ChoiceBox fx:id="mTradeActionChoiceBox" prefWidth="200.0" BorderPane.alignment="CENTER_LEFT" />
     </top>
@@ -58,7 +58,7 @@
              <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="2" GridPane.rowIndex="6" />
              <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
              <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-            <Button fx:id="mSplitTransactionButton" mnemonicParsing="false" onAction="#handleSplitTransactions" text="Split" GridPane.rowIndex="7" />
+            <Button mnemonicParsing="false" onAction="#handleSplitTransactions" text="Split" GridPane.rowIndex="7" />
          </children>
       </GridPane>
    </center>

@@ -13,6 +13,7 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collections;
 
@@ -65,7 +66,40 @@ public class ReminderTransactionListDialogController {
     }
     @FXML
     private void handleDelete() {
-        System.err.println("delete reminder has not been implemented yet");
+        ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+        Reminder reminder = rt.getReminder();
+        try {
+            if (!mMainApp.setDBSavepoint()) {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setHeaderText("DB Save Point unexpected set.");
+                alert.setContentText("Something is wrong.  Please restart.");
+                alert.showAndWait();
+                return;
+            }
+            mMainApp.deleteReminderFromDB(reminder.getID());
+            mMainApp.commitDB();
+        } catch (SQLException e) {
+            try {
+                mMainApp.showExceptionDialog("Database Error", "insert or update Reminder failed",
+                        MainApp.SQLExceptionToString(e), e);
+                mMainApp.rollbackDB();
+            } catch (SQLException e1) {
+                mMainApp.showExceptionDialog("Database Error",
+                        "Failed to rollback reminder database update",
+                        MainApp.SQLExceptionToString(e), e);
+            }
+        } finally {
+            try {
+                mMainApp.releaseDBSavepoint();
+            } catch (SQLException e) {
+                mMainApp.showExceptionDialog("Database Error",
+                        "set autocommit failed after insert update reminder",
+                        MainApp.SQLExceptionToString(e), e);
+            }
+        }
+        mMainApp.initReminderMap();
+        mMainApp.initReminderTransactionList();
     }
 
     @FXML

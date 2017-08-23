@@ -541,9 +541,16 @@ public class MainApp extends Application {
         }
     }
 
+    // delete reminder
+    void deleteReminderFromDB(int reminderID) throws SQLException {
+        String sqlCmd = "delete from REMINDERS where ID = ?";
+        PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd);
+        preparedStatement.setInt(1, reminderID);
+        preparedStatement.executeUpdate();
+    }
+
     // insert or update reminder
-    // return affected reminder id if success, 0 for failure.
-    int insertUpdateReminderToDB(Reminder reminder) throws SQLException {
+    void insertUpdateReminderToDB(Reminder reminder) throws SQLException {
         String sqlCmd;
         if (reminder.getID() <= 0) {
             sqlCmd = "insert into REMINDERS "
@@ -599,8 +606,6 @@ public class MainApp extends Application {
             if (savepointSetHere) {
                 commitDB();
             }
-
-            return reminder.getID();
         } catch (SQLException e) {
             if (savepointSetHere) {
                 try {
@@ -624,10 +629,9 @@ public class MainApp extends Application {
                 }
             }
         }
-        return 0; // failed
     }
 
-    boolean insertReminderTransactions(ReminderTransaction rt, int tid) {
+    void insertReminderTransactions(ReminderTransaction rt, int tid) {
         rt.setTransactionID(tid);
         String sqlCmd = "insert into REMINDERTRANSACTIONS (REMINDERID, DUEDATE, TRANSACTIONID) "
                 + "values (?, ?, ?)";
@@ -636,12 +640,10 @@ public class MainApp extends Application {
             preparedStatement.setDate(2, Date.valueOf(rt.getDueDate()));
             preparedStatement.setInt(3, tid);
             preparedStatement.executeUpdate();
-            return true;
         } catch (SQLException e) {
             showExceptionDialog("Database Error", "Failed to insert into ReminderTransactions!",
                     SQLExceptionToString(e), e);
         }
-        return false;
     }
 
     // insert or update transaction in the master list.
@@ -657,15 +659,12 @@ public class MainApp extends Application {
     }
 
     // delete transaction from mTransactionList
-    // return false for not finding matching ID in mTransactionList
-    // true otherwise
-    boolean deleteTransactionFromMasterList(int tid) {
+    void deleteTransactionFromMasterList(int tid) {
         int idx = getTransactionIndexByID(tid);
         if (idx < 0)
-            return false;
+            return;
 
         mTransactionList.remove(idx);
-        return true;
     }
 
     // insert or update the input transaction into DB
@@ -2034,7 +2033,7 @@ public class MainApp extends Application {
         }
     }
 
-    boolean showEditAccountDialog(Account account, Account.Type t) {
+    void showEditAccountDialog(Account account, Account.Type t) {
         String title = (account == null) ? "New Account" : "Edit Account";
 
         try {
@@ -2049,16 +2048,14 @@ public class MainApp extends Application {
             EditAccountDialogController controller = loader.getController();
             if (controller == null) {
                 System.err.println("Null controller?");
-                return false;
+                return;
             }
 
             controller.setDialogStage(dialogStage);
             controller.setAccount(this, account, t);
             dialogStage.showAndWait();
-            return true;
         } catch (IOException e) {
             e.printStackTrace();
-            return false;
         }
     }
 

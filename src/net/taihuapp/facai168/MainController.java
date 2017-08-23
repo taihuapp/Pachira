@@ -335,8 +335,21 @@ public class MainController {
     @FXML
     private void initialize() {
         mAccountNameTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getNameProperty());
-        mAccountBalanceTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getCurrentBalanceProperty());
+        mAccountNameTreeTableColumn.setCellFactory(column -> new TreeTableCell<Account, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
 
+                if (item == null || empty) {
+                    setText("");
+                } else {
+                    setText(item);
+                    setTooltip(new Tooltip(item));
+                }
+            }
+        });
+
+        mAccountBalanceTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getCurrentBalanceProperty());
         mAccountBalanceTreeTableColumn.setCellFactory(column -> new TreeTableCell<Account, BigDecimal>() {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {

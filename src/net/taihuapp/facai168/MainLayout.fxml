@@ -108,10 +108,10 @@
       </VBox>
    </center>
    <left>
-      <TreeTableView fx:id="mAccountTreeTableView" prefHeight="565.0" prefWidth="270.0" BorderPane.alignment="CENTER">
+      <TreeTableView fx:id="mAccountTreeTableView" maxWidth="600.0" minWidth="150.0" prefWidth="265.0" BorderPane.alignment="CENTER">
         <columns>
-          <TreeTableColumn fx:id="mAccountNameTreeTableColumn" maxWidth="199.0" minWidth="100.0" prefWidth="174.0" sortable="false" text="Account" />
-          <TreeTableColumn fx:id="mAccountBalanceTreeTableColumn" maxWidth="155.0" minWidth="36.0" prefWidth="124.0" sortable="false" text="Balance" />
+          <TreeTableColumn fx:id="mAccountNameTreeTableColumn" maxWidth="200.0" minWidth="100.0" prefWidth="140.0" sortable="false" text="Account" />
+          <TreeTableColumn fx:id="mAccountBalanceTreeTableColumn" maxWidth="150.0" minWidth="50.0" prefWidth="125.0" sortable="false" text="Balance" />
         </columns>
          <BorderPane.margin>
             <Insets bottom="5.0" left="5.0" />

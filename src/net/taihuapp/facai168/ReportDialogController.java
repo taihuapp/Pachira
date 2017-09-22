@@ -1025,7 +1025,7 @@ public class ReportDialogController {
         Set<String> securityNameSet = new HashSet<>();
         for (Integer sid : mSetting.getSelectedSecurityIDSet()) {
             Security security = mMainApp.getSecurityByID(sid);
-            securityNameSet.add(security == null ? null : security.getName());
+            securityNameSet.add(security == null ? "" : security.getName());
         }
 
         class Line {

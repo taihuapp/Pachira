@@ -1825,7 +1825,7 @@ public class MainApp extends Application {
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
                 int matchSplitID = resultSet.getInt("MATCHSPLITTRANSACTIONID");
 
-                String name = null;
+                String name = "";
                 if (securityID > 0) {
                     Security security = getSecurityByID(securityID);
                     if (security != null)

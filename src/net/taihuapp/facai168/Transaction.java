@@ -456,6 +456,7 @@ public class Transaction {
         mTradeActionProperty.set(ta);
         setCategoryID(categoryID);
         mTagIDProperty.set(0); // unused for now.
+        mSecurityNameProperty.set("");
 
         bindProperties();
         // bind description property now

@@ -42,7 +42,7 @@ public class EditSecurityDialogController {
     @FXML
     private void handleSave() {
         if (mMainApp.insertUpdateSecurityToDB(mSecurity)) {
-            mMainApp.initSecurityList();
+            mMainApp.initializeLists();
             mDialogStage.close();
         }
     }

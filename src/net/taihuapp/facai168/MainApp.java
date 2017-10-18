@@ -3001,7 +3001,7 @@ public class MainApp extends Application {
         return allPayees;
     }
 
-    private void initializeLists() {
+    void initializeLists() {
         // initialize
         initCategoryList();
         initTagList();

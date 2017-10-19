@@ -1731,7 +1731,7 @@ public class MainApp extends Application {
         }
     }
 
-    void initSecurityList() {
+    private void initSecurityList() {
         mSecurityList.clear();
         if (mConnection == null) return;
 
@@ -1789,6 +1789,7 @@ public class MainApp extends Application {
         if (mConnection == null)
             return;
 
+        List<Transaction> tList = new ArrayList<>();  // a simple list to temporarily hold all transactions
         String sqlCmd = "select * from TRANSACTIONS order by ID";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
@@ -1836,8 +1837,9 @@ public class MainApp extends Application {
                         payee, price, quantity, oldQuantity, memo, commission, amount, cid, tagID, matchID,
                         matchSplitID, resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null);
 
-                mTransactionList.add(transaction);
+                tList.add(transaction);  // add transaction to simple list first.
             }
+            mTransactionList.setAll(tList); // now all all contents of the simple list to main list.
         } catch (SQLException e) {
             System.err.print(SQLExceptionToString(e));
             e.printStackTrace();

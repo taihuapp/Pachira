@@ -1,3 +1,23 @@
+/*
+ * Copyright (C) 2017.  Guangliang He.  All Rights Reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This file is part of FaCai168.
+ *
+ * FaCai168 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * FaCai168 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package net.taihuapp.facai168;
 
 import javafx.application.Platform;
@@ -7,6 +27,9 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 
 /**
@@ -18,7 +41,9 @@ public class SplashScreenDialogController {
     private MainApp mMainApp;
 
     @FXML
-    private TextArea mTextArea;
+    private TextArea mShortTextArea;
+    @FXML
+    private TextArea mGPLv3TextArea;
     @FXML
     private CheckBox mAgreeCheckBox;
     @FXML
@@ -26,9 +51,15 @@ public class SplashScreenDialogController {
     @FXML
     private Button mStopButton;
 
-    void setMainApp(MainApp mainApp, Stage stage) {
+    void setMainApp(MainApp mainApp, Stage stage, boolean firstTime) {
         mMainApp = mainApp;
         mStage = stage;
+
+        if (!firstTime) {
+            mAgreeCheckBox.setSelected(true);
+            mAgreeCheckBox.setVisible(false);
+            mStopButton.setVisible(false);
+        }
     }
 
     @FXML
@@ -47,22 +78,36 @@ public class SplashScreenDialogController {
     @FXML
     private void initialize() {
         // this two paragraphs are copied from GPL.
-        mTextArea.setText("THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW. "
-                + "EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE "
-                + "THE PROGRAM “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, "
-                + "BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR "
-                + "PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU. "
-                + "SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR "
-                + "OR CORRECTION."
-                + "\n\n"
-                + "IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL ANY COPYRIGHT "
-                + "HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE PROGRAM AS PERMITTED ABOVE, BE "
-                + "LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL "
-                + "DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED "
-                + "TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD "
-                + "PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS), EVEN IF SUCH "
-                + "HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.");
-        mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
-        mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
+        final String shortText = System.getProperty("Application.Name")
+                + " Copyright (C) 2017  Guangliang He\n"
+                + "\n"
+                + "This program is free software: you can redistribute it and/or modify\n"
+                + "it under the terms of the GNU General Public License as published by\n"
+                + "the Free Software Foundation, either version 3 of the License, or\n"
+                + "any later version.\n"
+                + "\n"
+                + "This program is distributed in the hope that it will be useful,\n"
+                + "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+                + "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+                + "GNU General Public License below for more details.";
+        mShortTextArea.setText(shortText);
+
+        InputStream gplv3Stream = getClass().getResourceAsStream("/COPYING");
+        if (gplv3Stream != null) {
+            StringBuilder inputStringBuilder = new StringBuilder();
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(gplv3Stream));
+            try {
+                String line = bufferedReader.readLine();
+                while (line != null) {
+                    inputStringBuilder.append(line).append('\n');
+                    line = bufferedReader.readLine();
+                }
+            } catch (Exception e) {
+                System.out.println("exception");
+            }
+            mGPLv3TextArea.setText(inputStringBuilder.toString());
+            mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
+            mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
+        }
     }
 }

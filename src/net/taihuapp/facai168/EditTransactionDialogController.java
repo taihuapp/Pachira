@@ -44,6 +44,16 @@ import static net.taihuapp.facai168.Transaction.TradeAction.*;
  */
 public class EditTransactionDialogController {
 
+    private class TagIDConverter extends StringConverter<Integer> {
+        public Integer fromString(String tagName) {
+            Tag t = mMainApp.getTagByName(tagName);
+            return t == null ? 0 : t.getID();
+        }
+        public String toString(Integer tid) {
+            Tag t = (tid == null) ? null : mMainApp.getTagByID(tid);
+            return t == null ? "" : t.getName();
+        }
+    }
     private class CategoryIDConverter extends StringConverter<Integer> {
         public Integer fromString(String categoryName) {
             Category c = mMainApp.getCategoryByName(categoryName);
@@ -118,6 +128,8 @@ public class EditTransactionDialogController {
     private Label mCategoryLabel;
     @FXML
     private ComboBox<Integer> mCategoryComboBox;
+    @FXML
+    private ComboBox<Integer> mTagComboBox;
     @FXML
     private TextField mMemoTextField;
     @FXML
@@ -669,6 +681,16 @@ public class EditTransactionDialogController {
         mPayeeTextField.textProperty().unbindBidirectional(mTransaction.getPayeeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
         new AutoCompleteTextFieldHelper(mPayeeTextField, mMainApp.getPayeeSet());
+
+        // populate Tag ComboBox
+        mTagComboBox.setConverter(new TagIDConverter());
+        mTagComboBox.getItems().clear();
+        mTagComboBox.getItems().add(0);
+        for (Tag t : mMainApp.getTagList())
+            mTagComboBox.getItems().add(t.getID());
+        new AutoCompleteComboBoxHelper<>(mTagComboBox);
+        mTagComboBox.valueProperty().unbindBidirectional(mTransaction.getTagIDProperty().asObject());
+        mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty().asObject());
 
         // populate Category ComboBox
         mCategoryComboBox.setConverter(new CategoryIDConverter());

@@ -94,14 +94,15 @@
             </HBox>
             <TableView fx:id="mTransactionTableView" visible="false" VBox.vgrow="ALWAYS">
               <columns>
-                  <TableColumn fx:id="mTransactionDateColumn" prefWidth="100.0" text="Date" />
+                  <TableColumn fx:id="mTransactionDateColumn" prefWidth="85.0" text="Date" />
                   <TableColumn fx:id="mTransactionTradeActionColumn" prefWidth="75.0" text="Action" />
                   <TableColumn fx:id="mTransactionSecurityNameColumn" prefWidth="120.0" text="Security" />
-                  <TableColumn fx:id="mTransactionReferenceColumn" prefWidth="75.0" text="Check#" />
-                  <TableColumn fx:id="mTransactionPayeeColumn" prefWidth="175.0" text="Payee" />
-                  <TableColumn fx:id="mTransactionMemoColumn" prefWidth="175.0" text="Memo" />
-                  <TableColumn fx:id="mTransactionCategoryColumn" prefWidth="175.0" text="Category" />
-                  <TableColumn fx:id="mTransactionDescriptionColumn" prefWidth="200.0" text="Description" />
+                  <TableColumn fx:id="mTransactionReferenceColumn" prefWidth="60.0" text="Ck #" />
+                  <TableColumn fx:id="mTransactionPayeeColumn" prefWidth="150.0" text="Payee" />
+                  <TableColumn fx:id="mTransactionMemoColumn" prefWidth="150.0" text="Memo" />
+                  <TableColumn fx:id="mTransactionCategoryColumn" prefWidth="150.0" text="Category" />
+                  <TableColumn fx:id="mTransactionDescriptionColumn" prefWidth="150.0" text="Description" />
+                  <TableColumn fx:id="mTransactionTagColumn" prefWidth="60.0" text="Tag" />
                   <TableColumn fx:id="mTransactionInvestAmountColumn" prefWidth="100.0" text="Inv Amt" />
                   <TableColumn fx:id="mTransactionCashAmountColumn" prefWidth="100.0" text="Cash Amt" />
                   <TableColumn fx:id="mTransactionPaymentColumn" prefWidth="100.0" text="Payment" />

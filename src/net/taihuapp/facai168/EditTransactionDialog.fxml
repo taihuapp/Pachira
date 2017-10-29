@@ -79,6 +79,8 @@
              <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
              <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="2" />
             <Button mnemonicParsing="false" onAction="#handleSplitTransactions" text="Split" GridPane.rowIndex="7" />
+            <Label text="Tag" GridPane.rowIndex="8" />
+            <ComboBox fx:id="mTagComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="8" />
          </children>
       </GridPane>
    </center>

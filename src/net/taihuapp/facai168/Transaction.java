@@ -461,7 +461,7 @@ public class Transaction {
     void setMemo(String memo) { mMemoProperty.set(memo); }
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
-    private void setTagID(int tid) { mTagIDProperty.set(tid); }
+    void setTagID(int tid) { mTagIDProperty.set(tid); }
     void setSplitTransactionList(List<SplitTransaction> stList) {
         mSplitTransactionList.clear();
         if (stList != null)

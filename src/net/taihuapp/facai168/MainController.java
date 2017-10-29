@@ -87,6 +87,8 @@ public class MainController {
     @FXML
     private TableColumn<Transaction, String> mTransactionCategoryColumn;
     @FXML
+    private TableColumn<Transaction, String> mTransactionTagColumn;
+    @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionPaymentColumn;
     @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionDepositColumn;
@@ -104,7 +106,7 @@ public class MainController {
     @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn;
 
-    private ObservableList<Account> mAccountList;
+    private ObservableList<Account> mAccountList;  // do NOT convert it to local as suggested by Intellij
 
     void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
@@ -460,6 +462,11 @@ public class MainController {
             if (t.getSplitTransactionList().size() > 0)
                 return new ReadOnlyStringWrapper("--Split--");
             return new ReadOnlyStringWrapper(mMainApp.mapCategoryOrAccountIDToName(t.getCategoryID()));
+        });
+
+        mTransactionTagColumn.setCellValueFactory(cellData -> {
+            Tag tag = mMainApp.getTagByID(cellData.getValue().getTagID());
+            return new ReadOnlyStringWrapper(tag == null ? "" : tag.getName());
         });
 
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =

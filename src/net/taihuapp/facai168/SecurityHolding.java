@@ -34,10 +34,6 @@ import java.util.List;
 import static net.taihuapp.facai168.Transaction.TradeAction.CVTSHRT;
 import static net.taihuapp.facai168.Transaction.TradeAction.SELL;
 
-/**
- * Created by ghe on 6/22/15.
- * SecurityHolding class
- */
 public class SecurityHolding extends LotHolding {
 
     final static int CURRENCYDECIMALLEN = 2;  // two place for cents

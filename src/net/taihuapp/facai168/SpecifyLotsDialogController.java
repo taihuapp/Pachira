@@ -35,10 +35,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * Created by ghe on 12/4/15.
- *
- */
 public class SpecifyLotsDialogController {
 
     private static class SpecifyLotInfo extends SecurityHolding.LotInfo {

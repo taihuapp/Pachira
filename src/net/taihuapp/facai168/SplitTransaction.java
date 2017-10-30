@@ -25,7 +25,6 @@ import javafx.beans.property.*;
 import java.math.BigDecimal;
 
 /**
- * Created by ghe on 1/7/17.
  * A class for split transactions
  *
  * Split transactions have a simpler structure than

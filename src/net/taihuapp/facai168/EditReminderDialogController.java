@@ -33,10 +33,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-/**
- * Created by ghe on 11/29/16.
- *
- */
 public class EditReminderDialogController {
 
     private class TagIDConverter extends StringConverter<Integer> {

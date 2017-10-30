@@ -34,10 +34,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Optional;
 
-/**
- * Created by ghe on 6/1/16.
- *
- */
 public class EditSecurityPriceDialogController {
 
     private MainApp mMainApp;

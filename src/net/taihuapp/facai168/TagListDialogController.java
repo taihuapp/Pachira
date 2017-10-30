@@ -31,10 +31,6 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-/**
- *
- * Created by ghe on 6/15/17.
- */
 public class TagListDialogController {
     private MainApp mMainApp;
     private Stage mDialogStage;

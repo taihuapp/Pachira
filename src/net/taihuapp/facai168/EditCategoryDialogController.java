@@ -24,10 +24,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 
-/**
- *
- * Created by ghe on 6/15/17.
- */
 public class EditCategoryDialogController {
     private MainApp mMainApp;
     private Category mCategory;

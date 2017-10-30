@@ -41,10 +41,6 @@ import java.time.LocalDate;
 import java.time.temporal.WeekFields;
 import java.util.*;
 
-/**
- * Created by ghe on 10/13/16.
- * Base class for all ReportDialogController classes
- */
 public class ReportDialogController {
 
     enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS }

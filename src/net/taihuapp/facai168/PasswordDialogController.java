@@ -31,10 +31,6 @@ import javafx.stage.Stage;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by ghe on 3/16/15.
- *
- */
 public class PasswordDialogController implements ChangeListener<String> {
 
     enum MODE {ENTER, NEW, CHANGE}

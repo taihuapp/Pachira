@@ -32,13 +32,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 
-/**
- * Created by ghe on 3/21/17.
- *
- */
 public class SplashScreenDialogController {
     private Stage mStage;
     private MainApp mMainApp;
+    private boolean mFirstTime;
 
     @FXML
     private TextArea mShortTextArea;
@@ -54,8 +51,9 @@ public class SplashScreenDialogController {
     void setMainApp(MainApp mainApp, Stage stage, boolean firstTime) {
         mMainApp = mainApp;
         mStage = stage;
+        mFirstTime = firstTime;
 
-        if (!firstTime) {
+        if (!mFirstTime) {
             mAgreeCheckBox.setSelected(true);
             mAgreeCheckBox.setVisible(false);
             mStopButton.setVisible(false);
@@ -65,14 +63,19 @@ public class SplashScreenDialogController {
     @FXML
     private void handleContinue() {
         mMainApp.putAcknowledgeTimeStamp(LocalDateTime.now());
-        System.out.println("OK");
         mStage.close();
     }
 
     @FXML
-    private void handleStop() {
-        Platform.exit();
-        System.exit(0);
+    void handleStop() {
+        if (mFirstTime) {
+            // this means user has NOT given a acknowledgement.  Stop everything
+            Platform.exit();
+            System.exit(0);
+        }
+
+        // user has acknowledged already, simply close the window
+        mStage.close();
     }
 
     @FXML

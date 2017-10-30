@@ -34,10 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by ghe on 9/13/16.
- *
- */
 public class AccountListDialogController {
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;

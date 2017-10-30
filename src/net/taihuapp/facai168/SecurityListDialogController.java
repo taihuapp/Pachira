@@ -29,10 +29,6 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-/**
- * Created by ghe on 5/24/16.
- *
- */
 public class SecurityListDialogController {
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;

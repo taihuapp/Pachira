@@ -26,10 +26,6 @@ import javafx.stage.Stage;
 
 import java.math.BigDecimal;
 
-/**
- * Created by ghe on 3/19/15.
- *
- */
 public class EditAccountDialogController {
 
     private Stage mDialogStage;

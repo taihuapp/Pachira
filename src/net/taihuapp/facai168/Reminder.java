@@ -27,10 +27,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by ghe on 11/29/16.
- *
- */
 class Reminder {
 
     enum Type { PAYMENT, DEPOSIT, TRANSFER }

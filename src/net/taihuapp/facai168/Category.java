@@ -25,10 +25,6 @@ import javafx.beans.property.*;
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * Created by ghe on 5/22/16.
- *
- */
 public class Category {
 
     private int mID;

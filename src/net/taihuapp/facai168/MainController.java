@@ -448,13 +448,13 @@ public class MainController {
 
         // transaction table
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getTDateProperty());
+        mTransactionDateColumn.setStyle( "-fx-alignment: CENTER;");
         mTransactionTradeActionColumn.setCellValueFactory(cellData -> cellData.getValue().getTradeActionProperty());
         mTransactionSecurityNameColumn.setCellValueFactory(cellData -> cellData.getValue().getSecurityNameProperty());
         mTransactionDescriptionColumn.setCellValueFactory(cellData -> cellData.getValue().getDescriptionProperty());
         mTransactionReferenceColumn.setCellValueFactory(cellData -> cellData.getValue().getReferenceProperty());
-
+        mTransactionReferenceColumn.setStyle( "-fx-alignment: CENTER;");
         mTransactionPayeeColumn.setCellValueFactory(cellData -> cellData.getValue().getPayeeProperty());
-
         mTransactionMemoColumn.setCellValueFactory(cellData -> cellData.getValue().getMemoProperty());
 
         mTransactionCategoryColumn.setCellValueFactory(cellData -> {

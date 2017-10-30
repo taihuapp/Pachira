@@ -38,10 +38,6 @@ import java.util.*;
 
 import static net.taihuapp.facai168.Transaction.TradeAction.*;
 
-/**
- * Created by ghe on 7/10/15.
- * Controller for EditTransactionDialog
- */
 public class EditTransactionDialogController {
 
     private class TagIDConverter extends StringConverter<Integer> {

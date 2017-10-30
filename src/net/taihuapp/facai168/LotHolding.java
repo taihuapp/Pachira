@@ -28,10 +28,6 @@ import javafx.beans.property.StringProperty;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/**
- * Created by ghe on 7/7/15.
- * Base class for holdings and lot information
- */
 abstract class LotHolding {
 
     private StringProperty mSecurityNameProperty = new SimpleStringProperty("");

@@ -32,11 +32,6 @@ import java.util.concurrent.Callable;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 
-/**
- * Created by ghe on 11/27/16.
- *
- */
-
 class DateSchedule {
     enum BaseUnit {
         DAY, WEEK, MONTH, QUARTER, YEAR

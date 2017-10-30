@@ -37,10 +37,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collections;
 
-/**
- * Created by ghe on 11/26/16.
- *
- */
 public class ReminderTransactionListDialogController {
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;

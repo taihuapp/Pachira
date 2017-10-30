@@ -23,10 +23,6 @@ package net.taihuapp.facai168;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-/**
- * Created by ghe on 12/7/16.
- *
- */
 class Tag {
     private int mID;
     private final StringProperty mNameProperty;

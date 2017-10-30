@@ -26,10 +26,6 @@ import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
-/**
- * Created by ghe on 5/30/16.
- *
- */
 public class EditSecurityDialogController {
 
     private MainApp mMainApp;

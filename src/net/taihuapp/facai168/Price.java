@@ -26,10 +26,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * Created by ghe on 6/1/16.
- *
- */
 class Price {
 
     private ObjectProperty<LocalDate> mDateProperty;

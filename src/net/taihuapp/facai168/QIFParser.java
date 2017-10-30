@@ -33,10 +33,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Created by ghe on 3/22/15.
- *
- */
 class QIFParser {
     // These are the exportable lists show in the QIF99 spec
     // CLASS and TEMPLATE are not being used

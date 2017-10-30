@@ -29,11 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-/**
- * Created by ghe on 4/9/15.
- * Transaction Class
- */
-
 public class Transaction {
 
     enum TradeAction {

@@ -36,11 +36,6 @@ import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Optional;
 
-/**
- * Created by ghe on 6/21/15.
- * A dialog to display holdings
- */
-
 public class HoldingsDialogController {
 
     private MainApp mMainApp;

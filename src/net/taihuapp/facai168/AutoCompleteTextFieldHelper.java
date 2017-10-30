@@ -29,10 +29,6 @@ import javafx.scene.control.TextField;
 
 import java.util.Collection;
 
-/**
- * Created by ghe on 4/26/17.
- *
- */
 class AutoCompleteTextFieldHelper {
     private final TextField mTextField;
     private final FilteredList<MenuItem> mFilteredItems;

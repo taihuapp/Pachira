@@ -33,10 +33,6 @@ import javafx.util.converter.BigDecimalStringConverter;
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * Created by ghe on 3/30/17.
- *
- */
 public class SplitTransactionsDialogController {
 
     private class CategoryTransferToStringConverter extends StringConverter<Integer> {

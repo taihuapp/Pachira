@@ -25,10 +25,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-/**
- * Created by ghe on 4/2/15.
- * Security class
- */
 public class Security {
     enum Type {
         // make sure the name is not longer than 16 characters

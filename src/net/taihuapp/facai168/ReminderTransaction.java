@@ -25,12 +25,6 @@ import javafx.beans.property.*;
 
 import java.time.LocalDate;
 
-/**
- * Created by ghe on 12/7/16.
- *
- */
-
-
 class ReminderTransaction {
     static final String OVERDUE = "Over due";
     static final String DUESOON = "Due soon";

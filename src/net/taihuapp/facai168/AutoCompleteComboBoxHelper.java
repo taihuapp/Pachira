@@ -27,10 +27,6 @@ import javafx.scene.control.TextFormatter;
 
 import java.util.function.Predicate;
 
-/**
- * Created by ghe on 4/26/17.
- *
- */
 class AutoCompleteComboBoxHelper<T> {
     private final ComboBox<T> mComboBox;
     private final FilteredList<T> mFilteredItems;

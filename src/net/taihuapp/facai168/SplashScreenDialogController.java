@@ -28,6 +28,7 @@ import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
@@ -41,6 +42,8 @@ public class SplashScreenDialogController {
     private TextArea mShortTextArea;
     @FXML
     private TextArea mGPLv3TextArea;
+    @FXML
+    private TextArea mThirdPartyTextArea;
     @FXML
     private CheckBox mAgreeCheckBox;
     @FXML
@@ -58,6 +61,16 @@ public class SplashScreenDialogController {
             mAgreeCheckBox.setVisible(false);
             mStopButton.setVisible(false);
         }
+
+        try {
+            mShortTextArea.setText(readResourceTextFile2String("/Disclaimer"));
+            mGPLv3TextArea.setText(readResourceTextFile2String("/COPYING"));
+            mThirdPartyTextArea.setText(readResourceTextFile2String("/ThirdPartyLicense"));
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+            System.err.println("Failed to read license file, probably corrupt installation, stop.");
+            handleStop();
+        }
     }
 
     @FXML
@@ -66,51 +79,38 @@ public class SplashScreenDialogController {
         mStage.close();
     }
 
+    void handleClose() {
+        if (mFirstTime)
+            handleStop();
+        else
+            mStage.close();
+    }
+
     @FXML
     void handleStop() {
-        if (mFirstTime) {
-            // this means user has NOT given a acknowledgement.  Stop everything
-            Platform.exit();
-            System.exit(0);
-        }
-
-        // user has acknowledged already, simply close the window
-        mStage.close();
+        // this means user has NOT given a acknowledgement.  Stop everything
+        Platform.exit();
+        System.exit(0);
     }
 
     @FXML
     private void initialize() {
-        // this two paragraphs are copied from GPL.
-        final String shortText = System.getProperty("Application.Name")
-                + " Copyright (C) 2017  Guangliang He\n"
-                + "\n"
-                + "This program is free software: you can redistribute it and/or modify\n"
-                + "it under the terms of the GNU General Public License as published by\n"
-                + "the Free Software Foundation, either version 3 of the License, or\n"
-                + "any later version.\n"
-                + "\n"
-                + "This program is distributed in the hope that it will be useful,\n"
-                + "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-                + "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
-                + "GNU General Public License below for more details.";
-        mShortTextArea.setText(shortText);
+        mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
+        mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
+    }
 
-        InputStream gplv3Stream = getClass().getResourceAsStream("/COPYING");
-        if (gplv3Stream != null) {
-            StringBuilder inputStringBuilder = new StringBuilder();
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(gplv3Stream));
-            try {
-                String line = bufferedReader.readLine();
-                while (line != null) {
-                    inputStringBuilder.append(line).append('\n');
-                    line = bufferedReader.readLine();
-                }
-            } catch (Exception e) {
-                System.out.println("exception");
-            }
-            mGPLv3TextArea.setText(inputStringBuilder.toString());
-            mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
-            mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
-        }
+    private String readResourceTextFile2String(String fileName) throws IOException {
+        InputStream inputStream = getClass().getResourceAsStream(fileName);
+        if (inputStream == null)
+            throw new IOException("Unable to open resource file " + fileName);
+
+        StringBuilder stringBuilder = new StringBuilder();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+        String line;
+        while ((line = bufferedReader.readLine()) != null)
+            stringBuilder.append(line).append("\n");
+
+        return stringBuilder.toString();
     }
 }

@@ -16,7 +16,6 @@
         <element id="module-output" name="FaCai168" />
       </element>
       <element id="file-copy" path="$PROJECT_DIR$/../../../../opt/h2/bin/h2-1.3.176.jar" />
-      <element id="file-copy" path="$PROJECT_DIR$/COPYING" />
     </root>
   </artifact>
 </component>

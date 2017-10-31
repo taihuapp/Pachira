@@ -1910,7 +1910,7 @@ public class MainApp extends Application {
                 System.exit(0);
             }
             controller.setMainApp(this, dialogStage, firstTime);
-            dialogStage.setOnCloseRequest(e -> controller.handleStop());
+            dialogStage.setOnCloseRequest(e -> controller.handleClose());
             dialogStage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();

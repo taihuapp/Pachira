@@ -49,6 +49,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
@@ -3301,6 +3302,62 @@ public class MainApp extends Application {
             }
         }
         return transaction.getCashAmount().subtract(costBasis);
+    }
+
+    ObservableList<Transaction> getFilteredTransactionList(String searchString) {
+        // search is case insensitive
+        final String lowerSearchString = searchString.toLowerCase();
+
+        // category name match
+        Set<Integer> categoryOrTransferAccountNameMatchIDSet = new HashSet<>();
+        getCategoryList().forEach(c -> {
+            if (c.getName().toLowerCase().contains(lowerSearchString))
+                categoryOrTransferAccountNameMatchIDSet.add(c.getID());
+        });
+
+        // match in transfer account name
+        getAccountList(null, false, true).forEach(a -> {
+            if (a.getName().toLowerCase().contains(lowerSearchString))
+                categoryOrTransferAccountNameMatchIDSet.add(-a.getID());
+        });
+
+        // match in Tag names
+        Set<Integer> tagNameMatchIDSet = new HashSet<>();
+        getTagList().forEach(tag -> {
+            if (tag.getName().toLowerCase().contains(lowerSearchString))
+                tagNameMatchIDSet.add(tag.getID());
+        });
+
+        Predicate<Transaction> filterCriteria = transaction -> {
+            String lowerPayee = transaction.getPayee();
+            if (lowerPayee == null)
+                lowerPayee = "";
+            else
+                lowerPayee = lowerPayee.toLowerCase();
+            String lowerSN = transaction.getSecurityName();
+            if (lowerSN == null)
+                lowerSN = "";
+            else
+                lowerSN = lowerSN.toLowerCase();
+            String lowerMemo = transaction.getMemo();
+            if (lowerMemo == null)
+                lowerMemo = "";
+            else
+                lowerMemo = lowerMemo.toLowerCase();
+            Transaction.TradeAction ta = transaction.getTradeAction();
+            String lowerTAN = "";
+            if (ta != null)
+                lowerTAN = ta.toString().toLowerCase();
+
+            return (categoryOrTransferAccountNameMatchIDSet.contains(transaction.getCategoryID())
+                    || lowerPayee.contains(lowerSearchString)
+                    || lowerSN.contains(lowerSearchString)
+                    || lowerMemo.contains(lowerSearchString)
+                    || lowerTAN.contains(lowerSearchString)
+                    || tagNameMatchIDSet.contains(transaction.getTagID()));
+        };
+
+        return new FilteredList<>(mTransactionList, filterCriteria);
     }
 
     // init the main layout

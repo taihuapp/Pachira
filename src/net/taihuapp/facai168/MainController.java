@@ -21,6 +21,7 @@
 package net.taihuapp.facai168;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -30,6 +31,8 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Callback;
 
 import java.math.BigDecimal;
@@ -105,6 +108,10 @@ public class MainController {
     private TableColumn<Transaction, BigDecimal> mTransactionInvestAmountColumn;
     @FXML
     private TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn;
+    @FXML
+    private Button mSearchButton;
+    @FXML
+    private TextField mSearchTextField;
 
     private ObservableList<Account> mAccountList;  // do NOT convert it to local as suggested by Intellij
 
@@ -184,6 +191,41 @@ public class MainController {
     @FXML
     private void handleAbout() {
         mMainApp.showSplashScreen(false);
+    }
+
+    @FXML
+    private void handleSearch() {
+        Stage dialogStage = new Stage();
+        dialogStage.initModality(Modality.WINDOW_MODAL);
+        dialogStage.initOwner(mMainApp.getStage());
+        SearchResultDialog srd = new SearchResultDialog(mSearchTextField.getText().trim(), mMainApp, dialogStage);
+        dialogStage.showAndWait();
+        Transaction t = srd.getSelectedTransaction();
+        if (t != null) {
+            Account a = mMainApp.getAccountByID(t.getAccountID());
+            if (a.getHiddenFlag()) {
+                showWarningDialog("Hidden Account Transaction",
+                        "Selected Transaction Belongs to a Hidden Account",
+                        "Please unhide " + a.getName() + " to view/edit the transaction");
+                return;
+            }
+
+            for (TreeItem<Account> tia : mAccountTreeTableView.getRoot().getChildren()) {
+                if (tia.getValue().getType() == a.getType()) {
+                    for (TreeItem<Account> tia1 : tia.getChildren()) {
+                        if (tia1.getValue().getID() == a.getID()) {
+                            mAccountTreeTableView.getSelectionModel().select(tia1);
+                            for (Transaction t1 : mTransactionTableView.getItems()) {
+                                if (t1.getID() == t.getID()) {
+                                    mTransactionTableView.getSelectionModel().select(t1);
+                                    mTransactionTableView.scrollTo(t1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @FXML
@@ -294,6 +336,8 @@ public class MainController {
         mFixDBMenuItem.setVisible(isConnected);
         mAccountTreeTableView.setVisible(isConnected);
         mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
+        mSearchButton.setVisible(isConnected);
+        mSearchTextField.setVisible(isConnected);
         if (isConnected)
             updateSavedReportsMenu();
     }
@@ -341,9 +385,13 @@ public class MainController {
         mEnterTransactionButton.setVisible(true);
         mTransactionShowHoldingsButton.setVisible(isTradingAccount);
 
-        mTransactionTableView.setVisible(true);
+        //mTransactionTableView.setVisible(true);
         mTransactionTableView.setItems(account.getTransactionList());
-        mTransactionTableView.scrollTo(account.getTransactionList().size()-1);
+        int selectedIdx = mTransactionTableView.getSelectionModel().getSelectedIndex();
+        if (selectedIdx >= 0)
+            mTransactionTableView.scrollTo(selectedIdx);
+        else
+            mTransactionTableView.scrollTo(account.getTransactionList().size()-1);
         mTransactionTradeActionColumn.setVisible(isTradingAccount);
         mTransactionReferenceColumn.setVisible(!isTradingAccount);
         mTransactionPayeeColumn.setVisible(!isTradingAccount);
@@ -524,6 +572,10 @@ public class MainController {
                     }
                 }
         );
+
+        mSearchButton.disableProperty().bind(Bindings.createBooleanBinding(() ->
+                mSearchTextField.getText() == null || mSearchTextField.getText().trim().isEmpty(),
+                mSearchTextField.textProperty()));
     }
 
     private void showWarningDialog(String title, String header, String content) {

@@ -38,6 +38,7 @@ class SearchResultDialog {
     private Transaction mSelectedTransaction = null;
 
     static class SearchTransactionTableView extends TransactionTableView {
+        @Override
         final void setColumnVisibility() {
             for (TableColumn tc : Arrays.asList(
                     mTransactionDescriptionColumn,
@@ -51,17 +52,13 @@ class SearchResultDialog {
             }
         }
 
+        @Override
         final void setColumnSortability() {}  // all columns remains sortable
 
         SearchTransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) {
             super(mainApp, tList);
         }
     }
-    private SearchTransactionTableView mSearchTransactionTableView;
-
-    private VBox mVBox;
-    private Label mResultLabel;
-    private Button mCloseButton;
 
     private void handleClose() { mDialogStage.close(); }
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
@@ -70,9 +67,9 @@ class SearchResultDialog {
     SearchResultDialog(String searchString, MainApp mainApp, Stage stage) {
         mDialogStage = stage;
 
-        mSearchTransactionTableView = new SearchTransactionTableView(mainApp,
+        SearchTransactionTableView searchTransactionTableView = new SearchTransactionTableView(mainApp,
                 mainApp.getFilteredTransactionList(searchString));
-        mSearchTransactionTableView.setRowFactory(tv -> {
+        searchTransactionTableView.setRowFactory(tv -> {
                     TableRow<Transaction> row = new TableRow<>();
                     row.setOnMouseClicked(e -> {
                         if ((e.getClickCount() == 2) && (!row.isEmpty())) {
@@ -82,22 +79,23 @@ class SearchResultDialog {
                     });
                     return row;
                 });
-        mResultLabel = new Label();
-        mResultLabel.setText("Found " + mSearchTransactionTableView.getItems().size()
+
+        Label resultLabel = new Label();
+        resultLabel.setText("Found " + searchTransactionTableView.getItems().size()
                 + " transactions match '" + searchString + "'");
 
-        mCloseButton =  new Button();
-        mCloseButton.setText("Close");
-        mCloseButton.setOnAction(e -> mDialogStage.close());
+        Button closeButton =  new Button();
+        closeButton.setText("Close");
+        closeButton.setOnAction(e -> mDialogStage.close());
 
-        mVBox = new VBox();
-        mVBox.getChildren().addAll(mResultLabel, mSearchTransactionTableView, mCloseButton);
+        VBox vBox = new VBox();
+        vBox.getChildren().addAll(resultLabel, searchTransactionTableView, closeButton);
 
-        VBox.setMargin(mResultLabel, new Insets(5,5,5,5));
-        VBox.setMargin(mSearchTransactionTableView, new Insets(5,5,5,5));
-        VBox.setMargin(mCloseButton, new Insets(5,5,5,5));
-        VBox.setVgrow(mSearchTransactionTableView, Priority.ALWAYS);
+        VBox.setMargin(resultLabel, new Insets(5,5,5,5));
+        VBox.setMargin(searchTransactionTableView, new Insets(5,5,5,5));
+        VBox.setMargin(closeButton, new Insets(5,5,5,5));
+        VBox.setVgrow(searchTransactionTableView, Priority.ALWAYS);
 
-        mDialogStage.setScene(new Scene(mVBox));
+        mDialogStage.setScene(new Scene(vBox));
     }
 }

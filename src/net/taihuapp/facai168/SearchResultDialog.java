@@ -20,32 +20,41 @@
 
 package net.taihuapp.facai168;
 
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.util.Arrays;
+
 class SearchResultDialog {
-    private MainApp mMainApp;
-    private String mSearchString;
     private Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
 
     static class SearchTransactionTableView extends TransactionTableView {
-        final void setVisibleColumns() {
-            mDescriptionColumnVisibility.set(false);
-            mInvestmentAmountColumnVisibility.set(false);
-            mCashAmountColumnVisibility.set(false);
-            mPaymentColumnVisibility.set(false);
-            mDepositColumnVisibility.set(false);
-            mBalanceColumnVisibility.set(false);
+        final void setColumnVisibility() {
+            for (TableColumn tc : Arrays.asList(
+                    mTransactionDescriptionColumn,
+                    mTransactionInvestAmountColumn,
+                    mTransactionCashAmountColumn,
+                    mTransactionPaymentColumn,
+                    mTransactionDepositColumn,
+                    mTransactionBalanceColumn
+            )) {
+                tc.setVisible(false);
+            }
         }
 
-        SearchTransactionTableView(MainApp mainApp) {
-            super(mainApp);
+        final void setColumnSortability() {}  // all columns remains sortable
+
+        SearchTransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) {
+            super(mainApp, tList);
         }
     }
     private SearchTransactionTableView mSearchTransactionTableView;
@@ -59,12 +68,10 @@ class SearchResultDialog {
 
     // constructor
     SearchResultDialog(String searchString, MainApp mainApp, Stage stage) {
-        mSearchString = searchString;
-        mMainApp = mainApp;
         mDialogStage = stage;
 
-        mSearchTransactionTableView = new SearchTransactionTableView(mMainApp);
-        mSearchTransactionTableView.setItems(mMainApp.getFilteredTransactionList(mSearchString));
+        mSearchTransactionTableView = new SearchTransactionTableView(mainApp,
+                mainApp.getFilteredTransactionList(searchString));
         mSearchTransactionTableView.setRowFactory(tv -> {
                     TableRow<Transaction> row = new TableRow<>();
                     row.setOnMouseClicked(e -> {
@@ -76,18 +83,20 @@ class SearchResultDialog {
                     return row;
                 });
         mResultLabel = new Label();
-        mResultLabel.setText("Found " + mSearchTransactionTableView.getItems().size() + " transactions match '" + mSearchString + "'");
+        mResultLabel.setText("Found " + mSearchTransactionTableView.getItems().size()
+                + " transactions match '" + searchString + "'");
 
         mCloseButton =  new Button();
         mCloseButton.setText("Close");
         mCloseButton.setOnAction(e -> mDialogStage.close());
 
         mVBox = new VBox();
-        mVBox.setPrefWidth(800);
         mVBox.getChildren().addAll(mResultLabel, mSearchTransactionTableView, mCloseButton);
+
         VBox.setMargin(mResultLabel, new Insets(5,5,5,5));
         VBox.setMargin(mSearchTransactionTableView, new Insets(5,5,5,5));
         VBox.setMargin(mCloseButton, new Insets(5,5,5,5));
+        VBox.setVgrow(mSearchTransactionTableView, Priority.ALWAYS);
 
         mDialogStage.setScene(new Scene(mVBox));
     }

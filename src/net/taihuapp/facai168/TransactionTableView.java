@@ -20,9 +20,9 @@
 
 package net.taihuapp.facai168;
 
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -30,6 +30,7 @@ import javafx.util.Callback;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 
 /**
  * A base class TableView for transactions.
@@ -40,47 +41,30 @@ abstract class TransactionTableView extends TableView<Transaction> {
 
     protected static MainApp mMainApp;
 
-    private TableColumn<Transaction, LocalDate> mTransactionDateColumn = new TableColumn<>("Date");
-    private TableColumn<Transaction, String> mTransactionAccountColumn = new TableColumn<>("Account");
-    private TableColumn<Transaction, Transaction.TradeAction> mTransactionTradeActionColumn = new TableColumn<>("Action");
-    private TableColumn<Transaction, String> mTransactionSecurityNameColumn = new TableColumn<>("Security");
-    private TableColumn<Transaction, String> mTransactionReferenceColumn = new TableColumn<>("Ck #");
-    private TableColumn<Transaction, String> mTransactionPayeeColumn = new TableColumn<>("Payee");
-    private TableColumn<Transaction, String> mTransactionMemoColumn = new TableColumn<>("Memo");
-    private TableColumn<Transaction, String> mTransactionCategoryColumn = new TableColumn<>("Category");
-    private TableColumn<Transaction, String> mTransactionDescriptionColumn = new TableColumn<>("Description");
-    private TableColumn<Transaction, String> mTransactionTagColumn = new TableColumn<>("Tag");
-    private TableColumn<Transaction, BigDecimal> mTransactionInvestAmountColumn = new TableColumn<>("Inv Amt");
-    private TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn = new TableColumn<>("Cash Amt");
-    private TableColumn<Transaction, BigDecimal> mTransactionPaymentColumn = new TableColumn<>("Payment");
-    private TableColumn<Transaction, BigDecimal> mTransactionDepositColumn = new TableColumn<>("Deposit");
-    private TableColumn<Transaction, BigDecimal> mTransactionBalanceColumn = new TableColumn<>("Balance");
-    private TableColumn<Transaction, BigDecimal> mTransactionAmountColumn = new TableColumn<>("Amount");
-
-    protected BooleanProperty mDateColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mAccountColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mTradeActionColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mSecurityNameColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mReferenceColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mPayeeColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mMemoColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mCategoryColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mDescriptionColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mTagColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mInvestmentAmountColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mCashAmountColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mPaymentColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mDepositColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mBalanceColumnVisibility = new SimpleBooleanProperty(true);
-    protected BooleanProperty mAmountColumnVisibility = new SimpleBooleanProperty(true);
+    protected TableColumn<Transaction, LocalDate> mTransactionDateColumn = new TableColumn<>("Date");
+    protected TableColumn<Transaction, String> mTransactionAccountColumn = new TableColumn<>("Account");
+    protected TableColumn<Transaction, Transaction.TradeAction> mTransactionTradeActionColumn = new TableColumn<>("Action");
+    protected TableColumn<Transaction, String> mTransactionSecurityNameColumn = new TableColumn<>("Security");
+    protected TableColumn<Transaction, String> mTransactionReferenceColumn = new TableColumn<>("Ck #");
+    protected TableColumn<Transaction, String> mTransactionPayeeColumn = new TableColumn<>("Payee");
+    protected TableColumn<Transaction, String> mTransactionMemoColumn = new TableColumn<>("Memo");
+    protected TableColumn<Transaction, String> mTransactionCategoryColumn = new TableColumn<>("Category");
+    protected TableColumn<Transaction, String> mTransactionDescriptionColumn = new TableColumn<>("Description");
+    protected TableColumn<Transaction, String> mTransactionTagColumn = new TableColumn<>("Tag");
+    protected TableColumn<Transaction, BigDecimal> mTransactionInvestAmountColumn = new TableColumn<>("Inv Amt");
+    protected TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn = new TableColumn<>("Cash Amt");
+    protected TableColumn<Transaction, BigDecimal> mTransactionPaymentColumn = new TableColumn<>("Payment");
+    protected TableColumn<Transaction, BigDecimal> mTransactionDepositColumn = new TableColumn<>("Deposit");
+    protected TableColumn<Transaction, BigDecimal> mTransactionBalanceColumn = new TableColumn<>("Balance");
+    protected TableColumn<Transaction, BigDecimal> mTransactionAmountColumn = new TableColumn<>("Amount");
 
     // constructor
-    TransactionTableView(MainApp mainApp) {
+    TransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) {
         mMainApp = mainApp;
 
         // add columns to TableView
         //setTableMenuButtonVisible(true);
-        getColumns().addAll(
+        getColumns().addAll(Arrays.asList(
                 mTransactionDateColumn,
                 mTransactionAccountColumn,
                 mTransactionTradeActionColumn,
@@ -97,24 +81,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                 mTransactionDepositColumn,
                 mTransactionBalanceColumn,
                 mTransactionAmountColumn
-        );
-
-        mDateColumnVisibility.bindBidirectional(mTransactionDateColumn.visibleProperty());
-        mAccountColumnVisibility.bindBidirectional(mTransactionAccountColumn.visibleProperty());
-        mTradeActionColumnVisibility.bindBidirectional(mTransactionTradeActionColumn.visibleProperty());
-        mSecurityNameColumnVisibility.bindBidirectional(mTransactionSecurityNameColumn.visibleProperty());
-        mReferenceColumnVisibility.bindBidirectional(mTransactionReferenceColumn.visibleProperty());
-        mPayeeColumnVisibility.bindBidirectional(mTransactionPayeeColumn.visibleProperty());
-        mMemoColumnVisibility.bindBidirectional(mTransactionMemoColumn.visibleProperty());
-        mCategoryColumnVisibility.bindBidirectional(mTransactionCategoryColumn.visibleProperty());
-        mDescriptionColumnVisibility.bindBidirectional(mTransactionDescriptionColumn.visibleProperty());
-        mTagColumnVisibility.bindBidirectional(mTransactionTagColumn.visibleProperty());
-        mInvestmentAmountColumnVisibility.bindBidirectional(mTransactionInvestAmountColumn.visibleProperty());
-        mCashAmountColumnVisibility.bindBidirectional(mTransactionCashAmountColumn.visibleProperty());
-        mPaymentColumnVisibility.bindBidirectional(mTransactionPaymentColumn.visibleProperty());
-        mDepositColumnVisibility.bindBidirectional(mTransactionDepositColumn.visibleProperty());
-        mBalanceColumnVisibility.bindBidirectional(mTransactionBalanceColumn.visibleProperty());
-        mAmountColumnVisibility.bindBidirectional(mTransactionAmountColumn.visibleProperty());
+        ));
 
         // set preferred width for each column
         mTransactionDateColumn.setPrefWidth(85);
@@ -198,8 +165,15 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionBalanceColumn.setCellFactory(dollarCentsCF);
         mTransactionAmountColumn.setCellFactory(dollarCentsCF);
 
-        setVisibleColumns();
+        SortedList<Transaction> sortedList = new SortedList<>(tList);
+        setItems(sortedList);
+        sortedList.comparatorProperty().bind(comparatorProperty());
+
+        setColumnVisibility();
+        setColumnSortability();
     }
 
-    abstract void setVisibleColumns();
+    // by default, all columns are visible and sortable
+    abstract void setColumnVisibility();
+    abstract void setColumnSortability();
 }

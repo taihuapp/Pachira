@@ -23,7 +23,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<AnchorPane fx:id="mMainPane" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.HoldingsDialogController">
+<AnchorPane fx:id="mMainPane" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.facai168.HoldingsDialogController">
    <children>
       <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
@@ -31,7 +31,7 @@
                <VBox.margin>
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                </VBox.margin></DatePicker>
-            <TreeTableView fx:id="mSecurityHoldingTreeTableView">
+            <TreeTableView fx:id="mSecurityHoldingTreeTableView" VBox.vgrow="ALWAYS">
               <columns>
                 <TreeTableColumn fx:id="mNameColumn" prefWidth="150.0" sortable="false" text="Name" />
                 <TreeTableColumn fx:id="mPriceColumn" prefWidth="100.0" sortable="false" text="Price" />

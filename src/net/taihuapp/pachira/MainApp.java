@@ -2411,7 +2411,7 @@ public class MainApp extends Application {
             SplitTransactionsDialogController controller = loader.getController();
             controller.setMainApp(this, dialogStage, stList, netAmount);
             dialogStage.showAndWait();
-            return (List<SplitTransaction>) dialogStage.getUserData();
+            return controller.getSplitTransactionList();
         } catch (IOException e) {
             e.printStackTrace();
             return null;

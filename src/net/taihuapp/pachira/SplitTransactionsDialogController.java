@@ -56,6 +56,7 @@ public class SplitTransactionsDialogController {
     private MainApp mMainApp;
     private Stage mDialogStage;
     private BigDecimal mNetAmount;
+    private boolean mIsCanceled = true; // default to be true
 
     @FXML
     private TableView<SplitTransaction> mSplitTransactionsTableView;
@@ -131,6 +132,12 @@ public class SplitTransactionsDialogController {
         updateRemainingAmount();
     }
 
+    List<SplitTransaction> getSplitTransactionList() {
+        if (mIsCanceled)
+            return null;
+        return mSplitTransactionsTableView.getItems();
+    }
+
     private void updateRemainingAmount() {
         BigDecimal remainingAmount = mNetAmount;
         for (SplitTransaction st : mSplitTransactionsTableView.getItems()) {
@@ -170,13 +177,13 @@ public class SplitTransactionsDialogController {
 
     @FXML
     private void handleOK() {
-        mDialogStage.setUserData(mSplitTransactionsTableView.getItems());
+        mIsCanceled = false;
         mDialogStage.close();
     }
 
     @FXML
     private void handleCancel() {
-        mDialogStage.setUserData(null);
+        mIsCanceled = true;
         mDialogStage.close();
     }
 

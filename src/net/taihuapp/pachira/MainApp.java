@@ -74,7 +74,7 @@ public class MainApp extends Application {
     private static final int MAXOPENEDDBHIST = 5; // keep max 5 opened files
     private static final String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     private static final String DBOWNER = "ADMPACHIRA";
-    private static final String DBPOSTFIX = ".h2.db"; // it is changes to mv.db in H2 1.4beta when MVStore enabled
+    private static final String DBPOSTFIX = ".mv.db"; // was .h2.db in h2-1.3.176, changed to .mv.db in h2-1.4.196
     private static final String URLPREFIX = "jdbc:h2:";
     private static final String CIPHERCLAUSE="CIPHER=AES;";
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";

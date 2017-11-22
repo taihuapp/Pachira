@@ -20,20 +20,23 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.layout.TilePane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -61,27 +64,6 @@ public class ReportDialogController {
     private static final String NOSECURITY = "(No Security)";
     private static final String NOCATEGORY = "(No Category)";
 
-    static class SelectedAccount {
-        Account mAccount;
-        IntegerProperty mSelectedOrderProperty = new SimpleIntegerProperty(-1); // -1 for not selected
-
-        SelectedAccount(Account a, int displayOrder) {
-            mAccount = a;
-            mSelectedOrderProperty.set(displayOrder);
-        }
-
-        IntegerProperty getSelectedOrderProperty() { return mSelectedOrderProperty;}
-        Integer getSelectedOrder() { return getSelectedOrderProperty().get(); }
-        void setSelectedOrder(int s) { mSelectedOrderProperty.set(s); }
-
-        Account getAccount() { return mAccount; }
-        Account.Type getType() { return getAccount().getType(); }
-        int getDisplayOrder() { return mAccount.getDisplayOrder(); }
-        int getID() { return getAccount().getID(); }
-
-        public String toString() { return mAccount.getName(); }
-    }
-
     static class Setting {
         private int mID = -1;
         private String mName = "";
@@ -90,7 +72,7 @@ public class ReportDialogController {
         private LocalDate mStartDate;
         private LocalDate mEndDate;
         private Frequency mFrequency;
-        private List<SelectedAccount> mSelectedAccountList = new ArrayList<>();
+        private Set<Account> mSelectedAccountSet = new HashSet<>();
         private Set<Integer> mSelectedCategoryIDSet = new HashSet<>();
         private Set<Integer> mSelectedSecurityIDSet = new HashSet<>();
         private Set<Transaction.TradeAction> mSelectedTradeActionSet = new HashSet<>();
@@ -126,7 +108,26 @@ public class ReportDialogController {
         LocalDate getStartDate() { return mStartDate; }
         LocalDate getEndDate() { return mEndDate; }
         Frequency getFrequency() { return mFrequency; }
-        List<SelectedAccount> getSelectedAccountList() { return mSelectedAccountList; }
+
+        Set<Account> getSelectedAccountSet() { return mSelectedAccountSet; }
+        List<Account> getSelectedAccountList(MainApp mainApp) {
+            Account.Type t;
+            switch (getType()) {
+                case NAV:
+                case BANKTRANS:
+                    t = null;
+                    break;
+                case INVESTINCOME:
+                case INVESTTRANS:
+                    t = Account.Type.INVESTING;
+                    break;
+                default:
+                    t = null;
+                    break;
+            }
+            return new FilteredList<>(mainApp.getAccountList(t, null, true),
+                    a->getSelectedAccountSet().contains(a));
+        }
         Set<Integer> getSelectedCategoryIDSet() { return mSelectedCategoryIDSet; }
         Set<Integer> getSelectedSecurityIDSet() { return mSelectedSecurityIDSet; }
         Set<Transaction.TradeAction> getSelectedTradeActionSet() { return mSelectedTradeActionSet; }
@@ -138,15 +139,9 @@ public class ReportDialogController {
         void setStartDate(LocalDate date) { mStartDate = date; }
         void setEndDate(LocalDate date) { mEndDate = date; }
         void setFrequency(Frequency f) { mFrequency = f; }
-        void setSelectedAccountList(List<SelectedAccount> selectedAccountList) {
-            mSelectedAccountList.clear();
-            mSelectedAccountList.addAll(selectedAccountList);
-        }
     }
 
     private Setting mSetting;
-    private ObservableList<SelectedAccount> mAccountList = FXCollections.observableArrayList(
-            a -> new Observable[] { a.getSelectedOrderProperty() });
 
     @FXML
     private TabPane mTabPane;
@@ -172,6 +167,12 @@ public class ReportDialogController {
 
     @FXML
     private Tab mAccountsTab;
+    @FXML
+    private TableView<Pair<Account, BooleanProperty>> mAccountSelectionTableView;
+    @FXML
+    private TableColumn<Pair<Account, BooleanProperty>, String> mAccountTableColumn;
+    @FXML
+    private TableColumn<Pair<Account, BooleanProperty>, Boolean> mAccountSelectedTableColumn;
 
     @FXML
     private Tab mCategoriesTab;
@@ -201,22 +202,9 @@ public class ReportDialogController {
     private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, Boolean> mTradeActionSelectedTableColumn;
 
     @FXML
-    private Button mSelectButton;
-    @FXML
-    Button mUnselectButton;
-    @FXML
-    Button mUpButton;
-    @FXML
-    Button mDownButton;
-
+    private TilePane mRightTilePane;
     @FXML
     TextArea mReportTextArea;
-
-    @FXML
-    ListView<SelectedAccount> mAvailableAccountListView;
-    @FXML
-    ListView<SelectedAccount> mSelectedAccountListView;
-
     @FXML
     Button mShowReportButton;
     @FXML
@@ -316,46 +304,18 @@ public class ReportDialogController {
     }
 
     private void setupAccountsTab(Account.Type t) {
-
-        // nothing is selected in either listview, disable these buttons
-        mSelectButton.setDisable(true);
-        mUnselectButton.setDisable(true);
-        mUpButton.setDisable(true);
-        mDownButton.setDisable(true);
-
-        mAccountList.clear();
+        // a list of Pair<Pair<account, displayOrder>, selected>
+        ObservableList<Pair<Account, BooleanProperty>> abList = FXCollections.observableArrayList();
 
         for (Account a : mMainApp.getAccountList(t,null, true)) {
-            int selectedOrder = -1;
-            for (SelectedAccount sa : mSetting.getSelectedAccountList())
-                if (sa.getID() == a.getID())
-                    selectedOrder = sa.getSelectedOrder();
-            mAccountList.add(new SelectedAccount(a, selectedOrder));
+            abList.add(new Pair<>(a, new SimpleBooleanProperty(mSetting.getSelectedAccountSet().contains(a))));
         }
 
-        SortedList<SelectedAccount> availableAccountList
-                = new SortedList<>(new FilteredList<>(mAccountList, a->(a.getSelectedOrder() < 0)),
-                Comparator.comparing(SelectedAccount::getType).thenComparing(SelectedAccount::getDisplayOrder)
-                        .thenComparing(SelectedAccount::getID));
-
-        SortedList<SelectedAccount> selectedAccountList
-                = new SortedList<>(new FilteredList<>(mAccountList, a->(a.getSelectedOrder() >= 0)),
-                Comparator.comparing(SelectedAccount::getSelectedOrder));
-
-        mAvailableAccountListView.setItems(availableAccountList);
-        mSelectedAccountListView.setItems(selectedAccountList);
-
-        // add a selection change listener to the lists
-        mAvailableAccountListView.getSelectionModel().selectedItemProperty().addListener(
-                (ob, ov, nv)-> mSelectButton.setDisable(nv == null));
-        mSelectedAccountListView.getSelectionModel().selectedItemProperty().addListener(
-                (ob, ov, nv) -> {
-                    int selectedIdx = mSelectedAccountListView.getSelectionModel().getSelectedIndex();
-                    int numberOfRows = mSelectedAccountListView.getItems().size();
-                    mUnselectButton.setDisable(nv == null);
-                    mUpButton.setDisable(nv == null || selectedIdx == 0);
-                    mDownButton.setDisable(nv == null || selectedIdx == numberOfRows-1);
-                });
+        mAccountSelectionTableView.setItems(abList);
+        mAccountTableColumn.setCellValueFactory(cd -> cd.getValue().getKey().getNameProperty());
+        mAccountSelectedTableColumn.setCellValueFactory(cd -> cd.getValue().getValue());
+        mAccountSelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mAccountSelectedTableColumn));
+        mAccountSelectedTableColumn.setEditable(true);
     }
 
     private void setupCategoriesTab() {
@@ -416,45 +376,6 @@ public class ReportDialogController {
     }
 
     @FXML
-    private void handleSelect() {
-        int n = mSelectedAccountListView.getItems().size();
-        mAvailableAccountListView.getSelectionModel().getSelectedItem().setSelectedOrder(n);
-    }
-
-    @FXML
-    private void handleUnselect() {
-        SelectedAccount a = mSelectedAccountListView.getSelectionModel().getSelectedItem();
-
-        // without the remove/add process, java throw ArrayIndexOutOfBoundsException
-        mAccountList.remove(a);
-        a.setSelectedOrder(-1);
-        mAccountList.add(a);
-
-        // reset selectedOrder to fill up the hole left by unselecting the account
-        for (int i = 0; i < mSelectedAccountListView.getItems().size(); i++) {
-            mSelectedAccountListView.getItems().get(i).setSelectedOrder(i);
-        }
-    }
-
-    @FXML
-    private void handleUp() {
-        int n = mSelectedAccountListView.getSelectionModel().getSelectedIndex();
-        SelectedAccount a0 = mSelectedAccountListView.getItems().get(n);
-        SelectedAccount a1 = mSelectedAccountListView.getItems().get(n-1);
-        a0.setSelectedOrder(n-1);
-        a1.setSelectedOrder(n);
-    }
-
-    @FXML
-    private void handleDown() {
-        int n = mSelectedAccountListView.getSelectionModel().getSelectedIndex();
-        SelectedAccount a0 = mSelectedAccountListView.getItems().get(n);
-        SelectedAccount a1 = mSelectedAccountListView.getItems().get(n+1);
-        a0.setSelectedOrder(n+1);
-        a1.setSelectedOrder(n);
-    }
-
-    @FXML
     private void handleSelectAll() {
         handleSetAll(true);
     }
@@ -474,6 +395,9 @@ public class ReportDialogController {
         } else if (currentTab.equals(mTradeActionTab)) {
             for (Pair<Transaction.TradeAction, BooleanProperty> tab : mTradeActionSelectionTableView.getItems())
                 tab.getValue().set(selected);
+        } else if (currentTab.equals(mAccountsTab)) {
+            for (Pair<Account, BooleanProperty> ab : mAccountSelectionTableView.getItems())
+                ab.getValue().set(selected);
         } else
             System.out.println("Other tab?");
     }
@@ -539,7 +463,11 @@ public class ReportDialogController {
         mSetting.setStartDate(mStartDatePicker.getValue());
         mSetting.setEndDate(mEndDatePicker.getValue());
         mSetting.setFrequency(mFrequencyChoiceBox.getValue());
-        mSetting.setSelectedAccountList(mSelectedAccountListView.getItems());
+        mSetting.getSelectedAccountSet().clear();
+        for (Pair<Account, BooleanProperty> ab : mAccountSelectionTableView.getItems()) {
+            if (ab.getValue().get())
+                mSetting.getSelectedAccountSet().add(ab.getKey());
+        }
 
         if (!mCategoriesTab.isDisable()) {
             // handle category selection
@@ -650,10 +578,12 @@ public class ReportDialogController {
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
         Income fieldUsed = new Income(); // use this to keep track the field being used
         List<Map<String, Income>> accountSecurityIncomeList = new ArrayList<>();
-        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
+        for (Account account : mMainApp.getAccountList(Account.Type.INVESTING, null, true)) {
+            if (!mSetting.getSelectedAccountSet().contains(account))
+                continue;
+
             Map<String, Income> securityIncomeMap = new TreeMap<>();
             accountSecurityIncomeList.add(securityIncomeMap);
-            Account account = sa.getAccount();
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
                 String sName = t.getSecurityName();
@@ -795,11 +725,11 @@ public class ReportDialogController {
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         Income totalTotal = new Income();
         int accountIdx = 0;
-        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
+        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
             final Map<String, Income> securityIncomeMap = accountSecurityIncomeList.get(accountIdx++);
 
             final Line accountLine = new Line();
-            accountLine.sName = sa.getAccount().getName();
+            accountLine.sName = account.getName();
             lineList.add(separator0);
             lineList.add(accountLine);
             lineList.add(separator1);
@@ -812,7 +742,7 @@ public class ReportDialogController {
             }
 
             lineList.add(separator1);
-            final Line accountTotalLine = new Line(sa.getAccount().getName()+ " Total",
+            final Line accountTotalLine = new Line(account.getName()+ " Total",
                     accountTotal, dcFormat);
 
             totalTotal = totalTotal.add(accountTotal);
@@ -821,7 +751,7 @@ public class ReportDialogController {
             lineList.add(emptyLine);
         }
 
-        if (mSetting.getSelectedAccountList().size() > 1) {
+        if (mSetting.getSelectedAccountSet().size() > 1) {
             lineList.add(separator0);
             lineList.add(new Line("Total", totalTotal, dcFormat));
         }
@@ -928,8 +858,7 @@ public class ReportDialogController {
         BigDecimal totalCommissionAmt = BigDecimal.ZERO;
         BigDecimal totalCashAmt = BigDecimal.ZERO;
         BigDecimal totalInvAmt = BigDecimal.ZERO;
-        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
-            Account account = sa.getAccount();
+        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
                 if (tDate.isBefore(mSetting.getStartDate()))
@@ -1067,8 +996,7 @@ public class ReportDialogController {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
-        for (SelectedAccount sa : mSetting.getSelectedAccountList()) {
-            Account account = sa.getAccount();
+        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
                 if (tDate.isBefore(mSetting.getStartDate()))
@@ -1153,15 +1081,15 @@ public class ReportDialogController {
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
-        for (SelectedAccount s : mSelectedAccountListView.getItems()) {
-            List<SecurityHolding> shList = mMainApp.updateAccountSecurityHoldingList(s.mAccount, date, -1);
+        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
+            List<SecurityHolding> shList = mMainApp.updateAccountSecurityHoldingList(account, date, -1);
             int shListLen = shList.size();
 
             // aggregate total
             total = total.add(shList.get(shListLen-1).getMarketValue());
 
             // print account total
-            outputStr.append(String.format("%-55s%35s\n", s.toString(),
+            outputStr.append(String.format("%-55s%35s\n", account.getName(),
                     dcFormat.format(shList.get(shListLen - 1).getMarketValue())));
 
             outputStr.append(separator0).append("\n");
@@ -1328,5 +1256,11 @@ public class ReportDialogController {
         mShowSettingButton.setDisable(true);
         mReportTextArea.setVisible(false);
         mReportTextArea.setStyle("-fx-font-family: monospace");
+
+        // make sure mRightTilePane is NOT visible when mDatesTab is and vise versa
+        BooleanBinding dateTabShown = Bindings.createBooleanBinding(() ->
+                mTabPane.getSelectionModel().getSelectedItem() == mDatesTab,
+                mTabPane.getSelectionModel().selectedItemProperty());
+        mRightTilePane.visibleProperty().bind(dateTabShown.not());
     }
 }

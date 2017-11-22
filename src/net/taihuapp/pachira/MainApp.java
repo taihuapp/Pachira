@@ -400,9 +400,9 @@ public class MainApp extends Application {
                 switch (ReportDialogController.ItemName.valueOf(itemName)) {
                     case ACCOUNTID:
                         int accountID = Integer.parseInt(rs.getString("ITEMVALUE"));
-                        int selectedOrder = rs.getInt("SELECTEDORDER");
-                        setting.getSelectedAccountList().add(new ReportDialogController.SelectedAccount(
-                                getAccountByID(accountID), selectedOrder));
+                        Account account = getAccountByID(accountID);
+                        if (account != null)
+                            setting.getSelectedAccountSet().add(account);
                         break;
                     case CATEGORYID:
                         setting.getSelectedCategoryIDSet().add(Integer.parseInt(rs.getString("ITEMVALUE")));
@@ -485,17 +485,16 @@ public class MainApp extends Application {
             }
 
             // now deal with setting details
-            String sqlCmd1 = "insert into SAVEDREPORTDETAILS (REPORTID, ITEMNAME, ITEMVALUE, SELECTEDORDER) "
-                    + "values (?, ?, ?, ?)";
+            String sqlCmd1 = "insert into SAVEDREPORTDETAILS (REPORTID, ITEMNAME, ITEMVALUE) "
+                    + "values (?, ?, ?)";
             try (Statement statement = mConnection.createStatement();
                  PreparedStatement preparedStatement1 = mConnection.prepareStatement(sqlCmd1)) {
                 statement.execute("delete from SAVEDREPORTDETAILS where REPORTID = " + id);
                 // loop through account list
-                for (ReportDialogController.SelectedAccount sa : setting.getSelectedAccountList()) {
+                for (Account account : setting.getSelectedAccountSet()) {
                     preparedStatement1.setInt(1, id);
                     preparedStatement1.setString(2, ReportDialogController.ItemName.ACCOUNTID.name());
-                    preparedStatement1.setString(3, String.valueOf(sa.getID()));
-                    preparedStatement1.setInt(4, sa.getSelectedOrder());
+                    preparedStatement1.setString(3, String.valueOf(account.getID()));
 
                     preparedStatement1.executeUpdate();
                 }
@@ -504,7 +503,6 @@ public class MainApp extends Application {
                     preparedStatement1.setInt(1, id);
                     preparedStatement1.setString(2, ReportDialogController.ItemName.CATEGORYID.name());
                     preparedStatement1.setString(3, String.valueOf(cid));
-                    preparedStatement1.setInt(4, 0);  // not used
 
                     preparedStatement1.executeUpdate();
                 }
@@ -513,7 +511,6 @@ public class MainApp extends Application {
                     preparedStatement1.setInt(1, id);
                     preparedStatement1.setString(2, ReportDialogController.ItemName.SECURITYID.name());
                     preparedStatement1.setString(3, String.valueOf(sid));
-                    preparedStatement1.setInt(4, 0);  // not used
 
                     preparedStatement1.executeUpdate();
                 }
@@ -522,7 +519,6 @@ public class MainApp extends Application {
                     preparedStatement1.setInt(1, id);
                     preparedStatement1.setString(2, ReportDialogController.ItemName.TRADEACTION.name());
                     preparedStatement1.setString(3, ta.name());
-                    preparedStatement1.setInt(4, 0);  // not used
 
                     preparedStatement1.executeUpdate();
                 }
@@ -3202,8 +3198,7 @@ public class MainApp extends Application {
         sqlCmd = "create table SAVEDREPORTDETAILS ("
                 + "REPORTID integer NOT NULL, "
                 + "ITEMNAME varchar(16) NOT NULL, "
-                + "ITEMVALUE varchar(16) NOT NULL, "
-                + "SELECTEDORDER integer NOT NULL);";
+                + "ITEMVALUE varchar(16) NOT NULL);";
         sqlCreateTable(sqlCmd);
 
         // Tag table

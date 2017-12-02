@@ -24,6 +24,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
 
@@ -38,6 +39,10 @@ public class SplashScreenDialogController {
     private MainApp mMainApp;
     private boolean mFirstTime;
 
+    @FXML
+    private Label mApplicationNameLabel;
+    @FXML
+    private Label mApplicationVersionLabel;
     @FXML
     private TextArea mShortTextArea;
     @FXML
@@ -97,6 +102,9 @@ public class SplashScreenDialogController {
     private void initialize() {
         mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
         mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
+
+        mApplicationNameLabel.setText(System.getProperty("Application.Name"));
+        mApplicationVersionLabel.setText(System.getProperty("Application.Version"));
     }
 
     private String readResourceTextFile2String(String fileName) throws IOException {

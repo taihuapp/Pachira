@@ -26,6 +26,7 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -446,9 +447,11 @@ public class MainController {
             }
         });
 
-        // double click to edit the transaction
+        PseudoClass future = PseudoClass.getPseudoClass("future");
+
         mTransactionTableView.setRowFactory(tv -> {
             TableRow<Transaction> row = new TableRow<>();
+            // double click to edit the transaction
             row.setOnMouseClicked(event -> {
                 if ((event.getClickCount() == 2) && (!row.isEmpty())) {
                     Transaction transaction = row.getItem();
@@ -491,8 +494,14 @@ public class MainController {
                     mMainApp.showEditTransactionDialog(mMainApp.getStage(), new Transaction(row.getItem()));
                 }
             });
+
+            // put future transaction rows into a different color
+            row.itemProperty().addListener((obs, oTransaction, nTransaction)
+                    -> row.pseudoClassStateChanged(future, (nTransaction != null)
+                    && nTransaction.getTDate().isAfter(LocalDate.now())));
             return row;
         });
+        mTransactionTableView.getStylesheets().add(getClass().getResource("TransactionTableView.css").toExternalForm());
 
         // transaction table
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getTDateProperty());

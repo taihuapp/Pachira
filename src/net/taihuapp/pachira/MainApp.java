@@ -59,7 +59,7 @@ public class MainApp extends Application {
     // these characters are not allowed in account names and
     // security names
     static final Set<Character> BANNED_CHARACTER_SET = new HashSet<>(Arrays.asList(
-            new Character[] {'/', ':', ']', '[', '|', '^'}));
+            '/', ':', ']', '[', '|', '^'));
     static boolean hasBannedCharacter(String name) {
         for (int i = 0; i < name.length(); i++)
             if (BANNED_CHARACTER_SET.contains(name.charAt(i)))
@@ -3389,11 +3389,14 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
+        System.setProperty("Application.Version", "v0.1.0");
         try {
             File file = File.createTempFile(System.getProperty("Application.Name") + "-",
                     ".err", new File(System.getProperty("user.dir")));
             System.err.println("Redirect System.err to " + file.getCanonicalPath());
             System.setErr(new PrintStream(file));
+            System.err.println(System.getProperty("Application.Name")
+                    + " " + System.getProperty("Application.Version"));
             System.err.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
         } catch (IOException e) {
             e.printStackTrace();

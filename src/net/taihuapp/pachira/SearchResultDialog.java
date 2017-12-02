@@ -21,6 +21,7 @@
 package net.taihuapp.pachira;
 
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -31,6 +32,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 
 class SearchResultDialog {
@@ -69,16 +71,25 @@ class SearchResultDialog {
 
         SearchTransactionTableView searchTransactionTableView = new SearchTransactionTableView(mainApp,
                 mainApp.getFilteredTransactionList(searchString));
+
         searchTransactionTableView.setRowFactory(tv -> {
-                    TableRow<Transaction> row = new TableRow<>();
-                    row.setOnMouseClicked(e -> {
-                        if ((e.getClickCount() == 2) && (!row.isEmpty())) {
-                            mSelectedTransaction = row.getItem();
-                            handleClose();
-                        }
-                    });
-                    return row;
-                });
+            TableRow<Transaction> row = new TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if ((e.getClickCount() == 2) && (!row.isEmpty())) {
+                    mSelectedTransaction = row.getItem();
+                    handleClose();
+                }
+            });
+
+            // high light future transactions
+            PseudoClass future = PseudoClass.getPseudoClass("future");
+            row.itemProperty().addListener((obs, oTransaction, nTransaction) ->
+                    row.pseudoClassStateChanged(future, (nTransaction != null)
+                    && nTransaction.getTDate().isAfter(LocalDate.now())));
+            return row;
+        });
+        searchTransactionTableView.getStylesheets().add(getClass()
+                .getResource("TransactionTableView.css").toExternalForm());
 
         Label resultLabel = new Label();
         resultLabel.setText("Found " + searchTransactionTableView.getItems().size()

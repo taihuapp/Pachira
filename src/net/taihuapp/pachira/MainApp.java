@@ -3369,7 +3369,7 @@ public class MainApp extends Application {
     }
 
     @Override
-    public void stop() throws Exception {
+    public void stop() {
         closeConnection();
     }
 
@@ -3380,7 +3380,7 @@ public class MainApp extends Application {
     }
 
     @Override
-    public void start(final Stage stage) throws Exception {
+    public void start(final Stage stage) {
         mPrimaryStage = stage;
         mPrimaryStage.setTitle(System.getProperty("Application.Name", "Pachira"));
         initMainLayout();
@@ -3391,13 +3391,20 @@ public class MainApp extends Application {
         System.setProperty("Application.Name", "Pachira");
         System.setProperty("Application.Version", "v0.1.0");
         try {
-            File file = File.createTempFile(System.getProperty("Application.Name") + "-",
-                    ".err", new File(System.getProperty("user.dir")));
+            java.util.Date startDateTime = new java.util.Date();
+            String appName = System.getProperty("Application.Name");
+            String timeStamp = (new SimpleDateFormat("yyyyMMddHHmmss")).format(startDateTime);
+            String postfix = ".err";
+            File file = new File(appName + timeStamp + postfix);
+            int i = 0;
+            while (!file.createNewFile()) {
+                file = new File(appName + timeStamp + i++ + postfix);
+            }
             System.err.println("Redirect System.err to " + file.getCanonicalPath());
             System.setErr(new PrintStream(file));
             System.err.println(System.getProperty("Application.Name")
                     + " " + System.getProperty("Application.Version"));
-            System.err.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
+            System.err.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(startDateTime));
         } catch (IOException e) {
             e.printStackTrace();
         }

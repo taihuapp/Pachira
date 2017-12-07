@@ -527,7 +527,7 @@ public class Transaction {
     boolean isTransfer() {
         int cid = getCategoryID();
 
-        return !(cid >= -MainApp.MIN_ACCOUNT_ID || cid == -getAccountID());
+        return !(cid > -MainApp.MIN_ACCOUNT_ID || cid == -getAccountID());
     }
 
     // return true if the transaction may change quantity, false otherwise

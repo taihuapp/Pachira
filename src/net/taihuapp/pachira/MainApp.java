@@ -1818,6 +1818,8 @@ public class MainApp extends Application {
                 LocalDate aDate = null;
                 if (sqlDate != null)
                     aDate = sqlDate.toLocalDate();
+                else
+                    aDate = tDate;
                 String reference = resultSet.getString("REFERENCE");
                 String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
@@ -2191,6 +2193,9 @@ public class MainApp extends Application {
             int dateComparison = o1.getTDate().compareTo(o2.getTDate());
             if (dateComparison != 0)
                 return dateComparison;
+            dateComparison = o1.getADate().compareTo(o2.getADate());
+            if (dateComparison != 0)
+                return dateComparison;
 
             // compare TradeAction if dates are the same
             // we want to have SELL and CVTSHRT at the end
@@ -2227,7 +2232,7 @@ public class MainApp extends Application {
                     splitList.add(t);
                 } else if (Transaction.hasQuantity(t.getTradeAction())) {
                     securityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
-                            t.getTradeAction(), t.getTDate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
+                            t.getTradeAction(), t.getADate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
                             getMatchInfoList(tid));
                 }
             }

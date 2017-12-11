@@ -21,6 +21,7 @@
 package net.taihuapp.pachira;
 
 import javafx.application.Platform;
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
@@ -114,8 +115,6 @@ public class MainController {
     @FXML
     private TextField mSearchTextField;
 
-    private ObservableList<Account> mAccountList;  // do NOT convert it to local as suggested by Intellij
-
     void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
         updateRecentMenu();
@@ -123,70 +122,82 @@ public class MainController {
 
         if (mMainApp.getAcknowledgeTimeStamp() == null)
             mMainApp.showSplashScreen(true);
-
-        populateTreeTable();
-
-        // get accounts with hiddenFlag == false and exDelete = true
-        mAccountList = mMainApp.getAccountList(null, false, true);
-        mAccountList.addListener((ListChangeListener<Account>) c -> {
-            while (c.next()) {
-                populateTreeTable();
-            }
-        });
     }
 
     private void populateTreeTable() {
-        BigDecimal netWorth = BigDecimal.ZERO;
-        if (mAccountTreeTableView.getRoot() == null) {
-            // don't have a root yet, create one
-            TreeItem<Account> root = new TreeItem<>((new Account(-1, null, "Total",
-                    "Placeholder for total asset", false, -1, BigDecimal.ZERO)));
-            root.setExpanded(true);
-            mAccountTreeTableView.setRoot(root);
-        }
+        Account rootAccount = new Account(-1, null, "Total", "Placeholder for total asset",
+                false, -1, BigDecimal.ZERO);
+        TreeItem<Account> root = new TreeItem<>(rootAccount);
+        root.setExpanded(true);
+        mAccountTreeTableView.setRoot(root);
 
-        ObservableList<TreeItem<Account>> oldAccountTypeGroups = mAccountTreeTableView.getRoot().getChildren();
-        ObservableList<TreeItem<Account>> newAccountTypeGroups = FXCollections.observableArrayList();
-
-        // the rebuilding of TreeTable will mess up the selection, which in turn will mess up
-        // mMainApp::mCurrentAccount.  It is bad.  So we save a copy of mCurrentAccount here
-        Account currentAccount = mMainApp.getCurrentAccount();
-        TreeItem<Account> currentSelection = null;
+        ObservableList<Account> groupAccountList = FXCollections.observableArrayList(account ->
+                new Observable[] {account.getCurrentBalanceProperty()});
         for (Account.Type t : Account.Type.values()) {
-            List<Account> accountList = mMainApp.getAccountList(t, false, true);
-            if (accountList.isEmpty())
-                continue; // don't do anything with this type
-
-            TreeItem<Account> ati = null;
-            // first try to see if it exists
-            for (TreeItem<Account> ati0 : oldAccountTypeGroups) {
-                if (ati0.getValue().getType() == t)
-                    ati = ati0;
-            }
-            if (ati == null) {
-                // didn't find it, create it new
-                ati = new TreeItem<>(new Account(-1, t, t.toString(), "Placeholder for " + t.toString(),
-                        false, -1, BigDecimal.ZERO));
-                ati.setExpanded(true);  // start expand first
-            }
-
-            newAccountTypeGroups.add(ati);
-            BigDecimal subTotal = BigDecimal.ZERO;
-            ati.getChildren().clear();
+            Account groupAccount = new Account(-1, t, t.toString(),"Placeholder for " + t.toString(),
+                    false, -1, BigDecimal.ZERO);
+            groupAccountList.add(groupAccount);
+            TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
+            typeNode.setExpanded(true);
+            final ObservableList<Account> accountList = mMainApp.getAccountList(t, false, true);
             for (Account a : accountList) {
-                TreeItem<Account> ti = new TreeItem<>(a);
-                if (currentAccount != null && currentAccount.getID() == a.getID())
-                    currentSelection = ti;
-                ati.getChildren().add(ti);
-                subTotal = subTotal.add(a.getCurrentBalanceProperty().get());
+                typeNode.getChildren().add(new TreeItem<>(a));
             }
-            ati.getValue().setCurrentBalance(subTotal);
-            netWorth = netWorth.add(subTotal);
+            if (!accountList.isEmpty())
+                root.getChildren().add(typeNode);
+            ListChangeListener<Account> accountListChangeListener = c -> {
+                while (c.next()) {
+                    if (c.wasAdded() || c.wasRemoved() || c.wasPermutated()) {
+                        Account selectedAccount = null;
+                        TreeItem<Account> selectedItem = mAccountTreeTableView.getSelectionModel().getSelectedItem();
+                        TreeItem<Account> newSelectedItem = null;
+                        if (selectedItem != null)
+                            selectedAccount = selectedItem.getValue();
+                        boolean checkSelection = (selectedAccount != null)
+                                && (selectedAccount.getType() == typeNode.getValue().getType());
+                        typeNode.getChildren().clear();
+                        for (Account a : accountList) {
+                            TreeItem<Account> item = new TreeItem<>(a);
+                            typeNode.getChildren().add(item);
+                            if (checkSelection && (selectedAccount.getID() == a.getID()))
+                                newSelectedItem = item;
+                        }
+                        if (typeNode.getChildren().size() == 0) {
+                            mAccountTreeTableView.getRoot().getChildren().remove(typeNode);
+                        } else {
+                            // add to the right place
+                            boolean added = false;
+                            for (int i = 0; i < mAccountTreeTableView.getRoot().getChildren().size(); i++) {
+                                Account.Type type = mAccountTreeTableView.getRoot().getChildren().get(i).getValue().getType();
+                                if (type.ordinal() > typeNode.getValue().getType().ordinal()) {
+                                    // typeNode is not in, add now
+                                    mAccountTreeTableView.getRoot().getChildren().add(i, typeNode);
+                                    added = true;
+                                    break;
+                                } else if (type == typeNode.getValue().getType()) {
+                                    added = true;
+                                    break; // already in, no action needed
+                                }
+                            }
+                            if (!added) {
+                                mAccountTreeTableView.getRoot().getChildren().add(typeNode);
+                            }
+                        }
+
+                        if (checkSelection)
+                            mAccountTreeTableView.getSelectionModel().select(newSelectedItem);
+                    }
+                }
+            };
+
+            accountList.addListener(accountListChangeListener);
+            groupAccount.getCurrentBalanceProperty().bind(Bindings.createObjectBinding(() ->
+                            accountList.stream().map(Account::getCurrentBalance)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add), accountList));
         }
-        mAccountTreeTableView.getRoot().getValue().setCurrentBalance(netWorth);
-        mAccountTreeTableView.getRoot().getChildren().setAll(newAccountTypeGroups);
-        if (currentSelection != null)
-            mAccountTreeTableView.getSelectionModel().select(currentSelection);
+        rootAccount.getCurrentBalanceProperty().bind(Bindings.createObjectBinding(() ->
+                groupAccountList.stream().map(Account::getCurrentBalance).reduce(BigDecimal.ZERO, BigDecimal::add),
+                groupAccountList));
     }
 
     @FXML
@@ -336,11 +347,12 @@ public class MainController {
         mImportQIFMenuItem.setVisible(isConnected);
         mFixDBMenuItem.setVisible(isConnected);
         mAccountTreeTableView.setVisible(isConnected);
-        mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
         mSearchButton.setVisible(isConnected);
         mSearchTextField.setVisible(isConnected);
-        if (isConnected)
+        if (isConnected) {
             updateSavedReportsMenu();
+            populateTreeTable();
+        }
     }
 
     private void updateRecentMenu() {
@@ -372,8 +384,6 @@ public class MainController {
 
     private void showAccountTransactions(Account account) {
         mMainApp.setCurrentAccount(account);
-
-        mTransactionVBox.setVisible(mMainApp.getCurrentAccount() != null);
 
         if (account == null) {
             return;
@@ -581,6 +591,8 @@ public class MainController {
                     }
                 }
         );
+        mTransactionVBox.visibleProperty().bind(mAccountTreeTableView.getSelectionModel()
+                .selectedItemProperty().isNotNull());
 
         mSearchButton.disableProperty().bind(Bindings.createBooleanBinding(() ->
                 mSearchTextField.getText() == null || mSearchTextField.getText().trim().isEmpty(),

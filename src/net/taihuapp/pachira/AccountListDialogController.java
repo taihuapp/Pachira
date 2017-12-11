@@ -21,7 +21,7 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
@@ -30,14 +30,20 @@ import javafx.util.StringConverter;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class AccountListDialogController {
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;
-    private Map<Integer, ChangeListener<Boolean>> mHiddenFlagChangeListenerMap = new HashMap<>();
+    private ListChangeListener<Account> mAccountListChangeListener = c -> {
+        while (c.next()) {
+            if (c.wasUpdated()) {
+                for (int i = c.getFrom(); i < c.getTo(); i++) {
+                    mMainApp.insertUpdateAccountToDB(c.getList().get(i));
+                }
+            }
+        }
+    };
 
     @FXML
     private ChoiceBox<Account.Type> mTypeChoiceBox;
@@ -143,8 +149,7 @@ public class AccountListDialogController {
 
         // first make sure all account display order is set properly
         for (Account.Type t : Account.Type.values()) {
-            final List<Account> accountList = new ArrayList<>();
-            accountList.addAll(mMainApp.getAccountList(t, null, true));
+            final List<Account> accountList = new ArrayList<>(mMainApp.getAccountList(t, null, true));
             for (int i = 0; i < accountList.size(); i++) {
                 Account a = accountList.get(i);
                 if (a.getDisplayOrder() != i) {
@@ -213,16 +218,11 @@ public class AccountListDialogController {
         mTypeChoiceBox.getItems().setAll(Account.Type.values());
         mTypeChoiceBox.getItems().add(null);
         mTypeChoiceBox.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
+            // remove old listener if there is any
+            mAccountTableView.getItems().removeListener(mAccountListChangeListener);
+            // get all account for the given type, exclude deleted account.
             mAccountTableView.setItems(mMainApp.getAccountList(n, null, true));
-            for (Account a : mAccountTableView.getItems()) {
-                ChangeListener<Boolean> listener = mHiddenFlagChangeListenerMap.get(a.getID());
-                if (listener == null) {
-                    listener = (observable, ov, nv)
-                            -> mMainApp.insertUpdateAccountToDB(a);
-                    a.getHiddenFlagProperty().addListener(listener);
-                    mHiddenFlagChangeListenerMap.put(a.getID(), listener);
-                }
-            }
+            mAccountTableView.getItems().addListener(mAccountListChangeListener);
             mEditButton.setDisable(true);
             mMoveUpButton.setDisable(true);
             mMoveDownButton.setDisable(true);
@@ -231,11 +231,7 @@ public class AccountListDialogController {
     }
 
     void close() {
-        for (Integer id : mHiddenFlagChangeListenerMap.keySet()) {
-            Account a = mMainApp.getAccountByID(id);
-            a.getHiddenFlagProperty().removeListener(mHiddenFlagChangeListenerMap.get(id));
-        }
-        mHiddenFlagChangeListenerMap.clear();
+        mAccountTableView.getItems().removeListener(mAccountListChangeListener);
         mDialogStage.close();
     }
 }

@@ -134,7 +134,8 @@ public class MainApp extends Application {
 
     // we want to watch the change of hiddenflag and displayOrder
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList(
-            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty() });
+            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(),
+                    a.getCurrentBalanceProperty() });
     private ObservableList<Tag> mTagList = FXCollections.observableArrayList();
     private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
@@ -3393,7 +3394,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.2");
+        System.setProperty("Application.Version", "v0.1.3");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

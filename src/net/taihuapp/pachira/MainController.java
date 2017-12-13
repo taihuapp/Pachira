@@ -40,6 +40,7 @@ import javafx.util.Callback;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class MainController {
@@ -125,9 +126,9 @@ public class MainController {
     }
 
     private void populateTreeTable() {
-        Account rootAccount = new Account(-1, null, "Total", "Placeholder for total asset",
+        final Account rootAccount = new Account(-1, null, "Total", "Placeholder for total asset",
                 false, -1, BigDecimal.ZERO);
-        TreeItem<Account> root = new TreeItem<>(rootAccount);
+        final TreeItem<Account> root = new TreeItem<>(rootAccount);
         root.setExpanded(true);
         mAccountTreeTableView.setRoot(root);
 
@@ -148,44 +149,46 @@ public class MainController {
             ListChangeListener<Account> accountListChangeListener = c -> {
                 while (c.next()) {
                     if (c.wasAdded() || c.wasRemoved() || c.wasPermutated()) {
-                        Account selectedAccount = null;
                         TreeItem<Account> selectedItem = mAccountTreeTableView.getSelectionModel().getSelectedItem();
-                        TreeItem<Account> newSelectedItem = null;
+                        Account selectedAccount = null;
                         if (selectedItem != null)
                             selectedAccount = selectedItem.getValue();
-                        boolean checkSelection = (selectedAccount != null)
-                                && (selectedAccount.getType() == typeNode.getValue().getType());
-                        typeNode.getChildren().clear();
-                        for (Account a : accountList) {
-                            TreeItem<Account> item = new TreeItem<>(a);
-                            typeNode.getChildren().add(item);
-                            if (checkSelection && (selectedAccount.getID() == a.getID()))
-                                newSelectedItem = item;
-                        }
-                        if (typeNode.getChildren().size() == 0) {
-                            mAccountTreeTableView.getRoot().getChildren().remove(typeNode);
+                        if (selectedItem == null || selectedAccount.getType() != typeNode.getValue().getType()
+                                || !accountList.contains(selectedAccount)) {
+                            // either no selection, or selection is not the same type,
+                            // or selected account is not in the new list
+                            typeNode.getChildren().clear();
                         } else {
-                            // add to the right place
-                            boolean added = false;
-                            for (int i = 0; i < mAccountTreeTableView.getRoot().getChildren().size(); i++) {
-                                Account.Type type = mAccountTreeTableView.getRoot().getChildren().get(i).getValue().getType();
-                                if (type.ordinal() > typeNode.getValue().getType().ordinal()) {
-                                    // typeNode is not in, add now
-                                    mAccountTreeTableView.getRoot().getChildren().add(i, typeNode);
-                                    added = true;
-                                    break;
-                                } else if (type == typeNode.getValue().getType()) {
-                                    added = true;
-                                    break; // already in, no action needed
-                                }
+                            // remove everything except the selectedItem
+                            typeNode.getChildren().retainAll(Collections.singleton(selectedItem));
+                        }
+                        for (int i = 0; i < accountList.size(); i++) {
+                            Account a = accountList.get(i);
+                            if (selectedAccount == null || selectedAccount.getID() != a.getID())
+                                typeNode.getChildren().add(i, new TreeItem<>(a));
+                        }
+                        if (typeNode.getChildren().isEmpty()) {
+                            if (typeNode.getParent() != null) {
+                                // remove empty node
+                                typeNode.getParent().getChildren().remove(typeNode);
                             }
-                            if (!added) {
-                                mAccountTreeTableView.getRoot().getChildren().add(typeNode);
+                        } else {
+                            // not empty
+                            if (typeNode.getParent() == null) {
+                                boolean added = false;
+                                for (int i = 0; i < root.getChildren().size(); i++) {
+                                    Account.Type type = root.getChildren().get(i).getValue().getType();
+                                    if (type.ordinal() > typeNode.getValue().getType().ordinal()) {
+                                        // typeNode is not in, add now
+                                        root.getChildren().add(i, typeNode);
+                                        added = true;
+                                        break;
+                                    }
+                                }
+                                if (!added)
+                                    root.getChildren().add(typeNode);
                             }
                         }
-
-                        if (checkSelection)
-                            mAccountTreeTableView.getSelectionModel().select(newSelectedItem);
                     }
                 }
             };

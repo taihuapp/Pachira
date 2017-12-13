@@ -205,7 +205,6 @@ public class ReminderTransactionListDialogController {
             if (status.equals(ReminderTransaction.DUESOON) || status.equals(ReminderTransaction.OVERDUE))
                 break;
         }
-        mReminderTransactionTableView.scrollTo(i < rtList.size() ? i : rtList.size()-1);
     }
 
     @FXML

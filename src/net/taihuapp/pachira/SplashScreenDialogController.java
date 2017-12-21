@@ -37,7 +37,6 @@ import java.time.LocalDateTime;
 public class SplashScreenDialogController {
     private Stage mStage;
     private MainApp mMainApp;
-    private boolean mFirstTime;
 
     @FXML
     private Label mApplicationNameLabel;
@@ -46,9 +45,7 @@ public class SplashScreenDialogController {
     @FXML
     private TextArea mShortTextArea;
     @FXML
-    private TextArea mGPLv3TextArea;
-    @FXML
-    private TextArea mThirdPartyTextArea;
+    private TextArea mMultiUseTextArea;
     @FXML
     private CheckBox mAgreeCheckBox;
     @FXML
@@ -59,23 +56,27 @@ public class SplashScreenDialogController {
     void setMainApp(MainApp mainApp, Stage stage, boolean firstTime) {
         mMainApp = mainApp;
         mStage = stage;
-        mFirstTime = firstTime;
 
-        if (!mFirstTime) {
-            mAgreeCheckBox.setSelected(true);
-            mAgreeCheckBox.setVisible(false);
-            mStopButton.setVisible(false);
+        mAgreeCheckBox.setSelected(!firstTime);
+        mAgreeCheckBox.setVisible(firstTime);
+        mStopButton.setVisible(firstTime);
+
+        final String text = readResourceTextFile2String("/Disclaimer");
+        if (text != null) {
+            mShortTextArea.setText(text);
+        } else {
+            delayedStop();
         }
 
-        try {
-            mShortTextArea.setText(readResourceTextFile2String("/Disclaimer"));
-            mGPLv3TextArea.setText(readResourceTextFile2String("/COPYING"));
-            mThirdPartyTextArea.setText(readResourceTextFile2String("/ThirdPartyLicense"));
-        } catch (IOException e) {
-            System.err.println(e.getMessage());
-            System.err.println("Failed to read license file, probably corrupt installation, stop.");
-            handleStop();
-        }
+        // displaying contact info at MultiUseTextArea
+        showContactInfo();
+    }
+
+    private void delayedStop() {
+        mAgreeCheckBox.setVisible(false);  // don't let user change the checkbox
+        mAgreeCheckBox.setSelected(false);  // this will force stop the app when window close
+        mContinueButton.setVisible(false); // don't let user continue
+        mStopButton.setVisible(true); // stop is the only option
     }
 
     @FXML
@@ -85,7 +86,7 @@ public class SplashScreenDialogController {
     }
 
     void handleClose() {
-        if (mFirstTime)
+        if (!mAgreeCheckBox.selectedProperty().get())
             handleStop();
         else
             mStage.close();
@@ -98,6 +99,32 @@ public class SplashScreenDialogController {
         System.exit(0);
     }
 
+    private void showResTextFile(String resFileName) {
+        final String warning = "Failed to read text file. Probably a corrupt installation.  Stop now.";
+        final String text = readResourceTextFile2String(resFileName);
+        if (text != null) {
+            mMultiUseTextArea.setText(text);
+        } else {
+            mMultiUseTextArea.setText(warning);
+            delayedStop();
+        }
+    }
+
+    @FXML
+    private void showGPL() {
+        showResTextFile("/COPYING");
+    }
+
+    @FXML
+    private void showThirdParty() {
+        showResTextFile("/ThirdPartyLicense");
+    }
+
+    @FXML
+    private void showContactInfo() {
+        showResTextFile("/ContactInfo");
+    }
+
     @FXML
     private void initialize() {
         mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
@@ -107,18 +134,25 @@ public class SplashScreenDialogController {
         mApplicationVersionLabel.setText(System.getProperty("Application.Version"));
     }
 
-    private String readResourceTextFile2String(String fileName) throws IOException {
-        InputStream inputStream = getClass().getResourceAsStream(fileName);
-        if (inputStream == null)
-            throw new IOException("Unable to open resource file " + fileName);
+    private String readResourceTextFile2String(String fileName) {
+        final InputStream inputStream = getClass().getResourceAsStream(fileName);
+        if (inputStream == null) {
+            // failed to open resource file name
+            System.err.println("Failed to open resource " + fileName);
+            return null;
+        }
 
-        StringBuilder stringBuilder = new StringBuilder();
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        final StringBuilder stringBuilder = new StringBuilder();
+        final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
 
-        String line;
-        while ((line = bufferedReader.readLine()) != null)
-            stringBuilder.append(line).append("\n");
-
-        return stringBuilder.toString();
+        try {
+            String line;
+            while ((line = bufferedReader.readLine()) != null)
+                stringBuilder.append(line).append("\n");
+            return stringBuilder.toString();
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+            return null;
+        }
     }
 }

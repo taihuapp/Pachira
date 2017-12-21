@@ -49,21 +49,34 @@
    <center>
       <VBox BorderPane.alignment="CENTER">
          <children>
-            <TextArea fx:id="mShortTextArea" editable="false" prefHeight="210.0" VBox.vgrow="SOMETIMES">
+            <TextArea fx:id="mShortTextArea" editable="false" prefHeight="300.0">
                <VBox.margin>
                   <Insets bottom="10.0" left="5.0" right="5.0" top="5.0" />
                </VBox.margin>
             </TextArea>
-            <TextArea fx:id="mGPLv3TextArea" VBox.vgrow="ALWAYS">
-               <VBox.margin>
-                  <Insets bottom="5.0" left="5.0" right="5.0" top="10.0" />
-               </VBox.margin>
-            </TextArea>
-            <TextArea fx:id="mThirdPartyTextArea" prefHeight="130.0">
-               <VBox.margin>
-                  <Insets bottom="5.0" left="5.0" right="5.0" top="10.0" />
-               </VBox.margin>
-            </TextArea>
+            <TextArea fx:id="mMultiUseTextArea" VBox.vgrow="ALWAYS" />
+            <TilePane alignment="CENTER" prefColumns="3" prefRows="2">
+               <children>
+                  <ToggleButton maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showContactInfo" selected="true" text="Contact Info">
+                     <toggleGroup>
+                        <ToggleGroup fx:id="ToggleGroup" />
+                     </toggleGroup>
+                     <TilePane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </TilePane.margin>
+                  </ToggleButton>
+                  <ToggleButton maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showGPL" text="GNU GPL v3" toggleGroup="$ToggleGroup">
+                     <TilePane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </TilePane.margin>
+                  </ToggleButton>
+                  <ToggleButton maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showThirdParty" text="Third Party License" toggleGroup="$ToggleGroup">
+                     <TilePane.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </TilePane.margin>
+                  </ToggleButton>
+               </children>
+            </TilePane>
          </children>
       </VBox>
    </center>

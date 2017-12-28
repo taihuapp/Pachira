@@ -3394,7 +3394,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.5");
+        System.setProperty("Application.Version", "v0.1.6");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

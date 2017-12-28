@@ -540,7 +540,6 @@ public class EditTransactionDialogController {
             }
         }
 
-
         // empty security here
         // for cash related transaction, return true
         if (security == null) {
@@ -557,6 +556,20 @@ public class EditTransactionDialogController {
                     // return false for all other transactions without security
                     showWarningDialog("Warning", "Empty Security", "Please select a valid security");
                     return false;
+            }
+        }
+
+        if (mTransaction.getADate() == null) {
+            switch (mTransaction.getTradeAction()) {
+                case SHRSIN:
+                case XFRSHRS:
+                    showWarningDialog("Warning", "Empty Acquisition Date",
+                            "Please select a valid acquisition date.");
+                    return false;
+                default:
+                    // default to Trade date
+                    mADatePicker.setValue(mTDatePicker.getValue());
+                    return true;
             }
         }
 
@@ -795,7 +808,7 @@ public class EditTransactionDialogController {
                 mTransferAccountLabel.setText(tradeAction == XOUT ? "Transfer Cash To:" : "Transfer Cash From:");
                 mTotalLabel.setVisible(true);
                 mTotalTextField.setVisible(true);
-                mTotalLabel.setText(tradeAction == MARGINT ? "Amount" : "Transfer Amount:");
+                mTotalLabel.setText("Transfer Amount:");
                 mTotalTextField.setEditable(true);
                 break;
             case BUY:

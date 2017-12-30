@@ -540,6 +540,23 @@ public class EditTransactionDialogController {
             }
         }
 
+        if (ta == SHRSIN || ta == XFRSHRS) {
+            if (mTransaction.getADate() == null) {
+                showWarningDialog("Warning", "Empty Acquisition Date",
+                        "Please select a valid acquisition date.");
+                return false;
+            }
+            if (mTransaction.getADate().isAfter(mTransaction.getTDate())) {
+                showWarningDialog("Warning", "Acquisition date is after trade date",
+                        "Please select a correct acquisition date or trade date.");
+                return false;
+            }
+        } else {
+            // set ADate to be the same as TDate
+            mADatePicker.setValue(mTDatePicker.getValue());
+        }
+
+
         // empty security here
         // for cash related transaction, return true
         if (security == null) {
@@ -559,20 +576,7 @@ public class EditTransactionDialogController {
             }
         }
 
-        if (mTransaction.getADate() == null) {
-            switch (mTransaction.getTradeAction()) {
-                case SHRSIN:
-                case XFRSHRS:
-                    showWarningDialog("Warning", "Empty Acquisition Date",
-                            "Please select a valid acquisition date.");
-                    return false;
-                default:
-                    // default to Trade date
-                    mADatePicker.setValue(mTDatePicker.getValue());
-                    return true;
-            }
-        }
-
+        // passes all checks
         return true;
     }
 

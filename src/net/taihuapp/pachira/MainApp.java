@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -3394,7 +3394,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.7");
+        System.setProperty("Application.Version", "v0.1.8");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

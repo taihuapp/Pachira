@@ -497,9 +497,6 @@ class QIFParser {
                         tt.setCommission(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'L':
-                        // todo this is for diagonose only, should be removed later
-                        if (actionStr == null || actionStr.startsWith("MISC"))
-                            System.out.println(lines);
                         String[] tokens = l.substring(1).split("\\|");
                         if (tokens.length > 1) {
                             System.err.println(lines);
@@ -783,8 +780,8 @@ class QIFParser {
         // 2.  Option:AutoSwitch and then Clear:AutoSwitch
         // 3.  2 + another Option:AutoSwitch, but no more Clea:AutoSwitch
         // The accounts bracketed in Option:AutoSwitch and Clear:AutoSwitch are meant for import
-        // set boolean autoSwitch to be true at start, do nothing when encounts Option!AutoSwitch
-        // set autoSwitch to be false when encounts Clear:AutoSwitch.
+        // set boolean autoSwitch to be true at start, do nothing when encounters Option!AutoSwitch
+        // set autoSwitch to be false when encounters Clear:AutoSwitch.
         boolean autoSwitch = true;
         RecordType currentRecordType = null;
         int i = 0;
@@ -847,9 +844,6 @@ class QIFParser {
                             if (account != null) {
                                 if (autoSwitch) {
                                     mAccountList.add(account);
-                                } else {
-                                    // todo
-                                    // what should I do here?
                                 }
                             } else {
                                 System.err.println("Bad formatted Account record: "

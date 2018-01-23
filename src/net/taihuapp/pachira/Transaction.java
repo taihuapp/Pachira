@@ -282,6 +282,51 @@ public class Transaction {
     int getMatchID() { return mMatchID; }  // this is for linked transactions
     int getMatchSplitID() { return mMatchSplitID; }
 
+    // for a transferring transaction, return the trade action of the matching transaction
+    final TradeAction TransferTradeAction() {
+        if (-getCategoryID() < MainApp.MIN_ACCOUNT_ID) {
+            // this is not a transferring transaction, return null
+            return null;
+        }
+
+        switch (getTradeAction()) {
+            case BUY:
+            case CVTSHRT:
+            case MISCEXP:
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
+            case DEPOSIT:
+            case WITHDRAW:
+            case XIN:
+            case MARGINT:
+                return TradeAction.XOUT;
+            case DIV:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
+            case INTINC:
+            case MISCINC:
+            case RTRNCAP:
+            case SELL:
+            case SHTSELL:
+            case XOUT:
+                return TradeAction.XIN;
+            case SHRSIN:
+                return TradeAction.SHRSOUT;
+            case SHRSOUT:
+                return TradeAction.SHRSIN;
+            case STKSPLIT:
+            case XFRSHRS:
+                return null;
+            default:
+                System.err.println("Transaction::TransferTradeAction: " + getTradeAction() + " not implemented yet.");
+                return null;
+        }
+    }
+
     // return 1 if a tradeAction increase the cash balance in the account
     // return -1 if a tradeAction decrease the cash balance in the account
     // return 0 if a tradeAction has zero impact on cash balance

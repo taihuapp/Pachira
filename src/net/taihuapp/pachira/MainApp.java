@@ -79,6 +79,8 @@ public class MainApp extends Application {
     private static final String CIPHERCLAUSE="CIPHER=AES;";
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
+    private static final String DBVERSIONNAME = "DBVERSION";
+    private static final int DBVERSIONVALUE = 1;  // need DBVERSION 1 to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -329,6 +331,14 @@ public class MainApp extends Application {
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(480, 320);
 
+        alert.showAndWait();
+    }
+
+    void showWarningDialog(String title, String header, String content) {
+        final Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
         alert.showAndWait();
     }
 
@@ -685,6 +695,7 @@ public class MainApp extends Application {
     }
 
     // insert or update the input transaction into DB
+    // t.ID will be set if insert/update succeeded.
     // return affected transaction id if success, 0 for failure.
     int insertUpdateTransactionToDB(Transaction t) throws SQLException {
         String sqlCmd;
@@ -1245,6 +1256,10 @@ public class MainApp extends Application {
             try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
                 String categoryOrTransferStr = bt.getCategoryOrTransfer();
                 int categoryOrTransferID = mapCategoryOrAccountNameToID(categoryOrTransferStr);
+                if (categoryOrTransferID == -account.getID()) {
+                    // self transferring, set categiryID to 0
+                    categoryOrTransferID = 0;
+                }
                 Transaction.TradeAction ta = mapBankingTransactionTA(categoryOrTransferID, bt.getTAmount());
                 preparedStatement.setInt(1, account.getID());
                 preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
@@ -1310,10 +1325,26 @@ public class MainApp extends Application {
                 "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY) " +
                 "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
+            int cid = mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer());
+            QIFParser.TradeTransaction.Action action = tt.getAction();
+            if (cid == -account.getID()) {
+                // self transfer, set to no transfer and change XIN/XOUT to DEPOSIT/WITHDRW
+                cid = 0;
+                switch (action) {
+                    case XIN:
+                        action = QIFParser.TradeTransaction.Action.DEPOSIT;
+                        break;
+                    case XOUT:
+                        action = QIFParser.TradeTransaction.Action.WITHDRAW;
+                        break;
+                    default:
+                        break;
+                }
+            }
             preparedStatement.setInt(1, account.getID());
             preparedStatement.setDate(2, Date.valueOf(tt.getDate()));
             preparedStatement.setBigDecimal(3, tt.getTAmount());
-            preparedStatement.setString(4, tt.getAction().name());
+            preparedStatement.setString(4, action.name());
             String name = tt.getSecurityName();
             if (name != null && name.length() > 0) {
                 //preparedStatement.setInt(5, getSecurityByName(name).getID());
@@ -1322,7 +1353,7 @@ public class MainApp extends Application {
                 preparedStatement.setObject(5, null);
             }
             preparedStatement.setInt(6, tt.getCleared());
-            preparedStatement.setInt(7, mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer()));
+            preparedStatement.setInt(7, cid);
             preparedStatement.setString(8, tt.getMemo());
             preparedStatement.setBigDecimal(9, tt.getPrice());
             preparedStatement.setBigDecimal(10, tt.getQuantity());
@@ -2361,8 +2392,10 @@ public class MainApp extends Application {
         return price;
     }
 
-    // take a list of MatchInfo, delete all MatchInfo in the database with same TransactionID
-    // save new MatchInfo
+    // Take an integer transaction id and a list of MatchInfo,
+    // delete all MatchInfo in the database with same TransactionID
+    // save new MatchInfo.
+    // Note: The TransactionID field of input matchInfoList is not used.
     void putMatchInfoList(int tid, List<SecurityHolding.MatchInfo> matchInfoList) {
         if (mConnection == null) {
             System.err.println("DB connection down?!");
@@ -2384,7 +2417,7 @@ public class MainApp extends Application {
         String sqlCmd = "insert into LOTMATCH (TRANSID, MATCHID, MATCHQUANTITY) values (?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             for (SecurityHolding.MatchInfo matchInfo : matchInfoList) {
-                preparedStatement.setInt(1, matchInfo.getTransactionID());
+                preparedStatement.setInt(1, tid);
                 preparedStatement.setInt(2, matchInfo.getMatchTransactionID());
                 preparedStatement.setBigDecimal(3, matchInfo.getMatchQuantity());
 
@@ -2919,7 +2952,10 @@ public class MainApp extends Application {
         }
         // we have enough information to open a new db, close the current db now
         closeConnection();
-        mPrimaryStage.setTitle(System.getProperty("Application.Name"));
+        final String appName = System.getProperty("Application.Name", "Pachira");
+        final String appVersion = System.getProperty("Application.Version", "unknown");
+
+        mPrimaryStage.setTitle(appName);
         setCurrentAccount(null);
         initializeLists();
 
@@ -3004,11 +3040,70 @@ public class MainApp extends Application {
 
         if (isNew) {
             initDBStructure();
+        } else {
+            // create SETTINGS table if it is not there already
+            createSettingsTable();
+        }
+
+        final int dbVersion = getDBVersion();
+        if (dbVersion > DBVERSIONVALUE) {
+            showInformationDialog("Version Mismatch",
+                    "This version of " + appName + " is out of date",
+                    "Database Version Number " + dbVersion + ", " + appName + " " + appVersion + " " +
+                            "needs Database Version " + DBVERSIONVALUE + ", please update " + appName + ".");
+            closeConnection();
+            return;
+        } else if (dbVersion < DBVERSIONVALUE) {
+            // backup first
+            String backupFileName = doBackup();
+
+            // run update
+            try {
+                updateDBVersion(dbVersion, DBVERSIONVALUE);
+                showInformationDialog("Database Version Updated",
+                        "Database Version Updated from " + dbVersion + " to " + DBVERSIONVALUE,
+                        "Your database was updated from version " + dbVersion + " to " + DBVERSIONVALUE + ". " +
+                                "The old database was saved in " + backupFileName);
+            } catch (SQLException e) {
+                // Failed
+                showExceptionDialog("Database Version Update Failed",
+                        "Database Version Update Failed",
+                        "Your database failed to update from version " + dbVersion + " to " + DBVERSIONVALUE +
+                                ". The old database was saved in " + backupFileName, e);
+                closeConnection();
+                return;
+            } catch (IllegalArgumentException e) {
+                // version not supported
+                showExceptionDialog("Database Version Update Failed",
+                        "Database Version Update not supported",
+                        e.getMessage() + " " + "Database version update from " + dbVersion +
+                                " to " + DBVERSIONVALUE + " not supported. " +
+                                "The old database was saved in " + backupFileName, e);
+            }
         }
 
         initializeLists();
 
-        mPrimaryStage.setTitle(System.getProperty("Application.Name") + " " + dbName);
+        mPrimaryStage.setTitle(appName+ " " + dbName);
+    }
+
+    // update database from version oldV to version newV.
+    // return true for success and false for failure
+    // it requires oldV < newV.  Otherwise, the behavior is not defined.
+    private void updateDBVersion(int oldV, int newV) throws SQLException, IllegalArgumentException {
+        if (newV == 1) {
+            final String updateSQL = "update TRANSACTIONS " +
+                    "set TRADEACTION = casewhen(tradeaction = 'XIN', 'DEPOSIT', 'WITHDRAW'), " +
+                    "categoryid = 1 where categoryid = -accountid and (tradeaction = 'XIN' or tradeaction = 'XOUT')";
+            final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(updateSQL);
+                statement.executeUpdate(mergeSQL);
+            }
+        } else {
+            throw new IllegalArgumentException("updateDBVersion called with unsupported versions, " +
+                    "old version: " + oldV + ", new version: " + newV + ".");
+        }
     }
 
     TreeSet<String> getPayeeSet() {
@@ -3055,10 +3150,261 @@ public class MainApp extends Application {
         }
     }
 
+    // Alter (including insert and delete a transaction, both in DB and in MasterList.
+    // It also perform various consistency tasks.
+    // if oldT is null, the newT is inserted
+    // if newT is null, the oldT is deleted
+    // otherwise, oldT is updated with information from newT,
+    //   newT.getID() should be return the same value as oldT.getID()
+    // returns true for success, false for failure
+    boolean alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList) {
+        // there are four possibilities each for oldT and newT:
+        // null, simple transaction, a transfer transaction, a split transaction
+        // thus there are 4x4 = 16 different situations
+
+        if (oldT == null && newT == null)
+            return true; // nothing to do
+
+        if (oldT != null && oldT.getMatchID() > 0) {
+            // oldT is a linked transaction,
+            if (oldT.getMatchSplitID() > 0) {
+                showWarningDialog("Linked to A Split Transaction",
+                        "Linked to a split transaction",
+                        "Please edit the linked split transaction.");
+                return false;
+            }
+            Transaction.TradeAction oldTA = oldT.getTradeAction();
+            if (oldTA == Transaction.TradeAction.XIN || oldTA == Transaction.TradeAction.XOUT) {
+                Transaction oldXferT = getTransactionByID(oldT.getMatchID());
+                if (oldXferT != null) {
+                    Transaction.TradeAction oldXferTA = oldXferT.getTradeAction();
+                    if (oldXferTA != Transaction.TradeAction.XIN && oldXferTA != Transaction.TradeAction.XOUT) {
+                        showWarningDialog("Linked to An Investing Transaction",
+                                "Linked to an investing transaction",
+                                "Please edit the linked investing transaction.");
+                        return false;
+                    }
+                }
+            }
+        }
+
+        final Set<Transaction> updateTSet = new HashSet<>();
+        final Set<Integer> deleteTIDSet = new HashSet<>();
+        final Set<Integer> accountIDSet = new HashSet<>();
+        Transaction newLinkedT = null;
+        Security security = null;
+
+        if (newT != null && !newT.isSplit() && -newT.getCategoryID() >= MIN_ACCOUNT_ID) {
+            // handle the case newT is a split transaction
+            final Transaction.TradeAction xferTA = newT.TransferTradeAction();
+            if (xferTA == null) {
+                showWarningDialog("Warning", "Inconsistent Information",
+                        "Transaction has a transfer account but without proper TradeAction.");
+                return false;
+            }
+
+            // get the payee information
+            String newPayee;
+            switch (newT.getTradeAction()) {
+                case DEPOSIT:
+                case WITHDRAW:
+                case XIN:
+                case XOUT:
+                    newPayee = newT.getPayee();
+                    break;
+                default:
+                    // put security name information as payee for transfer transaction
+                    newPayee = newT.getSecurityName();
+                    break;
+            }
+
+            newLinkedT = new Transaction(-newT.getCategoryID(), newT.getTDate(), xferTA, -newT.getAccountID());
+            newLinkedT.setID(newT.getMatchID());
+            newLinkedT.setAmount(newT.getAmount());
+            newLinkedT.setMemo(newT.getMemo());
+            newLinkedT.setPayee(newPayee);
+        }
+
+        // ready to do database work now
+        try {
+            if (!setDBSavepoint()) {
+               showWarningDialog("Unexpected situation", "Database savepoint already set?",
+                        "Please restart application");
+               return false;
+            }
+
+            if (newT != null) {
+                // either adding a new transaction, or modifying an old one
+                final int newTID = insertUpdateTransactionToDB(newT);
+
+                updateTSet.add(newT);
+                accountIDSet.add(newT.getAccountID());
+
+                // insert/update MatchInfo to database
+                putMatchInfoList(newTID, newMatchInfoList);
+
+                // handle transfer in split transaction
+                for (SplitTransaction st : newT.getSplitTransactionList()) {
+                    if (-st.getCategoryID() >= MIN_ACCOUNT_ID) {
+                        // this is a transfer
+                        Transaction stLinkedT = new Transaction(-st.getCategoryID(), newT.getTDate(),
+                                st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
+                                        Transaction.TradeAction.XOUT : Transaction.TradeAction.XIN,
+                                -newT.getAccountID());
+                        stLinkedT.setID(st.getMatchID());
+                        stLinkedT.setAmount(st.getAmount().abs());
+                        stLinkedT.setPayee(st.getPayee());
+                        stLinkedT.setMemo(st.getMemo());
+                        stLinkedT.setPayee(newT.getPayee());
+                        stLinkedT.setMatchID(newTID, st.getID());
+
+                        st.setMatchID(insertUpdateTransactionToDB(stLinkedT));
+
+                        updateTSet.add(stLinkedT);
+                        accountIDSet.add(stLinkedT.getAccountID());
+                    } else {
+                        st.setMatchID(0);
+                    }
+                }
+
+                if (newLinkedT != null) {
+                    newLinkedT.setMatchID(newTID, 0);
+                    newT.setMatchID(insertUpdateTransactionToDB(newLinkedT),0);
+
+                    updateTSet.add(newLinkedT);
+                    accountIDSet.add(newLinkedT.getAccountID());
+                }
+
+                // update price for involved security
+                security = newT.getSecurityName() == null ? null :
+                        getSecurityByName(newT.getSecurityName());
+                final BigDecimal price = newT.getPrice();
+                if (Transaction.hasQuantity(newT.getTradeAction())
+                        && (security != null) && (price != null)
+                        && (price.compareTo(BigDecimal.ZERO) != 0)) {
+                    insertUpdatePriceToDB(security.getID(), newT.getTDate(), price, 0);
+                }
+            }
+
+            if (oldT != null) {
+                if (newT == null) {
+                    // clear MatchInfoList for oldT, if not replaced by newT
+                    putMatchInfoList(oldT.getID(), new ArrayList<>());
+                }
+
+                // handle transfer in splittransaction
+                for (SplitTransaction st : oldT.getSplitTransactionList()) {
+                    final int stLinkedTID = st.getMatchID();
+
+                    boolean updated = false;
+                    for (Transaction t : updateTSet) {
+                        if (t.getID() == stLinkedTID) {
+                            updated = true;
+                            break;
+                        }
+                    }
+                    if (!updated) {
+                        deleteTransactionFromDB(stLinkedTID);
+                        deleteTIDSet.add(stLinkedTID);
+                        accountIDSet.add(-st.getCategoryID());
+                    }
+                }
+
+                // handle transfer
+                final int oldLinkedTID = oldT.getMatchID();
+                boolean updated = false;
+                for (Transaction t : updateTSet) {
+                    if (t.getID() == oldLinkedTID) {
+                        updated = true;
+                        break;
+                    }
+                }
+                if (!updated) {
+                    deleteTransactionFromDB(oldLinkedTID);
+                    deleteTIDSet.add(oldLinkedTID);
+                    accountIDSet.add(-oldT.getCategoryID());
+                }
+
+                deleteTransactionFromDB(oldT.getID());
+                deleteTIDSet.add(oldT.getID());
+                accountIDSet.add(oldT.getAccountID());
+            }
+
+            // now commit
+            commitDB();
+
+            for (Integer tid : deleteTIDSet) {
+                deleteTransactionFromMasterList(tid);
+            }
+            for (Transaction t : updateTSet) {
+                insertUpdateTransactionToMasterList(t);
+            }
+            if (security != null) {
+                updateAccountBalance(security);
+            }
+            for (Integer aid : accountIDSet) {
+                updateAccountBalance(aid);
+            }
+            return true;
+
+        } catch (SQLException e) {
+            try {
+                rollbackDB();
+            } catch (SQLException e1) {
+                showExceptionDialog("Database Error", "Unable to rollback to savepoint",
+                        MainApp.SQLExceptionToString(e1), e1);
+            }
+        } finally {
+            try {
+                releaseDBSavepoint();
+            } catch (SQLException e) {
+                showExceptionDialog("Database Error",
+                        "Unable to release savepoint and set DB autocommit",
+                        MainApp.SQLExceptionToString(e), e);
+            }
+        }
+
+        return false;
+    }
+
+    // create SETTINGS table and populate DBVERSION
+    private void createSettingsTable() {
+        try (ResultSet resultSet = mConnection.getMetaData().getTables(null, null,
+                "SETTINGS", new String[]{"TABLE"})) {
+            if (!resultSet.next()) {
+                // Settings table is not created yet, create it now
+                String sqlCmd = "create table SETTINGS (" +
+                        "NAME varchar(32) UNIQUE NOT NULL," +
+                        "VALUE integer NOT NULL," +
+                        "primary key (NAME))";
+                sqlCreateTable(sqlCmd);
+            }
+        } catch (SQLException e) {
+            showExceptionDialog("Exception", "Database Exception",
+                    "Failed to create SETTINGS table",e);
+        }
+    }
+
+    private int getDBVersion() {
+        String sqlCmd = "select VALUE from SETTINGS where NAME = '" + DBVERSIONNAME + "'";
+        int dbVersion = 0;
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            if (resultSet.next())
+                dbVersion = resultSet.getInt(1);
+        } catch (SQLException e) {
+            System.err.print(SQLExceptionToString(e));
+        }
+        return dbVersion;
+    }
+
     // initialize database structure
     private void initDBStructure() {
         if (mConnection == null)
             return;
+
+        // create Settings Table first.
+        createSettingsTable();
 
         // Accounts table
         // ID starts from 1
@@ -3394,7 +3740,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.8");
+        System.setProperty("Application.Version", "v0.1.9");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

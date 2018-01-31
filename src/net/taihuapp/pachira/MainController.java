@@ -53,7 +53,6 @@ public class MainController {
         }
     };
 
-
     @FXML
     private Menu mRecentDBMenu;
     @FXML
@@ -486,11 +485,72 @@ public class MainController {
         PseudoClass future = PseudoClass.getPseudoClass("future");
 
         mTransactionTableView.setRowFactory(tv -> {
-            TableRow<Transaction> row = new TableRow<>();
+            final TableRow<Transaction> row = new TableRow<>();
+            final ContextMenu contextMenu = new ContextMenu();
+            final MenuItem deleteMI = new MenuItem("Delete");
+            deleteMI.setOnAction(e -> {
+                // delete this transaction
+                mMainApp.alterTransaction(row.getItem(), null, new ArrayList<>());
+            });
+            final Menu moveToMenu = new Menu("Move to...");
+            for (Account.Type at : Account.Type.values()) {
+                final Menu atMenu = new Menu(at.name());
+                atMenu.getItems().add(new MenuItem(at.name())); // need this placeholder for setOnShowing to work
+                atMenu.setOnShowing(e -> {
+                    atMenu.getItems().clear();
+                    final ObservableList<Account> accountList = mMainApp.getAccountList(at, false, true);
+                    for (Account a : accountList) {
+                        if (a.getID() != row.getItem().getAccountID()) {
+                            MenuItem accountMI = new MenuItem(a.getName());
+                            accountMI.setOnAction(e1 -> {
+                                Transaction oldT = row.getItem();
+                                List<SecurityHolding.MatchInfo> matchInfoList = mMainApp.getMatchInfoList(oldT.getID());
+                                if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
+                                        "Transaction with Lot Matching",
+                                        "The lot matching information will be lost. " +
+                                                "Do you want to continue?")) {
+                                    // either this transaction doesn't have lot matching information,
+                                    // or user choose to ignore lot matching information
+                                    Account newAccount = mMainApp.getAccountByName(accountMI.getText());
+                                    if (newAccount != null) {
+                                        // let show transaction table for the new account
+                                        TreeItem<Account> groupNode = mAccountTreeTableView.getRoot().getChildren().stream()
+                                                .filter(n -> n.getValue().getType().equals(newAccount.getType()))
+                                                .findFirst().orElse(null);
+                                        if (groupNode != null) {
+                                            TreeItem<Account> accountNode = groupNode.getChildren().stream()
+                                                    .filter(n -> n.getValue().getID() == newAccount.getID())
+                                                    .findFirst().orElse(null);
+                                            if (accountNode != null) {
+                                                mAccountTreeTableView.getSelectionModel().select(accountNode);
+                                                Transaction newT = new Transaction(oldT);
+                                                newT.setAccountID(newAccount.getID());
+                                                mMainApp.alterTransaction(oldT, newT, new ArrayList<>());
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                            atMenu.getItems().add(accountMI);
+                        }
+                    }
+                });
+                moveToMenu.getItems().add(atMenu);
+            }
+            moveToMenu.setOnShowing(e-> {
+                boolean isCash = row.getItem().isCash();
+                for (MenuItem mi : moveToMenu.getItems()) {
+                    mi.setVisible(isCash || mi.getText().equals(Account.Type.INVESTING.name()));
+                }
+            });
+            contextMenu.getItems().add(deleteMI);
+            contextMenu.getItems().add(moveToMenu);
+            row.contextMenuProperty().bind(Bindings.when(row.emptyProperty()).then((ContextMenu) null)
+                    .otherwise(contextMenu));
             // double click to edit the transaction
             row.setOnMouseClicked(event -> {
                 if ((event.getClickCount() == 2) && (!row.isEmpty())) {
-                    Transaction transaction = row.getItem();
+                    final Transaction transaction = row.getItem();
                     int selectedTransactionID = transaction.getID();
                     if (transaction.getMatchID() > 0) {
                         // this is a linked transaction
@@ -501,30 +561,19 @@ public class MainController {
                             return;
                         }
 
-                        Account account = mMainApp.getAccountByID(transaction.getAccountID());
-                        if (!account.getType().equals(Account.Type.INVESTING)) {
-                            // not an investing account, check linked transaction account
+                        if (transaction.isCash()) {
                             Transaction linkedTransaction = mMainApp.getTransactionByID(transaction.getMatchID());
                             if (linkedTransaction == null) {
                                 showWarningDialog("Linked to An Investing Transaction",
                                         "Unable to find the linked transaction",
                                         "Call help!");
                                 return;
-                            } else if (linkedTransaction.getTradeAction() != Transaction.TradeAction.XIN
-                                    && linkedTransaction.getTradeAction() != Transaction.TradeAction.XOUT) {
-                                Account linkedAccount = mMainApp.getAccountByID(linkedTransaction.getAccountID());
-                                if (linkedAccount == null) {
-                                    showWarningDialog("Linked to An Investing Transaction",
-                                            "Unable to find the account of linked transaction",
-                                            "Call help!");
-                                    return;
-                                }
-                                if (linkedAccount.getType().equals(Account.Type.INVESTING)) {
-                                    showWarningDialog("Linked to An Investing Transaction",
+                            }
+                            if (!linkedTransaction.isCash()) {
+                                 showWarningDialog("Linked to An Investing Transaction",
                                             "Linked to an investing transaction",
                                             "Please edit the linked investing transaction.");
-                                    return;
-                                }
+                                 return;
                             }
                         }
                     }
@@ -631,10 +680,6 @@ public class MainController {
     }
 
     private void showWarningDialog(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+        MainApp.showWarningDialog(title, header, content);
     }
 }

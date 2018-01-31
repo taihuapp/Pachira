@@ -575,6 +575,20 @@ public class Transaction {
         return !(cid > -MainApp.MIN_ACCOUNT_ID || cid == -getAccountID());
     }
 
+    // return true if it is a cash transaction
+    // i.e. mTradeAction is one of XIN, XOUT, DEPOSIT, WITHDRAW
+    boolean isCash() {
+        switch (getTradeAction()) {
+            case XIN:
+            case XOUT:
+            case DEPOSIT:
+            case WITHDRAW:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     // return true if the transaction may change quantity, false otherwise
     static boolean hasQuantity(TradeAction ta) {
         switch (ta) {

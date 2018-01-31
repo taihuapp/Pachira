@@ -334,7 +334,18 @@ public class MainApp extends Application {
         alert.showAndWait();
     }
 
-    void showWarningDialog(String title, String header, String content) {
+    // return true if OK
+    //        false otherwise
+    static boolean showConfirmationDialog(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        Optional<ButtonType> result = alert.showAndWait();
+        return result.isPresent() && (result.get() == ButtonType.OK);
+    }
+
+    static void showWarningDialog(String title, String header, String content) {
         final Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setTitle(title);
         alert.setHeaderText(header);
@@ -1617,7 +1628,9 @@ public class MainApp extends Application {
                                 amt = amt.add(mTransactionList.get(idx).getAmount());
                                 numerator++;
                             } else {
-                                System.err.println("initReminderTransactionList: Transaction " + tid + " not found?!");
+                                // tid not found, treat it as skipped
+                                System.err.println("initReminderTransactionList: Transaction " + tid + " not found. " +
+                                        "Probably deleted, treat as skipped.");
                             }
                         }
                         cnt++; // don't count the w
@@ -3041,7 +3054,8 @@ public class MainApp extends Application {
         if (isNew) {
             initDBStructure();
         } else {
-            // SETTING table not present, this is an old version 0 database
+            // if SETTING table does exist, the following call will do nothing.
+            // if SETTING table not present, this is an old version 0 database
             // create SETTINGS table and set version number to be 0.
             createSettingsTable(0);
         }
@@ -3162,7 +3176,6 @@ public class MainApp extends Application {
         // there are four possibilities each for oldT and newT:
         // null, simple transaction, a transfer transaction, a split transaction
         // thus there are 4x4 = 16 different situations
-
         if (oldT == null && newT == null)
             return true; // nothing to do
 
@@ -3313,17 +3326,19 @@ public class MainApp extends Application {
 
                 // handle transfer
                 final int oldLinkedTID = oldT.getMatchID();
-                boolean updated = false;
-                for (Transaction t : updateTSet) {
-                    if (t.getID() == oldLinkedTID) {
-                        updated = true;
-                        break;
+                if (oldLinkedTID > 0) {
+                    boolean updated = false;
+                    for (Transaction t : updateTSet) {
+                        if (t.getID() == oldLinkedTID) {
+                            updated = true;
+                            break;
+                        }
                     }
-                }
-                if (!updated) {
-                    deleteTransactionFromDB(oldLinkedTID);
-                    deleteTIDSet.add(oldLinkedTID);
-                    accountIDSet.add(-oldT.getCategoryID());
+                    if (!updated) {
+                        deleteTransactionFromDB(oldLinkedTID);
+                        deleteTIDSet.add(oldLinkedTID);
+                        accountIDSet.add(-oldT.getCategoryID());
+                    }
                 }
 
                 deleteTransactionFromDB(oldT.getID());
@@ -3744,7 +3759,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.9");
+        System.setProperty("Application.Version", "v0.1.10");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

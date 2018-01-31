@@ -220,9 +220,9 @@ public class ReminderTransactionListDialogController {
             Transaction t = mMainApp.getTransactionByID(cellData.getValue().getTransactionID());
             if (t != null)
                 return t.getAmountProperty();
-            if (cellData.getValue().getStatus().equals(ReminderTransaction.SKIPPED))
-                return null;
-            return cellData.getValue().getReminder().getAmountProperty();
+
+            // t == null, the transaction was deleted, treat it as skipped and return null
+            return null;
         });
         mAmountTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, BigDecimal>() {
             @Override

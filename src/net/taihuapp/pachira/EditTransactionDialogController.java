@@ -581,7 +581,7 @@ public class EditTransactionDialogController {
     }
 
     private void showWarningDialog(String title, String header, String content) {
-        mMainApp.showWarningDialog(title, header, content);
+        MainApp.showWarningDialog(title, header, content);
     }
 
     @FXML

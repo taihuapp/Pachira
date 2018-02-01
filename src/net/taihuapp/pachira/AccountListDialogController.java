@@ -23,11 +23,15 @@ package net.taihuapp.pachira;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,14 +70,14 @@ public class AccountListDialogController {
 
     @FXML
     private void handleNew() {
-        mMainApp.showEditAccountDialog(null, mTypeChoiceBox.getValue());
+        showEditAccountDialog(null, mTypeChoiceBox.getValue());
     }
 
     @FXML
     private void handleEdit() {
         Account account = mAccountTableView.getSelectionModel().getSelectedItem();
         if (account != null)
-            mMainApp.showEditAccountDialog(account, null);
+            showEditAccountDialog(account, null);
     }
 
     @FXML
@@ -126,6 +130,30 @@ public class AccountListDialogController {
     @FXML
     private void handleClose() { close(); }
 
+    private void showEditAccountDialog(Account account, Account.Type t) {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("EditAccountDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle(account == null ? "New Account" : "Edit Account");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mDialogStage);
+            dialogStage.setScene(new Scene(loader.load()));
+            EditAccountDialogController controller = loader.getController();
+            if (controller == null) {
+                System.err.println("Null controller?");
+                return;
+            }
+
+            controller.setDialogStage(dialogStage);
+            controller.setAccount(mMainApp, account, t);
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     void setMainApp(MainApp mainApp, Stage stage) {
         mMainApp = mainApp;
         mDialogStage = stage;
@@ -165,7 +193,7 @@ public class AccountListDialogController {
             TableRow<Account> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if ((event.getClickCount() == 2) && (!row.isEmpty())) {
-                    mMainApp.showEditAccountDialog(row.getItem(), null);
+                    showEditAccountDialog(row.getItem(), null);
                 }
             });
             return row;

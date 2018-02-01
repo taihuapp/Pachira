@@ -2095,32 +2095,6 @@ public class MainApp extends Application {
         }
     }
 
-    void showEditAccountDialog(Account account, Account.Type t) {
-        String title = (account == null) ? "New Account" : "Edit Account";
-
-        try {
-            FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("EditAccountDialog.fxml"));
-
-            Stage dialogStage = new Stage();
-            dialogStage.setTitle(title);
-            dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mPrimaryStage);
-            dialogStage.setScene(new Scene(loader.load()));
-            EditAccountDialogController controller = loader.getController();
-            if (controller == null) {
-                System.err.println("Null controller?");
-                return;
-            }
-
-            controller.setDialogStage(dialogStage);
-            controller.setAccount(this, account, t);
-            dialogStage.showAndWait();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     // returns a list of passwords, the length of list can be 0, 1, or 2.
     // length 0 means some exception happened
     // length 1 means normal situation (for creation db or normal login)
@@ -3107,12 +3081,19 @@ public class MainApp extends Application {
     // it requires oldV < newV.  Otherwise, the behavior is not defined.
     private void updateDBVersion(int oldV, int newV) throws SQLException, IllegalArgumentException {
         if (newV == 1) {
-            final String updateSQL = "update TRANSACTIONS " +
+            // converting self transferring transaction to DEPOSIT or WITHDRAW
+            // and set categoryid to 1 (in invalid category.
+            final String updateSQL0 = "update TRANSACTIONS " +
                     "set TRADEACTION = casewhen(tradeaction = 'XIN', 'DEPOSIT', 'WITHDRAW'), " +
                     "categoryid = 1 where categoryid = -accountid and (tradeaction = 'XIN' or tradeaction = 'XOUT')";
+            final String updateSQL1 = "update TRANSACTIONS " +
+                    "set TRADEACTION = casewhen(TRADEACTION = 'WITHDRAW', 'XOUT', 'XIN') " +
+                    "where categoryid < 0 and categoryid <> - accountid and  " +
+                    "(tradeaction = 'DEPOSIT' OR TRADEACTION = 'WITHDRAW')";
             final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
             try (Statement statement = mConnection.createStatement()) {
-                statement.executeUpdate(updateSQL);
+                statement.executeUpdate(updateSQL0);
+                statement.executeUpdate(updateSQL1);
                 statement.executeUpdate(mergeSQL);
             }
         } else {
@@ -3759,7 +3740,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.10");
+        System.setProperty("Application.Version", "v0.1.11");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

@@ -546,14 +546,17 @@ class QIFParser {
                         break;
                     case "CASH":
                         BigDecimal tAmount = tt.getTAmount();
+                        boolean isTransfer = (tt.getCategoryOrTransfer() != null) &&
+                                tt.getCategoryOrTransfer().startsWith("[") &&
+                                tt.getCategoryOrTransfer().endsWith("]");
                         if (tAmount != null && tAmount.signum() < 0) {
-                            actionStr = "WITHDRAW";
+                            actionStr = isTransfer ? "XOUT" : "WITHDRAW";
                             tt.setTAmount(tAmount.negate());
                             BigDecimal uAmount = tt.getUAmount();
                             if (uAmount != null)
                                 tt.setUAmount(uAmount.negate());
                         } else {
-                            actionStr = "DEPOSIT";
+                            actionStr = isTransfer ? "XIN" : "DEPOSIT";
                         }
                         break;
                     case "CONTRIBX":

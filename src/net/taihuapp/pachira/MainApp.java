@@ -1678,7 +1678,7 @@ public class MainApp extends Application {
         mCategoryList.clear();
         Statement statement = null;
         ResultSet resultSet = null;
-        String sqlCmd = "select * from CATEGORIES";
+        String sqlCmd = "select * from CATEGORIES order by INCOMEFLAG DESC, NAME";
         try {
             statement = mConnection.createStatement();
             resultSet = statement.executeQuery(sqlCmd);
@@ -3740,7 +3740,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.11");
+        System.setProperty("Application.Version", "v0.1.12");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

@@ -586,13 +586,22 @@ public class ReportDialogController {
             accountSecurityIncomeList.add(securityIncomeMap);
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
-                String sName = t.getSecurityName();
-                if (sName == null || sName.equals(""))
-                    sName = NOSECURITY;
                 if (tDate.isBefore(mSetting.getStartDate()))
                     continue;
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
+
+                String sName = t.getSecurityName();
+                Integer sID;
+                if (sName == null || sName.equals("")) {
+                    sName = NOSECURITY;
+                    sID = 0;
+                } else {
+                    Security security = mMainApp.getSecurityByName(sName);
+                    sID = security == null ? 0 : security.getID();
+                }
+                if (!mSetting.getSelectedSecurityIDSet().contains(sID))
+                    continue;
 
                 Income income = securityIncomeMap.get(sName);
                 if (income == null)
@@ -606,7 +615,11 @@ public class ReportDialogController {
                         securityIncomeMap.put(sName, income);
                         BigDecimal realized = mMainApp.calcRealizedGain(t);
                         if (realized == null) {
-                            reportStr.append("**********************\n" + "* Lot Matching Error *\n" + "* Account:  ").append(account.getName()).append("\n").append("* Date:     ").append(t.getTDate()).append("\n").append("* Security: ").append(t.getSecurityName()).append("\n").append("* Action:   ").append(t.getTradeAction().name()).append("\n").append("* Quantity: ").append(qpFormat.format(t.getQuantity())).append("\n");
+                            reportStr.append("**********************\n" + "* Lot Matching Error *\n" + "* Account:  ")
+                                    .append(account.getName()).append("\n").append("* Date:     ").append(t.getTDate())
+                                    .append("\n").append("* Security: ").append(t.getSecurityName()).append("\n")
+                                    .append("* Action:   ").append(t.getTradeAction().name()).append("\n")
+                                    .append("* Quantity: ").append(qpFormat.format(t.getQuantity())).append("\n");
                             return reportStr.toString();
                         }
                         income.realized = income.realized.add(realized);
@@ -620,21 +633,25 @@ public class ReportDialogController {
                     case INTINC:
                     case REINVINT:
                         fieldUsed.interest = BigDecimal.ONE;
+                        securityIncomeMap.put(sName, income);
                         income.interest = income.interest.add(t.getAmount());
                         break;
                     case CGLONG:
                     case REINVLG:
                         fieldUsed.ltcgdist = BigDecimal.ONE;
+                        securityIncomeMap.put(sName, income);
                         income.ltcgdist = income.ltcgdist.add(t.getAmount());
                         break;
                     case CGMID:
                     case REINVMD:
                         fieldUsed.mtcgdist = BigDecimal.ONE;
+                        securityIncomeMap.put(sName, income);
                         income.mtcgdist = income.mtcgdist.add(t.getAmount());
                         break;
                     case CGSHORT:
                     case REINVSH:
                         fieldUsed.stcgdist = BigDecimal.ONE;
+                        securityIncomeMap.put(sName, income);
                         income.stcgdist = income.stcgdist.add(t.getAmount());
                         break;
                     case STKSPLIT:
@@ -645,10 +662,12 @@ public class ReportDialogController {
                         break;
                     case MISCEXP:
                         fieldUsed.miscinc = BigDecimal.ONE;
+                        securityIncomeMap.put(sName, income);
                         income.miscinc = income.miscinc.subtract(t.getAmount());
                         break;
                     case MISCINC:
                         fieldUsed.miscinc = BigDecimal.ONE;
+                        securityIncomeMap.put(sName, income);
                         income.miscinc = income.miscinc.add(t.getAmount());
                         break;
                     case RTRNCAP:

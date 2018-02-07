@@ -21,8 +21,9 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -43,6 +44,7 @@ import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.temporal.WeekFields;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class ReportDialogController {
 
@@ -76,6 +78,11 @@ public class ReportDialogController {
         private Set<Integer> mSelectedCategoryIDSet = new HashSet<>();
         private Set<Integer> mSelectedSecurityIDSet = new HashSet<>();
         private Set<Transaction.TradeAction> mSelectedTradeActionSet = new HashSet<>();
+        private String mPayeeContains = "";
+        private Boolean mPayeeRegEx = false;
+        private String mMemoContains = "";
+        private Boolean mMemoRegEx = false;
+
 
         Setting(ReportType type) {
             this(-1, type);
@@ -108,6 +115,10 @@ public class ReportDialogController {
         LocalDate getStartDate() { return mStartDate; }
         LocalDate getEndDate() { return mEndDate; }
         Frequency getFrequency() { return mFrequency; }
+        String getPayeeContains() { return mPayeeContains; }
+        boolean getPayeeRegEx() { return mPayeeRegEx; }
+        String getMemoContains() { return mMemoContains; }
+        boolean getMemoRegEx() { return mMemoRegEx; }
 
         Set<Account> getSelectedAccountSet() { return mSelectedAccountSet; }
         List<Account> getSelectedAccountList(MainApp mainApp) {
@@ -139,6 +150,10 @@ public class ReportDialogController {
         void setStartDate(LocalDate date) { mStartDate = date; }
         void setEndDate(LocalDate date) { mEndDate = date; }
         void setFrequency(Frequency f) { mFrequency = f; }
+        void setPayeeContains(String p) { mPayeeContains = p; }
+        void setPayeeRegEx(boolean r) { mPayeeRegEx = r; }
+        void setMemoContains(String p) { mMemoContains = p; }
+        void setMemoRegEx(boolean r) { mMemoRegEx = r; }
     }
 
     private Setting mSetting;
@@ -202,6 +217,17 @@ public class ReportDialogController {
     private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, Boolean> mTradeActionSelectedTableColumn;
 
     @FXML
+    private Tab mTextMatchTab;
+    @FXML
+    private TextField mPayeeContainsTextField;
+    @FXML
+    private CheckBox mPayeeRegExCheckBox;
+    @FXML
+    private TextField mMemoContainsTextField;
+    @FXML
+    private CheckBox mMemoRegExCheckBox;
+
+    @FXML
     private TilePane mRightTilePane;
     @FXML
     TextArea mReportTextArea;
@@ -251,6 +277,7 @@ public class ReportDialogController {
         mCategoriesTab.setDisable(true);
         mSecuritiesTab.setDisable(true);
         mTradeActionTab.setDisable(true);
+        mTextMatchTab.setDisable(true);
     }
 
     private void setupInvestIncomeReport() {
@@ -259,6 +286,7 @@ public class ReportDialogController {
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         setupTradeActionTab();
+        mTextMatchTab.setDisable(true);
     }
 
     private void setupInvestTransactionReport() {
@@ -267,6 +295,7 @@ public class ReportDialogController {
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         setupTradeActionTab();
+        mTextMatchTab.setDisable(true);
     }
 
     private void setupBankTransactionReport() {
@@ -275,6 +304,14 @@ public class ReportDialogController {
         setupCategoriesTab();
         setupSecuritiesTab();
         mTradeActionTab.setDisable(true); // no need for TradeAction
+        setupTextMatchTab();
+    }
+
+    private void setupTextMatchTab() {
+        mPayeeContainsTextField.setText(mSetting.getPayeeContains());
+        mPayeeRegExCheckBox.setSelected(mSetting.getPayeeRegEx());
+        mMemoContainsTextField.setText(mSetting.getMemoContains());
+        mMemoRegExCheckBox.setSelected(mSetting.getMemoRegEx());
     }
 
     private void setupDatesTab(boolean showPeriod, boolean showFreq) {
@@ -492,6 +529,13 @@ public class ReportDialogController {
                 if (tb.getValue().get())
                     mSetting.getSelectedTradeActionSet().add(tb.getKey());
             }
+        }
+
+        if (!mTextMatchTab.isDisable()) {
+            mSetting.setPayeeContains(mPayeeContainsTextField.getText());
+            mSetting.setPayeeRegEx(mPayeeRegExCheckBox.isSelected());
+            mSetting.setMemoContains(mMemoContainsTextField.getText());
+            mSetting.setMemoRegEx(mMemoRegExCheckBox.isSelected());
         }
     }
 
@@ -1015,6 +1059,12 @@ public class ReportDialogController {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
+        final Pattern payeePattern = mSetting.getPayeeContains().isEmpty() ?
+                null : Pattern.compile(mSetting.getPayeeRegEx() ?
+                mSetting.getPayeeContains() : Pattern.quote(mSetting.getPayeeContains()));
+        final Pattern memoPattern = mSetting.getMemoContains().isEmpty() ?
+                null : Pattern.compile(mSetting.getMemoRegEx() ?
+                mSetting.getMemoContains() : Pattern.quote(mSetting.getMemoContains()));
         for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
@@ -1024,7 +1074,9 @@ public class ReportDialogController {
                     break; // we are done with this account
 
                 if (mSetting.getSelectedCategoryIDSet().contains(t.getCategoryID())
-                        && securityNameSet.contains(t.getSecurityName())) {
+                        && securityNameSet.contains(t.getSecurityName())
+                        && ((payeePattern == null) || payeePattern.matcher(t.getPayee()).find())
+                        && ((memoPattern == null) || memoPattern.matcher(t.getMemo()).find())) {
                     Line line = new Line();
                     line.date = tDate.toString();
                     line.aName = account.getName();
@@ -1276,10 +1328,10 @@ public class ReportDialogController {
         mReportTextArea.setVisible(false);
         mReportTextArea.setStyle("-fx-font-family: monospace");
 
-        // make sure mRightTilePane is NOT visible when mDatesTab is and vise versa
-        BooleanBinding dateTabShown = Bindings.createBooleanBinding(() ->
-                mTabPane.getSelectionModel().getSelectedItem() == mDatesTab,
-                mTabPane.getSelectionModel().selectedItemProperty());
-        mRightTilePane.visibleProperty().bind(dateTabShown.not());
+        // bind the visibility of mRightTilePane to either mDatesTab and mTextTab is not visible
+        mRightTilePane.visibleProperty().bind(Bindings.createBooleanBinding(()
+                        -> (mTabPane.getSelectionModel().getSelectedItem() != mDatesTab) &&
+                        (mTabPane.getSelectionModel().getSelectedItem() != mTextMatchTab),
+                mTabPane.getSelectionModel().selectedItemProperty()));
     }
 }

@@ -80,7 +80,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 1;  // need DBVERSION 1 to run properly.
+    private static final int DBVERSIONVALUE = 2;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -415,6 +415,10 @@ public class MainApp extends Application {
                     setting.setStartDate(rs.getDate("SDATE").toLocalDate());
                     setting.setEndDate(rs.getDate("EDATE").toLocalDate());
                     setting.setFrequency(ReportDialogController.Frequency.valueOf(rs.getString("FREQUENCY")));
+                    setting.setPayeeContains(rs.getString("PAYEECONTAINS"));
+                    setting.setPayeeRegEx(rs.getBoolean("PAYEEREGEX"));
+                    setting.setMemoContains(rs.getString("MEMOCONTAINS"));
+                    setting.setMemoRegEx(rs.getBoolean("MEMOREGEX"));
                 }
                 String itemName = rs.getString("ITEMNAME");
                 if (itemName != null)
@@ -475,11 +479,13 @@ public class MainApp extends Application {
         if (id <= 0) {
             // new setting, insert
             sqlCmd = "insert into SAVEDREPORTS "
-                    + "(NAME, TYPE, DATEPERIOD, SDATE, EDATE, FREQUENCY) "
-                    + "values (?, ?, ?, ?, ?, ?)";
+                    + "(NAME, TYPE, DATEPERIOD, SDATE, EDATE, FREQUENCY,"
+                    + " PAYEECONTAINS, PAYEEREGEX, MEMOCONTAINS, MEMOREGEX)"
+                    + " values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update SAVEDREPORTS set "
-                    + "NAME = ?, TYPE = ?, DATEPERIOD = ?, SDATE = ?, EDATE = ?, FREQUENCY = ? "
+                    + "NAME = ?, TYPE = ?, DATEPERIOD = ?, SDATE = ?, EDATE = ?, FREQUENCY = ?, "
+                    + "PAYEECONTAINS = ?, PAYEEREGEX = ?, MEMOCONTAINS = ?, MEMOREGEX = ? "
                     + "where ID = ?";
         }
 
@@ -493,8 +499,13 @@ public class MainApp extends Application {
             preparedStatement.setDate(4, Date.valueOf(setting.getStartDate()));
             preparedStatement.setDate(5, Date.valueOf(setting.getEndDate()));
             preparedStatement.setString(6, setting.getFrequency().name());
+            preparedStatement.setString(7, setting.getPayeeContains());
+            preparedStatement.setBoolean(8, setting.getPayeeRegEx());
+            preparedStatement.setString(9, setting.getMemoContains());
+            preparedStatement.setBoolean(10, setting.getMemoRegEx());
+
             if (id > 0)
-                preparedStatement.setInt(7, id);
+                preparedStatement.setInt(11, id);
             preparedStatement.executeUpdate();
             if (id <= 0) {
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
@@ -3080,7 +3091,20 @@ public class MainApp extends Application {
     // return true for success and false for failure
     // it requires oldV < newV.  Otherwise, the behavior is not defined.
     private void updateDBVersion(int oldV, int newV) throws SQLException, IllegalArgumentException {
-        if (newV == 1) {
+        if (newV == 2) {
+            // update to version 1 first
+            updateDBVersion(oldV, 1);
+            final String alterSQL = "alter table SAVEDREPORTS add (" +
+                    "PAYEECONTAINS varchar(80) NOT NULL default '', " +
+                    "PAYEEREGEX boolean NOT NULL default FALSE, " +
+                    "MEMOCONTAINS varchar(80) NOT NULL default '', " +
+                    "MEMOREGEX boolean NOT NULL default FALSE)";
+            final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(alterSQL);
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 1) {
             // converting self transferring transaction to DEPOSIT or WITHDRAW
             // and set categoryid to 1 (in invalid category.
             final String updateSQL0 = "update TRANSACTIONS " +
@@ -3542,7 +3566,11 @@ public class MainApp extends Application {
                 + "DATEPERIOD varchar (16) NOT NULL, "        // enum for dateperiod
                 + "SDATE date NOT NULL, "                              // customized start date
                 + "EDATE date NOT NULL, "                              // customized start date
-                + "FREQUENCY varchar (16) NOT NULL);";                 // frequency enum
+                + "FREQUENCY varchar (16) NOT NULL, "                 // frequency enum
+                + "PAYEECONTAINS varchar (80), "
+                + "PAYEEREGEX boolean, "
+                + "MEMOCONTAINS varchar (80), "
+                + "MEMOREGEX boolean);";
         sqlCreateTable(sqlCmd);
 
         // SavedReportDetails table
@@ -3740,7 +3768,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.12");
+        System.setProperty("Application.Version", "v0.1.13");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

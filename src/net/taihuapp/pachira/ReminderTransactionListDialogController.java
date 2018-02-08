@@ -221,8 +221,12 @@ public class ReminderTransactionListDialogController {
             if (t != null)
                 return t.getAmountProperty();
 
-            // t == null, the transaction was deleted, treat it as skipped and return null
-            return null;
+            if (cellData.getValue().getTransactionID() >= 0) {
+                // either intentionally skipped, or transaction deleted which will be treated as skipped
+                return null;
+            }
+            // return reminder estimated amount
+            return cellData.getValue().getReminder().getAmountProperty();
         });
         mAmountTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, BigDecimal>() {
             @Override

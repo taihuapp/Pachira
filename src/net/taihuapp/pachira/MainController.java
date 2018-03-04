@@ -357,6 +357,12 @@ public class MainController {
         updateSavedReportsMenu();
     }
 
+    @FXML
+    private void handleCapitalGains() {
+        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.CAPITALGAINS));
+        updateSavedReportsMenu();
+    }
+
     private void updateSavedReportsMenu() {
         List<MenuItem> menuItemList = new ArrayList<>();
         for (ReportDialogController.Setting setting : mMainApp.loadReportSetting(0)) {

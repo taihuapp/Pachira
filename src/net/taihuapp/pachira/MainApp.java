@@ -1628,7 +1628,6 @@ public class MainApp extends Application {
                     SortedList<ReminderTransaction> sfrtList = new SortedList<>(frtList,
                             Comparator.comparing(ReminderTransaction::getDueDate));
                     BigDecimal amt = BigDecimal.ZERO;
-                    int numerator = 0;
                     int cnt = 0;
                     for (int i = sfrtList.size()-1; i >= 0 && cnt < reminder.getEstimateCount(); i--) {
                         ReminderTransaction rt = sfrtList.get(i);
@@ -1637,17 +1636,16 @@ public class MainApp extends Application {
                             int idx = getTransactionIndexByID(tid);
                             if (idx > 0) {
                                 amt = amt.add(mTransactionList.get(idx).getAmount());
-                                numerator++;
                             } else {
                                 // tid not found, treat it as skipped
                                 System.err.println("initReminderTransactionList: Transaction " + tid + " not found. " +
                                         "Probably deleted, treat as skipped.");
                             }
                         }
-                        cnt++; // don't count the w
+                        cnt++;
                     }
-                    if (numerator > 0)
-                        amt = amt.divide(BigDecimal.valueOf(numerator), amt.scale());
+                    if (cnt > 0)
+                        amt = amt.divide(BigDecimal.valueOf(cnt), amt.scale());
                     amt = amt.setScale(AMOUNT_FRACTION_LEN, BigDecimal.ROUND_HALF_UP);
                     reminder.setAmount(amt);
                 }
@@ -3628,6 +3626,77 @@ public class MainApp extends Application {
         return s.toString();
     }
 
+    // For SELL or CVTSHRT transactions, return the list of capital gain items
+    // incomplete list will be returned if there is a data inconsistency.
+    //
+    // for other type transactions, null is returned
+
+    List<CapitalGainItem> getCapitalGainItemList(Transaction transaction) {
+        Transaction.TradeAction ta = transaction.getTradeAction();
+        if (!ta.equals(Transaction.TradeAction.SELL) && ta.equals(Transaction.TradeAction.CVTSHRT))
+            return null;
+
+        Account account = getAccountByID(transaction.getAccountID());
+        List<SecurityHolding> securityHoldingList = updateAccountSecurityHoldingList(account,
+                transaction.getTDate(), transaction.getID());
+        List<SecurityHolding.MatchInfo> miList = getMatchInfoList(transaction.getID());
+        int scale = transaction.getAmount().scale();
+        List<CapitalGainItem> capitalGainItemList = new ArrayList<>();
+        for (SecurityHolding securityHolding : securityHoldingList) {
+            if (!securityHolding.getSecurityName().equals(transaction.getSecurityName()))
+                continue;  // different security, skip
+
+            // we have the right security holding here now
+            BigDecimal remainCash = transaction.getAmount();
+            BigDecimal remainQuantity = transaction.getQuantity();
+            FilteredList<SecurityHolding.LotInfo> lotInfoList = new FilteredList<>(securityHolding.getLotInfoList());
+            if (!miList.isEmpty()) {
+                // we have a matchInfo list,
+                Set<Integer> matchTIDSet = new HashSet<>();
+                for (SecurityHolding.MatchInfo mi : miList)
+                    matchTIDSet.add(mi.getMatchTransactionID());
+                lotInfoList.setPredicate(li -> matchTIDSet.contains(li.getTransactionID()));
+            }
+            for (SecurityHolding.LotInfo li : securityHolding.getLotInfoList()) {
+                BigDecimal costBasis;
+                BigDecimal proceeds;
+                BigDecimal matchQuantity;
+                Transaction matchTransaction;
+
+                matchTransaction = getTransactionByID(li.getTransactionID());
+                if (li.getQuantity().compareTo(remainQuantity) < 0) {
+                    // li doesn't have enough to offset all.
+                    matchQuantity = li.getQuantity();
+
+                    costBasis = li.getCostBasis();
+                    proceeds = remainCash.multiply(li.getQuantity()).divide(remainQuantity,
+                            scale, RoundingMode.HALF_UP);
+                    remainCash = remainCash.subtract(proceeds);
+                    remainQuantity = remainQuantity.subtract(matchQuantity);
+                } else {
+                    // li can offset all
+                    matchQuantity = remainQuantity;
+                    costBasis = li.getCostBasis().multiply(remainQuantity).divide(li.getQuantity(),
+                            scale, RoundingMode.HALF_UP);
+                    proceeds = remainCash;
+                    remainQuantity = BigDecimal.ZERO;
+                    remainCash = BigDecimal.ZERO;
+                }
+                if (ta.equals(Transaction.TradeAction.SELL))
+                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, matchQuantity,
+                            costBasis, proceeds));
+                else
+                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, matchQuantity,
+                            proceeds, costBasis));
+
+                if (remainQuantity.compareTo(BigDecimal.ZERO) == 0)
+                    break; // done
+            }
+        }
+
+        return capitalGainItemList;
+    }
+
     // take a Transaction input (with SELL or CVTSHRT), compute the realize gain
     BigDecimal calcRealizedGain(Transaction transaction) {
         Transaction.TradeAction ta = transaction.getTradeAction();
@@ -3768,7 +3837,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.14");
+        System.setProperty("Application.Version", "v0.1.15");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

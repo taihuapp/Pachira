@@ -3699,52 +3699,11 @@ public class MainApp extends Application {
 
     // take a Transaction input (with SELL or CVTSHRT), compute the realize gain
     BigDecimal calcRealizedGain(Transaction transaction) {
-        Transaction.TradeAction ta = transaction.getTradeAction();
-        if (!ta.equals(Transaction.TradeAction.SELL) && !ta.equals(Transaction.TradeAction.CVTSHRT))
-            return BigDecimal.ZERO;
-
-        BigDecimal costBasis = BigDecimal.ZERO;
-        BigDecimal matchQ = BigDecimal.ZERO;
-        int scale = transaction.getAmount().scale();
-        List<SecurityHolding.MatchInfo> matchInfoList = getMatchInfoList(transaction.getID());
-        if (matchInfoList.size() == 0) {
-            // didn't have specific lots, use FIFO
-            Account account = getAccountByID(transaction.getAccountID());
-            List<SecurityHolding> securityHoldingList = updateAccountSecurityHoldingList(account,
-                    transaction.getTDate(), transaction.getID());
-            for (SecurityHolding sh : securityHoldingList) {
-                if (sh.getSecurityName().equals(transaction.getSecurityName())) {
-                    // we found the right security holding
-                    BigDecimal remainQ = transaction.getQuantity();
-                    for (SecurityHolding.LotInfo li : sh.getLotInfoList()) {
-                        if (li.getQuantity().compareTo(remainQ) <= 0) {
-                            costBasis = costBasis.add(li.getCostBasis());
-                            remainQ = remainQ.subtract(li.getQuantity());
-                        } else {
-                            costBasis = costBasis.add(li.getCostBasis().multiply(remainQ)
-                                    .divide(li.getQuantity(), scale, RoundingMode.HALF_UP));
-                            remainQ = BigDecimal.ZERO;
-                        }
-                        if (remainQ.compareTo(BigDecimal.ZERO) == 0)
-                            return transaction.getAmount().subtract(costBasis);
-                    }
-                }
-            }
-
-            return null; // something wrong, we shouldn't be here
-        } else {
-            for (SecurityHolding.MatchInfo mi : matchInfoList) {
-                Transaction matchTransaction = getTransactionByID(mi.getMatchTransactionID());
-                costBasis = costBasis.add(matchTransaction.getCostBasis().multiply(mi.getMatchQuantity())
-                        .divide(matchTransaction.getQuantity(), scale, RoundingMode.HALF_UP));
-                matchQ = matchQ.add(mi.getMatchQuantity());
-            }
-
-            if (matchQ.compareTo(transaction.getQuantity()) != 0) {
-                return null;
-            }
+        BigDecimal realizedGain = BigDecimal.ZERO;
+        for (CapitalGainItem cgi : getCapitalGainItemList(transaction)) {
+            realizedGain = realizedGain.add(cgi.getProceeds()).subtract(cgi.getCostBasis());
         }
-        return transaction.getCashAmount().subtract(costBasis);
+        return realizedGain;
     }
 
     ObservableList<Transaction> getFilteredTransactionList(String searchString) {
@@ -3837,7 +3796,7 @@ public class MainApp extends Application {
     public static void main(String[] args) {
         // set error stream to a file in the current directory
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.15");
+        System.setProperty("Application.Version", "v0.1.16");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

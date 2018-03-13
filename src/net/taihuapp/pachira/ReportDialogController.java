@@ -1055,10 +1055,6 @@ public class ReportDialogController {
             }
         }
 
-        StringBuilder reportSB = new StringBuilder("Capital Gains Report from ")
-                .append(mSetting.getStartDate()).append(" to ").append(mSetting.getEndDate()).append("\n")
-                .append("Generated on ").append(LocalDate.now()).append("\n");
-
         BigDecimal totalSTCostBasis = BigDecimal.ZERO;
         BigDecimal totalSTProceeds = BigDecimal.ZERO;
         BigDecimal totalLTCostBasis = BigDecimal.ZERO;
@@ -1079,6 +1075,8 @@ public class ReportDialogController {
         title.costBasis = "Cost Basis";
         title.realizedGL = "Realized G/L";
 
+        final List<String> errMsgs = new ArrayList<>();
+
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
@@ -1089,9 +1087,11 @@ public class ReportDialogController {
                     ((p.getTradeAction() == Transaction.TradeAction.SELL ||
                     p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
                     p.getTDate().isAfter(sDate1) && p.getTDate().isBefore(eDate1)))) {
+                BigDecimal matchedQuantity = BigDecimal.ZERO;
                 CapitalGainItem transactionSTG = null; // keep track short term gain for the transaction
                 CapitalGainItem transactionLTG = null; // keep track long term gain for the transaction
                 for (CapitalGainItem cgi : mMainApp.getCapitalGainItemList(t)) {
+                    matchedQuantity = matchedQuantity.add(cgi.getQuantity());
                     Line line = new Line();
                     line.aName = account.getName();
                     line.sName = t.getSecurityName();
@@ -1191,6 +1191,11 @@ public class ReportDialogController {
                             dcFormat.format(transactionLTG.getProceeds().subtract(transactionLTG.getCostBasis()));
                     transactionLTGLines.add(line);
                 }
+                if (!matchedQuantity.equals(t.getQuantity())) {
+                    errMsgs.add(account.getName() + " " + t.getTradeAction() + " "
+                            + t.getQuantity() + ", matched " + matchedQuantity + ". Difference = "
+                            + t.getQuantity().subtract(matchedQuantity));
+                }
             }
         }
 
@@ -1263,6 +1268,17 @@ public class ReportDialogController {
                 + (gap+quantityLen) + (gap+bDateLen) + (gap+sDateLen) + (gap+proceedsLen)
                 + (gap+costBasisLen) + (gap+realizedGLLen)]).replace("\0", "=") + "\n";
         final String s1 = s0.replace("=", "-");
+
+        StringBuilder reportSB = new StringBuilder("Capital Gains Report from ")
+                .append(mSetting.getStartDate()).append(" to ").append(mSetting.getEndDate()).append("\n")
+                .append("Generated on ").append(LocalDate.now()).append("\n");
+
+        if (!errMsgs.isEmpty()) {
+            reportSB.append("\n*** Start of Error Messages ***\n");
+            for (String s : errMsgs)
+                reportSB.append(s).append("\n");
+            reportSB.append("*** End of Error Messages ***\n");
+        }
 
         reportSB.append("\n").append(title.format(formatStr)).append(s0);
         if (!detailSTGLines.isEmpty())

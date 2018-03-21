@@ -133,7 +133,7 @@ public class AccountListDialogController {
     private void showEditAccountDialog(Account account, Account.Type t) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("EditAccountDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/EditAccountDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle(account == null ? "New Account" : "Edit Account");

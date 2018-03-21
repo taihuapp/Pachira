@@ -72,7 +72,7 @@ public class SecurityListDialogController {
     private void showEditSecurityDialog(Security security) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("EditSecurityDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/EditSecurityDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Security:");
@@ -94,7 +94,7 @@ public class SecurityListDialogController {
     private void showEditSecurityPriceDialog(Security security) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("EditSecurityPriceDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/EditSecurityPriceDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Security Price:");

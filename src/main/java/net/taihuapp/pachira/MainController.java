@@ -597,7 +597,7 @@ public class MainController {
                     && nTransaction.getTDate().isAfter(LocalDate.now())));
             return row;
         });
-        mTransactionTableView.getStylesheets().add(getClass().getResource("TransactionTableView.css").toExternalForm());
+        mTransactionTableView.getStylesheets().add(getClass().getResource("/css/TransactionTableView.css").toExternalForm());
 
         // transaction table
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getTDateProperty());

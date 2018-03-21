@@ -89,7 +89,7 @@ class SearchResultDialog {
             return row;
         });
         searchTransactionTableView.getStylesheets().add(getClass()
-                .getResource("TransactionTableView.css").toExternalForm());
+                .getResource("/css/TransactionTableView.css").toExternalForm());
 
         Label resultLabel = new Label();
         resultLabel.setText("Found " + searchTransactionTableView.getItems().size()

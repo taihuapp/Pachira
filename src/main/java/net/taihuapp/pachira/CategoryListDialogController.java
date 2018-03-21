@@ -63,7 +63,7 @@ public class CategoryListDialogController {
     private void showEditCategoryDialog(Category category) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("EditCategoryDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/EditCategoryDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Category");

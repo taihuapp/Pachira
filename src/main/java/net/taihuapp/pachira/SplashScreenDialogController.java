@@ -61,7 +61,7 @@ public class SplashScreenDialogController {
         mAgreeCheckBox.setVisible(firstTime);
         mStopButton.setVisible(firstTime);
 
-        final String text = readResourceTextFile2String("/Disclaimer");
+        final String text = readResourceTextFile2String("/text/Disclaimer");
         if (text != null) {
             mShortTextArea.setText(text);
         } else {
@@ -112,17 +112,17 @@ public class SplashScreenDialogController {
 
     @FXML
     private void showGPL() {
-        showResTextFile("/COPYING");
+        showResTextFile("/text/COPYING");
     }
 
     @FXML
     private void showThirdParty() {
-        showResTextFile("/ThirdPartyLicense");
+        showResTextFile("/text/ThirdPartyLicense");
     }
 
     @FXML
     private void showContactInfo() {
-        showResTextFile("/ContactInfo");
+        showResTextFile("/text/ContactInfo");
     }
 
     @FXML

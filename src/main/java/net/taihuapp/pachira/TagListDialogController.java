@@ -63,7 +63,7 @@ public class TagListDialogController {
     private void showEditTagDialog(Tag tag) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("EditTagDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/EditTagDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Tag");

@@ -1950,7 +1950,7 @@ public class MainApp extends Application {
     void showSplashScreen(boolean firstTime) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("SplashScreenDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/SplashScreenDialog.fxml"));
             Stage dialogStage = new Stage();
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
@@ -1972,7 +1972,7 @@ public class MainApp extends Application {
     void showReportDialog(ReportDialogController.Setting setting) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("ReportDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/ReportDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.initModality(Modality.WINDOW_MODAL);
@@ -1994,7 +1994,7 @@ public class MainApp extends Application {
     void showAccountListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("AccountListDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/AccountListDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Account List");
@@ -2017,7 +2017,7 @@ public class MainApp extends Application {
     void showBillIncomeReminderDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("ReminderTransactionListDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/ReminderTransactionListDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Reminder Transaction List");
@@ -2040,7 +2040,7 @@ public class MainApp extends Application {
     void showTagListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("TagListDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/TagListDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Tag List");
@@ -2062,7 +2062,7 @@ public class MainApp extends Application {
     void showCategoryListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("CategoryListDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/CategoryListDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Category List");
@@ -2084,7 +2084,7 @@ public class MainApp extends Application {
     void showSecurityListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("SecurityListDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/SecurityListDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Security List");
@@ -2127,7 +2127,7 @@ public class MainApp extends Application {
 
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("PasswordDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/PasswordDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle(title);
@@ -2430,7 +2430,7 @@ public class MainApp extends Application {
                                                        BigDecimal netAmount) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("SplitTransactionsDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/SplitTransactionsDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Split Transaction");
@@ -2451,7 +2451,7 @@ public class MainApp extends Application {
     void showSpecifyLotsDialog(Stage parent, Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("SpecifyLotsDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/SpecifyLotsDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Specify Lots...");
@@ -2482,7 +2482,7 @@ public class MainApp extends Application {
                                           Account defaultAccount, List<Transaction.TradeAction> taList) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation((MainApp.class.getResource("EditTransactionDialog.fxml")));
+            loader.setLocation((MainApp.class.getResource("/view/EditTransactionDialog.fxml")));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Enter Transaction:");
@@ -2512,7 +2512,7 @@ public class MainApp extends Application {
 
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("HoldingsDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/HoldingsDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Account Holdings: " + mCurrentAccount.getName());
@@ -3766,7 +3766,7 @@ public class MainApp extends Application {
     private void initMainLayout() {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("MainLayout.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/MainLayout.fxml"));
             mPrimaryStage.setScene(new Scene(loader.load()));
             mPrimaryStage.show();
             ((MainController) loader.getController()).setMainApp(this);
@@ -3795,8 +3795,11 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
         // set error stream to a file in the current directory
+        System.out.println(MainApp.class.getPackage().getImplementationTitle());
+        System.out.println(MainApp.class.getPackage().getImplementationVersion());
+
         System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.1.16");
+        System.setProperty("Application.Version", "v0.2.0");
         try {
             java.util.Date startDateTime = new java.util.Date();
             String appName = System.getProperty("Application.Name");

@@ -176,7 +176,7 @@ public class ReminderTransactionListDialogController {
     private void showEditReminderDialog(Reminder reminder) {
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("EditReminderDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/EditReminderDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Reminder:");

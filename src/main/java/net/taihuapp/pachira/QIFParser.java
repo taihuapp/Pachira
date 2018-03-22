@@ -20,6 +20,8 @@
 
 package net.taihuapp.pachira;
 
+import org.apache.log4j.Logger;
+
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -34,6 +36,9 @@ import java.util.Iterator;
 import java.util.List;
 
 class QIFParser {
+
+    private static final Logger mLogger = Logger.getLogger(QIFParser.class);
+
     // These are the exportable lists show in the QIF99 spec
     // CLASS and TEMPLATE are not being used
     private enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT }
@@ -363,8 +368,7 @@ class QIFParser {
                         break;
                     case 'E':
                         if (splitBT == null) {
-                            System.err.println("Bad formatted BankTransactionSplit " +
-                                    lines.toString());
+                            mLogger.error("Bad formatted BankTransactionSplit " + lines.toString());
                             return null;
                         } else {
                             splitBT.setMemo(l.substring(1));
@@ -372,16 +376,14 @@ class QIFParser {
                         break;
                     case '$':
                         if (splitBT == null) {
-                            System.err.println("Bad formatted BankTransactionSplit " +
-                                    lines.toString());
+                            mLogger.error("Bad formatted BankTransactionSplit " + lines.toString());
                             return null;
                         } else {
                             splitBT.setAmount(new BigDecimal(l.substring(1).replace(",","")));
                         }
                         break;
                     case 'F':
-                        System.err.println("F flag in BankTransaction not implemented "
-                                + lines.toString());
+                        mLogger.error("F flag in BankTransaction not implemented " + lines.toString());
                         break;
                     case '1':
                     case '2':
@@ -394,7 +396,7 @@ class QIFParser {
                         bt.setAmortizationLine(Character.getNumericValue(l.charAt(0))-1, l.substring(1));
                         break;
                     default:
-                        System.err.println("BankTransaction Offending line: " + l);
+                        mLogger.error("BankTransaction Offending line: " + l);
                         return null;
                 }
             }
@@ -499,9 +501,8 @@ class QIFParser {
                     case 'L':
                         String[] tokens = l.substring(1).split("\\|");
                         if (tokens.length > 1) {
-                            System.err.println(lines);
-                            System.err.println("Multiple tokens seen at Category line: " + l +
-                                    ", importing as " + tokens[tokens.length-1]);
+                            mLogger.error(lines + "\nMultiple tokens seen at Category line: "
+                                    + l +", importing as " + tokens[tokens.length-1]);
                         }
                         tt.setCategoryOrTransfer(tokens[tokens.length-1]);
                         break;
@@ -515,7 +516,7 @@ class QIFParser {
                         tt.setAmountTransferred(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     default:
-                        System.err.println("TradeTransaction: Offending line: " + l);
+                        mLogger.error("TradeTransaction: Offending line: " + l);
                         return null;
 
                 }
@@ -665,12 +666,12 @@ class QIFParser {
 
         static Price fromQIFLines(List<String> lines) {
             if (lines.size() > 1) {
-                System.err.println("Price record, expected 1 line, got " + lines.size());
+                mLogger.error("Price record, expected 1 line, got " + lines.size());
                 return null;
             }
             String tokens[] = lines.get(0).split(",");
             if (tokens.length != 3) {
-                System.err.println("Expect 3 ',' separated fields, got " + tokens.length);
+                mLogger.error("Expect 3 ',' separated fields, got " + tokens.length);
                 return null;
             }
             Price price = new Price();
@@ -723,13 +724,13 @@ class QIFParser {
         List<TradeTransaction> ttList = getTradeTransactionList();
 
         Iterator<BankTransaction> btIterator = btList.iterator();
-        System.out.println("Number of bt = " + btList.size());
+        mLogger.info("Number of bt = " + btList.size());
         //while (btIterator.hasNext()) {
             //System.out.println("bt " + btIterator.next());
         //}
 
         Iterator<TradeTransaction> ttIterator = ttList.iterator();
-        System.out.println("Number of tt = " + ttList.size());
+        mLogger.info("Number of tt = " + ttList.size());
         //while (ttIterator.hasNext()) {
         //    System.out.println("tt " + ttIterator.next());
         //}
@@ -828,7 +829,7 @@ class QIFParser {
                     // this is a content line, find the end of the record
                     int j = findNextMatch(allLines, i, "^");
                     if (j == -1) {
-                        System.err.println("Bad formatted file.  Can't find '^'");
+                        mLogger.error("Bad formatted file.  Can't find '^'");
                         return -1;
                     }
                     switch (currentRecordType) {
@@ -837,7 +838,7 @@ class QIFParser {
                             if (category != null) {
                                 mCategoryList.add(category);
                             } else {
-                                System.err.println("Bad formatted Category text: "
+                                mLogger.error("Bad formatted Category text: "
                                         + allLines.subList(i, j));
                             }
                             i = j;
@@ -849,7 +850,7 @@ class QIFParser {
                                     mAccountList.add(account);
                                 }
                             } else {
-                                System.err.println("Bad formatted Account record: "
+                                mLogger.error("Bad formatted Account record: "
                                         + allLines.subList(i,j).toString());
                             }
                             i = j;
@@ -859,7 +860,7 @@ class QIFParser {
                             if (security != null) {
                                 mSecurityList.add(security);
                             } else {
-                                System.err.println("Bad formatted Security record: "
+                                mLogger.error("Bad formatted Security record: "
                                         + allLines.subList(i,j));
                             }
                             i = j;
@@ -874,7 +875,7 @@ class QIFParser {
                                 }
                                 mBankTransactionList.add(bt);
                             } else {
-                                System.err.println("Bad formatted BankTransaction record: "
+                                mLogger.error("Bad formatted BankTransaction record: "
                                         + allLines.subList(i,j));
                             }
                             i = j;
@@ -889,7 +890,7 @@ class QIFParser {
                                 }
                                 mTradeTransactionList.add(tt);
                             } else {
-                                System.err.println("Bad formatted TradeTransaction record: "
+                                mLogger.error("Bad formatted TradeTransaction record: "
                                         + allLines.subList(i,j));
                             }
                             i = j;
@@ -899,7 +900,7 @@ class QIFParser {
                             if (mt != null) {
                                 mMemorizedTransactionList.add(mt);
                             } else {
-                                System.err.println("Bad formatted MemorizedTransaction: "
+                                mLogger.error("Bad formatted MemorizedTransaction: "
                                         + allLines.subList(i,j));
                             }
                             i = j;
@@ -909,13 +910,13 @@ class QIFParser {
                             if (price != null) {
                                 mPriceList.add(price);
                             } else {
-                                System.err.println("Bad formatted Price record: "
+                                mLogger.error("Bad formatted Price record: "
                                         + allLines.subList(i, j));
                             }
                             i = j;
                             break;
                         default:
-                            System.err.println(currentRecordType.toString() + " Not implemented yet");
+                            mLogger.error(currentRecordType.toString() + " Not implemented yet");
                             return -1;
                     }
                     break;  // break out the switch

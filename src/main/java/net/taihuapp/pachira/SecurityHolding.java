@@ -24,6 +24,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -35,6 +36,8 @@ import static net.taihuapp.pachira.Transaction.TradeAction.CVTSHRT;
 import static net.taihuapp.pachira.Transaction.TradeAction.SELL;
 
 public class SecurityHolding extends LotHolding {
+
+    private static final Logger mLogger = Logger.getLogger(SecurityHolding.class);
 
     final static int CURRENCYDECIMALLEN = 2;  // two place for cents
 
@@ -185,14 +188,16 @@ public class SecurityHolding extends LotHolding {
 
         if (oldQuantity.signum() == 0 && (lotInfo.getTradeAction() == SELL || lotInfo.getTradeAction() == CVTSHRT)) {
             // this is a closing trade
-            System.err.println("*******\nTransaction Date: " + lotInfo.getDate().toString() + "\n"
-                    + "Security Name: " + lotInfo.getSecurityName() + "\n"
-                    + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
-                    + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
-                    + "Quantity: " + lotInfoQuantity + "\n"
-                    + "Existing Quantity: " + oldQuantity + "\n"
-                    + " can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
-                    + "*******");
+            String indent = "    ";
+            mLogger.error("*******\n"
+                    + indent + "Transaction Date: " + lotInfo.getDate().toString() + "\n"
+                    + indent + "Security Name: " + lotInfo.getSecurityName() + "\n"
+                    + indent + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
+                    + indent + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
+                    + indent + "Quantity: " + lotInfoQuantity + "\n"
+                    + indent + "Existing Quantity: " + oldQuantity + "\n"
+                    + indent + "can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
+                    + indent + "*******");
             getLotInfoList().add(lotInfo);
             setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
             return;
@@ -202,7 +207,7 @@ public class SecurityHolding extends LotHolding {
             || ((oldQuantity.signum() <= 0) && (lotInfo.getQuantity().signum() < 0))) {
             // same sign, nothing of offset
             if (matchInfoList.size() > 0) {
-                System.err.println("" + lotInfo.getTransactionID() + " can't find offset lots" );
+                mLogger.error("" + lotInfo.getTransactionID() + " can't find offset lots" );
             }
             getLotInfoList().add(lotInfo);
             setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
@@ -214,14 +219,16 @@ public class SecurityHolding extends LotHolding {
             // more than offset the current?  we shouldn't be here
             // probably something went wrong.  Issue a error message
             // and then match offset anyway
-            System.err.println("*******\nTransaction Date: " + lotInfo.getDate().toString() + "\n"
-                    + "Security Name: " + lotInfo.getSecurityName() + "\n"
-                    + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
-                    + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
-                    + "Quantity: " + lotInfoQuantity + "\n"
-                    + "Existing Quantity: " + oldQuantity + "\n"
-                    + " can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
-                    + "*******");
+            String indent = "    ";
+            mLogger.error("*******\n"
+                    + indent + "Transaction Date: " + lotInfo.getDate().toString() + "\n"
+                    + indent + "Security Name: " + lotInfo.getSecurityName() + "\n"
+                    + indent + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
+                    + indent + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
+                    + indent + "Quantity: " + lotInfoQuantity + "\n"
+                    + indent + "Existing Quantity: " + oldQuantity + "\n"
+                    + indent + "can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
+                    + indent + "*******");
         }
 
         if (matchInfoList.size() == 0) {
@@ -266,7 +273,7 @@ public class SecurityHolding extends LotHolding {
             int matchTID = matchInfo.getMatchTransactionID();
             int matchIndex =  getLotIndex(matchTID);
             if (matchIndex < 0) {
-                System.err.println("Missing matching transaction " + matchInfo.getMatchTransactionID());
+                mLogger.error("Missing matching transaction " + matchInfo.getMatchTransactionID());
                 continue;
             }
 
@@ -275,7 +282,7 @@ public class SecurityHolding extends LotHolding {
             BigDecimal matchQ = matchInfo.getMatchQuantity();
             if (matchLot.getQuantity().abs().compareTo(matchQ) < 0 ) {
                 // something is wrong here
-                System.err.println("Match lot " + matchTID + " q = " + matchLot.getQuantity()
+                mLogger.error("Match lot " + matchTID + " q = " + matchLot.getQuantity()
                         + ", needed " + matchQ + " to match. Reset match Q.");
                 matchQ = matchLot.getQuantity().abs();
             }

@@ -36,6 +36,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+        </dependency>
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>1.4.196</version>
@@ -43,7 +48,15 @@
     </dependencies>
 
     <build>
-        <finalName>Pachira</finalName>
+        <finalName>${project.artifactId}</finalName>
+        <resources>
+            <!-- filter resources -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
         <plugins>
             <plugin>
                 <!-- Build an executable JAR -->
@@ -83,6 +96,8 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- chmod 755 after build-->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -97,7 +112,7 @@
                         <configuration>
                             <executable>chmod</executable>
                             <arguments>
-                                <argument>+x</argument>
+                                <argument>755</argument>
                                 <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
                             </arguments>
                         </configuration>

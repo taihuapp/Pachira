@@ -29,6 +29,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,6 +37,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 public class SpecifyLotsDialogController {
+
+    private static final Logger mLogger = Logger.getLogger(SpecifyLotsDialogController.class);
 
     private static class SpecifyLotInfo extends SecurityHolding.LotInfo {
 
@@ -197,7 +200,7 @@ public class SpecifyLotsDialogController {
             }
         }
         if (mSpecifyLotInfoList == null) {
-            System.err.println("Null LotInfoList in SpecifyLots...");
+            mLogger.error("Null LotInfoList in SpecifyLots...");
             return;
         }
 

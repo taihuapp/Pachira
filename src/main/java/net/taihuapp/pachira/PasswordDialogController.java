@@ -27,11 +27,14 @@ import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
+import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class PasswordDialogController implements ChangeListener<String> {
+
+    private static final Logger mLogger = Logger.getLogger(PasswordDialogController.class);
 
     enum MODE {ENTER, NEW, CHANGE}
 
@@ -84,7 +87,7 @@ public class PasswordDialogController implements ChangeListener<String> {
                 mOKButton.setVisible(true);
                 break;
             default:
-                System.err.println("Unknown mode " + mode.toString());
+                mLogger.error("Unknown mode " + mode.toString());
                 break;
         }
     }

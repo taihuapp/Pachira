@@ -27,6 +27,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
+import org.apache.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -35,6 +36,9 @@ import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 
 public class SplashScreenDialogController {
+
+    private static final Logger mLogger = Logger.getLogger(SplashScreenDialogController.class);
+
     private Stage mStage;
     private MainApp mMainApp;
 
@@ -130,15 +134,15 @@ public class SplashScreenDialogController {
         mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
         mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
 
-        mApplicationNameLabel.setText(System.getProperty("Application.Name"));
-        mApplicationVersionLabel.setText(System.getProperty("Application.Version"));
+        mApplicationNameLabel.setText(MainApp.class.getPackage().getImplementationTitle());
+        mApplicationVersionLabel.setText(MainApp.class.getPackage().getImplementationVersion());
     }
 
     private String readResourceTextFile2String(String fileName) {
         final InputStream inputStream = getClass().getResourceAsStream(fileName);
         if (inputStream == null) {
             // failed to open resource file name
-            System.err.println("Failed to open resource " + fileName);
+            mLogger.error("Failed to open resource " + fileName);
             return null;
         }
 
@@ -151,7 +155,7 @@ public class SplashScreenDialogController {
                 stringBuilder.append(line).append("\n");
             return stringBuilder.toString();
         } catch (IOException e) {
-            System.err.println(e.getMessage());
+            mLogger.error("IOException", e);
             return null;
         }
     }

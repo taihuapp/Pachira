@@ -30,6 +30,7 @@ import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -37,6 +38,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AccountListDialogController {
+
+    private static final Logger mLogger = Logger.getLogger(AccountListDialogController.class);
+
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;
     private ListChangeListener<Account> mAccountListChangeListener = c -> {
@@ -142,7 +146,7 @@ public class AccountListDialogController {
             dialogStage.setScene(new Scene(loader.load()));
             EditAccountDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null controller?");
+                mLogger.error("Null controller?");
                 return;
             }
 
@@ -150,7 +154,7 @@ public class AccountListDialogController {
             controller.setAccount(mMainApp, account, t);
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 

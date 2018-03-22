@@ -34,6 +34,7 @@ import javafx.scene.layout.TilePane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,6 +48,8 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class ReportDialogController {
+
+    private static final Logger mLogger = Logger.getLogger(ReportDialogController.class);
 
     enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS }
     enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
@@ -455,7 +458,7 @@ public class ReportDialogController {
             for (Pair<Account, BooleanProperty> ab : mAccountSelectionTableView.getItems())
                 ab.getValue().set(selected);
         } else
-            System.out.println("Other tab?");
+            mLogger.error("Other tab?");
     }
 
     @FXML
@@ -505,7 +508,7 @@ public class ReportDialogController {
             try (PrintWriter pw = new PrintWriter(reportFile.getCanonicalPath())) {
                 pw.print(mReportTextArea.getText());
             } catch (IOException e) {
-                e.printStackTrace(System.err);
+                mLogger.error("IOException", e);
             }
         }
     }

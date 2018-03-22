@@ -22,6 +22,7 @@ package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,6 +31,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 public class Transaction {
+
+    private static final Logger mLogger = Logger.getLogger(Transaction.class);
 
     enum TradeAction {
         BUY("Buy Shares"), SELL("Sell Shares"), DIV("Dividend"), REINVDIV("Reinvest Dividend"),
@@ -196,7 +199,7 @@ public class Transaction {
                 case WITHDRAW:
                     return getAmount().negate();
                 default:
-                    System.err.println("TradingAction " + getTradeAction() + " not implement yet");
+                    mLogger.error("TradingAction " + getTradeAction() + " not implement yet");
                     return BigDecimal.ZERO;
             }
         }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
@@ -233,7 +236,7 @@ public class Transaction {
                 case WITHDRAW:
                     return BigDecimal.ZERO;
                 default:
-                    System.err.println("TradingAction " + getTradeAction() + " not implement yet");
+                    mLogger.error("TradingAction " + getTradeAction() + " not implement yet");
                     return BigDecimal.ZERO;
             }
         }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
@@ -322,7 +325,7 @@ public class Transaction {
             case XFRSHRS:
                 return null;
             default:
-                System.err.println("Transaction::TransferTradeAction: " + getTradeAction() + " not implemented yet.");
+                mLogger.error("Transaction::TransferTradeAction: " + getTradeAction() + " not implemented yet.");
                 return null;
         }
     }
@@ -363,7 +366,7 @@ public class Transaction {
             case XFRSHRS:
                 return BigDecimal.ZERO;
             default:
-                System.err.println("TradingAction " + getTradeAction() + " not implement yet");
+                mLogger.error("TradingAction " + getTradeAction() + " not implement yet");
                 return BigDecimal.ZERO;
         }
     }
@@ -399,7 +402,7 @@ public class Transaction {
             case XFRSHRS:
             case STKSPLIT:
             default:
-                System.err.println("getSignedQuantity not implemented for " + getTradeAction());
+                mLogger.error("getSignedQuantity not implemented for " + getTradeAction());
                 return getQuantity();
         }
     }
@@ -489,7 +492,7 @@ public class Transaction {
                 mPaymentProperty.set(amount);
                 break;
             default:
-                System.err.println("TradingAction " + ta.name() + " not implement yet");
+                mLogger.error("TradingAction " + ta.name() + " not implement yet");
                 break;
         }
     }

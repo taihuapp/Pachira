@@ -28,6 +28,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -39,6 +40,8 @@ import java.util.*;
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class EditTransactionDialogController {
+
+    private static final Logger mLogger = Logger.getLogger(EditTransactionDialogController.class);
 
     private class TagIDConverter extends StringConverter<Integer> {
         public Integer fromString(String tagName) {
@@ -287,7 +290,7 @@ public class EditTransactionDialogController {
                 // nothing to transfer
                 break;
             default:
-                System.err.println("enterTransaction: Trade Action " + ta + " not implemented yet.");
+                mLogger.error("enterTransaction: Trade Action " + ta + " not implemented yet.");
                 return false;
         }
 
@@ -940,7 +943,7 @@ public class EditTransactionDialogController {
                 break;
             case XFRSHRS:
             default:
-                System.err.println("TradeAction " + tradeAction + " not implemented yet.");
+                mLogger.error("TradeAction " + tradeAction + " not implemented yet.");
                 return;
         }
 

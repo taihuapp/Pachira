@@ -35,15 +35,18 @@ import javafx.scene.layout.Priority;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.*;
 import java.sql.Date;
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -66,6 +69,8 @@ public class MainApp extends Application {
                 return true;
         return false;
     }
+
+    private static final Logger mLogger = Logger.getLogger(MainApp.class);
 
     // minimum 2 decimal places, maximum 4 decimal places
     static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
@@ -182,8 +187,7 @@ public class MainApp extends Application {
         try {
             mPrefs.flush();
         } catch (BackingStoreException be) {
-            System.err.println("BackingStoreException encountered when storing Acknowledge date time.\n"
-                    + be.getMessage());
+            mLogger.error("BackingStoreException encountered when storing Acknowledge date time.", be);
         }
     }
 
@@ -286,6 +290,7 @@ public class MainApp extends Application {
 
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
+            mLogger.error("SQLException: " + e.getSQLState(), e);
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
             alert.setTitle("Database Error");
@@ -440,13 +445,12 @@ public class MainApp extends Application {
                                 Transaction.TradeAction.valueOf(rs.getString("ITEMVALUE")));
                         break;
                     default:
-                        System.err.println("loadReportSetting: ItemName " + itemName + " not implemented yet");
+                        mLogger.error("loadReportSetting: ItemName " + itemName + " not implemented yet");
                         break;
                 }
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException: " + e.getSQLState(), e);
         }
         return settingList;
     }
@@ -561,12 +565,14 @@ public class MainApp extends Application {
         } catch (SQLException e) {
             if (savepointSetHere) {
                 try {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
                     String title = "Database Error";
                     String header = "Unable to insert/update SAVEDREPORTS Setting";
                     String content = SQLExceptionToString(e);
                     showExceptionDialog(title, header, content, e);
                     rollbackDB();
                 } catch (SQLException e1) {
+                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
                     String title = "Database Error";
                     String header = "Unable to roll back";
                     String content = SQLExceptionToString(e1);
@@ -581,6 +587,7 @@ public class MainApp extends Application {
                 try {
                     releaseDBSavepoint();
                 } catch (SQLException e) {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
                     String title = "Database Error";
                     String header = "Unable to release savepoint and set DB autocommit";
                     String content = SQLExceptionToString(e);
@@ -658,10 +665,12 @@ public class MainApp extends Application {
         } catch (SQLException e) {
             if (savepointSetHere) {
                 try {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
                     showExceptionDialog("Database Error", "insert/update Reminder failed",
                             SQLExceptionToString(e), e);
                     rollbackDB();
                 } catch (SQLException e1) {
+                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
                     showExceptionDialog("Database Error", "Failed to rollback reminder database update",
                             SQLExceptionToString(e1), e1);
                 }
@@ -673,6 +682,7 @@ public class MainApp extends Application {
                 try {
                     releaseDBSavepoint();
                 } catch (SQLException e) {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
                     showExceptionDialog("Database Error", "after insertUpdateReminber, set autocommit failed",
                             SQLExceptionToString(e), e);
                 }
@@ -690,6 +700,7 @@ public class MainApp extends Application {
             preparedStatement.setInt(3, tid);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
+            mLogger.error("SQLException: " + e.getSQLState(), e);
             showExceptionDialog("Database Error", "Failed to insert into ReminderTransactions!",
                     SQLExceptionToString(e), e);
         }
@@ -794,9 +805,11 @@ public class MainApp extends Application {
             // something went wrong
             if (savepointSetHere) {
                 try {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
                     showExceptionDialog("Database Error", "update transaction failed", SQLExceptionToString(e), e);
                     rollbackDB();
                 } catch (SQLException e1) {
+                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
                     // error in rollback
                     showExceptionDialog("Database Error", "Failed to rollback transaction database update",
                             SQLExceptionToString(e1), e1);
@@ -809,6 +822,7 @@ public class MainApp extends Application {
                 try {
                     releaseDBSavepoint();
                 } catch (SQLException e) {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
                     showExceptionDialog("Database Error", "set autocommit failed", SQLExceptionToString(e), e);
                 }
             }
@@ -920,8 +934,10 @@ public class MainApp extends Application {
             }
             return true;
         } catch (SQLException e) {
+            mLogger.error("SQLException: " + e.getSQLState(), e);
             showExceptionDialog("Database Error", "Insert/Update Tag Failed", SQLExceptionToString(e), e);
         } catch (NullPointerException e) {
+            mLogger.error("NullPointerException", e);
             showExceptionDialog("Database Error", "mConnection is null", "Database not connected", e);
         }
         return false;
@@ -955,8 +971,10 @@ public class MainApp extends Application {
             }
             return true;
         } catch (SQLException e) {
+            mLogger.error("SQLException: " + e.getSQLState(), e);
             showExceptionDialog("Database Error", "Insert/Update Category Failed", SQLExceptionToString(e), e);
         } catch (NullPointerException e) {
+            mLogger.error("NullPointerException", e);
             showExceptionDialog("Database Error", "mConnection is null", "Database not connected", e);
         }
         return false;
@@ -996,8 +1014,7 @@ public class MainApp extends Application {
                 headerText = "Security ticker/name " + security.getTicker() + "/"
                         + security.getName() + " is already taken.";
             } else {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException: " + e.getSQLState(), e);
             }
 
             Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -1007,8 +1024,7 @@ public class MainApp extends Application {
             alert.showAndWait();
             return false;
         } catch (NullPointerException e) {
-            System.err.println("mConnection is null");
-            e.printStackTrace();
+            mLogger.error("NullPointerException", e);
             return false;
         }
         return true;
@@ -1024,6 +1040,7 @@ public class MainApp extends Application {
             preparedStatement.executeUpdate();
             return true;
         } catch (SQLException e) {
+            mLogger.error("SQLExceptoin " + e.getSQLState(), e);
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
             alert.setTitle("Database Fail Warning");
@@ -1066,13 +1083,12 @@ public class MainApp extends Application {
             status = true;
         } catch (SQLException e) {
             if (mode != 0) {
-                System.err.println("insertUpdatePriceToDB error");
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
         } catch (NullPointerException e) {
-            if (mode != 0)
-                e.printStackTrace();
+            if (mode != 0) {
+                mLogger.error("NullPointerException", e);
+            }
         }
         return status;
     }
@@ -1155,8 +1171,7 @@ public class MainApp extends Application {
                 cnt++;
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
         return cnt;
     }
@@ -1190,8 +1205,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
         return rowID;
     }
@@ -1225,8 +1239,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
         return rowID;
     }
@@ -1238,11 +1251,11 @@ public class MainApp extends Application {
         String accountName = bt.getAccountName();
         Account account = getAccountByName(accountName);
         if (account == null) {
-            System.err.println("Account [" + accountName + "] not found, nothing inserted");
+            mLogger.error("Account [" + accountName + "] not found, nothing inserted");
             return -1;
         }
         if (account.getType() == Account.Type.INVESTING) {
-            System.err.println("Account " + account.getName() + " is not an investing account");
+            mLogger.error("Account " + account.getName() + " is not an investing account");
             return -1;
         }
 
@@ -1302,8 +1315,7 @@ public class MainApp extends Application {
                     }
                 }
             } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
 
             if (rowID < 0)
@@ -1335,7 +1347,7 @@ public class MainApp extends Application {
         int rowID = -1;
         Account account = getAccountByName(tt.getAccountName());
         if (account == null) {
-            System.err.println("Account [" + tt.getAccountName() + "] not found, nothing inserted");
+            mLogger.error("Account [" + tt.getAccountName() + "] not found, nothing inserted");
             return -1;
         }
 
@@ -1391,8 +1403,7 @@ public class MainApp extends Application {
                 }
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
 
         if (rowID < 0)
@@ -1430,8 +1441,7 @@ public class MainApp extends Application {
                 headerText = "Category name " + category.getName() + " exists already.";
             }
 
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
 
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.initOwner(mPrimaryStage);
@@ -1439,8 +1449,7 @@ public class MainApp extends Application {
             alert.setHeaderText(headerText);
             alert.showAndWait();
         } catch (NullPointerException e) {
-            System.err.println("mConnection is null");
-            e.printStackTrace();
+            mLogger.error("NullPointerException", e);
         }
     }
 
@@ -1475,9 +1484,6 @@ public class MainApp extends Application {
                     } else {
                         throw new SQLException("\n" + sqlCmd + "\nInsert Account failed, no ID obtained");
                     }
-                } catch (SQLException e) {
-                    System.err.println(e.getMessage());
-                    throw e;
                 }
             }
 
@@ -1490,7 +1496,7 @@ public class MainApp extends Application {
                 updateAccountBalance(account.getID());
             } else if (a != account) {
                 // old account, replace
-                System.err.println("insertupdateaccounttodb, how did we get here");
+                mLogger.error("insertupdateaccounttodb, how did we get here");
                 mAccountList.set(mAccountList.indexOf(a), account);
             }
 
@@ -1501,8 +1507,7 @@ public class MainApp extends Application {
                 title = "Duplicate Account Name";
                 headerText = "Account name " + account.getName() + " is already taken.";
             } else {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
 
             Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -1512,8 +1517,7 @@ public class MainApp extends Application {
             alert.showAndWait();
 
         } catch (NullPointerException e) {
-            System.err.println("mConnection is null");
-            e.printStackTrace();
+            mLogger.error("NullPointerException", e);
         }
     }
 
@@ -1533,8 +1537,7 @@ public class MainApp extends Application {
                 id = resultSet.getInt("ID");
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         } finally {
             try {
                 if (statement != null) {
@@ -1544,8 +1547,7 @@ public class MainApp extends Application {
                     resultSet.close();
                 }
             } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
         }
         return id;
@@ -1583,8 +1585,7 @@ public class MainApp extends Application {
                         accountID, categoryID, transferAccountID, tagID, memo, ds, loadSplitTransactions(-id)));
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
     }
 
@@ -1638,7 +1639,7 @@ public class MainApp extends Application {
                                 amt = amt.add(mTransactionList.get(idx).getAmount());
                             } else {
                                 // tid not found, treat it as skipped
-                                System.err.println("initReminderTransactionList: Transaction " + tid + " not found. " +
+                                mLogger.error("initReminderTransactionList: Transaction " + tid + " not found. " +
                                         "Probably deleted, treat as skipped.");
                             }
                         }
@@ -1657,8 +1658,7 @@ public class MainApp extends Application {
             }
             mReminderTransactionList.sort(Comparator.comparing(ReminderTransaction::getDueDate));
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
     }
 
@@ -1676,8 +1676,7 @@ public class MainApp extends Application {
                 mTagList.add(new Tag(id, name, description));
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
     }
 
@@ -1708,15 +1707,13 @@ public class MainApp extends Application {
                 mCategoryList.add(category);
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         } finally {
             try {
                 if (statement != null) statement.close();
                 if (resultSet != null) resultSet.close();
             } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
         }
     }
@@ -1734,7 +1731,7 @@ public class MainApp extends Application {
     void updateAccountBalance(int accountID) {
         Account account = getAccountByID(accountID);
         if (account == null) {
-            System.err.println("Invalid account ID: " + accountID);
+            mLogger.error("Invalid account ID: " + accountID);
             return;
         }
 
@@ -1745,7 +1742,7 @@ public class MainApp extends Application {
             if (totalHolding.getSecurityName().equals("TOTAL")) {
                 account.setCurrentBalance(totalHolding.getMarketValue());
             } else {
-                System.err.println("Missing Total Holding in account " + account.getName() + " holding list");
+                mLogger.error("Missing Total Holding in account " + account.getName() + " holding list");
             }
 
             ObservableList<Security> accountSecurityList = account.getCurrentSecurityList();
@@ -1755,7 +1752,7 @@ public class MainApp extends Application {
                 if (!securityName.equals("TOTAL") && !securityName.equals("CASH")) {
                     Security se = getSecurityByName(securityName);
                     if (se == null) {
-                        System.err.println("Failed to find security with name: '" + securityName + "'");
+                        mLogger.error("Failed to find security with name: '" + securityName + "'");
                     } else {
                         accountSecurityList.add(se);
                     }
@@ -1787,8 +1784,7 @@ public class MainApp extends Application {
                 mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder, BigDecimal.ZERO));
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
 
         // load transactions and set account balance
@@ -1818,8 +1814,7 @@ public class MainApp extends Application {
                 mSecurityList.add(new Security(id, ticker, name, type));
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
     }
 
@@ -1846,8 +1841,7 @@ public class MainApp extends Application {
                 stList.add(new SplitTransaction(id, cid, payee, memo, amount, matchID));
             }
         }  catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
         return stList;
     }
@@ -1887,7 +1881,7 @@ public class MainApp extends Application {
 
                 if (taStr != null && taStr.length() > 0) tradeAction = Transaction.TradeAction.valueOf(taStr);
                 if (tradeAction == null) {
-                    System.err.println("Bad trade action value in transaction " + id);
+                    mLogger.error("Bad trade action value in transaction " + id);
                     continue;
                 }
                 int securityID = resultSet.getInt("SECURITYID");
@@ -1913,8 +1907,7 @@ public class MainApp extends Application {
             }
             mTransactionList.setAll(tList); // now all all contents of the simple list to main list.
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
     }
 
@@ -1957,7 +1950,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             SplashScreenDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null SplashScreenDialogController");
+                mLogger.error("Null SpashScreenDialogController?");
                 Platform.exit();
                 System.exit(0);
             }
@@ -1965,7 +1958,7 @@ public class MainApp extends Application {
             dialogStage.setOnCloseRequest(e -> controller.handleClose());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -1980,14 +1973,14 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             ReportDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null ReportDialogController");
+                mLogger.error("Null ReportDialogController");
                 return;
             }
             controller.setMainApp(setting, this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -2003,14 +1996,14 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             AccountListDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null controller for AccountListDialog");
+                mLogger.error("Null AccountListDialog controller?");
                 return;
             }
             controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -2026,14 +2019,14 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             ReminderTransactionListDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null controller for ReminderTransactionListDialog");
+                mLogger.error("Null controller for ReminderTransactionListDialog");
                 return;
             }
             controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -2093,14 +2086,14 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             SecurityListDialogController controller = loader.getController();
             if (controller == null) {
-                System.err.println("Null controller for SecurityListDialog");
+                mLogger.error("Null controller for SecurityListDialog");
                 return;
             }
             controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -2121,7 +2114,7 @@ public class MainApp extends Application {
                 title = "Change Password";
                 break;
             default:
-                System.err.println("Unknow MODE" + mode.toString());
+                mLogger.error("Unknown MODE" + mode.toString());
                 title = "Unknown";
         }
 
@@ -2141,7 +2134,7 @@ public class MainApp extends Application {
 
             return controller.getPasswords();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
             return null;
         }
     }
@@ -2331,7 +2324,7 @@ public class MainApp extends Application {
         List<SecurityHolding.MatchInfo> matchInfoList = new ArrayList<>();
 
         if (mConnection == null) {
-            System.err.println("DB connection down?! ");
+            mLogger.error("DB connection down?! ");
             return matchInfoList;
         }
 
@@ -2345,8 +2338,7 @@ public class MainApp extends Application {
                 matchInfoList.add(new SecurityHolding.MatchInfo(tid, mid, quantity));
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
         return matchInfoList;
     }
@@ -2363,8 +2355,7 @@ public class MainApp extends Application {
                 priceList.add(new Price(resultSet.getDate(1).toLocalDate(), resultSet.getBigDecimal(2)));
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
 
         return priceList;
@@ -2382,8 +2373,7 @@ public class MainApp extends Application {
                 price = new Price(resultSet.getDate(2).toLocalDate(), resultSet.getBigDecimal(1));
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
         return price;
     }
@@ -2394,7 +2384,7 @@ public class MainApp extends Application {
     // Note: The TransactionID field of input matchInfoList is not used.
     void putMatchInfoList(int tid, List<SecurityHolding.MatchInfo> matchInfoList) {
         if (mConnection == null) {
-            System.err.println("DB connection down?!");
+            mLogger.error("DB connection down?!");
             return;
         }
 
@@ -2402,8 +2392,7 @@ public class MainApp extends Application {
         try (Statement statement = mConnection.createStatement()) {
             statement.execute("delete from LOTMATCH where TRANSID = " + tid);
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
 
         if (matchInfoList.size() == 0)
@@ -2420,8 +2409,7 @@ public class MainApp extends Application {
                 preparedStatement.executeUpdate();
             }
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         }
     }
 
@@ -2443,7 +2431,7 @@ public class MainApp extends Application {
             dialogStage.showAndWait();
             return controller.getSplitTransactionList();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
             return null;
         }
     }
@@ -2462,7 +2450,7 @@ public class MainApp extends Application {
             controller.setMainApp(this, t, matchInfoList, dialogStage);
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -2495,18 +2483,18 @@ public class MainApp extends Application {
             dialogStage.showAndWait();
             return controller.getTransactionID();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
             return -1;
         }
     }
 
     void showAccountHoldings() {
         if (mCurrentAccount == null) {
-            System.err.println("Can't show holdings for null account.");
+            mLogger.error("Can't show holdings for null account.");
             return;
         }
         if (mCurrentAccount.getType() != Account.Type.INVESTING) {
-            System.err.println("Show holdings only applicable for trading account");
+            mLogger.error("Show holdings only applicable for trading account");
             return;
         }
 
@@ -2525,7 +2513,7 @@ public class MainApp extends Application {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -2534,8 +2522,7 @@ public class MainApp extends Application {
             try {
                 mConnection.close();
             } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
             mConnection = null;
         }
@@ -2577,7 +2564,7 @@ public class MainApp extends Application {
                         .reversed().thenComparing(Transaction::isSplit).reversed()  // put split first
                         .thenComparing(Transaction::getAccountID));
         final int nTrans = transactionList.size();
-        System.err.println("Total " + nTrans + " transactions");
+        mLogger.error("Total " + nTrans + " transactions");
 
         if (nTrans == 0)
             return; // nothing to do
@@ -2671,6 +2658,7 @@ public class MainApp extends Application {
                 showExceptionDialog("FixDB Failed", "Failed updating Transaction",
                         t.getTDate() + "\n" + getAccountByID(t.getAccountID()).getName() + "\n"
                                 + t.getAmount() + "\n"+ t.getDescription() + "\n", e);
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
         }
 
@@ -2680,7 +2668,7 @@ public class MainApp extends Application {
                 + "Remain " + unMatchedList.size() + " unmatched transactions.";
 
         showInformationDialog("FixDB", "Information", message);
-        System.err.println(message);
+        mLogger.error(message);
     }
 
     // import data from QIF file
@@ -2710,10 +2698,10 @@ public class MainApp extends Application {
         QIFParser qifParser = new QIFParser(result.orElse(""));
         try {
             if (qifParser.parseFile(file) < 0) {
-                System.err.println("Failed to parse " + file);
+                mLogger.error("Failed to parse " + file);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
 
         // process parsed records
@@ -2744,7 +2732,7 @@ public class MainApp extends Application {
                 insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
                         Integer.MAX_VALUE, BigDecimal.ZERO));
             } else {
-                System.err.println("Unknown account type: " + qa.getType()
+                mLogger.error("Unknown account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
             }
         }
@@ -2763,7 +2751,7 @@ public class MainApp extends Application {
             String security = p.getSecurity();
             Integer id = tickerIDMap.computeIfAbsent(security, this::getSecurityID);
             if (!insertUpdatePriceToDB(id, p.getDate(), p.getPrice(), 3)) {
-                System.err.println("Insert to PRICE failed with "
+                mLogger.error("Insert to PRICE failed with "
                         + security + "(" + id + ")," + p.getDate() + "," + p.getPrice());
             }
         }
@@ -2775,14 +2763,12 @@ public class MainApp extends Application {
             try {
                 int rowID = insertTransactionToDB(bt);
                 if (rowID < 0) {
-                    System.err.println("Failed to insert transaction: " + bt.toString());
+                    mLogger.error("Failed to insert transaction: " + bt.toString());
                 }
             } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             } catch (Exception e) {
-                e.printStackTrace();
-                System.err.println(bt);
+                mLogger.error("Exception", e);
             }
         }
 
@@ -2790,7 +2776,7 @@ public class MainApp extends Application {
             try {
                 int rowID = insertTransactionToDB(tt);
                 if (rowID < 0) {
-                    System.err.println("Failed to insert transaction: " + tt.toString());
+                    mLogger.error("Failed to insert transaction: " + tt.toString());
                 } else {
                     // insert transaction successful, insert price is it has one.
                     BigDecimal p = tt.getPrice();
@@ -2799,13 +2785,12 @@ public class MainApp extends Application {
                     }
                 }
             } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
         }
 
         initTransactionList();
-        System.out.println("Imported " + file);
+        mLogger.info("Imported " + file);
     }
 
     // todo need to handle error gracefully
@@ -2823,6 +2808,7 @@ public class MainApp extends Application {
             showInformationDialog("Backup Information", "Successful",
                     "Backup to " + backupFileName + " successful");
         } catch (SQLException e) {
+            mLogger.error("SQLException " + e.getSQLState(), e);
             showExceptionDialog("Exception Dialog", "SQLException", "Backup failed", e);
         }
         return backupFileName;
@@ -2871,16 +2857,20 @@ public class MainApp extends Application {
             preparedStatement.execute();
             passwordChanged++;
         } catch (SQLException e) {
+            mLogger.error("SQLException " + e.getSQLState(), e);
             showExceptionDialog("Exception", "SQLException", e.getMessage(), e);
         } catch (IllegalArgumentException e) {
+            mLogger.error("IllegalArgumentException", e);
             showExceptionDialog("Exception", "IllegalArgumentException", e.getMessage(), e);
         } catch (ClassNotFoundException e) {
+            mLogger.error("ClassNotFoundException", e);
             showExceptionDialog("Exception", "ClassNotFoundException", e.getMessage(), e);
         } finally {
             try {
                 if (preparedStatement != null)
                     preparedStatement.close();
             } catch (SQLException e) {
+                mLogger.error("SQLException " + e.getSQLState(), e);
                 showExceptionDialog("Exception", "SQLException", e.getMessage(), e);
             }
             if (passwordChanged == 1) {
@@ -2926,9 +2916,9 @@ public class MainApp extends Application {
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DB", "*" + DBPOSTFIX));
             String title;
             if (isNew) {
-                title = "Create a new " + System.getProperty("Application.Name") + " database...";
+                title = "Create a new " + MainApp.class.getPackage().getImplementationTitle() + " database...";
             } else {
-                title = "Open an existing " + System.getProperty("Application.Name") + " database...";
+                title = "Open an existing " + MainApp.class.getPackage().getImplementationTitle() + " database...";
             }
             fileChooser.setTitle(title);
             if (isNew) {
@@ -2948,8 +2938,8 @@ public class MainApp extends Application {
         }
         // we have enough information to open a new db, close the current db now
         closeConnection();
-        final String appName = System.getProperty("Application.Name", "Pachira");
-        final String appVersion = System.getProperty("Application.Version", "unknown");
+        final String appName = MainApp.class.getPackage().getImplementationTitle();
+        final String appVersion = MainApp.class.getPackage().getImplementationVersion();
 
         mPrimaryStage.setTitle(appName);
         setCurrentAccount(null);
@@ -2995,6 +2985,8 @@ public class MainApp extends Application {
             Class.forName("org.h2.Driver");
             mConnection = DriverManager.getConnection(url, DBOWNER, password + ' ' + password);
         } catch (SQLException e) {
+            mLogger.error("SQLException " + e.getSQLState(), e);
+
             int errorCode = e.getErrorCode();
             // 90049 -- bad encryption password
             // 28000 -- wrong user name or password
@@ -3019,7 +3011,6 @@ public class MainApp extends Application {
                     alert.setTitle("SQL Error");
                     alert.setHeaderText("Error Code: " + errorCode);
                     alert.setContentText(SQLExceptionToString(e));
-                    e.printStackTrace();
                     break;
             }
             alert.showAndWait();
@@ -3064,6 +3055,8 @@ public class MainApp extends Application {
                                 "The old database was saved in " + backupFileName);
             } catch (SQLException e) {
                 // Failed
+                mLogger.error("SQLException " + e.getSQLState(), e);
+
                 showExceptionDialog("Database Version Update Failed",
                         "Database Version Update Failed",
                         "Your database failed to update from version " + dbVersion + " to " + DBVERSIONVALUE +
@@ -3072,6 +3065,7 @@ public class MainApp extends Application {
                 return;
             } catch (IllegalArgumentException e) {
                 // version not supported
+                mLogger.error("IllegalArgumentException", e);
                 showExceptionDialog("Database Version Update Failed",
                         "Database Version Update not supported",
                         e.getMessage() + " " + "Database version update from " + dbVersion +
@@ -3153,17 +3147,15 @@ public class MainApp extends Application {
             preparedStatement.executeUpdate();
             preparedStatement.close();
         } catch (NullPointerException e) {
-            System.err.println("Null mConnection");
+            mLogger.error("Null mConnection");
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
-            e.printStackTrace();
+            mLogger.error("SQLException " + e.getSQLState(), e);
         } finally {
             try {
                 if (preparedStatement != null)
                     preparedStatement.close();
             } catch (SQLException e) {
-                System.err.print(SQLExceptionToString(e));
-                e.printStackTrace();
+                mLogger.error("SQLException " + e.getSQLState(), e);
             }
         }
     }
@@ -3368,18 +3360,21 @@ public class MainApp extends Application {
 
         } catch (SQLException e) {
             try {
+                mLogger.error("SQLException: " + e.getSQLState(), e);
                 rollbackDB();
             } catch (SQLException e1) {
+                mLogger.error("SQLException: " + e1.getSQLState(), e1);
                 showExceptionDialog("Database Error", "Unable to rollback to savepoint",
-                        MainApp.SQLExceptionToString(e1), e1);
+                        SQLExceptionToString(e1), e1);
             }
         } finally {
             try {
                 releaseDBSavepoint();
             } catch (SQLException e) {
+                mLogger.error("SQLException: " + e.getSQLState(), e);
                 showExceptionDialog("Database Error",
                         "Unable to release savepoint and set DB autocommit",
-                        MainApp.SQLExceptionToString(e), e);
+                        SQLExceptionToString(e), e);
             }
         }
 
@@ -3401,6 +3396,7 @@ public class MainApp extends Application {
                         "'" + DBVERSIONNAME + "', " + dbVersion + ")");
             }
         } catch (SQLException e) {
+            mLogger.error("SQLException: " + e.getSQLState(), e);
             showExceptionDialog("Exception", "Database Exception",
                     "Failed to create SETTINGS table",e);
         }
@@ -3414,7 +3410,7 @@ public class MainApp extends Application {
             if (resultSet.next())
                 dbVersion = resultSet.getInt(1);
         } catch (SQLException e) {
-            System.err.print(SQLExceptionToString(e));
+            mLogger.error("SQLException: " + e.getSQLState(), e);
         }
         return dbVersion;
     }
@@ -3771,7 +3767,7 @@ public class MainApp extends Application {
             mPrimaryStage.show();
             ((MainController) loader.getController()).setMainApp(this);
         } catch (IOException e) {
-            e.printStackTrace();
+            mLogger.error("IOException", e);
         }
     }
 
@@ -3789,35 +3785,14 @@ public class MainApp extends Application {
     @Override
     public void start(final Stage stage) {
         mPrimaryStage = stage;
-        mPrimaryStage.setTitle(System.getProperty("Application.Name", "Pachira"));
+        mPrimaryStage.setTitle(MainApp.class.getPackage().getImplementationTitle());
         initMainLayout();
     }
 
     public static void main(String[] args) {
         // set error stream to a file in the current directory
-        System.out.println(MainApp.class.getPackage().getImplementationTitle());
-        System.out.println(MainApp.class.getPackage().getImplementationVersion());
-
-        System.setProperty("Application.Name", "Pachira");
-        System.setProperty("Application.Version", "v0.2.0");
-        try {
-            java.util.Date startDateTime = new java.util.Date();
-            String appName = System.getProperty("Application.Name");
-            String timeStamp = (new SimpleDateFormat("yyyyMMddHHmmss")).format(startDateTime);
-            String postfix = ".err";
-            File file = new File(appName + timeStamp + postfix);
-            int i = 0;
-            while (!file.createNewFile()) {
-                file = new File(appName + timeStamp + i++ + postfix);
-            }
-            System.err.println("Redirect System.err to " + file.getCanonicalPath());
-            System.setErr(new PrintStream(file));
-            System.err.println(System.getProperty("Application.Name")
-                    + " " + System.getProperty("Application.Version"));
-            System.err.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(startDateTime));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        mLogger.info(MainApp.class.getPackage().getImplementationTitle()
+                + " " + MainApp.class.getPackage().getImplementationVersion());
 
         launch(args);
     }

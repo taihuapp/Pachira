@@ -128,6 +128,8 @@ public class EditTransactionDialogController {
     @FXML
     private ComboBox<Integer> mCategoryComboBox;
     @FXML
+    private Label mTagLabel;
+    @FXML
     private ComboBox<Integer> mTagComboBox;
     @FXML
     private TextField mMemoTextField;
@@ -173,8 +175,8 @@ public class EditTransactionDialogController {
     private Button mEnterDoneButton;
     @FXML
     private Button mSpecifyLotButton;
-    //@FXML
-    //private Button mSplitTransactionButton;
+    @FXML
+    private Button mSplitTransactionButton;
 
     private MainApp mMainApp;
     private Stage mDialogStage;
@@ -220,6 +222,13 @@ public class EditTransactionDialogController {
             mEnterDoneButton.setDefaultButton(false);
             mEnterNewButton.setDefaultButton(true);
             mEnterNewButton.setVisible(true);
+        }
+
+        if (accountList.get(0).getType().equals(Account.Type.INVESTING)) {
+            // investing account, don't show splittransaction button
+            mSplitTransactionButton.setVisible(false);
+            mTagComboBox.setVisible(false);
+            mTagLabel.setVisible(false);
         }
 
         mTradeActionChoiceBox.getItems().setAll(taList);

@@ -31,9 +31,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 class QIFParser {
 
@@ -41,7 +39,24 @@ class QIFParser {
 
     // These are the exportable lists show in the QIF99 spec
     // CLASS and TEMPLATE are not being used
-    private enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT }
+    private enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT, TAG }
+
+    private static Tag parseTagFromQIFLines(List<String> lines)  {
+            Tag tag = new Tag();
+            for (String l : lines) {
+                switch (l.charAt(0)) {
+                    case 'N':
+                        tag.setName(l.substring(1));
+                        break;
+                    case 'D':
+                        tag.setDescription(l.substring(1));
+                        break;
+                    default:
+                        return null;
+                }
+            }
+            return tag;
+        }
 
     static class Category {
         private int mID;
@@ -60,6 +75,19 @@ class QIFParser {
             mDescription = "";
             mTaxRefNum = -1;
             mIsIncome = true;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Category category = (Category) o;
+            return Objects.equals(mName, category.mName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mName);
         }
 
         void setID(int id) { mID = id; }
@@ -240,6 +268,7 @@ class QIFParser {
         // split bank transaction
         static class SplitBT {
             private String mCategory; // split category
+            private String mTag; // split tag
             private String mMemo; // split memo
             private BigDecimal mAmount; // split amount
             private BigDecimal mPercentage; // % of split if % is used
@@ -255,6 +284,8 @@ class QIFParser {
             // setters and getters
             void setCategory(String c) { mCategory = c; }
             String getCategory() { return mCategory; }
+            void setTag(String t) { mTag = t; }
+            String getTag() { return mTag; }
             void setMemo(String m) { mMemo = m; }
             String getMemo() { return mMemo; }
             void setAmount(BigDecimal a) { mAmount = a; }
@@ -273,6 +304,7 @@ class QIFParser {
         private String mMemo;
         private List<String> mAddressList; // QIF says up to 6 lines.
         private String mCategory; // L line if matches [*], then transfer, otherwise, category
+        private String mTag; // L line may contain tag as well
         private List<SplitBT> mSplitList;
         private String[] mAmortizationLines;
 
@@ -307,6 +339,7 @@ class QIFParser {
         void setMemo(String m) { mMemo = m; }
         void addAddress(String a) { mAddressList.add(a); }
         void setCategory(String c) { mCategory = c; }
+        void setTag(String t) { mTag = t; }
         void addSplit(SplitBT s) { mSplitList.add(s); }
         void setAmortizationLine(int i, String l) {
             if (mAmortizationLines == null) mAmortizationLines = new String[7];
@@ -318,8 +351,21 @@ class QIFParser {
         LocalDate getDate() { return mDate; }
         BigDecimal getTAmount() { return mTAmount; }
         BigDecimal getUAmount() { return mUAmount; }
-        int getCleared() { return mCleared; }
+        int getCleared() {
+            switch (mCleared) {
+                case 'c':
+                case '*':
+                    return 1;
+                case 'X':
+                case 'R':
+                    return 2;
+                default:
+                    return 0;
+            }
+        }
+
         String getCategoryOrTransfer() { return mCategory; }
+        String getTag() { return mTag; }
         String getReference() { return mCheckNumber; }
         String getMemo() { return mMemo; }
         String getPayee() { return mPayee; }
@@ -357,14 +403,22 @@ class QIFParser {
                         bt.addAddress(l.substring(1));
                         break;
                     case 'L':
-                        bt.setCategory(l.substring(1));
+                        String names[] = l.substring(1).split("/");
+                        if (!names[0].isEmpty())
+                            bt.setCategory(names[0]);
+                        if (names.length > 1 && !names[1].isEmpty())
+                            bt.setTag(names[1]);
                         break;
                     case 'S':
                         if (splitBT != null) {
                             bt.addSplit(splitBT);
                         }
                         splitBT = new SplitBT();
-                        splitBT.setCategory(l.substring(1));
+                        String names0[] = l.substring(1).split("/");
+                        if (!names0[0].isEmpty())
+                            splitBT.setCategory(names0[0]);
+                        if (names0.length > 1 && !names0[1].isEmpty())
+                            splitBT.setTag(names0[1]);
                         break;
                     case 'E':
                         if (splitBT == null) {
@@ -426,6 +480,7 @@ class QIFParser {
         private String mMemo;
         private BigDecimal mCommission;
         private String mCategoryOrTransfer; // L line
+        private String mTag;
         private BigDecimal mTAmount; // not sure what's the difference between
         private BigDecimal mUAmount; // T and U amounts
         private BigDecimal mAmountTransferred; // $ line
@@ -448,6 +503,7 @@ class QIFParser {
         void setMemo(String m) { mMemo = m; }
         void setCommission(BigDecimal c) { mCommission = c; }
         void setCategoryOrTransfer(String ct) { mCategoryOrTransfer = ct; }
+        void setTag(String t) { mTag = t; }
         void setTAmount(BigDecimal t) { mTAmount = t; }
         void setUAmount(BigDecimal u) { mUAmount = u; }
         void setAmountTransferred(BigDecimal a) { mAmountTransferred = a; }
@@ -459,8 +515,20 @@ class QIFParser {
         BigDecimal getUAmount() { return mUAmount; }
         Action getAction() { return mAction; }
         String getSecurityName() { return mSecurityName; }
-        int getCleared() { return mCleared; }
+        int getCleared() {
+            switch (mCleared) {
+                case 'c':
+                case '*':
+                    return 1;
+                case 'X':
+                case 'R':
+                    return 2;
+                default:
+                    return 0;
+            }
+        }
         String getCategoryOrTransfer() { return mCategoryOrTransfer; }
+        String getTag() { return mTag; }
         String getMemo() { return mMemo; }
         BigDecimal getPrice() { return mPrice; }
         BigDecimal getQuantity() { return mQuantity; }
@@ -499,12 +567,17 @@ class QIFParser {
                         tt.setCommission(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'L':
-                        String[] tokens = l.substring(1).split("\\|");
-                        if (tokens.length > 1) {
-                            mLogger.error(lines + "\nMultiple tokens seen at Category line: "
-                                    + l +", importing as " + tokens[tokens.length-1]);
+                        String[] names = l.substring(1).split("/");
+                        if (!names[0].isEmpty()) {
+                            String[] tokens = names[0].split("\\|");
+                            if (tokens.length > 1) {
+                                mLogger.error(lines + "\nMultiple tokens seen at Category line: "
+                                        + l + ", importing as " + tokens[tokens.length - 1]);
+                            }
+                            tt.setCategoryOrTransfer(tokens[tokens.length - 1]);
                         }
-                        tt.setCategoryOrTransfer(tokens[tokens.length-1]);
+                        if ((names.length > 1) && !names[1].isEmpty())
+                            tt.setTag(names[1]);
                         break;
                     case 'T':
                         tt.setTAmount(new BigDecimal(l.substring(1).replace(",","")));
@@ -710,7 +783,8 @@ class QIFParser {
 
     private String mDefaultAccountName;
     private List<Account> mAccountList;
-    private List<Category> mCategoryList;
+    private Set<Category> mCategorySet;
+    private Set<Tag> mTagSet;
     private List<Security> mSecurityList;
     private List<BankTransaction> mBankTransactionList;
     private List<TradeTransaction> mTradeTransactionList;
@@ -741,7 +815,8 @@ class QIFParser {
     QIFParser(String dan) {
         mDefaultAccountName = dan;
         mAccountList = new ArrayList<>();
-        mCategoryList = new ArrayList<>();
+        mCategorySet = new HashSet<>();
+        mTagSet = new HashSet<>();
         mSecurityList = new ArrayList<>();
         mBankTransactionList = new ArrayList<>();
         mTradeTransactionList = new ArrayList<>();
@@ -793,6 +868,9 @@ class QIFParser {
         while (i < nLines) {
             String line = allLines.get(i);
             switch (line) {
+                case "!Type:Tag":
+                    currentRecordType = RecordType.TAG;
+                    break;
                 case "!Type:Cat":
                     currentRecordType = RecordType.CAT;
                     break;
@@ -836,10 +914,19 @@ class QIFParser {
                         case CAT:
                             Category category = Category.fromQIFLines(allLines.subList(i, j));
                             if (category != null) {
-                                mCategoryList.add(category);
+                                mCategorySet.add(category);
                             } else {
                                 mLogger.error("Bad formatted Category text: "
                                         + allLines.subList(i, j));
+                            }
+                            i = j;
+                            break;
+                        case TAG:
+                            Tag tag = parseTagFromQIFLines(allLines.subList(i,j));
+                            if (tag != null) {
+                                mTagSet.add(tag);
+                            } else {
+                                mLogger.error("Bad formatted Tag text: " + allLines.subList(i, j));
                             }
                             i = j;
                             break;
@@ -931,7 +1018,8 @@ class QIFParser {
 
     List<Account> getAccountList() { return mAccountList; }
     List<Security> getSecurityList() { return mSecurityList; }
-    List<Category> getCategoryList() { return mCategoryList; }
+    Set<Category> getCategorySet() { return mCategorySet; }
+    Set<Tag> getTagSet() { return mTagSet; }
     List<Price> getPriceList() { return mPriceList; }
     List<BankTransaction> getBankTransactionList() { return mBankTransactionList; }
     List<TradeTransaction> getTradeTransactionList() { return mTradeTransactionList; }

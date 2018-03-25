@@ -39,7 +39,7 @@ class SplitTransaction {
     // positive for Category ID
     // negative for negative of Transfer Account ID
     private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
-
+    private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
     private final StringProperty mPayeeProperty = new SimpleStringProperty();
     private final StringProperty mMemoProperty = new SimpleStringProperty();
 
@@ -51,12 +51,13 @@ class SplitTransaction {
     private int mMatchID;  // the id of the transaction is matched up to this split transaction
 
     SplitTransaction(SplitTransaction st) {
-        this(st.getID(), st.getCategoryID(), st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID());
+        this(st.getID(), st.getCategoryID(), st.getTagID(), st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID());
     }
 
-    SplitTransaction(int id, int cid, String payee, String memo, BigDecimal amount, int matchTid) {
+    SplitTransaction(int id, int cid, int tid, String payee, String memo, BigDecimal amount, int matchTid) {
         mID = id;
         mCategoryIDProperty.set(cid);
+        mTagIDProperty.set(tid);
         mPayeeProperty.set(payee);
         mMemoProperty.set(memo);
         mAmountProperty.set(amount);
@@ -65,7 +66,9 @@ class SplitTransaction {
 
     int getID() { return mID; }
     IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
+    IntegerProperty getTagIDProperty() { return mTagIDProperty; }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
+    Integer getTagID() { return getTagIDProperty().get(); }
     StringProperty getPayeeProperty() { return mPayeeProperty; }
     String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }

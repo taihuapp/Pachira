@@ -23,6 +23,8 @@ package net.taihuapp.pachira;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+import java.util.Objects;
+
 class Tag {
     private int mID;
     private final StringProperty mNameProperty;
@@ -53,5 +55,18 @@ class Tag {
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
     String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String desc) { getDescriptionProperty().set(desc); }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Tag tag = (Tag) o;
+        return Objects.equals(getName(), tag.getName());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getName());
+    }
 }
 

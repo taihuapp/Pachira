@@ -85,7 +85,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 2;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 3;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -851,10 +851,11 @@ public class MainApp extends Application {
 
         final int[] idArray = new int[stList.size()];
         String insertSQL = "insert into SPLITTRANSACTIONS "
-                + "(TRANSACTIONID, CATEGORYID, PAYEE, MEMO, AMOUNT, MATCHTRANSACTIONID) "
-                + "values (?, ?, ?, ?, ?, ?)";
+                + "(TRANSACTIONID, CATEGORYID, PAYEE, MEMO, AMOUNT, MATCHTRANSACTIONID, TAGID) "
+                + "values (?, ?, ?, ?, ?, ?, ?)";
         String updateSQL = "update SPLITTRANSACTIONS set "
-                + "TRANSACTIONID = ?, CATEGORYID = ?, PAYEE = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ? "
+                + "TRANSACTIONID = ?, CATEGORYID = ?, PAYEE = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ?, "
+                + "TAGID = ?"
                 + "where ID = ?";
         try (Statement statement = mConnection.createStatement();
              PreparedStatement insertStatement = mConnection.prepareStatement(insertSQL);
@@ -882,6 +883,7 @@ public class MainApp extends Application {
                     insertStatement.setString(4, memo);
                     insertStatement.setBigDecimal(5, st.getAmount());
                     insertStatement.setInt(6, st.getMatchID());
+                    insertStatement.setInt(7, st.getTagID());
 
                     if (insertStatement.executeUpdate() == 0) {
                         throw new SQLException("Insert to splittransactions failed");
@@ -899,7 +901,8 @@ public class MainApp extends Application {
                     updateStatement.setString(4, memo);
                     updateStatement.setBigDecimal(5, st.getAmount());
                     updateStatement.setInt(6, st.getMatchID());
-                    updateStatement.setInt(7, st.getID());
+                    updateStatement.setInt(7, st.getTagID());
+                    updateStatement.setInt(8, st.getID());
 
                     updateStatement.executeUpdate();
                 }
@@ -1150,14 +1153,23 @@ public class MainApp extends Application {
         }
     }
 
+    int mapTagNameToID(String name) {
+        if (name == null)
+            return 0;
+        for (Tag tag : getTagList())
+            if (tag.getName().equals(name))
+                return tag.getID();
+        return 0;
+    }
+
     // take a transaction id, and a list of split BT, insert the list of bt into database
     // return the number of splitBT inserted, which should be same as the length of
     // the input list
     private int insertSplitBTToDB(int btID, List<QIFParser.BankTransaction.SplitBT> splitBTList) {
         int cnt = 0;
 
-        String sqlCmd = "insert into SPLITTRANSACTIONS (TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, PERCENTAGE) "
-                + "values (?, ?, ?, ?, ?)";
+        String sqlCmd = "insert into SPLITTRANSACTIONS (TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, PERCENTAGE, TAGID) "
+                + "values (?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             for (QIFParser.BankTransaction.SplitBT sbt : splitBTList) {
@@ -1166,7 +1178,7 @@ public class MainApp extends Application {
                 preparedStatement.setString(3, sbt.getMemo());
                 preparedStatement.setBigDecimal(4, sbt.getAmount());
                 preparedStatement.setBigDecimal(5, sbt.getPercentage());
-
+                preparedStatement.setInt(6, mapTagNameToID(sbt.getTag()));
                 preparedStatement.executeUpdate();
                 cnt++;
             }
@@ -1285,8 +1297,8 @@ public class MainApp extends Application {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, CLEARED, CATEGORYID, " +
                     "MEMO, REFERENCE, " +
-                    "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID, TRADEACTION" +
-                    ") values (?,?,?,?,?,?,?,?,?,?,?,?)";
+                    "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID, TRADEACTION, TAGID" +
+                    ") values (?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
             try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
                 String categoryOrTransferStr = bt.getCategoryOrTransfer();
@@ -1295,6 +1307,7 @@ public class MainApp extends Application {
                     // self transferring, set categiryID to 0
                     categoryOrTransferID = 0;
                 }
+                int tagID = mapTagNameToID(bt.getTag());
                 Transaction.TradeAction ta = mapBankingTransactionTA(categoryOrTransferID, bt.getTAmount());
                 preparedStatement.setInt(1, account.getID());
                 preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
@@ -1308,6 +1321,7 @@ public class MainApp extends Application {
                 preparedStatement.setInt(10, addressID);
                 preparedStatement.setInt(11, amortID);
                 preparedStatement.setString(12, ta.name());
+                preparedStatement.setInt(13, tagID);
                 preparedStatement.executeUpdate();
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                     if (resultSet.next()) {
@@ -1828,6 +1842,7 @@ public class MainApp extends Application {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
                 int cid = resultSet.getInt("CATEGORYID");
+                int tagid = resultSet.getInt("TAGID");
                 String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
@@ -1838,7 +1853,7 @@ public class MainApp extends Application {
                 // do we need percentage?
                 // ignore it for now
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
-                stList.add(new SplitTransaction(id, cid, payee, memo, amount, matchID));
+                stList.add(new SplitTransaction(id, cid, tagid, payee, memo, amount, matchID));
             }
         }  catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -2756,8 +2771,11 @@ public class MainApp extends Application {
             }
         }
 
-        qifParser.getCategoryList().forEach(this::insertCategoryToDB);
+        qifParser.getCategorySet().forEach(this::insertCategoryToDB);
         initCategoryList();
+
+        qifParser.getTagSet().forEach(this::insertUpdateTagToDB);
+        initTagList();
 
         for (QIFParser.BankTransaction bt : qifParser.getBankTransactionList()) {
             try {
@@ -3079,13 +3097,45 @@ public class MainApp extends Application {
         mPrimaryStage.setTitle(appName+ " " + dbName);
     }
 
-    // update database from version oldV to version newV.
+    // When oldV < newV, update database from version oldV to version newV.
+    // when oldV == newV, no-op
+    // when oldV > newV, error
     // return true for success and false for failure
-    // it requires oldV < newV.  Otherwise, the behavior is not defined.
+    // Otherwise, the behavior is not defined.
     private void updateDBVersion(int oldV, int newV) throws SQLException, IllegalArgumentException {
-        if (newV == 2) {
+
+        if (oldV == newV)
+            return;  // no op
+
+        if (oldV > newV) {
+            throw new IllegalArgumentException("updateDBVersion called with unsupported versions, " +
+                    "old version: " + oldV + ", new version: " + newV + ".");
+        }
+
+        if (newV == 3) {
+            if (oldV < 2)
+                updateDBVersion(oldV, 2); // bring DB version to 2
+
+            // cleared column was populated with int value of ascii code, now
+            // change them to 0 (default), 1 (cleared), and 2 (reconciled)
+            final String updateSQL0 = "update TRANSACTIONS set cleared = "
+                    + "case cleared "
+                    + "when 42 then 1 " // '*', cleared
+                    + "when 82 then 2 " // 'R', reconciled
+                    + "when 88 then 2 " // 'X', reconciled
+                    + "when 99 then 1 " // 'c', cleared
+                    + "else 0 "         // default
+                    + "end";
+            final String updateSQL1 = "alter table SPLITTRANSACTIONS add (TAGID int)";
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(updateSQL0);
+                statement.executeUpdate(updateSQL1);
+            }
+        } else if (newV == 2) {
             // update to version 1 first
-            updateDBVersion(oldV, 1);
+            if (oldV < 1)
+                updateDBVersion(oldV, 1);
+
             final String alterSQL = "alter table SAVEDREPORTS add (" +
                     "PAYEECONTAINS varchar(80) NOT NULL default '', " +
                     "PAYEEREGEX boolean NOT NULL default FALSE, " +
@@ -3478,6 +3528,7 @@ public class MainApp extends Application {
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "
                 + "TRANSACTIONID integer NOT NULL, "
                 + "CATEGORYID integer, "
+                + "TAGID integer, "
                 + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
                 + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
                 + "AMOUNT decimal(" + AMOUNT_TOTAL_LEN + "," + AMOUNT_FRACTION_LEN + "), "

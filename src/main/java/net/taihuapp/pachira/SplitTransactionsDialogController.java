@@ -53,6 +53,16 @@ public class SplitTransactionsDialogController {
         }
     }
 
+    private class TagToStringConverter extends StringConverter<Integer> {
+        public Integer fromString(String name) {
+            return mMainApp.mapTagNameToID(name);
+        }
+        public String toString(Integer tagid) {
+            Tag tag = mMainApp.getTagByID(tagid);
+            return tag == null ? "" : tag.getName();
+        }
+    }
+
     private MainApp mMainApp;
     private Stage mDialogStage;
     private BigDecimal mNetAmount;
@@ -63,6 +73,8 @@ public class SplitTransactionsDialogController {
     @FXML
     private TableColumn<SplitTransaction, Integer> mCategoryTableColumn;
     @FXML
+    private TableColumn<SplitTransaction, Integer> mTagTableColumn;
+    @FXML
     private TableColumn<SplitTransaction, String> mPayeeTableColumn;
     @FXML
     private TableColumn<SplitTransaction, String> mMemoTableColumn;
@@ -70,6 +82,8 @@ public class SplitTransactionsDialogController {
     private TableColumn<SplitTransaction, BigDecimal> mAmountTableColumn;
     @FXML
     private ComboBox<Integer> mCategoryIDComboBox;
+    @FXML
+    private ComboBox<Integer> mTagIDComboBox;
     @FXML
     private TextField mPayeeTextField;
     @FXML
@@ -100,16 +114,27 @@ public class SplitTransactionsDialogController {
         }
         mCategoryIDComboBox.getSelectionModel().selectFirst();
 
+        mTagIDComboBox.setConverter(new TagToStringConverter());
+        mTagIDComboBox.getItems().clear();
+        mTagIDComboBox.getItems().add(0);
+        for (Tag tag : mMainApp.getTagList())
+            mTagIDComboBox.getItems().add(tag.getID());
+        mTagIDComboBox.getSelectionModel().selectFirst();
+
         mSplitTransactionsTableView.setEditable(true);
         mSplitTransactionsTableView.getItems().clear();
         for (SplitTransaction st : stList) {
             mSplitTransactionsTableView.getItems().add(new SplitTransaction(st.getID(), st.getCategoryID(),
-                    st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID()));
+                    st.getTagID(), st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID()));
         }
 
         mCategoryTableColumn.setCellValueFactory(cd -> cd.getValue().getCategoryIDProperty().asObject());
         mCategoryTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(new CategoryTransferToStringConverter(),
                 mCategoryIDComboBox.getItems()));
+
+        mTagTableColumn.setCellValueFactory(cd -> cd.getValue().getTagIDProperty().asObject());
+        mTagTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(new TagToStringConverter(),
+                mTagIDComboBox.getItems()));
 
         mPayeeTableColumn.setCellValueFactory(cd -> cd.getValue().getPayeeProperty());
         mPayeeTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
@@ -150,11 +175,13 @@ public class SplitTransactionsDialogController {
     @FXML
     private void initialize() {
         mCategoryIDComboBox.setPrefWidth(mCategoryTableColumn.getWidth());
+        mTagIDComboBox.setPrefWidth(mTagTableColumn.getWidth());
         mPayeeTextField.setPrefWidth((mPayeeTableColumn.getWidth()));
         mMemoTextField.setPrefWidth(mMemoTableColumn.getWidth());
         mAmountTextField.setPrefWidth(mAmountTableColumn.getWidth());
 
         mCategoryTableColumn.widthProperty().addListener((ob, o, n) -> mCategoryIDComboBox.setPrefWidth(n.doubleValue()));
+        mTagTableColumn.widthProperty().addListener((ob, o, n) -> mTagIDComboBox.setPrefWidth(n.doubleValue()));
         mPayeeTableColumn.widthProperty().addListener((ob, o, n) -> mPayeeTextField.setPrefWidth(n.doubleValue()));
         mMemoTableColumn.widthProperty().addListener((ob, o, n) -> mMemoTextField.setPrefWidth(n.doubleValue()));
         mAmountTableColumn.widthProperty().addListener((ob, o, n) -> mAmountTextField.setPrefWidth(n.doubleValue()));
@@ -190,7 +217,8 @@ public class SplitTransactionsDialogController {
     @FXML
     private void handleAdd() {
         mSplitTransactionsTableView.getItems().add(new SplitTransaction(-1, mCategoryIDComboBox.getValue(),
-                mPayeeTextField.getText(), mMemoTextField.getText(), new BigDecimal(mAmountTextField.getText()), -1));
+                mTagIDComboBox.getValue(), mPayeeTextField.getText(), mMemoTextField.getText(),
+                new BigDecimal(mAmountTextField.getText()), -1));
         mMemoTextField.setText("");
         updateRemainingAmount();
     }

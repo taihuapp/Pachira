@@ -34,6 +34,33 @@ public class Transaction {
 
     private static final Logger mLogger = Logger.getLogger(Transaction.class);
 
+    enum Status {
+        UNCLEARED, CLEARED, RECONCILED;
+
+        public char toChar() {
+            switch (this) {
+                case CLEARED:
+                    return 'c';
+                case RECONCILED:
+                    return 'R';
+                default:
+                    return ' ';
+            }
+        }
+
+        @Override
+        public String toString() {
+            switch (this) {
+                case CLEARED:
+                    return "Cleared";
+                case RECONCILED:
+                    return "Reconciled";
+                default:
+                    return "Uncleared";
+            }
+        }
+    }
+
     enum TradeAction {
         BUY("Buy Shares"), SELL("Sell Shares"), DIV("Dividend"), REINVDIV("Reinvest Dividend"),
         INTINC("Interest"), REINVINT("Reinvest Interest"),
@@ -56,7 +83,7 @@ public class Transaction {
     private int mAccountID = -1;
     private final ObjectProperty<LocalDate> mTDateProperty = new SimpleObjectProperty<>(LocalDate.now());
     private final ObjectProperty<LocalDate> mADateProperty = new SimpleObjectProperty<>(null);
-    //private StringProperty mTradeActionProperty = new SimpleStringProperty("BUY");
+    private final ObjectProperty<Status> mStatusProperty = new SimpleObjectProperty<>(Status.UNCLEARED);
     private final ObjectProperty<TradeAction> mTradeActionProperty = new SimpleObjectProperty<>(TradeAction.BUY);
     private final StringProperty mSecurityNameProperty = new SimpleStringProperty("");
     private final StringProperty mReferenceProperty = new SimpleStringProperty("");
@@ -108,7 +135,8 @@ public class Transaction {
     ObjectProperty<BigDecimal> getOldQuantityProperty() { return mOldQuantityProperty; }
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
-    //TradeAction getTradeActionEnum() { return TradeAction.valueOf(getTradeAction()); }
+    ObjectProperty<Status> getStatusProperty() { return mStatusProperty; }
+    Status getStatus() { return getStatusProperty().get(); }
     ObjectProperty<TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
     TradeAction getTradeAction() { return getTradeActionProperty().get();}
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
@@ -529,9 +557,10 @@ public class Transaction {
     // Trade Transaction constructor
     // for all transactions, the amount is the notional amount, either 0 or positive
     // tradeAction can not be null
-    public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, String securityName,
-                       String reference, String payee, BigDecimal price, BigDecimal quantity, BigDecimal oldQuantity,
-                       String memo, BigDecimal commission, BigDecimal amount, int categoryID, int tagID, int matchID,
+    public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, Status s,
+                       String securityName, String reference, String payee, BigDecimal price,
+                       BigDecimal quantity, BigDecimal oldQuantity, String memo,
+                       BigDecimal commission, BigDecimal amount, int categoryID, int tagID, int matchID,
                        int matchSplitID, List<SplitTransaction> stList) {
         mID = id;
         mAccountID = accountID;
@@ -550,6 +579,7 @@ public class Transaction {
         mOldQuantityProperty.set(oldQuantity);
         mQuantityProperty.set(quantity);
         mTradeActionProperty.set(ta);
+        mStatusProperty.set(s);
         mAmountProperty.set(amount);
         if (stList != null) {
             for (SplitTransaction st : stList)
@@ -563,7 +593,8 @@ public class Transaction {
 
     // copy constructor
     public Transaction(Transaction t0) {
-        this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getSecurityName(),
+        this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getStatus(),
+                t0.getSecurityName(),
                 t0.getReference(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
                 t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAmount(), t0.getCategoryID(),
                 t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID(), t0.getSplitTransactionList());

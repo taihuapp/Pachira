@@ -101,7 +101,8 @@ public class MainApp extends Application {
     private static final int TRANSACTIONMEMOLEN = 64;
     private static final int TRANSACTIONREFLEN = 8;
     private static final int TRANSACTIONPAYEELEN = 64;
-    private static final int TRANSACTIONTRACEACTIONLEN = 16;
+    private static final int TRANSACTIONTRADEACTIONLEN = 16;
+    private static final int TRANSACTIONSTATUSLEN = 16;
     private static final int TRANSACTIONTRANSFERREMINDERLEN = 40;
     private static final int ADDRESSLINELEN = 32;
 
@@ -736,14 +737,14 @@ public class MainApp extends Application {
         if (t.getID() <= 0) {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
-                    "CLEARED, CATEGORYID, TAGID, MEMO, PRICE, QUANTITY, COMMISSION, " +
+                    "STATUS, CATEGORYID, TAGID, MEMO, PRICE, QUANTITY, COMMISSION, " +
                     "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY, " +
                     "REFERENCE, SPLITFLAG) " +
                     "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
-                    "SECURITYID = ?, CLEARED = ?, CATEGORYID = ?, TAGID = ?, MEMO = ?, " +
+                    "SECURITYID = ?, STATUS = ?, CATEGORYID = ?, TAGID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
                     "PAYEE = ?, ADATE = ?, OLDQUANTITY = ?, REFERENCE = ?, SPLITFLAG = ? " +
@@ -763,7 +764,7 @@ public class MainApp extends Application {
                 preparedStatement.setObject(5, security.getID());
             else
                 preparedStatement.setObject(5, null);
-            preparedStatement.setInt(6, 0); // cleared
+            preparedStatement.setString(6, t.getStatus().name());
             preparedStatement.setInt(7, t.getCategoryID());
             preparedStatement.setInt(8, t.getTagID());
             preparedStatement.setString(9, t.getMemoProperty().get());
@@ -1295,7 +1296,7 @@ public class MainApp extends Application {
         if (success) {
             String sqlCmd;
             sqlCmd = "insert into TRANSACTIONS " +
-                    "(ACCOUNTID, DATE, AMOUNT, CLEARED, CATEGORYID, " +
+                    "(ACCOUNTID, DATE, AMOUNT, STATUS, CATEGORYID, " +
                     "MEMO, REFERENCE, " +
                     "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID, TRADEACTION, TAGID" +
                     ") values (?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -1312,7 +1313,7 @@ public class MainApp extends Application {
                 preparedStatement.setInt(1, account.getID());
                 preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
                 preparedStatement.setBigDecimal(3, bt.getTAmount().abs());
-                preparedStatement.setInt(4, bt.getCleared());
+                preparedStatement.setString(4, bt.getStatus().name());
                 preparedStatement.setInt(5, categoryOrTransferID);
                 preparedStatement.setString(6, bt.getMemo());
                 preparedStatement.setString(7, bt.getReference());
@@ -1370,7 +1371,7 @@ public class MainApp extends Application {
 
         String sqlCmd = "insert into TRANSACTIONS " +
                 "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
-                "CLEARED, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY) " +
+                "STATUS, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY) " +
                 "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
             int cid = mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer());
@@ -1400,7 +1401,7 @@ public class MainApp extends Application {
             } else {
                 preparedStatement.setObject(5, null);
             }
-            preparedStatement.setInt(6, tt.getCleared());
+            preparedStatement.setString(6, tt.getStatus().name());
             preparedStatement.setInt(7, cid);
             preparedStatement.setString(8, tt.getMemo());
             preparedStatement.setBigDecimal(9, tt.getPrice());
@@ -1893,12 +1894,13 @@ public class MainApp extends Application {
                 int tagID = resultSet.getInt("TAGID");
                 Transaction.TradeAction tradeAction = null;
                 String taStr = resultSet.getString("TRADEACTION");
-
                 if (taStr != null && taStr.length() > 0) tradeAction = Transaction.TradeAction.valueOf(taStr);
                 if (tradeAction == null) {
                     mLogger.error("Bad trade action value in transaction " + id);
                     continue;
                 }
+
+                Transaction.Status status = Transaction.Status.valueOf(resultSet.getString("STATUS"));
                 int securityID = resultSet.getInt("SECURITYID");
                 BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
                 BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
@@ -1914,7 +1916,7 @@ public class MainApp extends Application {
                         name = security.getName();
                 }
 
-                Transaction transaction = new Transaction(id, aid, tDate, aDate, tradeAction, name, reference,
+                Transaction transaction = new Transaction(id, aid, tDate, aDate, tradeAction, status, name, reference,
                         payee, price, quantity, oldQuantity, memo, commission, amount, cid, tagID, matchID,
                         matchSplitID, resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null);
 
@@ -3116,20 +3118,26 @@ public class MainApp extends Application {
             if (oldV < 2)
                 updateDBVersion(oldV, 2); // bring DB version to 2
 
-            // cleared column was populated with int value of ascii code, now
-            // change them to 0 (default), 1 (cleared), and 2 (reconciled)
-            final String updateSQL0 = "update TRANSACTIONS set cleared = "
-                    + "case cleared "
-                    + "when 42 then 1 " // '*', cleared
-                    + "when 82 then 2 " // 'R', reconciled
-                    + "when 88 then 2 " // 'X', reconciled
-                    + "when 99 then 1 " // 'c', cleared
-                    + "else 0 "         // default
+            // cleared column was populated with int value of ascii code
+            // setup new STATUS column and set value according to the cleared column
+            // then drop cleared column
+            final String updateSQL0 = "alter table TRANSACTIONS add (STATUS varchar("
+                    + TRANSACTIONSTATUSLEN + ") NOT NULL default '" + Transaction.Status.UNCLEARED.name() + "')";
+            final String updateSQL1 = "update TRANSACTIONS set STATUS = "
+                    + "case CLEARED "
+                    + "when 42 then '" + Transaction.Status.CLEARED.name() + "'"// '*', cleared
+                    + "when 82 then '" + Transaction.Status.RECONCILED.name() + "'"// 'R', reconciled
+                    + "when 88 then '" + Transaction.Status.RECONCILED.name() + "'"// 'X', reconciled
+                    + "when 99 then '" + Transaction.Status.CLEARED.name() + "'"// 'c', cleared
+                    + "else '" + Transaction.Status.UNCLEARED.name() + "'" // default uncleared
                     + "end";
-            final String updateSQL1 = "alter table SPLITTRANSACTIONS add (TAGID int)";
+            final String updateSQL2 = "alter table TRANSACTIONS drop CLEARED";
+            final String updateSQL3 = "alter table SPLITTRANSACTIONS add (TAGID int)";
             try (Statement statement = mConnection.createStatement()) {
                 statement.executeUpdate(updateSQL0);
                 statement.executeUpdate(updateSQL1);
+                statement.executeUpdate(updateSQL2);
+                statement.executeUpdate(updateSQL3);
             }
         } else if (newV == 2) {
             // update to version 1 first
@@ -3573,7 +3581,7 @@ public class MainApp extends Application {
                 + "DATE date NOT NULL, "
                 + "ADATE date, "
                 + "AMOUNT decimal(20,4), "
-                + "CLEARED integer, "
+                + "STATUS varchar(" + TRANSACTIONSTATUSLEN + ") not null, " // status
                 + "CATEGORYID integer, "   // positive for category ID, negative for transfer account id
                 + "TAGID integer, "
                 + "MEMO varchar(" + TRANSACTIONMEMOLEN + "), "
@@ -3582,7 +3590,7 @@ public class MainApp extends Application {
                 + "SPLITFLAG boolean, "
                 + "ADDRESSID integer, "
                 + "AMORTIZATIONID integer, "
-                + "TRADEACTION varchar(" + TRANSACTIONTRACEACTIONLEN + "), "
+                + "TRADEACTION varchar(" + TRANSACTIONTRADEACTIONLEN + "), "
                 + "SECURITYID integer, "
                 + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "), "
                 + "QUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "

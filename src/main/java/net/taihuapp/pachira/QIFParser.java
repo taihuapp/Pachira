@@ -298,7 +298,7 @@ class QIFParser {
         private LocalDate mDate;
         private BigDecimal mTAmount;
         private BigDecimal mUAmount;  // not sure what's the difference between T and U amounts
-        private char mCleared;  // 0 for not present, 1 for *, 2 for X
+        private Transaction.Status mStatus;
         private String mCheckNumber; // check number or ref, such as ATM, etc, so string is used
         private String mPayee;
         private String mMemo;
@@ -310,7 +310,7 @@ class QIFParser {
 
         // default constructor
         BankTransaction() {
-            mCleared = ' ';
+            mStatus = Transaction.Status.UNCLEARED; // default
             mAddressList = new ArrayList<>();
             mSplitList = new ArrayList<>();
             mAmortizationLines = null;
@@ -333,7 +333,21 @@ class QIFParser {
         void setDate(LocalDate d) { mDate = d; }
         void setTAmount(BigDecimal t) { mTAmount = t; }
         void setUAmount(BigDecimal u) { mUAmount = u; }
-        void setCleared(char c) { mCleared = c; }
+        void setStatus(char c) {
+            switch (c) {
+                case 'c':
+                case '*':
+                    mStatus = Transaction.Status.CLEARED;
+                    break;
+                case 'X':
+                case 'R':
+                    mStatus = Transaction.Status.RECONCILED;
+                    break;
+                default:
+                    mStatus = Transaction.Status.UNCLEARED;
+                    break;
+            }
+        }
         void setReference(String r) { mCheckNumber = r; }
         void setPayee(String p) { mPayee = p; }
         void setMemo(String m) { mMemo = m; }
@@ -351,18 +365,7 @@ class QIFParser {
         LocalDate getDate() { return mDate; }
         BigDecimal getTAmount() { return mTAmount; }
         BigDecimal getUAmount() { return mUAmount; }
-        int getCleared() {
-            switch (mCleared) {
-                case 'c':
-                case '*':
-                    return 1;
-                case 'X':
-                case 'R':
-                    return 2;
-                default:
-                    return 0;
-            }
-        }
+        Transaction.Status getStatus() { return mStatus; }
 
         String getCategoryOrTransfer() { return mCategory; }
         String getTag() { return mTag; }
@@ -388,7 +391,7 @@ class QIFParser {
                         bt.setUAmount(new BigDecimal(l.substring(1).replace(",","")));
                         break;
                     case 'C':
-                        bt.setCleared(l.charAt(1));
+                        bt.setStatus(l.charAt(1));
                         break;
                     case 'N':
                         bt.setReference(l.substring(1));
@@ -475,7 +478,7 @@ class QIFParser {
         private String mSecurityName;
         private BigDecimal mPrice;
         private BigDecimal mQuantity;
-        private char mCleared; // C line
+        private Transaction.Status mStatus;
         private String mTransferReminderText; // P line
         private String mMemo;
         private BigDecimal mCommission;
@@ -486,7 +489,7 @@ class QIFParser {
         private BigDecimal mAmountTransferred; // $ line
 
         TradeTransaction() {
-            mCleared = ' ';
+            mStatus = Transaction.Status.UNCLEARED;
             mCommission = BigDecimal.ZERO;
             mPrice = BigDecimal.ZERO; // shouldn't leave it as null
         }
@@ -498,7 +501,21 @@ class QIFParser {
         void setSecurityName(String n) { mSecurityName = n; }
         void setPrice(BigDecimal p) { mPrice = p; }
         void setQuantity(BigDecimal q) { mQuantity = q; }
-        void setCleared(char c) { mCleared = c; }
+        void setStatus(char c) {
+            switch (c) {
+                case 'c':
+                case '*':
+                    mStatus = Transaction.Status.CLEARED;
+                    break;
+                case 'R':
+                case 'X':
+                    mStatus = Transaction.Status.RECONCILED;
+                    break;
+                default:
+                    mStatus = Transaction.Status.UNCLEARED;
+                    break;
+            }
+        }
         void setTransferReminderText(String t) { mTransferReminderText = t; }
         void setMemo(String m) { mMemo = m; }
         void setCommission(BigDecimal c) { mCommission = c; }
@@ -515,18 +532,7 @@ class QIFParser {
         BigDecimal getUAmount() { return mUAmount; }
         Action getAction() { return mAction; }
         String getSecurityName() { return mSecurityName; }
-        int getCleared() {
-            switch (mCleared) {
-                case 'c':
-                case '*':
-                    return 1;
-                case 'X':
-                case 'R':
-                    return 2;
-                default:
-                    return 0;
-            }
-        }
+        Transaction.Status getStatus() { return mStatus; }
         String getCategoryOrTransfer() { return mCategoryOrTransfer; }
         String getTag() { return mTag; }
         String getMemo() { return mMemo; }
@@ -555,7 +561,7 @@ class QIFParser {
                         tt.setQuantity(new BigDecimal(l.substring(1).replace(",", "")));
                         break;
                     case 'C':
-                        tt.setCleared(l.charAt(1));
+                        tt.setStatus(l.charAt(1));
                         break;
                     case 'P':
                         tt.setTransferReminderText(l.substring(1));

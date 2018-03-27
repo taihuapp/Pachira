@@ -1,26 +1,34 @@
 .table-row-cell:even {
-    -fx-background-color: -fx-table-cell-border-color, derive(-fx-control-inner-background, 0%);
+    -fx-background-color: -fx-table-cell-border-color, derive(honeydew, -5%);
     -fx-background-insets: 0, 0 0 1 0;
 }
 
 .table-row-cell:odd {
-    -fx-background-color: -fx-table-cell-border-color, derive(-fx-control-inner-background,-5%);
+    -fx-background-color: -fx-table-cell-border-color, derive(honeydew, -15%);
+    -fx-background-insets: 0, 0 0 1 0;
+}
+
+.table-row-cell:reconciled:even {
+    -fx-background-color: -fx-table-cell-border-color, derive(lightgrey, -5%);
+    -fx-background-insets: 0, 0 0 1 0;
+}
+
+.table-row-cell:reconciled:odd {
+    -fx-background-color: -fx-table-cell-border-color, derive(lightgrey, -15%);
     -fx-background-insets: 0, 0 0 1 0;
 }
 
 .table-row-cell:even:future {
-    -fx-background-color: bisque;
+    -fx-background-color: -fx-table-cell-border-color, derive(lightyellow, 0%);
     -fx-background-insets: 0, 0 0 1 0;
 }
 
 .table-row-cell:odd:future {
-    //-fx-background-color: derive(#fff8d8, -15%);
-    -fx-background-color: derive(bisque, -15%);
+    -fx-background-color: -fx-table-cell-border-color, derive(lightyellow, -10%);
     -fx-background-insets: 0, 0 0 1 0;
 }
 
-.table-row-cell:selected,
- .table-row-cell:future:selected {
+.table-row-cell:selected, .table-row-cell:reconciled:selected, .table-row-cell:future:selected {
     -fx-background-color: dodgerblue;
     -fx-text-fill: -fx-selection-bar-text;
 }

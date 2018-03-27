@@ -137,6 +137,8 @@ public class Transaction {
 
     ObjectProperty<Status> getStatusProperty() { return mStatusProperty; }
     Status getStatus() { return getStatusProperty().get(); }
+    void setStatus(Status s) { getStatusProperty().set(s); }
+
     ObjectProperty<TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
     TradeAction getTradeAction() { return getTradeActionProperty().get();}
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }

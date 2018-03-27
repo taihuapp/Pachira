@@ -20,9 +20,23 @@
   ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   -->
 
-<?import javafx.geometry.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TreeTableColumn?>
+<?import javafx.scene.control.TreeTableView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
 <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="60.0" minWidth="100.0" prefHeight="600.0" prefWidth="1000.0" stylesheets="@../css/Main.css" xmlns="http://javafx.com/javafx/8.0.152" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.MainController">
    <center>
       <VBox fx:id="mTransactionVBox" BorderPane.alignment="CENTER">
@@ -40,6 +54,7 @@
             </HBox>
             <TableView fx:id="mTransactionTableView" VBox.vgrow="ALWAYS">
               <columns>
+                  <TableColumn fx:id="mTransactionStatusColumn" maxWidth="50.0" prefWidth="30.0" text="Clr" />
                   <TableColumn fx:id="mTransactionDateColumn" prefWidth="85.0" text="Date" />
                   <TableColumn fx:id="mTransactionTradeActionColumn" prefWidth="75.0" text="Action" />
                   <TableColumn fx:id="mTransactionSecurityNameColumn" prefWidth="120.0" text="Security" />

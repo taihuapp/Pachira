@@ -3114,6 +3114,9 @@ public class MainApp extends Application {
                     "old version: " + oldV + ", new version: " + newV + ".");
         }
 
+        // need to run this to update DBVERSION
+        final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
+
         if (newV == 3) {
             if (oldV < 2)
                 updateDBVersion(oldV, 2); // bring DB version to 2
@@ -3138,6 +3141,7 @@ public class MainApp extends Application {
                 statement.executeUpdate(updateSQL1);
                 statement.executeUpdate(updateSQL2);
                 statement.executeUpdate(updateSQL3);
+                statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 2) {
             // update to version 1 first
@@ -3149,7 +3153,6 @@ public class MainApp extends Application {
                     "PAYEEREGEX boolean NOT NULL default FALSE, " +
                     "MEMOCONTAINS varchar(80) NOT NULL default '', " +
                     "MEMOREGEX boolean NOT NULL default FALSE)";
-            final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
             try (Statement statement = mConnection.createStatement()) {
                 statement.executeUpdate(alterSQL);
                 statement.executeUpdate(mergeSQL);
@@ -3164,7 +3167,6 @@ public class MainApp extends Application {
                     "set TRADEACTION = casewhen(TRADEACTION = 'WITHDRAW', 'XOUT', 'XIN') " +
                     "where categoryid < 0 and categoryid <> - accountid and  " +
                     "(tradeaction = 'DEPOSIT' OR TRADEACTION = 'WITHDRAW')";
-            final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
             try (Statement statement = mConnection.createStatement()) {
                 statement.executeUpdate(updateSQL0);
                 statement.executeUpdate(updateSQL1);
@@ -3216,6 +3218,33 @@ public class MainApp extends Application {
                 mLogger.error("SQLException " + e.getSQLState(), e);
             }
         }
+    }
+
+    // update Status column in Transaction Table for the given tid.
+    // return true for success and false for failure.
+    boolean setTransactionStatusInDB(int tid, Transaction.Status s) {
+        boolean savepointSetHere = false;
+        try (Statement statement = mConnection.createStatement()) {
+            savepointSetHere = setDBSavepoint();
+            statement.executeUpdate("update TRANSACTIONS set STATUS = '" + s.name() + "' where ID = " + tid);
+            if (savepointSetHere)
+                commitDB();
+            return true;
+        } catch (SQLException e) {
+            if (savepointSetHere) {
+                try {
+                    rollbackDB();
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
+                    showExceptionDialog("Database Error", "Unable update transaction status",
+                            SQLExceptionToString(e), e);
+                } catch (SQLException e1) {
+                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
+                    showExceptionDialog("Database Error", "Unable to rollback",
+                            SQLExceptionToString(e1), e1);
+                }
+            }
+        }
+        return false;
     }
 
     // Alter (including insert and delete a transaction, both in DB and in MasterList.

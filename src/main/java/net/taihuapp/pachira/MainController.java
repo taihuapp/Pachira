@@ -89,6 +89,8 @@ public class MainController {
     @FXML
     private TableView<Transaction> mTransactionTableView;
     @FXML
+    private TableColumn<Transaction, Transaction.Status> mTransactionStatusColumn;
+    @FXML
     private TableColumn<Transaction, LocalDate> mTransactionDateColumn;
     @FXML
     private TableColumn<Transaction, String> mTransactionReferenceColumn;
@@ -438,6 +440,7 @@ public class MainController {
             mTransactionTableView.scrollTo(selectedIdx);
         else
             mTransactionTableView.scrollTo(account.getTransactionList().size()-1);
+        mTransactionStatusColumn.setVisible(true);
         mTransactionTradeActionColumn.setVisible(isTradingAccount);
         mTransactionReferenceColumn.setVisible(!isTradingAccount);
         mTransactionPayeeColumn.setVisible(!isTradingAccount);
@@ -451,6 +454,11 @@ public class MainController {
         mTransactionDescriptionColumn.setVisible(isTradingAccount);
         mTransactionInvestAmountColumn.setVisible(isTradingAccount);
         mTransactionCashAmountColumn.setVisible(isTradingAccount);
+    }
+
+    private boolean showChangeReconciledConfirmation() {
+        return MainApp.showConfirmationDialog("Confirmation","Reconciled transaction?",
+                "Do you really want to change it?");
     }
 
     @FXML
@@ -489,14 +497,20 @@ public class MainController {
         mAccountTreeTableView.getSelectionModel().selectedItemProperty().addListener(mSelectedTreeItemChangeListener);
 
         PseudoClass future = PseudoClass.getPseudoClass("future");
+        PseudoClass reconciled = PseudoClass.getPseudoClass("reconciled");
 
         mTransactionTableView.setRowFactory(tv -> {
             final TableRow<Transaction> row = new TableRow<>();
             final ContextMenu contextMenu = new ContextMenu();
             final MenuItem deleteMI = new MenuItem("Delete");
             deleteMI.setOnAction(e -> {
+                if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                        && !showChangeReconciledConfirmation())
+                    return;
                 // delete this transaction
-                mMainApp.alterTransaction(row.getItem(), null, new ArrayList<>());
+                if (MainApp.showConfirmationDialog("Confirmation","Delete transaction?",
+                "Do you really want to delete it?"))
+                    mMainApp.alterTransaction(row.getItem(), null, new ArrayList<>());
             });
             final Menu moveToMenu = new Menu("Move to...");
             for (Account.Type at : Account.Type.values()) {
@@ -509,6 +523,9 @@ public class MainController {
                         if (a.getID() != row.getItem().getAccountID()) {
                             MenuItem accountMI = new MenuItem(a.getName());
                             accountMI.setOnAction(e1 -> {
+                                if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                                        && !showChangeReconciledConfirmation())
+                                    return;
                                 Transaction oldT = row.getItem();
                                 List<SecurityHolding.MatchInfo> matchInfoList = mMainApp.getMatchInfoList(oldT.getID());
                                 if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
@@ -549,13 +566,34 @@ public class MainController {
                     mi.setVisible(isCash || mi.getText().equals(Account.Type.INVESTING.name()));
                 }
             });
+
+            for (Transaction.Status status : Transaction.Status.values()) {
+                MenuItem statusMI = new MenuItem("Mark as " + status.toString());
+                statusMI.setOnAction(e -> {
+                    if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                            && !showChangeReconciledConfirmation())
+                        return;
+                    if (mMainApp.setTransactionStatusInDB(row.getItem().getID(), status))
+                        row.getItem().setStatus(status);
+                    else
+                        showWarningDialog("Database problem",
+                                    "Unable to change transaction status in DB",
+                                    "Transaction status unchanged.");
+                });
+                contextMenu.getItems().add(statusMI);
+            }
+            contextMenu.getItems().add(new SeparatorMenuItem());
             contextMenu.getItems().add(deleteMI);
             contextMenu.getItems().add(moveToMenu);
+
             row.contextMenuProperty().bind(Bindings.when(row.emptyProperty()).then((ContextMenu) null)
                     .otherwise(contextMenu));
             // double click to edit the transaction
             row.setOnMouseClicked(event -> {
                 if ((event.getClickCount() == 2) && (!row.isEmpty())) {
+                    if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                            && !showChangeReconciledConfirmation())
+                        return;
                     final Transaction transaction = row.getItem();
                     int selectedTransactionID = transaction.getID();
                     if (transaction.getMatchID() > 0) {
@@ -591,15 +629,58 @@ public class MainController {
                 }
             });
 
-            // put future transaction rows into a different color
-            row.itemProperty().addListener((obs, oTransaction, nTransaction)
-                    -> row.pseudoClassStateChanged(future, (nTransaction != null)
-                    && nTransaction.getTDate().isAfter(LocalDate.now())));
+            // setup pseudoclasses
+            ChangeListener<Transaction.Status> statusChangeListener = (obs, oStatus, nStatus) -> {
+                row.pseudoClassStateChanged(reconciled, nStatus.equals(Transaction.Status.RECONCILED));
+                for (MenuItem mi : contextMenu.getItems()) {
+                    mi.setDisable((mi.getText() != null) && mi.getText().endsWith(nStatus.toString()));
+                }
+            };
+            ChangeListener<LocalDate> dateChangeListener = (obs, oDate, nDate)
+                    -> row.pseudoClassStateChanged(future, nDate.isAfter(LocalDate.now()));
+
+            row.itemProperty().addListener((obs, oTransaction, nTransaction) -> {
+                if (oTransaction != null) {
+                    oTransaction.getStatusProperty().removeListener(statusChangeListener);
+                    oTransaction.getTDateProperty().removeListener(dateChangeListener);
+                }
+                if (nTransaction != null) {
+                    nTransaction.getStatusProperty().addListener(statusChangeListener);
+                    nTransaction.getTDateProperty().addListener(dateChangeListener);
+
+                    row.pseudoClassStateChanged(reconciled,
+                            nTransaction.getStatus().equals(Transaction.Status.RECONCILED));
+                    row.pseudoClassStateChanged(future, nTransaction.getTDate().isAfter(LocalDate.now()));
+
+                    for (MenuItem mi : contextMenu.getItems()) {
+                        mi.setDisable((mi.getText() != null)
+                                && mi.getText().endsWith(nTransaction.getStatus().toString()));
+                    }
+                } else {
+                    row.pseudoClassStateChanged(reconciled, false);
+                    row.pseudoClassStateChanged(future, false);
+                }
+            });
+
             return row;
         });
         mTransactionTableView.getStylesheets().add(getClass().getResource("/css/TransactionTableView.css").toExternalForm());
 
         // transaction table
+        mTransactionStatusColumn.setCellValueFactory(cd -> cd.getValue().getStatusProperty());
+        mTransactionStatusColumn.setCellFactory(c -> new TableCell<Transaction, Transaction.Status>() {
+            @Override
+            protected void updateItem(Transaction.Status item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(String.valueOf(item.toChar()));
+                    setStyle("-fx-alignment: CENTER;");
+                }
+            }
+        });
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getTDateProperty());
         mTransactionDateColumn.setStyle( "-fx-alignment: CENTER;");
         mTransactionTradeActionColumn.setCellValueFactory(cellData -> cellData.getValue().getTradeActionProperty());

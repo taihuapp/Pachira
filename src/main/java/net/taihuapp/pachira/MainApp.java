@@ -285,6 +285,7 @@ public class MainApp extends Application {
     }
 
     void deleteTransactionFromDB(int tid) {
+        mLogger.debug("deleteTransactionFromDB(" + tid + ")");
         String sqlCmd = "delete from TRANSACTIONS where ID = ?";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setInt(1, tid);
@@ -1979,6 +1980,24 @@ public class MainApp extends Application {
         }
     }
 
+    void showReconcileDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(getClass().getResource("/view/ReconcileDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mPrimaryStage);
+            dialogStage.setTitle("Reconcile Account: " + getCurrentAccount().getName());
+            dialogStage.setScene(new Scene(loader.load()));
+            ReconcileDialogController controller = loader.getController();
+            controller.setMainApp(this, dialogStage);
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            mLogger.error("IOException", e);
+        }
+    }
+
     void showReportDialog(ReportDialogController.Setting setting) {
         try {
             FXMLLoader loader = new FXMLLoader();
@@ -3400,6 +3419,7 @@ public class MainApp extends Application {
                         }
                     }
                     if (!updated) {
+                        mLogger.debug("deleteTransactionFromDB("+stLinkedTID+")");
                         deleteTransactionFromDB(stLinkedTID);
                         deleteTIDSet.add(stLinkedTID);
                         accountIDSet.add(-st.getCategoryID());
@@ -3417,15 +3437,20 @@ public class MainApp extends Application {
                         }
                     }
                     if (!updated) {
+                        mLogger.debug("deleteTransactionFromDB("+oldLinkedTID+")");
                         deleteTransactionFromDB(oldLinkedTID);
                         deleteTIDSet.add(oldLinkedTID);
                         accountIDSet.add(-oldT.getCategoryID());
                     }
                 }
 
-                deleteTransactionFromDB(oldT.getID());
-                deleteTIDSet.add(oldT.getID());
-                accountIDSet.add(oldT.getAccountID());
+                if ((newT != null) && (oldT.getID() != newT.getID())) {
+                    // delete oldT if it is no longer needed.
+                    mLogger.debug("deleteTransactionFromDB(" + oldT.getID() + ")");
+                    deleteTransactionFromDB(oldT.getID());
+                    deleteTIDSet.add(oldT.getID());
+                    accountIDSet.add(oldT.getAccountID());
+                }
             }
 
             // now commit
@@ -3881,7 +3906,6 @@ public class MainApp extends Application {
         // set error stream to a file in the current directory
         mLogger.info(MainApp.class.getPackage().getImplementationTitle()
                 + " " + MainApp.class.getPackage().getImplementationVersion());
-
         launch(args);
     }
 }

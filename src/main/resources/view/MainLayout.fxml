@@ -47,9 +47,22 @@
                      <padding>
                         <Insets left="20.0" right="10.0" />
                      </padding>
+                     <HBox.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </HBox.margin>
                   </Label>
-                  <Button fx:id="mEnterTransactionButton" mnemonicParsing="false" onAction="#handleEnterTransaction" text="Enter Transaction" />
-                  <Button fx:id="mTransactionShowHoldingsButton" mnemonicParsing="false" onAction="#handleShowHoldings" text="Show Holdings" />
+                  <Button fx:id="mEnterTransactionButton" mnemonicParsing="false" onAction="#handleEnterTransaction" text="Enter Transaction">
+                     <HBox.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </HBox.margin></Button>
+                  <Button fx:id="mTransactionReconcileButton" mnemonicParsing="false" onAction="#handleReconcile" text="Reconcile">
+                     <HBox.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </HBox.margin></Button>
+                  <Button fx:id="mTransactionShowHoldingsButton" mnemonicParsing="false" onAction="#handleShowHoldings" text="Show Holdings">
+                     <HBox.margin>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </HBox.margin></Button>
                </children>
             </HBox>
             <TableView fx:id="mTransactionTableView" VBox.vgrow="ALWAYS">

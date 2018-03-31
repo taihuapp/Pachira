@@ -85,6 +85,8 @@ public class MainController {
     private Button mEnterTransactionButton;
     @FXML
     private Button mTransactionShowHoldingsButton;
+    @FXML
+    private Button mTransactionReconcileButton;
 
     @FXML
     private TableView<Transaction> mTransactionTableView;
@@ -417,6 +419,11 @@ public class MainController {
     @FXML
     private void handleShowHoldings() {
         mMainApp.showAccountHoldings();
+    }
+
+    @FXML
+    private void handleReconcile() {
+        mMainApp.showReconcileDialog();
     }
 
     private void showAccountTransactions(Account account) {

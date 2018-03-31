@@ -121,6 +121,12 @@ public class Account {
     BigDecimal getCurrentBalance() { return getCurrentBalanceProperty().get(); }
     void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
 
+    // compute cash balance of reconciled transactions
+    BigDecimal getReconciledBalance() {
+        return getTransactionList().stream().filter(t -> t.getStatus().equals(Transaction.Status.RECONCILED))
+                .map(Transaction::getCashAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     // update balance field for each transaction for non INVESTING account
     // no-op for INVESTING accounts
     void updateTransactionListBalance() {

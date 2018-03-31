@@ -412,6 +412,7 @@ public class EditTransactionDialogController {
                         accountSet.add(t.getAccountID());
                         if (delete) {
                             deleteList.add(st.getMatchID());
+                            mLogger.debug("deleteTransactionFromDB("+st.getMatchID()+")");
                             mMainApp.deleteTransactionFromDB(st.getMatchID());
                         }
                     }
@@ -425,6 +426,7 @@ public class EditTransactionDialogController {
                     if (t != null) {
                         accountSet.add(t.getAccountID());
                         deleteList.add(mTransactionOrig.getMatchID());
+                        mLogger.debug("deleteTransactionFromDB("+mTransactionOrig.getMatchID()+")");
                         mMainApp.deleteTransactionFromDB(mTransactionOrig.getMatchID());
                     }
                 }

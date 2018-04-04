@@ -102,6 +102,7 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mSignedQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mDescriptionProperty = new SimpleStringProperty("");
@@ -132,6 +133,7 @@ public class Transaction {
     ObjectProperty<BigDecimal> getCommissionProperty() { return mCommissionProperty; }
     ObjectProperty<BigDecimal> getBalanceProperty() { return mBalanceProperty; }
     ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
+    ObjectProperty<BigDecimal> getSignedQuantityProperty() { return mSignedQuantityProperty; }
     ObjectProperty<BigDecimal> getOldQuantityProperty() { return mOldQuantityProperty; }
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
@@ -194,6 +196,43 @@ public class Transaction {
     }
 
     private void bindProperties() {
+        // SignedQuantity depends on TradeAction and Quantity
+        mSignedQuantityProperty.bind(Bindings.createObjectBinding(() -> {
+            switch (getTradeAction()) {
+                case SELL:
+                case SHTSELL:
+                case SHRSOUT:
+                    return getQuantity().negate();
+                case BUY:
+                case CVTSHRT:
+                case DEPOSIT:
+                case DIV:
+                case CGLONG:
+                case CGMID:
+                case CGSHORT:
+                case INTINC:
+                case MISCINC:
+                case MISCEXP:
+                case REINVDIV:
+                case REINVINT:
+                case REINVSH:
+                case REINVMD:
+                case REINVLG:
+                case RTRNCAP:
+                case SHRSIN:
+                case WITHDRAW:
+                case XIN:
+                case XOUT:
+                case MARGINT:
+                case STKSPLIT:
+                    return getQuantity();
+                case XFRSHRS:
+                default:
+                    mLogger.error("getSignedQuantity not implemented for " + getTradeAction());
+                    return getQuantity();
+            }
+        }, mTradeActionProperty, mQuantityProperty));
+
         // mCashAmountProperty and mInvestAmountProperty depends on mTradeActionProperty and mAmountProperty
         mCashAmountProperty.bind(Bindings.createObjectBinding(() -> {
             switch (getTradeAction()) {
@@ -401,41 +440,7 @@ public class Transaction {
         }
     }
 
-    BigDecimal getSignedQuantity() {
-        switch (getTradeAction()) {
-            case SELL:
-            case SHTSELL:
-            case SHRSOUT:
-                return getQuantity().negate();
-            case BUY:
-            case CVTSHRT:
-            case DEPOSIT:
-            case DIV:
-            case CGLONG:
-            case CGMID:
-            case CGSHORT:
-            case INTINC:
-            case MISCINC:
-            case MISCEXP:
-            case REINVDIV:
-            case REINVINT:
-            case REINVSH:
-            case REINVMD:
-            case REINVLG:
-            case RTRNCAP:
-            case SHRSIN:
-            case WITHDRAW:
-            case XIN:
-            case XOUT:
-            case MARGINT:
-                return getQuantity();
-            case XFRSHRS:
-            case STKSPLIT:
-            default:
-                mLogger.error("getSignedQuantity not implemented for " + getTradeAction());
-                return getQuantity();
-        }
-    }
+    BigDecimal getSignedQuantity() { return getSignedQuantityProperty().get(); }
 
     // setters
     void setID(int id) { mID = id; }

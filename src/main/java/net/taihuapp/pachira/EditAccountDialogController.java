@@ -88,7 +88,7 @@ public class EditAccountDialogController {
         if (mAccount == null) {
             mAccount = new Account(0, mTypeChoiceBox.getValue(), name,
                     mDescriptionTextArea.getText(), mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE,
-                    BigDecimal.ZERO);
+                    null, BigDecimal.ZERO);
         } else {
             mAccount.setName(name);
             mAccount.setDescription(mDescriptionTextArea.getText());

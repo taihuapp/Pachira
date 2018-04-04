@@ -85,8 +85,6 @@ public class MainController {
     private Button mEnterTransactionButton;
     @FXML
     private Button mTransactionShowHoldingsButton;
-    @FXML
-    private Button mTransactionReconcileButton;
 
     @FXML
     private TableView<Transaction> mTransactionTableView;
@@ -137,7 +135,7 @@ public class MainController {
 
     private void populateTreeTable() {
         final Account rootAccount = new Account(-1, null, "Total", "Placeholder for total asset",
-                false, -1, BigDecimal.ZERO);
+                false, -1, null, BigDecimal.ZERO);
         final TreeItem<Account> root = new TreeItem<>(rootAccount);
         root.setExpanded(true);
         mAccountTreeTableView.setRoot(root);
@@ -146,7 +144,7 @@ public class MainController {
                 new Observable[] {account.getCurrentBalanceProperty()});
         for (Account.Type t : Account.Type.values()) {
             Account groupAccount = new Account(-1, t, t.toString(),"Placeholder for " + t.toString(),
-                    false, -1, BigDecimal.ZERO);
+                    false, -1, null, BigDecimal.ZERO);
             groupAccountList.add(groupAccount);
             TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
             typeNode.setExpanded(true);

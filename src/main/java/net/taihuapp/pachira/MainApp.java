@@ -35,6 +35,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 
@@ -85,7 +86,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 3;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 4;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -1075,7 +1076,8 @@ public class MainApp extends Application {
                 sqlCmd = "update PRICES set PRICE = ? where SECURITYID = ? and DATE = ?";
                 break;
             case 3:
-                return insertUpdatePriceToDB(securityID, date, p, 0) || insertUpdatePriceToDB(securityID, date, p, 2);
+                return insertUpdatePriceToDB(securityID, date, p, 0)
+                        || insertUpdatePriceToDB(securityID, date, p, 2);
             default:
                 throw new IllegalArgumentException("insertUpdatePriceToDB called with bad mode = " + mode);
         }
@@ -1474,10 +1476,12 @@ public class MainApp extends Application {
         String sqlCmd;
         if (account.getID() < MIN_ACCOUNT_ID) {
             // new account, insert
-            sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER) values (?,?,?,?,?)";
+            sqlCmd = "insert into ACCOUNTS (TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER, LASTRECONCILEDATE) "
+                    + "values (?,?,?,?,?,?)";
         } else {
-            sqlCmd = "update ACCOUNTS set TYPE = ?, NAME = ?, DESCRIPTION = ? , HIDDENFLAG = ?, DISPLAYORDER = ? " +
-                    "where ID = ?";
+            sqlCmd = "update ACCOUNTS set "
+                    + "TYPE = ?, NAME = ?, DESCRIPTION = ? , HIDDENFLAG = ?, DISPLAYORDER = ?, LASTRECONCILEDATE = ? "
+                    + "where ID = ?";
         }
 
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
@@ -1486,8 +1490,9 @@ public class MainApp extends Application {
             preparedStatement.setString(3, account.getDescription());
             preparedStatement.setBoolean(4, account.getHiddenFlag());
             preparedStatement.setInt(5, account.getDisplayOrder());
+            preparedStatement.setObject(6, account.getLastReconcileDate());
             if (account.getID() >= MIN_ACCOUNT_ID) {
-                preparedStatement.setInt(6, account.getID());
+                preparedStatement.setInt(7, account.getID());
             }
             if (preparedStatement.executeUpdate() == 0) {
                 throw new SQLException("Insert Account failed, no rows affected");
@@ -1787,7 +1792,7 @@ public class MainApp extends Application {
         if (mConnection == null) return;
 
         try (Statement statement = mConnection.createStatement()) {
-            String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER "
+            String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER, LASTRECONCILEDATE "
                     + "from ACCOUNTS"; // order by TYPE, ID";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
@@ -1797,7 +1802,9 @@ public class MainApp extends Application {
                 String description = rs.getString("DESCRIPTION");
                 Boolean hiddenFlag = rs.getBoolean("HIDDENFLAG");
                 Integer displayOrder = rs.getInt("DISPLAYORDER");
-                mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder, BigDecimal.ZERO));
+                LocalDate lastReconcileDate = rs.getObject("LASTRECONCILEDATE", LocalDate.class);
+                mAccountList.add(new Account(id, type, name, description, hiddenFlag, displayOrder,
+                        lastReconcileDate, BigDecimal.ZERO));
             }
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -1992,6 +1999,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             ReconcileDialogController controller = loader.getController();
             controller.setMainApp(this, dialogStage);
+            dialogStage.setOnCloseRequest(e -> controller.handleCancel());
             dialogStage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
@@ -2766,7 +2774,7 @@ public class MainApp extends Application {
             }
             if (at != null) {
                 insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
-                        Integer.MAX_VALUE, BigDecimal.ZERO));
+                        Integer.MAX_VALUE, null, BigDecimal.ZERO));
             } else {
                 mLogger.error("Unknown account type: " + qa.getType()
                         + " for account [" + qa.getName() + "], skip.");
@@ -3088,6 +3096,7 @@ public class MainApp extends Application {
             // run update
             try {
                 updateDBVersion(dbVersion, DBVERSIONVALUE);
+                mLogger.info("DBVersion updated from " + dbVersion + " to " + DBVERSIONNAME);
                 showInformationDialog("Database Version Updated",
                         "Database Version Updated from " + dbVersion + " to " + DBVERSIONVALUE,
                         "Your database was updated from version " + dbVersion + " to " + DBVERSIONVALUE + ". " +
@@ -3136,7 +3145,16 @@ public class MainApp extends Application {
         // need to run this to update DBVERSION
         final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
 
-        if (newV == 3) {
+        if (newV == 4) {
+            if (oldV < 3)
+                updateDBVersion(oldV, 3);
+
+            final String updateSQL = "alter table ACCOUNTS add (LASTRECONCILEDATE Date)";
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(updateSQL);
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 3) {
             if (oldV < 2)
                 updateDBVersion(oldV, 2); // bring DB version to 2
 
@@ -3237,6 +3255,81 @@ public class MainApp extends Application {
                 mLogger.error("SQLException " + e.getSQLState(), e);
             }
         }
+    }
+
+    // In Database Only:
+    //   change cleared Transaction status to reconciled for the given account
+    //   and mark the account reconciled date as d.
+    // Caller is responsible to update objects in memory
+    //
+    // return true for success, false for error.
+    // if false is returned, the database is not changed.
+    boolean reconcileAccountToDB(Account a, LocalDate d) {
+        List<Transaction> tList = new ArrayList<>(a.getTransactionList()
+                .filtered(t -> t.getStatus().equals(Transaction.Status.CLEARED)));
+        boolean savepointSetHere = false;
+        try (Statement statement = mConnection.createStatement()) {
+            savepointSetHere = setDBSavepoint();
+            //
+            for (Transaction t : tList) {
+                statement.addBatch("update TRANSACTIONS set STATUS = "
+                    + t.getStatus().name() + " where ID = " + t.getID());
+            }
+
+            statement.addBatch("update ACCOUNTS set LASTRECONCILEDATE = " + d.toString()
+                    + " where ID = "+ a.getID());
+            statement.executeBatch();
+            if (savepointSetHere)
+                commitDB();
+            return true;
+        } catch (SQLException e) {
+            if (savepointSetHere) {
+                try {
+                    rollbackDB();
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
+                    showExceptionDialog("Database Error", "Reconcile account failed",
+                            SQLExceptionToString(e), e);
+                } catch (SQLException e1) {
+                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
+                    showExceptionDialog("Database Error", "Unable to rollback",
+                            SQLExceptionToString(e1), e1);
+                }
+            }
+        }
+        return false;
+    }
+
+    // update transaction status in database table for the given list of transactions
+    // it does not update any other columns in the table.
+    // return true if all updates are successful,
+    // otherwise, return false and none of the updates are committed to database
+    boolean updateTransactionStatusInDB(List<Pair<Integer, Transaction.Status>> pairList) {
+        boolean savepointSetHere = false;
+        try (Statement statement = mConnection.createStatement()) {
+            savepointSetHere = setDBSavepoint();
+            for (Pair<Integer, Transaction.Status> p : pairList) {
+                statement.addBatch("update TRANSACTIONS set STATUS = '"
+                        + p.getValue().name() + "' where ID = " + p.getKey());
+            }
+            statement.executeBatch();
+            if (savepointSetHere)
+                commitDB();
+            return true;
+        } catch (SQLException e) {
+            if (savepointSetHere) {
+                try {
+                    rollbackDB();
+                    mLogger.error("SQLExeption: " + e.getSQLState(), e);
+                    showExceptionDialog("Database Error", "Unable update transaction status",
+                            SQLExceptionToString(e), e);
+                } catch (SQLException e1) {
+                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
+                    showExceptionDialog("Database Error", "Unable to rollback",
+                            SQLExceptionToString(e1), e1);
+                }
+            }
+        }
+        return false;
     }
 
     // update Status column in Transaction Table for the given tid.
@@ -3546,12 +3639,14 @@ public class MainApp extends Application {
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "HIDDENFLAG boolean NOT NULL, "
                 + "DISPLAYORDER integer NOT NULL, "
+                + "LASTRECONCILEDATE date, "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
         // insert Deleted account
         insertUpdateAccountToDB(new Account(MIN_ACCOUNT_ID-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
-                "Placeholder for the Deleted Account", true, Integer.MAX_VALUE, BigDecimal.ZERO));
+                "Placeholder for the Deleted Account", true, Integer.MAX_VALUE,
+                null, BigDecimal.ZERO));
 
         // Security Table
         // ID starts from 1

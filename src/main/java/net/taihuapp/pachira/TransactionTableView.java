@@ -29,6 +29,7 @@ import javafx.scene.control.TableView;
 import javafx.util.Callback;
 
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Arrays;
 
@@ -41,6 +42,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
 
     protected static MainApp mMainApp;
 
+    protected TableColumn<Transaction, Transaction.Status> mTransactionStatusColumn = new TableColumn<>("Clr");
     protected TableColumn<Transaction, LocalDate> mTransactionDateColumn = new TableColumn<>("Date");
     protected TableColumn<Transaction, String> mTransactionAccountColumn = new TableColumn<>("Account");
     protected TableColumn<Transaction, Transaction.TradeAction> mTransactionTradeActionColumn = new TableColumn<>("Action");
@@ -51,6 +53,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
     protected TableColumn<Transaction, String> mTransactionCategoryColumn = new TableColumn<>("Category");
     protected TableColumn<Transaction, String> mTransactionDescriptionColumn = new TableColumn<>("Description");
     protected TableColumn<Transaction, String> mTransactionTagColumn = new TableColumn<>("Tag");
+    protected TableColumn<Transaction, BigDecimal> mTransactionQuantityColumn = new TableColumn<>("Quantity");
     protected TableColumn<Transaction, BigDecimal> mTransactionInvestAmountColumn = new TableColumn<>("Inv Amt");
     protected TableColumn<Transaction, BigDecimal> mTransactionCashAmountColumn = new TableColumn<>("Cash Amt");
     protected TableColumn<Transaction, BigDecimal> mTransactionPaymentColumn = new TableColumn<>("Payment");
@@ -65,6 +68,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
         // add columns to TableView
         //setTableMenuButtonVisible(true);
         getColumns().addAll(Arrays.asList(
+                mTransactionStatusColumn,
                 mTransactionDateColumn,
                 mTransactionAccountColumn,
                 mTransactionTradeActionColumn,
@@ -75,6 +79,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                 mTransactionCategoryColumn,
                 mTransactionDescriptionColumn,
                 mTransactionTagColumn,
+                mTransactionQuantityColumn,
                 mTransactionInvestAmountColumn,
                 mTransactionCashAmountColumn,
                 mTransactionPaymentColumn,
@@ -84,6 +89,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
         ));
 
         // set preferred width for each column
+        mTransactionStatusColumn.setPrefWidth(20);
         mTransactionDateColumn.setPrefWidth(85);
         mTransactionAccountColumn.setPrefWidth(100);
         mTransactionTradeActionColumn.setPrefWidth(75);
@@ -94,6 +100,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionCategoryColumn.setPrefWidth(150);
         mTransactionDescriptionColumn.setPrefWidth(150);
         mTransactionTagColumn.setPrefWidth(60);
+        mTransactionQuantityColumn.setPrefWidth(100);
         mTransactionInvestAmountColumn.setPrefWidth(100);
         mTransactionCashAmountColumn.setPrefWidth(100);
         mTransactionPaymentColumn.setPrefWidth(100);
@@ -102,6 +109,21 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionAmountColumn.setPrefWidth(100);
 
         // binding columns to Transaction members
+        mTransactionStatusColumn.setCellValueFactory(cd -> cd.getValue().getStatusProperty());
+        mTransactionStatusColumn.setCellFactory(c -> new TableCell<Transaction, Transaction.Status>() {
+            @Override
+            protected void updateItem(Transaction.Status item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(String.valueOf(item.toChar()));
+                    setStyle("-fx-alignment: CENTER;");
+                }
+            }
+        });
+
         mTransactionDateColumn.setCellValueFactory(cd -> cd.getValue().getTDateProperty());
         mTransactionAccountColumn.setCellValueFactory(cd -> {
             Account a = mMainApp.getAccountByID(cd.getValue().getAccountID());
@@ -127,6 +149,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                 return new ReadOnlyStringWrapper("");
             return tag.getNameProperty();
         });
+        mTransactionQuantityColumn.setCellValueFactory(cd -> cd.getValue().getQuantityProperty());
         mTransactionInvestAmountColumn.setCellValueFactory(cd -> cd.getValue().getInvestAmountProperty());
         mTransactionCashAmountColumn.setCellValueFactory(cd -> cd.getValue().getCashAmountProperty());
         mTransactionPaymentColumn.setCellValueFactory(cd -> cd.getValue().getPaymentProperty());
@@ -138,6 +161,28 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionDateColumn.setStyle("-fx-alignment: CENTER;");
         mTransactionReferenceColumn.setStyle("-fx-alignment: CENTER;");
 
+        mTransactionQuantityColumn.setCellFactory(new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction,BigDecimal>>() {
+            @Override
+            public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> param) {
+                return new TableCell<Transaction, BigDecimal>() {
+                    @Override
+                    protected void updateItem(BigDecimal item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (item == null || empty) {
+                            setText("");
+                        } else {
+                            // format
+                            DecimalFormat df = new DecimalFormat();
+                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_DISP_LEN);
+                            df.setMinimumFractionDigits(0);
+                            setText(df.format(item));
+                        }
+                        setStyle("-fx-alignment: CENTER-RIGHT;");
+                    }
+                };
+            }
+        });
+        
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
                 new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {
                     @Override

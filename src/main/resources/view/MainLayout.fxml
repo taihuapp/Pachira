@@ -55,7 +55,7 @@
                      <HBox.margin>
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                      </HBox.margin></Button>
-                  <Button fx:id="mTransactionReconcileButton" mnemonicParsing="false" onAction="#handleReconcile" text="Reconcile">
+                  <Button mnemonicParsing="false" onAction="#handleReconcile" text="Reconcile">
                      <HBox.margin>
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                      </HBox.margin></Button>

@@ -65,9 +65,11 @@ public class Account {
     private final BooleanProperty mHiddenFlag = new SimpleBooleanProperty(false);
     private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(Integer.MAX_VALUE);
     private final ObservableList<Security> mCurrentSecurityList;
+    private final ObjectProperty<LocalDate> mLastReconcileDateProperty = new SimpleObjectProperty<>(null);
+
     // detailed constructor
     public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
-                   BigDecimal balance) {
+                   LocalDate lrDate, BigDecimal balance) {
         mID = new SimpleIntegerProperty(id);
         mType = type;
         mName = new SimpleStringProperty(name);
@@ -75,7 +77,7 @@ public class Account {
         mCurrentBalance = new SimpleObjectProperty<>(balance);
         mHiddenFlag.set(hidden);
         mDisplayOrder.set(displayOrder);
-
+        mLastReconcileDateProperty.set(lrDate);
         // sorted by Name
         mCurrentSecurityList = FXCollections.observableArrayList();
     }
@@ -121,11 +123,9 @@ public class Account {
     BigDecimal getCurrentBalance() { return getCurrentBalanceProperty().get(); }
     void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
 
-    // compute cash balance of reconciled transactions
-    BigDecimal getReconciledBalance() {
-        return getTransactionList().stream().filter(t -> t.getStatus().equals(Transaction.Status.RECONCILED))
-                .map(Transaction::getCashAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
+    private ObjectProperty<LocalDate> getLastReconcileDateProperty() { return mLastReconcileDateProperty; }
+    LocalDate getLastReconcileDate() { return getLastReconcileDateProperty().get();  }
+    void setLastReconcileDate(LocalDate d) { getLastReconcileDateProperty().set(d); }
 
     // update balance field for each transaction for non INVESTING account
     // no-op for INVESTING accounts

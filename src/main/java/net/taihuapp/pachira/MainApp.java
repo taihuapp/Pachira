@@ -86,7 +86,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 4;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 5;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -287,11 +287,11 @@ public class MainApp extends Application {
 
     void deleteTransactionFromDB(int tid) {
         mLogger.debug("deleteTransactionFromDB(" + tid + ")");
-        String sqlCmd = "delete from TRANSACTIONS where ID = ?";
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
-            preparedStatement.setInt(1, tid);
-
-            preparedStatement.executeUpdate();
+        String sqlCmd0 = "delete from TRANSACTIONS where ID = " + tid;
+        String sqlCmd1 = "delete from SPLITTRANSACTIONS where TRANSACTIONID = " + tid;
+        try (Statement statement = mConnection.createStatement()) {
+            statement.executeUpdate(sqlCmd0);
+            statement.executeUpdate(sqlCmd1);
         } catch (SQLException e) {
             mLogger.error("SQLException: " + e.getSQLState(), e);
             Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -741,15 +741,15 @@ public class MainApp extends Application {
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                     "STATUS, CATEGORYID, TAGID, MEMO, PRICE, QUANTITY, COMMISSION, " +
                     "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY, " +
-                    "REFERENCE, SPLITFLAG) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "REFERENCE, SPLITFLAG, ACCRUEDINTEREST) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
                     "SECURITYID = ?, STATUS = ?, CATEGORYID = ?, TAGID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
-                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ?, REFERENCE = ?, SPLITFLAG = ? " +
+                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ?, REFERENCE = ?, SPLITFLAG = ?, ACCRUEDINTEREST = ? " +
                     "where ID = ?";
         }
 
@@ -783,8 +783,9 @@ public class MainApp extends Application {
             preparedStatement.setBigDecimal(17, t.getOldQuantity());
             preparedStatement.setString(18, t.getReferenceProperty().get());
             preparedStatement.setBoolean(19, !t.getSplitTransactionList().isEmpty());
+            preparedStatement.setBigDecimal(20, t.getAccruedInterest());
             if (t.getID() > 0)
-                preparedStatement.setInt(20, t.getID());
+                preparedStatement.setInt(21, t.getID());
 
             if (preparedStatement.executeUpdate() == 0)
                 throw(new SQLException("Failure: " + sqlCmd));
@@ -1912,6 +1913,7 @@ public class MainApp extends Application {
                 int securityID = resultSet.getInt("SECURITYID");
                 BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
                 BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
+                BigDecimal accruedInterest = resultSet.getBigDecimal("ACCRUEDINTEREST");
                 BigDecimal price = resultSet.getBigDecimal("PRICE");
                 BigDecimal oldQuantity = resultSet.getBigDecimal("OLDQUANTITY");
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
@@ -1925,8 +1927,9 @@ public class MainApp extends Application {
                 }
 
                 Transaction transaction = new Transaction(id, aid, tDate, aDate, tradeAction, status, name, reference,
-                        payee, price, quantity, oldQuantity, memo, commission, amount, cid, tagID, matchID,
-                        matchSplitID, resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null);
+                        payee, price, quantity, oldQuantity, memo, commission, accruedInterest, amount,
+                        cid, tagID, matchID, matchSplitID,
+                        resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null);
 
                 tList.add(transaction);  // add transaction to simple list first.
             }
@@ -3096,7 +3099,7 @@ public class MainApp extends Application {
             // run update
             try {
                 updateDBVersion(dbVersion, DBVERSIONVALUE);
-                mLogger.info("DBVersion updated from " + dbVersion + " to " + DBVERSIONNAME);
+                mLogger.info("DBVersion updated from " + dbVersion + " to " + DBVERSIONVALUE);
                 showInformationDialog("Database Version Updated",
                         "Database Version Updated from " + dbVersion + " to " + DBVERSIONVALUE,
                         "Your database was updated from version " + dbVersion + " to " + DBVERSIONVALUE + ". " +
@@ -3142,22 +3145,24 @@ public class MainApp extends Application {
                     "old version: " + oldV + ", new version: " + newV + ".");
         }
 
+        if (newV - oldV > 1)
+            updateDBVersion(oldV, newV-1);  // bring oldV to newV-1.
+
         // need to run this to update DBVERSION
         final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
-
-        if (newV == 4) {
-            if (oldV < 3)
-                updateDBVersion(oldV, 3);
-
+        if (newV == 5) {
+            final String updateSQL = "alter table TRANSACTIONS add (ACCRUEDINTEREST decimal(20, 4) default 0);";
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(updateSQL);
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 4) {
             final String updateSQL = "alter table ACCOUNTS add (LASTRECONCILEDATE Date)";
             try (Statement statement = mConnection.createStatement()) {
                 statement.executeUpdate(updateSQL);
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 3) {
-            if (oldV < 2)
-                updateDBVersion(oldV, 2); // bring DB version to 2
-
             // cleared column was populated with int value of ascii code
             // setup new STATUS column and set value according to the cleared column
             // then drop cleared column
@@ -3181,10 +3186,6 @@ public class MainApp extends Application {
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 2) {
-            // update to version 1 first
-            if (oldV < 1)
-                updateDBVersion(oldV, 1);
-
             final String alterSQL = "alter table SAVEDREPORTS add (" +
                     "PAYEECONTAINS varchar(80) NOT NULL default '', " +
                     "PAYEEREGEX boolean NOT NULL default FALSE, " +
@@ -3359,7 +3360,7 @@ public class MainApp extends Application {
         return false;
     }
 
-    // Alter (including insert and delete a transaction, both in DB and in MasterList.
+    // Alter, including insert and delete a transaction, both in DB and in MasterList.
     // It also perform various consistency tasks.
     // if oldT is null, the newT is inserted
     // if newT is null, the oldT is deleted
@@ -3367,15 +3368,17 @@ public class MainApp extends Application {
     //   newT.getID() should be return the same value as oldT.getID()
     // returns true for success, false for failure
     boolean alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList) {
-        // there are four possibilities each for oldT and newT:
-        // null, simple transaction, a transfer transaction, a split transaction
-        // thus there are 4x4 = 16 different situations
+        // there are five possibilities each for oldT and newT:
+        // null, simple transaction, a transfer transaction, a split transaction (non-transferring),
+        // and splittransaction with at least one transferring splittransaction.
+        // thus there are 5x5 = 25 different situations
         if (oldT == null && newT == null)
             return true; // nothing to do
 
         if (oldT != null && oldT.getMatchID() > 0) {
             // oldT is a linked transaction,
             if (oldT.getMatchSplitID() > 0) {
+                // oldT is linked to a SplitTransaction
                 showWarningDialog("Linked to A Split Transaction",
                         "Linked to a split transaction",
                         "Please edit the linked split transaction.");
@@ -3399,39 +3402,8 @@ public class MainApp extends Application {
         final Set<Transaction> updateTSet = new HashSet<>();
         final Set<Integer> deleteTIDSet = new HashSet<>();
         final Set<Integer> accountIDSet = new HashSet<>();
-        Transaction newLinkedT = null;
         Security security = null;
-
-        if (newT != null && !newT.isSplit() && -newT.getCategoryID() >= MIN_ACCOUNT_ID) {
-            // handle the case newT is a split transaction
-            final Transaction.TradeAction xferTA = newT.TransferTradeAction();
-            if (xferTA == null) {
-                showWarningDialog("Warning", "Inconsistent Information",
-                        "Transaction has a transfer account but without proper TradeAction.");
-                return false;
-            }
-
-            // get the payee information
-            String newPayee;
-            switch (newT.getTradeAction()) {
-                case DEPOSIT:
-                case WITHDRAW:
-                case XIN:
-                case XOUT:
-                    newPayee = newT.getPayee();
-                    break;
-                default:
-                    // put security name information as payee for transfer transaction
-                    newPayee = newT.getSecurityName();
-                    break;
-            }
-
-            newLinkedT = new Transaction(-newT.getCategoryID(), newT.getTDate(), xferTA, -newT.getAccountID());
-            newLinkedT.setID(newT.getMatchID());
-            newLinkedT.setAmount(newT.getAmount());
-            newLinkedT.setMemo(newT.getMemo());
-            newLinkedT.setPayee(newPayee);
-        }
+        BigDecimal price = null;
 
         // ready to do database work now
         try {
@@ -3444,17 +3416,54 @@ public class MainApp extends Application {
             if (newT != null) {
                 // either adding a new transaction, or modifying an old one
                 final int newTID = insertUpdateTransactionToDB(newT);
+                // insert/update MatchInfo to database
+                putMatchInfoList(newTID, newMatchInfoList);
 
                 updateTSet.add(newT);
                 accountIDSet.add(newT.getAccountID());
 
-                // insert/update MatchInfo to database
-                putMatchInfoList(newTID, newMatchInfoList);
+                // handle transfer
+                if(-newT.getCategoryID() >= MIN_ACCOUNT_ID && !newT.isSplit()) {
+                    // transfer transaction, no split
+                    final Transaction.TradeAction xferTA = newT.TransferTradeAction();
+                    if (xferTA == null) {
+                        showWarningDialog("Warning", "Inconsistent Information",
+                                "Transaction has a transfer account but incorrect TradeAction.");
+                        mLogger.error("Transaction has a transfer account but incorrect TradeAction. "
+                                + newT.getID() + " " + newT.getTDate() + " " + newT.getAccountID()
+                                + " " + newT.getTradeAction().toString());
+                        return false;
+                    }
+                    String newPayee;
+                    switch (newT.getTradeAction()) {
+                        case DEPOSIT:
+                        case WITHDRAW:
+                        case XIN:
+                        case XOUT:
+                            newPayee = newT.getPayee();
+                            break;
+                        default:
+                            newPayee = newT.getSecurityName();
+                            break;
+                    }
+
+                    Transaction newLinkedT = new Transaction(-newT.getCategoryID(), newT.getTDate(), xferTA,
+                            -newT.getAccountID());
+                    newLinkedT.setID(newT.getMatchID());
+                    newLinkedT.setMatchID(newTID, -1);
+                    newLinkedT.setAmount(newT.getAmount());
+                    newLinkedT.setMemo(newT.getMemo());
+                    newLinkedT.setPayee(newPayee);
+                    newT.setMatchID(insertUpdateTransactionToDB(newLinkedT), -1);
+
+                    updateTSet.add(newLinkedT);
+                    accountIDSet.add(newLinkedT.getAccountID());
+                }
 
                 // handle transfer in split transaction
                 for (SplitTransaction st : newT.getSplitTransactionList()) {
-                    if (-st.getCategoryID() >= MIN_ACCOUNT_ID) {
-                        // this is a transfer
+                    if (st.isTransfer(newT.getAccountID())) {
+                        // this st is a transfer
                         Transaction stLinkedT = new Transaction(-st.getCategoryID(), newT.getTDate(),
                                 st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
                                         Transaction.TradeAction.XOUT : Transaction.TradeAction.XIN,
@@ -3475,18 +3484,10 @@ public class MainApp extends Application {
                     }
                 }
 
-                if (newLinkedT != null) {
-                    newLinkedT.setMatchID(newTID, 0);
-                    newT.setMatchID(insertUpdateTransactionToDB(newLinkedT),0);
-
-                    updateTSet.add(newLinkedT);
-                    accountIDSet.add(newLinkedT.getAccountID());
-                }
-
                 // update price for involved security
                 security = newT.getSecurityName() == null ? null :
                         getSecurityByName(newT.getSecurityName());
-                final BigDecimal price = newT.getPrice();
+                price = newT.getPrice();
                 if (Transaction.hasQuantity(newT.getTradeAction())
                         && (security != null) && (price != null)
                         && (price.compareTo(BigDecimal.ZERO) != 0)) {
@@ -3495,27 +3496,37 @@ public class MainApp extends Application {
             }
 
             if (oldT != null) {
-                if (newT == null) {
+                // need to delete or update certain oldT related info
+                if (newT == null || oldT.getID() != newT.getID()) {
                     // clear MatchInfoList for oldT, if not replaced by newT
                     putMatchInfoList(oldT.getID(), new ArrayList<>());
                 }
 
                 // handle transfer in splittransaction
                 for (SplitTransaction st : oldT.getSplitTransactionList()) {
-                    final int stLinkedTID = st.getMatchID();
-
-                    boolean updated = false;
-                    for (Transaction t : updateTSet) {
-                        if (t.getID() == stLinkedTID) {
-                            updated = true;
-                            break;
+                    if (st.isTransfer(oldT.getAccountID())) {
+                        // this st is a transfer
+                        // may need to delete linked transaction
+                        final int stLinkedTID = st.getMatchID();
+                        if (stLinkedTID <= 0) {
+                            mLogger.error("Transfer SplitTransaction has no linked tid");
+                        } else {
+                            boolean updated = false;
+                            // check if stLinkedTID is being updated
+                            for (Transaction t : updateTSet) {
+                                if (t.getID() == stLinkedTID) {
+                                    updated = true;
+                                    break;
+                                }
+                            }
+                            if (!updated) {
+                                // stLinkedTID is not updated, safely delete
+                                mLogger.debug("deleteTransactionFromDB(" + stLinkedTID + ")");
+                                deleteTransactionFromDB(stLinkedTID);
+                                deleteTIDSet.add(stLinkedTID);
+                                accountIDSet.add(-st.getCategoryID());
+                            }
                         }
-                    }
-                    if (!updated) {
-                        mLogger.debug("deleteTransactionFromDB("+stLinkedTID+")");
-                        deleteTransactionFromDB(stLinkedTID);
-                        deleteTIDSet.add(stLinkedTID);
-                        accountIDSet.add(-st.getCategoryID());
                     }
                 }
 
@@ -3537,7 +3548,15 @@ public class MainApp extends Application {
                     }
                 }
 
-                if ((newT != null) && (oldT.getID() != newT.getID())) {
+                // finally deal with oldT
+                boolean updated = false;
+                for (Transaction t : updateTSet) {
+                    if (t.getID() == oldT.getID()) {
+                        updated = true;
+                        break;
+                    }
+                }
+                if (!updated) {
                     // delete oldT if it is no longer needed.
                     mLogger.debug("deleteTransactionFromDB(" + oldT.getID() + ")");
                     deleteTransactionFromDB(oldT.getID());
@@ -3555,9 +3574,16 @@ public class MainApp extends Application {
             for (Transaction t : updateTSet) {
                 insertUpdateTransactionToMasterList(t);
             }
-            if (security != null) {
-                updateAccountBalance(security);
+            if (security != null && price != null && price.compareTo(BigDecimal.ZERO) != 0) {
+                // altered transaction might have impact on other accounts containing
+                // the same security
+                for (Account a : getAccountList(Account.Type.INVESTING, false, true)) {
+                    if (a.hasSecurity(security)) {
+                        accountIDSet.add(a.getID());
+                    }
+                }
             }
+
             for (Integer aid : accountIDSet) {
                 updateAccountBalance(aid);
             }
@@ -3746,6 +3772,7 @@ public class MainApp extends Application {
                 + "OLDQUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "  // used in stock split transactions
                 + "TRANSFERREMINDER varchar(" + TRANSACTIONTRANSFERREMINDERLEN + "), "
                 + "COMMISSION decimal(20,4), "
+                + "ACCRUEDINTEREST decimal(20,4), "
                 + "AMOUNTTRANSFERRED decimal(20,4), "
                 + "MATCHTRANSACTIONID integer, "   // matching transfer transaction id
                 + "MATCHSPLITTRANSACTIONID integer, "  // matching split

@@ -166,6 +166,10 @@ public class EditTransactionDialogController {
     @FXML
     private TextField mCommissionTextField;
     @FXML
+    private Label mAccruedInterestLabel;
+    @FXML
+    private TextField mAccruedInterestTextField;
+    @FXML
     private Label mTotalLabel;
     @FXML
     private TextField mTotalTextField;
@@ -185,7 +189,8 @@ public class EditTransactionDialogController {
     private boolean mSplitTransactionListChanged = false;
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;  // lot match list
 
-    // used for mSharesTextField, mPriceTextField, mCommissionTextField, mOldSharesTextField
+    // used for mSharesTextField, mPriceTextField, mCommissionTextField,
+    // mAccruedInterestTextField, mOldSharesTextField
     private void addEventFilter(TextField tf) {
         // add an event filter so only numerical values are permitted
         tf.addEventFilter(KeyEvent.KEY_TYPED, event -> {
@@ -279,6 +284,7 @@ public class EditTransactionDialogController {
             case STKSPLIT:
             case XIN:
             case MARGINT:
+            case MISCEXP:
                 if (-mTransaction.getCategoryID() >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XIN)
                     xferTA = Transaction.TradeAction.XOUT;
 
@@ -292,6 +298,7 @@ public class EditTransactionDialogController {
             case SELL:
             case SHTSELL:
             case XOUT:
+            case MISCINC:
                 if (-mTransaction.getCategoryID() >= MainApp.MIN_ACCOUNT_ID || ta == Transaction.TradeAction.XOUT)
                     xferTA = Transaction.TradeAction.XIN;
                 break;
@@ -649,6 +656,7 @@ public class EditTransactionDialogController {
         mIncomeTextField.setText("0.00");
         mSharesTextField.setText("0.00");
         mCommissionTextField.setText("0.00");
+        mAccruedInterestTextField.setText("0.00");
         mTotalTextField.setText("0.00");
     }
 
@@ -689,6 +697,7 @@ public class EditTransactionDialogController {
         addEventFilter(mOldSharesTextField);
         addEventFilter(mPriceTextField);
         addEventFilter(mCommissionTextField);
+        addEventFilter(mAccruedInterestTextField);
         addEventFilter(mTotalTextField);
 
         mTDatePicker.valueProperty().bindBidirectional(mTransaction.getTDateProperty());
@@ -760,6 +769,8 @@ public class EditTransactionDialogController {
                 mPriceTextField.setVisible(false);
                 mCommissionLabel.setVisible(false);
                 mCommissionTextField.setVisible(false);
+                mAccruedInterestLabel.setVisible(false);
+                mAccruedInterestTextField.setVisible(false);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(false);
                 mTransferAccountComboBox.setVisible(false);
@@ -785,6 +796,8 @@ public class EditTransactionDialogController {
                 mPriceTextField.setVisible(false);
                 mCommissionLabel.setVisible(false);
                 mCommissionTextField.setVisible(false);
+                mAccruedInterestLabel.setVisible(false);
+                mAccruedInterestTextField.setVisible(false);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(false);
                 mTransferAccountComboBox.setVisible(false);
@@ -812,6 +825,8 @@ public class EditTransactionDialogController {
                 mPriceTextField.setVisible(false);
                 mCommissionLabel.setVisible(false);
                 mCommissionTextField.setVisible(false);
+                mAccruedInterestLabel.setVisible(false);
+                mAccruedInterestTextField.setVisible(false);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(true);
                 mTransferAccountComboBox.setVisible(true);
@@ -840,6 +855,8 @@ public class EditTransactionDialogController {
                 mPriceTextField.setEditable(false);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
+                mAccruedInterestLabel.setVisible(true);
+                mAccruedInterestTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(tradeAction == CVTSHRT);
                 mTransferAccountLabel.setVisible(true);
                 mTransferAccountComboBox.setVisible(true);
@@ -869,6 +886,8 @@ public class EditTransactionDialogController {
                 mPriceTextField.setEditable(false);
                 mCommissionLabel.setVisible(tradeAction != SHRSOUT);
                 mCommissionTextField.setVisible(tradeAction != SHRSOUT);
+                mAccruedInterestLabel.setVisible(tradeAction != SHRSOUT);
+                mAccruedInterestTextField.setVisible(tradeAction != SHRSOUT);
                 mSpecifyLotButton.setVisible(tradeAction == SELL || tradeAction == SHRSOUT);
                 mTransferAccountLabel.setVisible(tradeAction != SHRSOUT);
                 mTransferAccountComboBox.setVisible(tradeAction != SHRSOUT);
@@ -896,6 +915,8 @@ public class EditTransactionDialogController {
                 mPriceTextField.setEditable(true);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
+                mAccruedInterestLabel.setVisible(true);
+                mAccruedInterestTextField.setVisible(true);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(false);
                 mTransferAccountComboBox.setVisible(false);
@@ -938,9 +959,12 @@ public class EditTransactionDialogController {
                 mPriceTextField.setEditable(!isReinvest);  // calculated price when Reinvest
                 mCommissionLabel.setVisible(isReinvest);
                 mCommissionTextField.setVisible(isReinvest);
+                mAccruedInterestLabel.setVisible(isReinvest);
+                mAccruedInterestTextField.setVisible(isReinvest);
                 mSpecifyLotButton.setVisible(false);
                 mTransferAccountLabel.setVisible(!isReinvest);
-                mTransferAccountLabel.setText("Put Cash Into:");
+                mTransferAccountLabel.setText(tradeAction.equals(MISCEXP) || tradeAction.equals(MARGINT) ?
+                        "Use Cash From:" : "Put Cash Into:");
                 mTransferAccountComboBox.setVisible(!isReinvest);
                 mADatePickerLabel.setVisible(false);
                 mADatePicker.setVisible(false);
@@ -986,6 +1010,7 @@ public class EditTransactionDialogController {
         mTransaction.getAmountProperty().unbind();
         mTransaction.getPriceProperty().unbind();
         mTransaction.getCommissionProperty().unbind();
+        mTransaction.getAccruedInterestProperty().unbind();
         mTransaction.getQuantityProperty().unbind();
 
         mTotalTextField.textProperty().unbindBidirectional(mTransaction.getAmountProperty());
@@ -994,6 +1019,7 @@ public class EditTransactionDialogController {
         mOldSharesTextField.textProperty().unbindBidirectional(mTransaction.getOldQuantityProperty());
         mPriceTextField.textProperty().unbindBidirectional(mTransaction.getPriceProperty());
         mCommissionTextField.textProperty().unbindBidirectional(mTransaction.getCommissionProperty());
+        mAccruedInterestTextField.textProperty().unbindBidirectional(mTransaction.getAccruedInterestProperty());
 
         if (isIncome)
             mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
@@ -1003,19 +1029,22 @@ public class EditTransactionDialogController {
             ObjectBinding<BigDecimal> price = new ObjectBinding<BigDecimal>() {
                 {
                     super.bind(mTransaction.getAmountProperty(), mTransaction.getQuantityProperty(),
-                            mTransaction.getCommissionProperty());
+                            mTransaction.getCommissionProperty(), mTransaction.getAccruedInterestProperty());
                 }
 
                 @Override
                 protected BigDecimal computeValue() {
                     if (mTransaction.getAmount() == null || mTransaction.getQuantity() == null
-                            || mTransaction.getQuantity().signum() == 0 || mTransaction.getCommission() == null)
+                            || mTransaction.getQuantity().signum() == 0 || mTransaction.getCommission() == null
+                            || mTransaction.getAccruedInterest() == null)
                         return null;
 
                     if (tradeAction == SELL || tradeAction == SHTSELL)
                         return mTransaction.getAmount().add(mTransaction.getCommission())
+                                .add(mTransaction.getAccruedInterest())
                                 .divide(mTransaction.getQuantity(), MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                     return mTransaction.getAmount().subtract(mTransaction.getCommission())
+                            .subtract(mTransaction.getAccruedInterest())
                             .divide(mTransaction.getQuantity(), MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                 }
             };
@@ -1038,6 +1067,9 @@ public class EditTransactionDialogController {
                 new BigDecimalStringConverter());
 
         mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
+                new BigDecimalStringConverter());
+
+        mAccruedInterestTextField.textProperty().bindBidirectional(mTransaction.getAccruedInterestProperty(),
                 new BigDecimalStringConverter());
 
         mTotalTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),

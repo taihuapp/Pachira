@@ -101,6 +101,7 @@ public class Transaction {
     // investment amount, derived from total amount
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mAccuedInterestProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mSignedQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -131,6 +132,7 @@ public class Transaction {
     ObjectProperty<BigDecimal> getPaymentProperty() { return mPaymentProperty; }
     ObjectProperty<BigDecimal> getDepositeProperty() { return mDepositProperty; }
     ObjectProperty<BigDecimal> getCommissionProperty() { return mCommissionProperty; }
+    ObjectProperty<BigDecimal> getAccruedInterestProperty() { return mAccuedInterestProperty; }
     ObjectProperty<BigDecimal> getBalanceProperty() { return mBalanceProperty; }
     ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
     ObjectProperty<BigDecimal> getSignedQuantityProperty() { return mSignedQuantityProperty; }
@@ -339,7 +341,8 @@ public class Transaction {
     BigDecimal getPrice() { return mPriceProperty.get(); }
     BigDecimal getQuantity() { return mQuantityProperty.get(); }
     BigDecimal getOldQuantity() { return getOldQuantityProperty().get(); }
-    BigDecimal getCommission() { return mCommissionProperty.get(); }
+    BigDecimal getCommission() { return getCommissionProperty().get(); }
+    BigDecimal getAccruedInterest() { return getAccruedInterestProperty().get(); }
     BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
     String getSecurityName() { return mSecurityNameProperty.get();}
     BigDecimal getCashAmount() { return getCashAmountProperty().get(); }
@@ -455,83 +458,6 @@ public class Transaction {
     }
     void setPayee(String payee) { getPayeeProperty().set(payee); }
 
-    private void setTradeDetails(TradeAction ta, BigDecimal price, BigDecimal quantity,
-                                 BigDecimal commission, BigDecimal amount, boolean isXfer) {
-        mTradeActionProperty.set(ta);
-        mAmountProperty.set(amount);
-        mCommissionProperty.set(commission);
-        mPriceProperty.set(price);
-        switch (ta) {
-            // todo
-            // need to verify each
-            case BUY:
-            case CVTSHRT:
-                mInvestAmountProperty.setValue(amount);
-                mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount.negate());
-                mQuantityProperty.set(quantity);
-                mDepositProperty.set(null);
-                mPaymentProperty.set(null);
-                break;
-            case REINVDIV:
-            case REINVINT:
-            case REINVLG:
-            case REINVMD:
-            case REINVSH:
-            case STKSPLIT:
-            case SHRSIN:
-            case SHRSOUT:
-            case XFRSHRS:
-                mInvestAmountProperty.setValue(amount);
-                mCashAmountProperty.setValue(BigDecimal.ZERO);
-                mQuantityProperty.set(quantity);
-                mDepositProperty.set(null);
-                mPaymentProperty.set(null);
-                break;
-            case SELL:
-            case SHTSELL:
-                mInvestAmountProperty.setValue(amount.negate());
-                mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount);
-                mQuantityProperty.set(quantity);
-                mDepositProperty.set(null);
-                mPaymentProperty.set(null);
-                break;
-            case CGLONG:
-            case CGMID:
-            case CGSHORT:
-            case DIV:
-            case INTINC:
-            case MARGINT:
-            case MISCEXP:
-            case MISCINC:
-            case RTRNCAP:
-                mInvestAmountProperty.setValue(ta == TradeAction.RTRNCAP ? amount.negate() : BigDecimal.ZERO);
-                mCashAmountProperty.setValue(isXfer ? BigDecimal.ZERO : amount);
-                mQuantityProperty.set(null);
-                mDepositProperty.set(null);
-                mPaymentProperty.set(null);
-                break;
-            case XIN:
-            case DEPOSIT:
-                mInvestAmountProperty.setValue(BigDecimal.ZERO);
-                mCashAmountProperty.setValue(amount);
-                mQuantityProperty.set(null);
-                mDepositProperty.set(amount);
-                mPaymentProperty.set(null);
-                break;
-            case XOUT:
-            case WITHDRAW:
-                mInvestAmountProperty.setValue(BigDecimal.ZERO);
-                mCashAmountProperty.setValue(amount.negate());
-                mQuantityProperty.set(null);
-                mDepositProperty.set(null);
-                mPaymentProperty.set(amount);
-                break;
-            default:
-                mLogger.error("TradingAction " + ta.name() + " not implement yet");
-                break;
-        }
-    }
-
     void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
     void setPrice(BigDecimal p) { mPriceProperty.set(p); }
     void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
@@ -567,8 +493,8 @@ public class Transaction {
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, Status s,
                        String securityName, String reference, String payee, BigDecimal price,
                        BigDecimal quantity, BigDecimal oldQuantity, String memo,
-                       BigDecimal commission, BigDecimal amount, int categoryID, int tagID, int matchID,
-                       int matchSplitID, List<SplitTransaction> stList) {
+                       BigDecimal commission, BigDecimal accruedInterest, BigDecimal amount,
+                       int categoryID, int tagID, int matchID, int matchSplitID, List<SplitTransaction> stList) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -579,6 +505,7 @@ public class Transaction {
         mReferenceProperty.set(reference);
         mPriceProperty.set(price);
         mCommissionProperty.set(commission);
+        mAccuedInterestProperty.set(accruedInterest);
         mMemoProperty.set(memo);
         mCategoryIDProperty.set(categoryID);
         mTagIDProperty.set(tagID);
@@ -603,8 +530,9 @@ public class Transaction {
         this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getStatus(),
                 t0.getSecurityName(),
                 t0.getReference(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
-                t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAmount(), t0.getCategoryID(),
-                t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID(), t0.getSplitTransactionList());
+                t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAccruedInterest(), t0.getAmount(),
+                t0.getCategoryID(), t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID(),
+                t0.getSplitTransactionList());
     }
 
     // return false if this is NOT a transfer

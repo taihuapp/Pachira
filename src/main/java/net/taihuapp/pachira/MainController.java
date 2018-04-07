@@ -550,10 +550,16 @@ public class MainController {
                                                     .filter(n -> n.getValue().getID() == newAccount.getID())
                                                     .findFirst().orElse(null);
                                             if (accountNode != null) {
-                                                mAccountTreeTableView.getSelectionModel().select(accountNode);
                                                 Transaction newT = new Transaction(oldT);
                                                 newT.setAccountID(newAccount.getID());
-                                                mMainApp.alterTransaction(oldT, newT, new ArrayList<>());
+                                                Transaction.ValidationStatus vs = newT.validate();
+                                                if (vs.isValid()) {
+                                                    mAccountTreeTableView.getSelectionModel().select(accountNode);
+                                                    mMainApp.alterTransaction(oldT, newT, new ArrayList<>());
+                                                } else {
+                                                    MainApp.showWarningDialog("Invalid Transaction",
+                                                            "Move Cancelled", vs.getMessage());
+                                                }
                                             }
                                         }
                                     }

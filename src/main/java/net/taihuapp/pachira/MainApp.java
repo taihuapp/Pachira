@@ -35,7 +35,6 @@ import javafx.scene.layout.Priority;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.util.Pair;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 
@@ -3300,39 +3299,6 @@ public class MainApp extends Application {
         return false;
     }
 
-    // update transaction status in database table for the given list of transactions
-    // it does not update any other columns in the table.
-    // return true if all updates are successful,
-    // otherwise, return false and none of the updates are committed to database
-    boolean updateTransactionStatusInDB(List<Pair<Integer, Transaction.Status>> pairList) {
-        boolean savepointSetHere = false;
-        try (Statement statement = mConnection.createStatement()) {
-            savepointSetHere = setDBSavepoint();
-            for (Pair<Integer, Transaction.Status> p : pairList) {
-                statement.addBatch("update TRANSACTIONS set STATUS = '"
-                        + p.getValue().name() + "' where ID = " + p.getKey());
-            }
-            statement.executeBatch();
-            if (savepointSetHere)
-                commitDB();
-            return true;
-        } catch (SQLException e) {
-            if (savepointSetHere) {
-                try {
-                    rollbackDB();
-                    mLogger.error("SQLExeption: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "Unable update transaction status",
-                            SQLExceptionToString(e), e);
-                } catch (SQLException e1) {
-                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                    showExceptionDialog("Database Error", "Unable to rollback",
-                            SQLExceptionToString(e1), e1);
-                }
-            }
-        }
-        return false;
-    }
-
     // update Status column in Transaction Table for the given tid.
     // return true for success and false for failure.
     boolean setTransactionStatusInDB(int tid, Transaction.Status s) {
@@ -3366,6 +3332,7 @@ public class MainApp extends Application {
     // if newT is null, the oldT is deleted
     // otherwise, oldT is updated with information from newT,
     //   newT.getID() should be return the same value as oldT.getID()
+    //   newT should be a valid transaction (Transaction::validate().isValid() == true)
     // returns true for success, false for failure
     boolean alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList) {
         // there are five possibilities each for oldT and newT:
@@ -3524,8 +3491,9 @@ public class MainApp extends Application {
                                 mLogger.debug("deleteTransactionFromDB(" + stLinkedTID + ")");
                                 deleteTransactionFromDB(stLinkedTID);
                                 deleteTIDSet.add(stLinkedTID);
-                                accountIDSet.add(-st.getCategoryID());
                             }
+
+                            accountIDSet.add(-st.getCategoryID());
                         }
                     }
                 }
@@ -3544,8 +3512,9 @@ public class MainApp extends Application {
                         mLogger.debug("deleteTransactionFromDB("+oldLinkedTID+")");
                         deleteTransactionFromDB(oldLinkedTID);
                         deleteTIDSet.add(oldLinkedTID);
-                        accountIDSet.add(-oldT.getCategoryID());
                     }
+
+                    accountIDSet.add(-oldT.getCategoryID());
                 }
 
                 // finally deal with oldT
@@ -3561,8 +3530,9 @@ public class MainApp extends Application {
                     mLogger.debug("deleteTransactionFromDB(" + oldT.getID() + ")");
                     deleteTransactionFromDB(oldT.getID());
                     deleteTIDSet.add(oldT.getID());
-                    accountIDSet.add(oldT.getAccountID());
                 }
+
+                accountIDSet.add(oldT.getAccountID());
             }
 
             // now commit

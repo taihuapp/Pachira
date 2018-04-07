@@ -28,11 +28,42 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 
 public class Transaction {
 
+    // a class object returned by validate() method
+    //
+    static class ValidationStatus {
+        private final boolean mIsValid;
+        private final String mMessage;
+
+        ValidationStatus(boolean p, String m) {
+            mIsValid = p;
+            mMessage = m;
+        }
+
+        public boolean isValid() { return mIsValid; }
+        public String getMessage() { return mMessage; }
+    }
+
     private static final Logger mLogger = Logger.getLogger(Transaction.class);
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Transaction that = (Transaction) o;
+        return ((mID > 0) && (that.mID > 0) && (mID == that.mID));
+
+    }
+
+    @Override
+    public int hashCode() {
+
+        return Objects.hash(mID);
+    }
 
     enum Status {
         UNCLEARED, CLEARED, RECONCILED;
@@ -331,6 +362,24 @@ public class Transaction {
                     return BigDecimal.ZERO;
             }
         }, getTradeActionProperty(), getAmountProperty()));
+    }
+
+    public ValidationStatus validate() {
+        // check if it is self transferring
+        StringBuilder sb = new StringBuilder();
+        boolean valid = true;
+        if (getCategoryID() == -getAccountID()) {
+            sb.append("Transfer to self: accountID = ").append(getAccountID()).append('\n');
+            valid = false;
+        }
+        for (SplitTransaction st : getSplitTransactionList()) {
+            if (st.getCategoryID() == -getAccountID()) {
+                sb.append("Split transaction transfer to self: accountID = ").append(getAccountID()).append('\n');
+                valid = false;
+            }
+        }
+
+        return new ValidationStatus(valid, sb.toString());
     }
 
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }

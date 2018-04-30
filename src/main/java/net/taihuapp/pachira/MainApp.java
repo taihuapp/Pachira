@@ -1825,7 +1825,7 @@ public class MainApp extends Application {
         if (mConnection == null) return;
 
         try (Statement statement = mConnection.createStatement()) {
-            String sqlCmd = "select ID, TICKER, NAME, TYPE from SECURITIES order by ID";
+            String sqlCmd = "select ID, TICKER, NAME, TYPE from SECURITIES order by NAME";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int id = rs.getInt("ID");

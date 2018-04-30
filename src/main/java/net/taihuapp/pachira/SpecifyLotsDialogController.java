@@ -252,6 +252,9 @@ public class SpecifyLotsDialogController {
             }
         mSelectedSharesLabel.setText("" + selected);
         mPNLLabel.setText("" + realizedPNL);
+        if (mTransaction.getQuantity() == null)
+            mTransaction.setQuantity(BigDecimal.ZERO);
+
         mRemainingSharesLabel.setText("" + (mTransaction.getQuantity().subtract(selected)));
     }
 }

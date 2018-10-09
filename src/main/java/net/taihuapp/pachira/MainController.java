@@ -38,13 +38,22 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainController {
+
+    private static final Logger mLogger = Logger.getLogger(MainController.class);
 
     private MainApp mMainApp;
     private final ChangeListener<TreeItem<Account>> mSelectedTreeItemChangeListener = (obs, ov, nv) -> {
@@ -57,6 +66,12 @@ public class MainController {
     private Menu mRecentDBMenu;
     @FXML
     private Menu mEditMenu;
+    @FXML
+    private Menu mOFXMenu;
+    @FXML
+    private MenuItem mMasterPasswordMenuItem;
+    @FXML
+    private MenuItem mDirectConnectionMenuItem;
     @FXML
     private Menu mReportsMenu;
     @FXML
@@ -128,6 +143,13 @@ public class MainController {
         mMainApp = mainApp;
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
+
+        mMasterPasswordMenuItem.textProperty().bind(Bindings.createStringBinding(
+                () -> mMainApp.hasMasterPasswordProperty().get() ?
+                        "Update Master Password" : "Create Master Password",
+                mMainApp.hasMasterPasswordProperty()));
+
+        mDirectConnectionMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
 
         if (mMainApp.getAcknowledgeTimeStamp() == null)
             mMainApp.showSplashScreen(true);
@@ -232,6 +254,51 @@ public class MainController {
     }
 
     @FXML
+    private void setupVaultMasterPassword() {
+        boolean hasMasterPassword = mMainApp.hasMasterPassword();
+        List<String> passwords;
+
+        passwords = mMainApp.showPasswordDialog(hasMasterPassword ?
+                PasswordDialogController.MODE.CHANGE : PasswordDialogController.MODE.NEW);
+
+        if (passwords.size() > 0) {
+            boolean status;
+            // either update or setup new password
+            try {
+                if (!mMainApp.updateMasterPassword(passwords.get(0).toCharArray(), passwords.get(1).toCharArray()))
+                    showWarningDialog("Update Master Password", "Failed update master password.",
+                            "Master password not updated");
+                else {
+                    String title, header, content;
+                    if (mMainApp.hasMasterPassword()) {
+                        title = "Update Master Password";
+                        header = "Update Master Password successful.";
+                        content = "Master Password was successfully updated.";
+                    } else {
+                        title = "Create Master Password";
+                        header = "Create Master Password successful.";
+                        content = "Master Password was successfully created.";
+                    }
+                    mMainApp.showInformationDialog(title, header, content);
+                }
+
+            } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | IOException
+                    | CertificateException | UnrecoverableKeyException e){
+                String title, header, content;
+                if (mMainApp.hasMasterPassword()) {
+                    title = "Error in updating master password";
+                    header = "Failed to update master password";
+                } else {
+                    title = "Error in creating master password";
+                    header = "Failed to createe master password";
+                }
+                mLogger.error(title, e);
+                showWarningDialog(title, header, e.getMessage());
+            }
+        }
+    }
+
+    @FXML
     private void handleAbout() {
         mMainApp.showSplashScreen(false);
     }
@@ -317,6 +384,11 @@ public class MainController {
     }
 
     @FXML
+    private void handleDirectConnectionList() { mMainApp.showDirectConnectionListDialog(); }
+    @FXML
+    private void handleFinancialInstitutionList() { mMainApp.showFinancialInstitutionListDialog(); }
+
+    @FXML
     private void handleEditAccountList() { mMainApp.showAccountListDialog(); }
 
     @FXML
@@ -378,6 +450,7 @@ public class MainController {
 
     private void updateUI(boolean isConnected) {
         mEditMenu.setVisible(isConnected);
+        mOFXMenu.setVisible(isConnected);
         mReportsMenu.setVisible(isConnected);
         mChangePasswordMenuItem.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);

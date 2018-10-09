@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="300.0" prefWidth="400.0" xmlns="http://javafx.com/javafx/8.0.152" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.DirectConnectionListDialogController">
+   <children>
+      <TableView fx:id="mDCTableView" prefWidth="200.0">
+        <columns>
+          <TableColumn fx:id="mDCAliasColumn" prefWidth="177.0" text="Alias" />
+          <TableColumn fx:id="mFINameColumn" prefWidth="230.0" text="Financial Institution" />
+        </columns>
+      </TableView>
+      <ButtonBar prefHeight="40.0" prefWidth="200.0">
+        <buttons>
+            <Button mnemonicParsing="false" onAction="#handleNew" text="New" />
+            <Button fx:id="mEditButton" mnemonicParsing="false" onAction="#handleEdit" text="Edit" />
+          <Button fx:id="mDeleteButton" mnemonicParsing="false" onAction="#handleDelete" text="Delete" />
+        </buttons>
+         <VBox.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </VBox.margin>
+      </ButtonBar>
+   </children>
+</VBox>

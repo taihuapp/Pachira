@@ -101,9 +101,11 @@ public class PasswordDialogController implements ChangeListener<String> {
     @FXML
     private void handleOK() {
         mPasswords.clear();
-        mPasswords.add(mPasswordField.getText());
         if (mCurrentPasswordField.isVisible())
             mPasswords.add(mCurrentPasswordField.getText());
+        else
+            mPasswords.add("");
+        mPasswords.add(mPasswordField.getText());
         mDialogStage.close();
     }
 

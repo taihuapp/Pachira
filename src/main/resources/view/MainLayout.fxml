@@ -150,6 +150,13 @@
                         <MenuItem mnemonicParsing="false" onAction="#handleCapitalGains" text="Capital Gains" />
                     </items>
                   </Menu>
+                  <Menu fx:id="mOFXMenu" mnemonicParsing="false" text="Direct Connect">
+                    <items>
+                        <MenuItem fx:id="mMasterPasswordMenuItem" mnemonicParsing="false" onAction="#setupVaultMasterPassword" text="New Master Password" />
+                        <MenuItem fx:id="mDirectConnectionMenuItem" mnemonicParsing="false" onAction="#handleDirectConnectionList" text="Direction Connections" />
+                      <MenuItem mnemonicParsing="false" onAction="#handleFinancialInstitutionList" text="Financial Institutions" />
+                    </items>
+                  </Menu>
                 <Menu mnemonicParsing="false" text="Help">
                   <items>
                     <MenuItem mnemonicParsing="false" onAction="#handleAbout" text="About" />

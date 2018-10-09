@@ -23,6 +23,8 @@ package net.taihuapp.pachira;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.Observable;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -35,15 +37,20 @@ import javafx.scene.layout.Priority;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.net.taihuapp.pachira.dc.AccountDC;
+import net.taihuapp.pachira.net.taihuapp.pachira.dc.Vault;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
 import java.sql.Date;
 import java.text.DecimalFormat;
@@ -85,7 +92,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 5;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 6;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -118,6 +125,8 @@ public class MainApp extends Application {
 
     static final int SAVEDREPORTSNAMELEN = 32;
 
+    private static final String HASHEDMASTERPASSWORDNAME = "HASHEDMASTERPASSWORD";
+
     // Category And Transfer Account are often shared as the following:
     // String     #    Meaning
     // Blank      0    no transfer, no category
@@ -132,6 +141,8 @@ public class MainApp extends Application {
     private Stage mPrimaryStage;
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
     private Savepoint mSavepoint = null;
+
+    private Vault mVault = new Vault();
 
     // mTransactionList is ordered by ID.  It's important for getTransactionByID to work
     // mTransactionListSort2 is ordered by accountID, Date, and ID
@@ -148,6 +159,9 @@ public class MainApp extends Application {
     private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
     private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
+    private ObservableList<DirectConnection.FIData> mFIDataList = FXCollections.observableArrayList();
+    private ObservableList<DirectConnection> mDCInfoList = FXCollections.observableArrayList();
+
     private SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
 
     private final Map<Integer, Reminder> mReminderMap = new HashMap<>();
@@ -155,6 +169,8 @@ public class MainApp extends Application {
     private final ObservableList<ReminderTransaction> mReminderTransactionList = FXCollections.observableArrayList();
 
     private Account mCurrentAccount = null;
+
+    private BooleanProperty mHasMasterPasswordProperty = new SimpleBooleanProperty(false);
 
     void setCurrentAccount(Account a) { mCurrentAccount = a; }
     Account getCurrentAccount() { return mCurrentAccount; }
@@ -326,7 +342,7 @@ public class MainApp extends Application {
         return null;
     }
 
-    private void showInformationDialog(String title, String header, String content) {
+    void showInformationDialog(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.initOwner(mPrimaryStage);
         alert.initModality(Modality.WINDOW_MODAL);
@@ -984,6 +1000,46 @@ public class MainApp extends Application {
             showExceptionDialog("Database Error", "mConnection is null", "Database not connected", e);
         }
         return false;
+    }
+
+    // return the row id if merge succeeded.
+    // this method doesn't set savepoint
+    int insertUpdateFIDataToDB(DirectConnection.FIData fiData) throws SQLException {
+        String sqlCmd;
+        int id = fiData.getID();
+        if (id <= 0) {
+            sqlCmd = "insert into FIData "
+                    + "(FIID, SUBID, NAME, ORG, BROKERID, URL) "
+                    + "values(?, ?, ?, ?, ?, ?)";
+        } else {
+            sqlCmd = "update FIData set "
+                    + "FIID = ?, SUBID = ?, NAME = ?, ORG = ?, BROKERID = ?, URL = ? "
+                    + "where ID = ?";
+        }
+
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            preparedStatement.setString(1, fiData.getFIID());
+            preparedStatement.setString(2, fiData.getSubID());
+            preparedStatement.setString(3, fiData.getName());
+            preparedStatement.setString(4, fiData.getORG());
+            preparedStatement.setString(5, fiData.getBrokerID());
+            preparedStatement.setString(6, fiData.getURL());
+            if (id > 0) {
+                preparedStatement.setInt(7, fiData.getID());
+            }
+
+            if (preparedStatement.executeUpdate() == 0)
+                throw(new SQLException("Failure: " + sqlCmd));
+
+            if (id <= 0) {
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    resultSet.next();
+                    id = resultSet.getInt(1);
+                    fiData.setID(id);
+                }
+            }
+            return fiData.getID();
+        }
     }
 
     // return true for DB operation success
@@ -1841,6 +1897,149 @@ public class MainApp extends Application {
         }
     }
 
+    // return true for success, false for failure.
+    private boolean mergeMasterPasswordToDB(String encodedHashedMasterPassword) throws SQLException {
+        boolean savepointSetHere = false;
+        try (Statement statement = mConnection.createStatement()) {
+            savepointSetHere = setDBSavepoint();
+            statement.executeUpdate("merge into DCINFO (NAME, FIID, PASSWORD) key(NAME) values('"
+                    + HASHEDMASTERPASSWORDNAME + "', 0, '" + encodedHashedMasterPassword + "')");
+            if (savepointSetHere)
+                commitDB();
+            return true;
+        } catch (SQLException e) {
+            if (savepointSetHere) {
+                try {
+                    String errMsg = SQLExceptionToString(e);
+                    mLogger.error("Failed to save Master Password. " + errMsg, e);
+                    showExceptionDialog("Database Error", "Failed to save Master Password", errMsg, e);
+                    rollbackDB();
+                } catch (SQLException e1) {
+                    String errMsg = SQLExceptionToString(e1);
+                    mLogger.error("Failed to rollback. " + errMsg, e1);
+                    showExceptionDialog("Database Error", "Failed to rollback",
+                            "Failed to rollback after merge Master Password failure. " + errMsg, e1);
+                }
+            } else {
+                // save point is not set here, throw exception and let the caller to handle
+                throw e;
+            }
+
+            return false;
+        } finally {
+            if (savepointSetHere) {
+                try {
+                    releaseDBSavepoint();
+                } catch (SQLException e) {
+                    String errMsg = SQLExceptionToString(e);
+                    mLogger.error("Failed to releaseDBSavepoint. " + errMsg, e);
+                    showExceptionDialog("Database Error", "Failed to releaseDBSavepoint",
+                            "Unable to release savepoint and set DB autocommit" + errMsg, e);
+                }
+            }
+        }
+    }
+
+    void initDCInfoList() {
+        mDCInfoList.clear();
+        if (mConnection == null)
+            return;
+
+        String sqlCmd = "select * from DCINFO order by ID;";
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                String name = resultSet.getString("NAME");
+                int fiID = resultSet.getInt("FIID");
+                String eun = resultSet.getString("USERNAME");
+                String epwd = resultSet.getString("PASSWORD");
+
+                mDCInfoList.add(new DirectConnection(id, name, fiID, eun, epwd));
+            }
+        } catch (SQLException e) {
+            mLogger.error("SQLException on initDCInfoList " + e.getSQLState(), e);
+        }
+    }
+
+    void initFIDataList() {
+
+        if (mConnection == null)
+            return;
+
+        String sqlCmd;
+        mFIDataList.clear();
+        sqlCmd = "select * from FIData order by ID;";
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd) ) {
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                String fiid = resultSet.getString("FIID");
+                String subid = resultSet.getString("SUBID");
+                String name = resultSet.getString("NAME");
+                String org = resultSet.getString("ORG");
+                String brokerID = resultSet.getString("BROKERID");
+                String url = resultSet.getString("URL");
+
+                mFIDataList.add(new DirectConnection.FIData(id, fiid, subid, brokerID,
+                        name, org, url));
+            }
+        } catch (SQLException e) {
+            mLogger.error("SQLException on initFIDataList " + e.getSQLState(), e);
+            showExceptionDialog("Exception", "SQLException", SQLExceptionToString(e), e);
+        }
+    }
+
+    private void initVault() {
+
+        if (mConnection == null)
+            return;
+
+        // empty the lists
+        mDCInfoList.clear();
+        hasMasterPasswordProperty().set(false);
+
+        try {
+            mVault.setupKeyStore();
+        } catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException
+                | InvalidKeySpecException e) {
+            mLogger.error("Vault.setupKeyStore throws exception " + e.getClass().getName(), e);
+            showExceptionDialog("Exception", e.getClass().getName(),"In Vault.setupKeyStore", e);
+            return; // can't continue, return here.
+        }
+
+        String sqlCmd;
+        // load DCList and HashedMasterPassword
+        sqlCmd = "select * from DCINFO order by ID;";
+                try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            while (resultSet.next()) {
+                int id = resultSet.getInt("ID");
+                String name = resultSet.getString("NAME");
+                int fiID = resultSet.getInt("FIID");
+                String eun = resultSet.getString("USERNAME");
+                String epwd = resultSet.getString("PASSWORD");
+
+                if (name.equals(HASHEDMASTERPASSWORDNAME) && (epwd != null)) {
+                    if (mVault.setHashedMasterPassword(epwd)) {
+                        hasMasterPasswordProperty().set(true);
+                    } else {
+                        mLogger.error("Malformed Encoded Hashed Master Password '" + epwd + "'");
+                        showExceptionDialog("Error", "Malformed Encoded Hashed Master Password",
+                                "'" + epwd + "'", null);
+                        break; // no need to process the remaining DCINFO list
+                    }
+                } else {
+                    mDCInfoList.add(new DirectConnection(id, name, fiID, eun, epwd));
+                }
+            }
+        } catch (SQLException e) {
+            mLogger.error("SQLException on select DCINFO table " + e.getSQLState(), e);
+            showExceptionDialog("Database Error", "Select DCInfo Error", SQLExceptionToString(e), e);
+        }
+
+    }
+
     private List<SplitTransaction> loadSplitTransactions(int tid) {
         List<SplitTransaction> stList = new ArrayList<>();
 
@@ -2030,6 +2229,45 @@ public class MainApp extends Application {
         }
     }
 
+    void showDirectConnectionListDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/DirectConnectionListDialog.fxml"));
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.initOwner(mPrimaryStage);
+            stage.setTitle("Direct Connection List");
+            stage.setScene(new Scene(loader.load()));
+
+            DirectConnectionListDialogController controller = loader.getController();
+            controller.setMainApp(this, stage);
+            stage.showAndWait();
+        } catch (IOException e) {
+            mLogger.error("IOException when open Direct Connection List dialog", e);
+        }
+    }
+
+    void showFinancialInstitutionListDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/FinancialInstitutionListDialog.fxml"));
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.initOwner(mPrimaryStage);
+            stage.setTitle("Manage Financial Institution List");
+            stage.setScene(new Scene(loader.load()));
+
+            FinancialInstitutionListDialogController controller = loader.getController();
+            controller.setMainApp(this, stage);
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            mLogger.error("IOException when open Financial Institution List Dialog", e);
+        }
+    }
+
     void showAccountListDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
@@ -2143,11 +2381,11 @@ public class MainApp extends Application {
         }
     }
 
-    // returns a list of passwords, the length of list can be 0, 1, or 2.
-    // length 0 means some exception happened
-    // length 1 means normal situation (for creation db or normal login)
-    // length 2 means old password and new password (for changing password)
-    private List<String> showPasswordDialog(PasswordDialogController.MODE mode) {
+    // returns a list of passwords, the length of list can be either 0 or 2.
+    // for creating password, empty string is in [0] and the new password is in [1]
+    // for entering password, empty string is in [0] and the password is in [1]
+    // for changing password, the old password is in [0] and the new one in [1]
+    List<String> showPasswordDialog(PasswordDialogController.MODE mode) {
         String title;
         switch (mode) {
             case ENTER:
@@ -2895,14 +3133,14 @@ public class MainApp extends Application {
             mConnection.close();
             mConnection = null;
             // change encryption password first
-            ChangeFileEncryption.execute(dbFile.getParent(), dbFile.getName(), "AES", passwords.get(1).toCharArray(),
-                    passwords.get(0).toCharArray(), true);
+            ChangeFileEncryption.execute(dbFile.getParent(), dbFile.getName(), "AES", passwords.get(0).toCharArray(),
+                    passwords.get(1).toCharArray(), true);
             passwordChanged++;  // changed 1
             // DBOWNER password has not changed yet.
             url += ";"+CIPHERCLAUSE+IFEXISTCLAUSE;
-            mConnection = DriverManager.getConnection(url, DBOWNER, passwords.get(0) + " " + passwords.get(1));
+            mConnection = DriverManager.getConnection(url, DBOWNER, passwords.get(1) + " " + passwords.get(0));
             preparedStatement = mConnection.prepareStatement("Alter User " + DBOWNER + " set password ?");
-            preparedStatement.setString(1, passwords.get(0));
+            preparedStatement.setString(1, passwords.get(1));
             preparedStatement.execute();
             passwordChanged++;
         } catch (SQLException e) {
@@ -3011,7 +3249,7 @@ public class MainApp extends Application {
         if (password == null) {
             List<String> passwords = showPasswordDialog(
                     isNew ? PasswordDialogController.MODE.NEW : PasswordDialogController.MODE.ENTER);
-            if (passwords == null || passwords.size() == 0 || passwords.get(0) == null) {
+            if (passwords == null || passwords.size() == 0 || passwords.get(1) == null) {
                 if (isNew) {
                     Alert alert = new Alert(Alert.AlertType.WARNING);
                     alert.initOwner(mPrimaryStage);
@@ -3021,7 +3259,7 @@ public class MainApp extends Application {
                 }
                 return;
             }
-            password = passwords.get(0);
+            password = passwords.get(1);
         }
 
         try {
@@ -3149,7 +3387,12 @@ public class MainApp extends Application {
 
         // need to run this to update DBVERSION
         final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
-        if (newV == 5) {
+        if (newV == 6) {
+            createDirectConnectTables();
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 5) {
             final String updateSQL = "alter table TRANSACTIONS add (ACCRUEDINTEREST decimal(20, 4) default 0);";
             try (Statement statement = mConnection.createStatement()) {
                 statement.executeUpdate(updateSQL);
@@ -3235,6 +3478,60 @@ public class MainApp extends Application {
         initAccountList();  // this should be done after securitylist and categorylist are loaded
         initReminderMap();
         initReminderTransactionList();
+
+        initFIDataList();
+        initVault();
+    }
+
+    // encrypt a char array using master password in the vault, return encrypted and encoded
+    public String encrypt(final char[] secret) throws NoSuchAlgorithmException, InvalidKeySpecException,
+            KeyStoreException, UnrecoverableKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException,
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        return getVault().encrypt(secret);
+    }
+
+    public char[] decrypt(final String encodedEncryptedSecretWithSaltAndIV) throws IllegalArgumentException,
+            NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
+            NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException {
+        return getVault().decrypt(encodedEncryptedSecretWithSaltAndIV);
+    }
+
+    // todo need to init hasMasterPasswordProperty according to database info
+    BooleanProperty hasMasterPasswordProperty() {
+        return mHasMasterPasswordProperty;
+    }
+
+    boolean hasMasterPassword() {
+        return getVault().hasMasterPassword();
+    }
+
+    // return true if update master password successful
+    // false otherwise
+    boolean updateMasterPassword(final char[] curPassword, final char[] newPassword)
+            throws NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException,
+                IOException, CertificateException, UnrecoverableKeyException {
+
+        if (!getVault().updateMasterPassword(curPassword, newPassword))
+            return false;
+
+        // todo
+        // re-encrypt DC List
+
+        // save DC List to DB
+
+        // todo set savepoint etc.
+        // save encoded hashed master password to db
+        try {
+            boolean status = mergeMasterPasswordToDB(getVault().getEncodedHashedMasterPassword());
+            hasMasterPasswordProperty().set(status);
+            return status;
+        } catch (SQLException e) {
+            String errMsg = SQLExceptionToString(e);
+            mLogger.error("Failed to save master password. " + errMsg, e);
+            showExceptionDialog("Database Error", "Failed to save Master Password", errMsg, e);
+            return false;
+        }
     }
 
     private void sqlCreateTable(String createSQL) {
@@ -3616,14 +3913,48 @@ public class MainApp extends Application {
         return dbVersion;
     }
 
+    private void createDirectConnectTables() {
+        String sqlCmd;
+        sqlCmd = "create table ACCOUNTDCS ("
+                + "ACCOUNTID integer UNIQUE NOT NULL, "
+                + "DCID integer NOT NULL, "
+                + "ROUTINGNUMBER varchar(9), "
+                + "ACCOUNTNUMBER varchar(256), "  // encrypted account number
+                + "primary key (ACCOUNTID))";
+        sqlCreateTable(sqlCmd);
+
+        sqlCmd = "create table DCINFO ("
+                + "ID integer NOT NULL AUTO_INCREMENT (10), "
+                + "NAME varchar(128) UNIQUE NOT NULL, "
+                + "FIID integer NOT NULL, "
+                + "USERNAME varchar(256), "   // encrypted user name
+                + "PASSWORD varchar(256), "   // encrypted password
+                + "primary key (ID))";
+        sqlCreateTable(sqlCmd);
+
+        sqlCmd = "create table FIDATA ("
+                + "ID integer NOT NULL AUTO_INCREMENT (10), "
+                + "FIID varchar(32) NOT NULL, "  // not null, can be empty
+                + "SUBID varchar(32) NOT NULL, " // not null, can be empty
+                + "NAME varchar(128) UNIQUE NOT NULL, " // not null, can be empty
+                + "ORG varchar(128) NOT NULL, "
+                + "BROKERID varchar(32) NOT NULL, "
+                + "URL varchar(2084) NOT NULL, "
+                + "primary key (ID), "
+                + "CONSTRAINT FIID_SUBID UNIQUE(FIID, SUBID))";
+        sqlCreateTable(sqlCmd);
+    }
+
     // initialize database structure
     private void initDBStructure() {
         if (mConnection == null)
             return;
 
         // create Settings Table first.
-
         createSettingsTable(DBVERSIONVALUE);
+
+        // create AccountDC, DCInfo, and FIData Tables
+        createDirectConnectTables();
 
         // Accounts table
         // ID starts from 1
@@ -3976,6 +4307,102 @@ public class MainApp extends Application {
         }
     }
 
+    private Vault getVault() { return mVault; }
+
+/*
+    // dc.Vault method
+    @Override
+    public boolean hasMasterPassword() {
+        // todo
+        return false;
+    }
+
+    @Override
+    public int getSaltLen() {
+        return 32;
+    }
+
+    @Override
+    public int getHashKeyLen() {
+        return 512;
+    }
+
+    @Override
+    public int getHashIterationNum() {
+        return 100000;
+    }
+
+    @Override
+    public String hashAndEncodePassword(char[] password, byte[] salt) {
+        final int numIter = 100000; // number of
+        final int keyLength = 512;  // key length in bits
+        final String hashAlgorithm = "PBKDF2WithHmacSHA512";
+        // from https://www.owasp.org/index.php/Hashing_Java
+        try {
+
+            SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance(hashAlgorithm);
+            PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, numIter, keyLength);
+            SecretKey secretKey = secretKeyFactory.generateSecret(pbeKeySpec);
+            byte[] keyBytes = secretKey.getEncoded();
+            String saltString = new String(Base64.getEncoder().encode(salt));
+            String keyString = new String(Base64.getEncoder().encode(keyBytes));
+            return saltString + ":" + keyString;
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            mLogger.error(e);
+            return null;
+        }
+    }
+
+    @Override
+    public boolean saveHashedMasterPassword(String hashedMasterPassword) {
+        try {
+            mergeAccountDCToDB(new AccountDC(0, 0, "", hashedMasterPassword));
+            return true;
+        } catch (SQLException e) {
+            mLogger.error(SQLExceptionToString(e), e);
+            return false;
+        }
+    }
+*/
+
+    private void mergeAccountDCToDB(AccountDC adc) throws SQLException {
+        /*
+        AccountDCS ("
+                + "ACCOUNTID integer NOT NULL, "
+                + "DCID integer NOT NULL, "
+                + "ROUTINGNUMBER varchar(9), "
+                + "ACCOUNTNUMBER varchar(32))"
+                */
+        try (Statement statement = mConnection.createStatement()) {
+            statement.executeUpdate(
+                    "merge into ACCOUNTDCS (ACCOUNTID, DCID, ROUTINGNUMBER, ACCOUNTNUMBER) values ('"
+                    + adc.getAccountNumber() + ", "
+                    + adc.getDCID() + ", "
+                    + adc.getRoutingNumber() + ", "
+                    + adc.getAccountNumber() + ")");
+        }
+    }
+
+    // FIDataList
+    ObservableList<DirectConnection.FIData> getFIDataList() { return mFIDataList; }
+    DirectConnection.FIData getFIDataByName(String s) {
+        for (DirectConnection.FIData fiData : getFIDataList()) {
+            if (fiData.getName().equals(s))
+                return fiData;
+        }
+        return null;
+    }
+    DirectConnection.FIData getFIDataByID(int id) {
+        for (DirectConnection.FIData fiData : getFIDataList()) {
+            if (id == fiData.getID())
+                return fiData;
+        }
+        return null;
+    }
+
+    // DCInfoList
+    ObservableList<DirectConnection> getDCInfoList() { return mDCInfoList; }
+
     @Override
     public void stop() {
         closeConnection();
@@ -3998,6 +4425,7 @@ public class MainApp extends Application {
         // set error stream to a file in the current directory
         mLogger.info(MainApp.class.getPackage().getImplementationTitle()
                 + " " + MainApp.class.getPackage().getImplementationVersion());
+
         launch(args);
     }
 }

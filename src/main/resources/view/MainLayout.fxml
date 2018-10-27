@@ -152,7 +152,9 @@
                   </Menu>
                   <Menu fx:id="mOFXMenu" mnemonicParsing="false" text="Direct Connect">
                     <items>
-                        <MenuItem fx:id="mMasterPasswordMenuItem" mnemonicParsing="false" onAction="#setupVaultMasterPassword" text="New Master Password" />
+                        <MenuItem fx:id="mCreateMasterPasswordMenuItem" mnemonicParsing="false" onAction="#createVaultMasterPassword" text="Create Master Password" />
+                        <MenuItem fx:id="mUpdateMasterPasswordMenuItem" mnemonicParsing="false" onAction="#updateVaultMasterPassword" text="Update Master Password" />
+                        <MenuItem fx:id="mDeleteMasterPasswordMenuItem" mnemonicParsing="false" onAction="#deleteVaultMasterPassword" text="Delete Master Password" />
                         <MenuItem fx:id="mDirectConnectionMenuItem" mnemonicParsing="false" onAction="#handleDirectConnectionList" text="Direction Connections" />
                       <MenuItem mnemonicParsing="false" onAction="#handleFinancialInstitutionList" text="Financial Institutions" />
                     </items>

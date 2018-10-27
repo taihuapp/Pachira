@@ -20,14 +20,23 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.apache.log4j.Logger;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.sql.SQLException;
+import java.util.Arrays;
+
 
 public class EditDCInfoDialogController {
 
@@ -44,6 +53,9 @@ public class EditDCInfoDialogController {
     private MainApp mMainApp;
     private DirectConnection mDCInfo;
     private Stage mStage;
+    private BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
+    private void setChanged() { mChangedProperty.set(true); }
+    private boolean isChanged() { return mChangedProperty.get(); }
 
     @FXML
     private TextField mDCNameTextField;
@@ -63,6 +75,8 @@ public class EditDCInfoDialogController {
     private CheckBox mShowUserNameCheckBox;
     @FXML
     private CheckBox mShowPasswordCheckBox;
+    @FXML
+    private Button mSaveButton;
 
     void setMainApp(MainApp mainApp, DirectConnection dcInfo, Stage stage) {
         mMainApp = mainApp;
@@ -76,6 +90,79 @@ public class EditDCInfoDialogController {
         mFIComboBox.setValue(mMainApp.getFIDataByID(dcInfo.getFIID()));
         new AutoCompleteComboBoxHelper<>(mFIComboBox);
 
+        mDCNameTextField.setText(dcInfo.getName());
+        mFIComboBox.getSelectionModel().select(mMainApp.getFIDataByID(dcInfo.getFIID()));
+        char[] clearUserName = null;
+        char[] clearPassword = null;
+        try {
+            if (dcInfo.getEncryptedUserName().isEmpty())
+                clearUserName = new char[0];
+            else
+                clearUserName = mMainApp.decrypt(dcInfo.getEncryptedUserName());
+            if (dcInfo.getEncryptedPassword().isEmpty())
+                clearPassword = new char[0];
+            else
+                clearPassword = mMainApp.decrypt(dcInfo.getEncryptedPassword());
+            mUserNamePasswordField.setText(new String(clearUserName));
+            mPasswordPasswordField.setText(new String(clearPassword));
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
+                | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException
+                | InvalidAlgorithmParameterException | BadPaddingException e) {
+            mLogger.error("Unable decrypt user name and password for " + dcInfo.getName(), e);
+            mMainApp.showExceptionDialog("Exception", "Decryption Exception",
+                    "Failed to decrypt DCInfo for " + dcInfo.getName(), e);
+        } finally {
+            if (clearUserName != null)
+                Arrays.fill(clearUserName, ' ');
+            if (clearPassword != null)
+                Arrays.fill(clearPassword, ' ');
+        }
+        // add change listeners
+        ChangeListener<String> textChangeListener = (observable, oldValue, newValue) -> setChanged();
+        mDCNameTextField.textProperty().addListener(textChangeListener);
+        mUserNameTextField.textProperty().addListener(textChangeListener);
+        mPasswordTextField.textProperty().addListener(textChangeListener);
+        mFIComboBox.valueProperty().addListener((observable, oldValue, newValue) -> setChanged());
+    }
+
+    @FXML
+    private void handleSave() {
+        try {
+            String encryptedUserName = mMainApp.encrypt(mUserNamePasswordField.getText().toCharArray());
+            String encryptedPassword = mMainApp.encrypt(mPasswordPasswordField.getText().toCharArray());
+            mDCInfo.setName(mDCNameTextField.getText());
+            mDCInfo.setFIID(mFIComboBox.getSelectionModel().getSelectedItem().getID());
+            mDCInfo.setEncryptedUserName(encryptedUserName);
+            mDCInfo.setEncryptedPassword(encryptedPassword);
+            mMainApp.insertUpdateDCToDB(mDCInfo);
+            mMainApp.initDCInfoList();
+            mStage.close();
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
+                | NoSuchPaddingException | InvalidAlgorithmParameterException | InvalidKeyException
+                | IllegalBlockSizeException | BadPaddingException e) {
+            mLogger.error("Vault Exception", e);
+            mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+        } catch (SQLException e) {
+            mLogger.error(MainApp.SQLExceptionToString(e), e);
+            mMainApp.showExceptionDialog("Exception","Database Exception",
+                    MainApp.SQLExceptionToString(e), e);
+        }
+    }
+
+    @FXML
+    private void handleCancel() {
+        if (isChanged() && !MainApp.showConfirmationDialog("Confirmation", "Content has been changed",
+                "Do you want to discard changes?")) {
+            // content changed and not confimed OK to discard, go back
+            return;
+        }
+
+        // close
+        mStage.close();
+    }
+
+    @FXML
+    private void initialize() {
         mUserNamePasswordField.visibleProperty().bind(mShowUserNameCheckBox.selectedProperty().not());
         mUserNameTextField.visibleProperty().bind(mShowUserNameCheckBox.selectedProperty());
         mUserNamePasswordField.textProperty().bindBidirectional(mUserNameTextField.textProperty());
@@ -83,16 +170,6 @@ public class EditDCInfoDialogController {
         mPasswordTextField.visibleProperty().bind(mShowPasswordCheckBox.selectedProperty());
         mPasswordPasswordField.textProperty().bindBidirectional(mPasswordTextField.textProperty());
 
-        mDCNameTextField.setText(dcInfo.getName());
-        mFIComboBox.getSelectionModel().select(mMainApp.getFIDataByID(dcInfo.getFIID()));
-
-    }
-
-    void handleSave() {
-
-    }
-
-    void handleClose() {
-
+        mSaveButton.disableProperty().bind(mChangedProperty.not());
     }
 }

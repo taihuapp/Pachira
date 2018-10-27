@@ -45,7 +45,10 @@ import org.h2.tools.ChangeFileEncryption;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.*;
@@ -84,7 +87,7 @@ public class MainApp extends Application {
 
     private static final String ACKNOWLEDGETIMESTAMP = "ACKDT";
     private static final int MAXOPENEDDBHIST = 5; // keep max 5 opened files
-    private static final String KEY_OPENEDDBPREFIX = "OPENEDDB#";
+    private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     private static final String DBOWNER = "ADMPACHIRA";
     private static final String DBPOSTFIX = ".mv.db"; // was .h2.db in h2-1.3.176, changed to .mv.db in h2-1.4.196
     private static final String URLPREFIX = "jdbc:h2:";
@@ -1002,6 +1005,52 @@ public class MainApp extends Application {
         return false;
     }
 
+    // insert or update DirectConnection to DB.
+    // for insertion, the ID field of input dc is set to the database id.
+    void insertUpdateDCToDB(DirectConnection dc) throws SQLException {
+        String sqlCmd;
+        int id = dc.getID();
+        if (id <= 0) {
+            sqlCmd = "insert into DCINFO (NAME, FIID, USERNAME, PASSWORD) "
+                    + "values(?, ?, ?, ?)";
+        } else {
+            sqlCmd = "update DCINFO set "
+                    + "NAME = ?, FIID = ?, USERNAME = ?, PASSWORD = ? "
+                    + "where ID = ?";
+        }
+
+        boolean savepointSetHere = false;
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            savepointSetHere = setDBSavepoint();
+            preparedStatement.setString(1, dc.getName());
+            preparedStatement.setInt(2, dc.getFIID());
+            preparedStatement.setString(3, dc.getEncryptedUserName());
+            preparedStatement.setString(4, dc.getEncryptedPassword());
+            if (id > 0) {
+                preparedStatement.setInt(5, id);
+            }
+            if (preparedStatement.executeUpdate() == 0)
+                throw new SQLException("Failure: " + sqlCmd);
+            if (id <= 0) {
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    resultSet.next();
+                    dc.setID(resultSet.getInt(1));
+                }
+            }
+            if (savepointSetHere)
+                commitDB();
+        } catch (SQLException e) {
+            // Database problem
+            if (savepointSetHere) {
+                rollbackDB();
+            }
+            throw e;
+        } finally {
+            if (savepointSetHere)
+                releaseDBSavepoint();
+        }
+    }
+
     // return the row id if merge succeeded.
     // this method doesn't set savepoint
     int insertUpdateFIDataToDB(DirectConnection.FIData fiData) throws SQLException {
@@ -1897,8 +1946,8 @@ public class MainApp extends Application {
         }
     }
 
-    // return true for success, false for failure.
-    private boolean mergeMasterPasswordToDB(String encodedHashedMasterPassword) throws SQLException {
+    // save hashed and encoded master password into database.
+    private void mergeMasterPasswordToDB(String encodedHashedMasterPassword) throws SQLException {
         boolean savepointSetHere = false;
         try (Statement statement = mConnection.createStatement()) {
             savepointSetHere = setDBSavepoint();
@@ -1906,45 +1955,25 @@ public class MainApp extends Application {
                     + HASHEDMASTERPASSWORDNAME + "', 0, '" + encodedHashedMasterPassword + "')");
             if (savepointSetHere)
                 commitDB();
-            return true;
         } catch (SQLException e) {
-            if (savepointSetHere) {
-                try {
-                    String errMsg = SQLExceptionToString(e);
-                    mLogger.error("Failed to save Master Password. " + errMsg, e);
-                    showExceptionDialog("Database Error", "Failed to save Master Password", errMsg, e);
-                    rollbackDB();
-                } catch (SQLException e1) {
-                    String errMsg = SQLExceptionToString(e1);
-                    mLogger.error("Failed to rollback. " + errMsg, e1);
-                    showExceptionDialog("Database Error", "Failed to rollback",
-                            "Failed to rollback after merge Master Password failure. " + errMsg, e1);
-                }
-            } else {
-                // save point is not set here, throw exception and let the caller to handle
-                throw e;
-            }
+            if (savepointSetHere)
+                rollbackDB();
 
-            return false;
+            throw e;
         } finally {
-            if (savepointSetHere) {
-                try {
-                    releaseDBSavepoint();
-                } catch (SQLException e) {
-                    String errMsg = SQLExceptionToString(e);
-                    mLogger.error("Failed to releaseDBSavepoint. " + errMsg, e);
-                    showExceptionDialog("Database Error", "Failed to releaseDBSavepoint",
-                            "Unable to release savepoint and set DB autocommit" + errMsg, e);
-                }
-            }
+            if (savepointSetHere)
+                releaseDBSavepoint();
         }
     }
 
-    void initDCInfoList() {
+    // initialize DCInfo List from Database table
+    // return encoded hashed master password or null if not exist
+    String initDCInfoList() throws SQLException {
         mDCInfoList.clear();
         if (mConnection == null)
-            return;
+            return null;
 
+        String ehmp = null;
         String sqlCmd = "select * from DCINFO order by ID;";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
@@ -1955,10 +1984,12 @@ public class MainApp extends Application {
                 String eun = resultSet.getString("USERNAME");
                 String epwd = resultSet.getString("PASSWORD");
 
-                mDCInfoList.add(new DirectConnection(id, name, fiID, eun, epwd));
+                if (HASHEDMASTERPASSWORDNAME.equals(name))
+                    ehmp = epwd;
+                else
+                    mDCInfoList.add(new DirectConnection(id, name, fiID, eun, epwd));
             }
-        } catch (SQLException e) {
-            mLogger.error("SQLException on initDCInfoList " + e.getSQLState(), e);
+            return ehmp;
         }
     }
 
@@ -1995,10 +2026,7 @@ public class MainApp extends Application {
         if (mConnection == null)
             return;
 
-        // empty the lists
-        mDCInfoList.clear();
         hasMasterPasswordProperty().set(false);
-
         try {
             mVault.setupKeyStore();
         } catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException
@@ -2008,36 +2036,16 @@ public class MainApp extends Application {
             return; // can't continue, return here.
         }
 
-        String sqlCmd;
-        // load DCList and HashedMasterPassword
-        sqlCmd = "select * from DCINFO order by ID;";
-                try (Statement statement = mConnection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
-            while (resultSet.next()) {
-                int id = resultSet.getInt("ID");
-                String name = resultSet.getString("NAME");
-                int fiID = resultSet.getInt("FIID");
-                String eun = resultSet.getString("USERNAME");
-                String epwd = resultSet.getString("PASSWORD");
-
-                if (name.equals(HASHEDMASTERPASSWORDNAME) && (epwd != null)) {
-                    if (mVault.setHashedMasterPassword(epwd)) {
-                        hasMasterPasswordProperty().set(true);
-                    } else {
-                        mLogger.error("Malformed Encoded Hashed Master Password '" + epwd + "'");
-                        showExceptionDialog("Error", "Malformed Encoded Hashed Master Password",
-                                "'" + epwd + "'", null);
-                        break; // no need to process the remaining DCINFO list
-                    }
-                } else {
-                    mDCInfoList.add(new DirectConnection(id, name, fiID, eun, epwd));
-                }
+        try {
+            String ehmp = initDCInfoList();
+            if (ehmp != null) {
+                mVault.setHashedMasterPassword(ehmp);
+                hasMasterPasswordProperty().set(true);
             }
         } catch (SQLException e) {
             mLogger.error("SQLException on select DCINFO table " + e.getSQLState(), e);
             showExceptionDialog("Database Error", "Select DCInfo Error", SQLExceptionToString(e), e);
         }
-
     }
 
     private List<SplitTransaction> loadSplitTransactions(int tid) {
@@ -2740,12 +2748,12 @@ public class MainApp extends Application {
 
     // The input transaction is not changed.
     void showEditTransactionDialog(Stage parent, Transaction transaction) {
-        List<Transaction.TradeAction> taList = (mCurrentAccount.getType() == Account.Type.INVESTING) ?
+        List<Transaction.TradeAction> taList = (getCurrentAccount().getType() == Account.Type.INVESTING) ?
                 Arrays.asList(Transaction.TradeAction.values()) :
                 Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT,
                         Transaction.TradeAction.XIN, Transaction.TradeAction.XOUT);
-        showEditTransactionDialog(parent, transaction, Collections.singletonList(mCurrentAccount),
-                mCurrentAccount, taList);
+        showEditTransactionDialog(parent, transaction, Collections.singletonList(getCurrentAccount()),
+                getCurrentAccount(), taList);
     }
 
     // return transaction id or -1 for failure
@@ -2773,11 +2781,11 @@ public class MainApp extends Application {
     }
 
     void showAccountHoldings() {
-        if (mCurrentAccount == null) {
+        if (getCurrentAccount() == null) {
             mLogger.error("Can't show holdings for null account.");
             return;
         }
-        if (mCurrentAccount.getType() != Account.Type.INVESTING) {
+        if (getCurrentAccount().getType() != Account.Type.INVESTING) {
             mLogger.error("Show holdings only applicable for trading account");
             return;
         }
@@ -2787,7 +2795,7 @@ public class MainApp extends Application {
             loader.setLocation(MainApp.class.getResource("/view/HoldingsDialog.fxml"));
 
             Stage dialogStage = new Stage();
-            dialogStage.setTitle("Account Holdings: " + mCurrentAccount.getName());
+            dialogStage.setTitle("Account Holdings: " + getCurrentAccount().getName());
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
@@ -3484,53 +3492,139 @@ public class MainApp extends Application {
     }
 
     // encrypt a char array using master password in the vault, return encrypted and encoded
-    public String encrypt(final char[] secret) throws NoSuchAlgorithmException, InvalidKeySpecException,
+    String encrypt(final char[] secret) throws NoSuchAlgorithmException, InvalidKeySpecException,
             KeyStoreException, UnrecoverableKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException,
             InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         return getVault().encrypt(secret);
     }
 
-    public char[] decrypt(final String encodedEncryptedSecretWithSaltAndIV) throws IllegalArgumentException,
+    char[] decrypt(final String encodedEncryptedSecretWithSaltAndIV) throws IllegalArgumentException,
             NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
             NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
             IllegalBlockSizeException, BadPaddingException {
         return getVault().decrypt(encodedEncryptedSecretWithSaltAndIV);
     }
 
-    // todo need to init hasMasterPasswordProperty according to database info
     BooleanProperty hasMasterPasswordProperty() {
         return mHasMasterPasswordProperty;
     }
 
-    boolean hasMasterPassword() {
-        return getVault().hasMasterPassword();
+    boolean hasMasterPasswordInKeyStore() { return getVault().hasMasterPasswordInKeyStore(); }
+
+    // verify if the input password matches the master password
+    boolean verifyMasterPassword(final String password) throws NoSuchAlgorithmException, InvalidKeySpecException,
+            KeyStoreException, UnrecoverableKeyException {
+        char[] mpChars = password.toCharArray();
+        try {
+            return getVault().verifyMasterPassword(mpChars);
+        } finally {
+            Arrays.fill(mpChars, ' ');
+        }
     }
 
-    // return true if update master password successful
-    // false otherwise
-    boolean updateMasterPassword(final char[] curPassword, final char[] newPassword)
-            throws NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException,
-                IOException, CertificateException, UnrecoverableKeyException {
-
-        if (!getVault().updateMasterPassword(curPassword, newPassword))
-            return false;
-
-        // todo
-        // re-encrypt DC List
-
-        // save DC List to DB
-
-        // todo set savepoint etc.
-        // save encoded hashed master password to db
+    // set master password in Vault
+    // save hashed and encoded master password to database
+    void setMasterPassword(final String password) throws NoSuchAlgorithmException, InvalidKeySpecException,
+            KeyStoreException, UnrecoverableKeyException, SQLException {
+        char[] mpChars = password.toCharArray();
         try {
-            boolean status = mergeMasterPasswordToDB(getVault().getEncodedHashedMasterPassword());
-            hasMasterPasswordProperty().set(status);
-            return status;
+            getVault().setMasterPassword(mpChars);
+            mergeMasterPasswordToDB(getVault().getEncodedHashedMasterPassword());
+        } finally {
+            Arrays.fill(mpChars, ' ');
+            hasMasterPasswordProperty().set(getVault().hasMasterPassword());
+        }
+    }
+
+    // delete everything in DCInfo Table
+    private void emptyDCInfoTable() throws SQLException {
+        try (Statement statement = mConnection.createStatement()) {
+            statement.execute("delete from DCINFO");
+        }
+    }
+
+    // delete master password in vault
+    // empty DCInfo table
+    // empty DCInfoList
+    void deleteMasterPassword() throws KeyStoreException, SQLException {
+        getVault().deleteMasterPassword();
+        emptyDCInfoTable();
+        mDCInfoList.clear();
+        hasMasterPasswordProperty().set(getVault().hasMasterPassword());
+    }
+
+    // this method setDBSavepoint.  If the save point is set by the caller, an SQLException will be thrown
+    // return false when isUpdate is true and curPassword doesn't match existing master password
+    // exception will be thrown if any is encounted
+    // otherwise, return true
+    boolean updateMasterPassword(final String curPassword, final String newPassword)
+            throws NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException,
+            UnrecoverableKeyException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException, SQLException {
+
+        if (!verifyMasterPassword(curPassword))
+            return false;  // in update mode, curPassword doesn't match existing master password
+
+        final char[] newPasswordChars = newPassword.toCharArray();
+
+        final List<char[]> clearUserNameList = new ArrayList<>();
+        final List<char[]> clearPasswordList = new ArrayList<>();
+
+        try {
+            for (DirectConnection dc : mDCInfoList) {
+                clearUserNameList.add(decrypt(dc.getEncryptedUserName()));
+                clearPasswordList.add(decrypt(dc.getEncryptedPassword()));
+            }
+
+            getVault().setMasterPassword(newPasswordChars);
+
+            for (int i = 0; i < mDCInfoList.size(); i++) {
+                DirectConnection dc = mDCInfoList.get(i);
+                dc.setEncryptedUserName(encrypt(clearUserNameList.get(i)));
+                dc.setEncryptedPassword(encrypt(clearPasswordList.get(i)));
+            }
+        } finally {
+            // wipe it clean
+            Arrays.fill(newPasswordChars, ' ');
+
+            for (char[] chars : clearUserNameList)
+                Arrays.fill(chars, ' ');
+            for (char[] chars : clearPasswordList)
+                Arrays.fill(chars, ' ');
+        }
+
+        // save new information to database now
+        boolean savepointSetHere = false;
+        try {
+            savepointSetHere = setDBSavepoint();
+            if (!savepointSetHere) {
+                SQLException e = new SQLException("Database savepoint unexpectedly set by the caller. Can't continue");
+                mLogger.error(SQLExceptionToString(e), e);
+                throw e;
+            }
+            mergeMasterPasswordToDB(getVault().getEncodedHashedMasterPassword());
+            for (DirectConnection dc : mDCInfoList) {
+                insertUpdateDCToDB(dc);
+            }
+            commitDB();
+            return true;
         } catch (SQLException e) {
-            String errMsg = SQLExceptionToString(e);
-            mLogger.error("Failed to save master password. " + errMsg, e);
-            showExceptionDialog("Database Error", "Failed to save Master Password", errMsg, e);
-            return false;
+            if (savepointSetHere)
+                rollbackDB();
+
+            initVault(); // reload Vault
+            throw e;
+        } finally {
+            // wipe it clean
+            Arrays.fill(newPasswordChars, ' ');
+
+            for (char[] chars : clearUserNameList)
+                Arrays.fill(chars, ' ');
+            for (char[] chars : clearPasswordList)
+                Arrays.fill(chars, ' ');
+
+            if (savepointSetHere)
+                releaseDBSavepoint();
         }
     }
 
@@ -4309,62 +4403,6 @@ public class MainApp extends Application {
 
     private Vault getVault() { return mVault; }
 
-/*
-    // dc.Vault method
-    @Override
-    public boolean hasMasterPassword() {
-        // todo
-        return false;
-    }
-
-    @Override
-    public int getSaltLen() {
-        return 32;
-    }
-
-    @Override
-    public int getHashKeyLen() {
-        return 512;
-    }
-
-    @Override
-    public int getHashIterationNum() {
-        return 100000;
-    }
-
-    @Override
-    public String hashAndEncodePassword(char[] password, byte[] salt) {
-        final int numIter = 100000; // number of
-        final int keyLength = 512;  // key length in bits
-        final String hashAlgorithm = "PBKDF2WithHmacSHA512";
-        // from https://www.owasp.org/index.php/Hashing_Java
-        try {
-
-            SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance(hashAlgorithm);
-            PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, numIter, keyLength);
-            SecretKey secretKey = secretKeyFactory.generateSecret(pbeKeySpec);
-            byte[] keyBytes = secretKey.getEncoded();
-            String saltString = new String(Base64.getEncoder().encode(salt));
-            String keyString = new String(Base64.getEncoder().encode(keyBytes));
-            return saltString + ":" + keyString;
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            mLogger.error(e);
-            return null;
-        }
-    }
-
-    @Override
-    public boolean saveHashedMasterPassword(String hashedMasterPassword) {
-        try {
-            mergeAccountDCToDB(new AccountDC(0, 0, "", hashedMasterPassword));
-            return true;
-        } catch (SQLException e) {
-            mLogger.error(SQLExceptionToString(e), e);
-            return false;
-        }
-    }
-*/
-
     private void mergeAccountDCToDB(AccountDC adc) throws SQLException {
         /*
         AccountDCS ("
@@ -4423,8 +4461,12 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
         // set error stream to a file in the current directory
-        mLogger.info(MainApp.class.getPackage().getImplementationTitle()
-                + " " + MainApp.class.getPackage().getImplementationVersion());
+        final String title = MainApp.class.getPackage().getImplementationTitle();
+        final String version = MainApp.class.getPackage().getImplementationVersion();
+        if (version.endsWith("SNAPSHOT"))
+            KEY_OPENEDDBPREFIX = "SNAPSHOT-" + KEY_OPENEDDBPREFIX;
+
+        mLogger.info(title + " " + version);
 
         launch(args);
     }

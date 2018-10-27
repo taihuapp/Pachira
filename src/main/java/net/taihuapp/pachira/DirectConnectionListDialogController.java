@@ -19,6 +19,7 @@
  */
 
 package net.taihuapp.pachira;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -30,6 +31,11 @@ import javafx.stage.Stage;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.List;
 
 public class DirectConnectionListDialogController {
 
@@ -54,10 +60,36 @@ public class DirectConnectionListDialogController {
         mMainApp = mainApp;
         mDialogStage = stage;
 
+        mDCTableView.setItems(mMainApp.getDCInfoList());
+        mDCAliasColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
+        mFINameColumn.setCellValueFactory(cd -> {
+            DirectConnection dc = cd.getValue();
+            DirectConnection.FIData fiData = mMainApp.getFIDataByID(dc.getFIID());
+            if (fiData == null)
+                return new ReadOnlyStringWrapper("");
+            return fiData.getNameProperty();
+        });
     }
 
     private void showEditDCInfoDialog(DirectConnection dcInfo) {
         try {
+            if (!mMainApp.hasMasterPasswordInKeyStore()) {
+                try {
+                    List<String> passwords = mMainApp.showPasswordDialog(PasswordDialogController.MODE.ENTER);
+                    if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
+                        // failed to verify master password
+                        MainApp.showWarningDialog("Edit Direct Connection",
+                                "Failed to input correct Master Password",
+                                "Direct connection cannot be edited");
+                        return;
+                    }
+                } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
+                        | UnrecoverableKeyException e) {
+                    mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+                    return;
+                }
+            }
+
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditDCInfoDialog.fxml"));
 
@@ -94,8 +126,6 @@ public class DirectConnectionListDialogController {
 
     @FXML
     private void initialize() {
-        System.out.println("Initialize");
-
         mEditButton.disableProperty().bind(mDCTableView.getSelectionModel().selectedItemProperty().isNull());
         mDeleteButton.disableProperty().bind(mDCTableView.getSelectionModel().selectedItemProperty().isNull());
     }

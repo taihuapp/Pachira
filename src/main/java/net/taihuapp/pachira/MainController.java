@@ -40,13 +40,13 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.math.BigDecimal;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +69,11 @@ public class MainController {
     @FXML
     private Menu mOFXMenu;
     @FXML
-    private MenuItem mMasterPasswordMenuItem;
+    private MenuItem mCreateMasterPasswordMenuItem;
+    @FXML
+    private MenuItem mUpdateMasterPasswordMenuItem;
+    @FXML
+    private MenuItem mDeleteMasterPasswordMenuItem;
     @FXML
     private MenuItem mDirectConnectionMenuItem;
     @FXML
@@ -144,12 +148,10 @@ public class MainController {
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
-        mMasterPasswordMenuItem.textProperty().bind(Bindings.createStringBinding(
-                () -> mMainApp.hasMasterPasswordProperty().get() ?
-                        "Update Master Password" : "Create Master Password",
-                mMainApp.hasMasterPasswordProperty()));
-
-        mDirectConnectionMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
+        mCreateMasterPasswordMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty().not());
+        mUpdateMasterPasswordMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty());
+        mDeleteMasterPasswordMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty());
+        mDirectConnectionMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty());
 
         if (mMainApp.getAcknowledgeTimeStamp() == null)
             mMainApp.showSplashScreen(true);
@@ -254,47 +256,86 @@ public class MainController {
     }
 
     @FXML
-    private void setupVaultMasterPassword() {
-        boolean hasMasterPassword = mMainApp.hasMasterPassword();
-        List<String> passwords;
+    private void createVaultMasterPassword() {
+        setupVaultMasterPassword(false);
+    }
 
-        passwords = mMainApp.showPasswordDialog(hasMasterPassword ?
+    @FXML
+    private void updateVaultMasterPassword() {
+        setupVaultMasterPassword(true);
+    }
+
+    @FXML
+    private void deleteVaultMasterPassword() {
+        if (!MainApp.showConfirmationDialog("Delete Master Password",
+                "Delete Master Password will also delete all encrypted Direct Connection info!",
+                "Do you want to delete master password?")) {
+                return;  // user choose not to continue
+        }
+
+        try {
+            mMainApp.deleteMasterPassword();
+            mMainApp.showInformationDialog("Delete Master Password",
+                    "Delete Master Password Successful",
+                    "Master password successfully deleted");
+        } catch (KeyStoreException e) {
+            mLogger.error("KeyStore exception", e);
+            mMainApp.showExceptionDialog("Exception", "KeyStore Exception", e.getMessage(), e);
+        } catch (SQLException e) {
+            mLogger.error("Database Exception", e);
+            mMainApp.showExceptionDialog("Exception", "Database Exception",
+                    MainApp.SQLExceptionToString(e), e);
+        }
+    }
+
+    // either create new or update existing master password
+    private void setupVaultMasterPassword(boolean isUpdate) {
+        List<String> passwords = mMainApp.showPasswordDialog(isUpdate ?
                 PasswordDialogController.MODE.CHANGE : PasswordDialogController.MODE.NEW);
 
-        if (passwords.size() > 0) {
-            boolean status;
-            // either update or setup new password
-            try {
-                if (!mMainApp.updateMasterPassword(passwords.get(0).toCharArray(), passwords.get(1).toCharArray()))
-                    showWarningDialog("Update Master Password", "Failed update master password.",
-                            "Master password not updated");
-                else {
-                    String title, header, content;
-                    if (mMainApp.hasMasterPassword()) {
-                        title = "Update Master Password";
-                        header = "Update Master Password successful.";
-                        content = "Master Password was successfully updated.";
-                    } else {
-                        title = "Create Master Password";
-                        header = "Create Master Password successful.";
-                        content = "Master Password was successfully created.";
-                    }
-                    mMainApp.showInformationDialog(title, header, content);
-                }
+        if (passwords.size() == 0) {
+            String title = "Warning";
+            String header = "Password not entered";
+            String content = "Master Password not " + (isUpdate ? "updated" : "created");
+            MainApp.showWarningDialog(title, header, content);
+            return;
+        }
 
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | IOException
-                    | CertificateException | UnrecoverableKeyException e){
-                String title, header, content;
-                if (mMainApp.hasMasterPassword()) {
-                    title = "Error in updating master password";
-                    header = "Failed to update master password";
+        try {
+            String title, header, content;
+            if (isUpdate) {
+                if (mMainApp.updateMasterPassword(passwords.get(0), passwords.get(1))) {
+                    title = "Update Master Password";
+                    header = "Update master password successful";
+                    content = "Master password successfully updated.";
                 } else {
-                    title = "Error in creating master password";
-                    header = "Failed to createe master password";
+                    title = "Update Master Password";
+                    header = "Master Password Not Updated";
+                    content = "Current password doesn't match.  Master password is not updated";
                 }
-                mLogger.error(title, e);
-                showWarningDialog(title, header, e.getMessage());
+            } else {
+                mMainApp.setMasterPassword(passwords.get(1));
+                title = "Create Master Password";
+                header = "Create master password successful";
+                content = "Master password successfully created";
             }
+            mMainApp.showInformationDialog(title, header, content);
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
+                | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException
+                | IllegalBlockSizeException | BadPaddingException | SQLException e) {
+            String exceptionType, message;
+            if (e instanceof SQLException) {
+                exceptionType = "Database exception";
+                message = MainApp.SQLExceptionToString((SQLException) e);
+            } else {
+                exceptionType = "Vault exception";
+                message = e.getMessage();
+            }
+            mLogger.error(exceptionType, e);
+            mMainApp.showExceptionDialog("Exception", exceptionType, message, e);
+            mMainApp.showInformationDialog("Create/Update Master Password",
+                    "Failed to create/update master password",
+                    "Master Password not " + (isUpdate ? "updated" : "created"));
         }
     }
 

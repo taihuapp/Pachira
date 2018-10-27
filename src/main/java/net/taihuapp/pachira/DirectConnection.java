@@ -27,7 +27,7 @@ import javafx.beans.property.StringProperty;
 
 class DirectConnection {
     static class FIData {
-        private int mID = -1;
+        private int mID;
         private final StringProperty mFIIDProperty = new SimpleStringProperty();
         private final StringProperty mSubIDProperty = new SimpleStringProperty();
         private final StringProperty mBrokerIDProperty = new SimpleStringProperty();
@@ -82,23 +82,32 @@ class DirectConnection {
         String getURL() { return getURLProperty().get(); }
     }
 
-    private int mID = -1;
+    private int mID;
     private final StringProperty mNameProperty = new SimpleStringProperty("");
     private final IntegerProperty mFIIDProperty = new SimpleIntegerProperty(-1);
-    private String mEncryptedUserNameProperty = "";
-    private String mEncryptedPasswordProperty = "";
+    private String mEncryptedUserName;
+    private String mEncryptedPassword;
 
     int getFIID() { return mFIIDProperty.get(); }
-
-    String getName() { return mNameProperty.get(); }
+    int getID() { return mID; }
+    void setID(int id) { mID = id; }
+    void setFIID(int id) { mFIIDProperty.set(id); }
+    StringProperty getNameProperty() { return mNameProperty; }
+    String getName() { return getNameProperty().get(); }
     void setName(String n) { mNameProperty.set(n); }
 
+    String getEncryptedUserName() { return mEncryptedUserName; }
+    String getEncryptedPassword() { return mEncryptedPassword; }
+    void setEncryptedUserName(String eun) { mEncryptedUserName = eun; }
+    void setEncryptedPassword(String epwd) { mEncryptedPassword = epwd; }
+
     // constructor
+    // don't use null to initialize eun and epwd, if necessary, use empty string instead
     DirectConnection(int id, String name, int fiID, String eun, String epwd) {
         mID = id;
         mNameProperty.set(name);
         mFIIDProperty.set(fiID);
-        mEncryptedUserNameProperty = eun;
-        mEncryptedPasswordProperty = epwd;
+        mEncryptedUserName = eun;
+        mEncryptedPassword = epwd;
     }
 }

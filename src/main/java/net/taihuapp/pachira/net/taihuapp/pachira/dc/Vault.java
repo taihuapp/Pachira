@@ -20,8 +20,6 @@
 
 package net.taihuapp.pachira.net.taihuapp.pachira.dc;
 
-import org.apache.log4j.Logger;
-
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
@@ -38,8 +36,6 @@ import java.util.Base64;
 
 public class Vault {
 
-    private static final Logger mLogger = Logger.getLogger(Vault.class);
-
     private static final int IVLEN = 16; // length of IV in bytes
     private static final int SALTLEN = 32; // salt length in bytes
     private static final int HASHKEYLEN = 512; // hash key length in bits
@@ -53,7 +49,7 @@ public class Vault {
     private static final SecureRandom SECURERANDOM = new SecureRandom();
 
     private KeyStore mKeyStore = null; // to keep master password in memory
-    private SecretKey mSecretKey = null; // to protect master password in keystore
+    private boolean mMPInKeyStore = false;
     private byte[] mHashedMasterPassword = null;
     private byte[] mSalt = null;
 
@@ -85,6 +81,7 @@ public class Vault {
         // the keylength parameter here is needed.
         final PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, HASHNUMITERATION, HASHKEYLEN);
         final SecretKey secretKey = secretKeyFactory.generateSecret(pbeKeySpec);
+        pbeKeySpec.clearPassword();
         return secretKey.getEncoded();
     }
 
@@ -92,11 +89,35 @@ public class Vault {
     private static byte[] decode(final String encoded) { return Base64.getDecoder().decode(encoded); }
 
     public boolean hasMasterPassword() { return mHashedMasterPassword != null; }
+    public boolean hasMasterPasswordInKeyStore() { return mMPInKeyStore; }
+
+    // put Master Password into keystore
+    // make sure mKeyStore is not null and properly initialized, otherwise bad things will happen.
+    // exceptions are thrown when failure
+    private void putMasterPasswordInKeyStore(final char[] masterPassword) throws KeyStoreException,
+            NoSuchAlgorithmException, UnrecoverableKeyException, InvalidKeySpecException {
+        char[] sessionPassword = null;
+        try {
+            SecretKey secretKey = (SecretKey) mKeyStore.getKey(SESSIONKEYALIAS, null);
+            SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBE");
+            sessionPassword = ((PBEKeySpec) secretKeyFactory.getKeySpec(secretKey, PBEKeySpec.class)).getPassword();
+
+            PBEKeySpec pbeKeySpec = new PBEKeySpec(masterPassword, randomBytes(SALTLEN), HASHNUMITERATION, HASHKEYLEN);
+            SecretKey masterSecretKey = secretKeyFactory.generateSecret(pbeKeySpec);
+            mKeyStore.setKeyEntry(MASTERKEYALIAS, masterSecretKey, sessionPassword, null);
+            mMPInKeyStore = true;
+        } finally {
+            if (sessionPassword != null)
+                Arrays.fill(sessionPassword, ' ');
+        }
+    }
 
     // retrieve master password from keystore
     // return null if this is no master password stored in keystore
     private char[] getMasterPassword() throws NoSuchAlgorithmException, InvalidKeySpecException,
             KeyStoreException, UnrecoverableKeyException {
+        if (!mMPInKeyStore)
+            return null;
         char[] sessionPassword = null;
         try {
             SecretKey secretKey = (SecretKey) mKeyStore.getKey(SESSIONKEYALIAS, null);
@@ -104,17 +125,25 @@ public class Vault {
             sessionPassword = ((PBEKeySpec) secretKeyFactory.getKeySpec(secretKey, PBEKeySpec.class)).getPassword();
 
             secretKey = (SecretKey) mKeyStore.getKey(MASTERKEYALIAS, sessionPassword);
+            if (secretKey == null) // MASTERKEYALIAS not found in keystore
+                return null;
             return ((PBEKeySpec) secretKeyFactory.getKeySpec(secretKey, PBEKeySpec.class)).getPassword();
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException e) {
-            mLogger.error(e.getClass().getName() + " thrown when calling getMasterPassword", e);
-            throw e;
         } finally {
             if (sessionPassword != null)
                 Arrays.fill(sessionPassword, ' '); // wipe sessionPassword
         }
     }
 
+    public void deleteMasterPassword() throws KeyStoreException {
+        // delete entry in keystore first
+        mKeyStore.deleteEntry(MASTERKEYALIAS);
+        mMPInKeyStore = false;
+        mHashedMasterPassword = null;
+        mSalt = null;
+    }
+
     // take a input of char array, returns a string of it's encryption with the encryption salt
+    // if master password is not properly stored in keystore, null string will be returned
     public String encrypt(final char[] clearChars) throws NoSuchAlgorithmException, InvalidKeySpecException,
             KeyStoreException, UnrecoverableKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException,
             InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
@@ -125,13 +154,16 @@ public class Vault {
         IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
 
         char [] masterPassword = null;
+        PBEKeySpec pbeKeySpec = null;
         try {
             // need to get Master password
             masterPassword = getMasterPassword();
+            if (masterPassword == null)
+                return null;
 
             // according to this link, the key length parameter in PBEKeySpec is not used
             // https://github.com/rogerta/secrets-for-android/issues/103
-            PBEKeySpec pbeKeySpec = new PBEKeySpec(masterPassword, salt, ENCRYPTIONNUMITERATION);
+            pbeKeySpec = new PBEKeySpec(masterPassword, salt, ENCRYPTIONNUMITERATION);
 
             SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance(SECRETKEYFACTORYALGORITHM);
 
@@ -143,16 +175,22 @@ public class Vault {
 
             byte[] encryptedBytes = encryptionCipher.doFinal(clearBytes);
             return encode(encryptedBytes) + ENCODESTRINGSEPARATOR + encode(salt) + ENCODESTRINGSEPARATOR + encode(iv);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException
+                | KeyStoreException
                 | UnrecoverableKeyException | NoSuchPaddingException | InvalidAlgorithmParameterException
                 | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
             Arrays.fill(clearBytes, (byte) 0);
             if (masterPassword != null)
                 Arrays.fill(masterPassword, '\u0000');
+            if (pbeKeySpec != null)
+                pbeKeySpec.clearPassword();
             throw e;
         }
     }
 
+    // take a input of encrypted string with salt and IV (separated by ENCODESTRINGSEPARATOR,
+    // returns decrypted content in a char[]
+    // if master password is not properly stored in keystore, null will be returned
     public char[] decrypt(String encrpytedSecretWithSaltAndIV) throws IllegalArgumentException,
             NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
             NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
@@ -166,9 +204,13 @@ public class Vault {
         IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
 
         char[] masterPassword = null;
+        PBEKeySpec pbeKeySpec = null;
         try {
             masterPassword = getMasterPassword();
-            PBEKeySpec pbeKeySpec = new PBEKeySpec(masterPassword, salt, ENCRYPTIONNUMITERATION);
+            if (masterPassword == null)
+                return null;
+
+            pbeKeySpec = new PBEKeySpec(masterPassword, salt, ENCRYPTIONNUMITERATION);
 
             SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance(SECRETKEYFACTORYALGORITHM);
 
@@ -188,6 +230,8 @@ public class Vault {
         } finally {
             if (masterPassword != null)
                 Arrays.fill(masterPassword, '\u0000');
+            if (pbeKeySpec != null)
+                pbeKeySpec.clearPassword();
         }
     }
 
@@ -205,32 +249,37 @@ public class Vault {
             password[i] = (char) (32 + SECURERANDOM.nextInt(maxChar));
         }
 
-        byte[] salt = randomBytes(SALTLEN);
-        KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        keyStore.load(null, password);  // use password as keyStore password, not sure if necessary
-        PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, HASHNUMITERATION, HASHKEYLEN);
-        SecretKey secretKey = SecretKeyFactory.getInstance("PBE").generateSecret(pbeKeySpec);
-        keyStore.setKeyEntry(SESSIONKEYALIAS, secretKey, null, null);
-
-        mKeyStore = keyStore;
+        PBEKeySpec pbeKeySpec = null;
+        try {
+            byte[] salt = randomBytes(SALTLEN);
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            keyStore.load(null, password);  // use password as keyStore password, not sure if necessary
+            pbeKeySpec = new PBEKeySpec(password, salt, HASHNUMITERATION, HASHKEYLEN);
+            SecretKey secretKey = SecretKeyFactory.getInstance("PBE").generateSecret(pbeKeySpec);
+            keyStore.setKeyEntry(SESSIONKEYALIAS, secretKey, null, null);
+            mKeyStore = keyStore;
+        } finally {
+            Arrays.fill(password, ' ');
+            if (pbeKeySpec != null)
+                pbeKeySpec.clearPassword();
+        }
     }
 
-    // return true if password matches Master password, false otherwise
-    private boolean compareHashedPassword(final byte[] hashedPassword) {
+    // Take a password, hash it with mSalt and compare the result with
+    // mHashedMasterPassword.
+    // return true if match, false otherwise
+    private boolean comparePassword(final char[] password)
+            throws NoSuchAlgorithmException, InvalidKeySpecException {
+        final byte[] hashedPassword = hash(password, mSalt);
         boolean mismatch = false;
-        if ((hashedPassword == null) && (mHashedMasterPassword != null))
+        // hashedPassword returned by hash method will never be null
+        if ((mHashedMasterPassword == null) || (mHashedMasterPassword.length != hashedPassword.length))
             mismatch = true;
-        if ((hashedPassword != null) && (mHashedMasterPassword == null))
-            mismatch = true;
-        if ((hashedPassword != null) && (mHashedMasterPassword != null)) {
-            if (mHashedMasterPassword.length != hashedPassword.length)
+        for (int i = 0; i < hashedPassword.length; i++) {
+            if ((mHashedMasterPassword == null)
+                    || (i >= mHashedMasterPassword.length)
+                    || (hashedPassword[i] != mHashedMasterPassword[i]))
                 mismatch = true;
-            for (int i = 0; i < hashedPassword.length; i++) {
-                if ((mHashedMasterPassword == null)
-                        || (i >= mHashedMasterPassword.length)
-                        || (hashedPassword[i] != mHashedMasterPassword[i]))
-                    mismatch = true;
-            }
         }
         return !mismatch;
     }
@@ -238,90 +287,42 @@ public class Vault {
     // Take an input string (encodedHashedMasterPassword:encodedSalt)
     // split, decode, and assigned to mHashedMasterPassword and mSalt
     // return true for success and false for failure
-    public boolean setHashedMasterPassword(String encodedHashedMasterPasswordWithSalt) {
+    public void setHashedMasterPassword(String encodedHashedMasterPasswordWithSalt) throws IllegalArgumentException {
         String[] stringArray = encodedHashedMasterPasswordWithSalt.split(ENCODESTRINGSEPARATOR);
         if (stringArray.length != 2)
-            return false;
+            throw new IllegalArgumentException("Encoded and hashed master password should be "
+                    + "two base64 strings separated by '" + ENCODESTRINGSEPARATOR + "'");
+
         mHashedMasterPassword = decode(stringArray[0]);
         mSalt = decode(stringArray[1]);
-        return true;
     }
 
     public String getEncodedHashedMasterPassword() {
         return encode(mHashedMasterPassword) + ENCODESTRINGSEPARATOR + encode(mSalt);
     }
 
-    // return true for success, false for failure.
-    // if false is returned, mKeyStore may or may not be initialized, the vault state otherwise is not changed.
-    // newPassword should not be null
-    public boolean updateMasterPassword(final char[] curPassword, final char[] newPassword) {
-        if (hasMasterPassword()) {
-            // we have a master password, need to see if the user entered the correct one
-            try {
-                byte[] curHashedPassword = hash(curPassword, mSalt);
-                if (!compareHashedPassword(curHashedPassword))
-                    return false;  // curHashedPassword didn't match up with mHashedMasterPassword
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                mLogger.error("Exception is thrown when Hash current password", e);
-                return false;
-            }
-        }
-
-        byte[] newSalt = randomBytes(SALTLEN);
-        byte[] hashedNewMasterPassword;
-        try {
-            hashedNewMasterPassword = hash(newPassword, newSalt);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            mLogger.error("Exception thrown when try to hash new master password", e);
-            return false;
-        }
-
-        // Try to store new password into mKeyStore
-        char[] sessionPassword = null;
-        try {
-            if (mKeyStore == null)
-                return false;
-
-            SecretKey secretKey = (SecretKey) mKeyStore.getKey(SESSIONKEYALIAS, null);
-            SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBE");
-            sessionPassword = ((PBEKeySpec) secretKeyFactory.getKeySpec(secretKey, PBEKeySpec.class)).getPassword();
-
-            PBEKeySpec pbeKeySpec = new PBEKeySpec(newPassword, randomBytes(SALTLEN), HASHNUMITERATION, HASHKEYLEN);
-            SecretKey masterSecretKey = secretKeyFactory.generateSecret(pbeKeySpec);
-            mKeyStore.setKeyEntry(MASTERKEYALIAS, masterSecretKey, sessionPassword, null);
-
-            // todo -- this is for testing only.  remove this
-            getMasterKey();
-
-            mHashedMasterPassword = hashedNewMasterPassword;
-            mSalt = newSalt;
-
+    // return true if input password matches existing master password.
+    // Otherwise return false.
+    // if the input password is verified, a copy is saved in mKeyStore
+    public boolean verifyMasterPassword(final char[] password) throws NoSuchAlgorithmException,
+            InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException {
+        if (comparePassword(password)) {
+            putMasterPasswordInKeyStore(password);
             return true;
-        } catch (NoSuchAlgorithmException | UnrecoverableKeyException | KeyStoreException | InvalidKeySpecException e) {
-            mLogger.error("Exception " + e.getClass().getName()
-                    + " was thrown when try store new MasterPassword to mKeyStore", e);
-            return false;
-        } finally {
-            if (sessionPassword != null)
-                Arrays.fill(sessionPassword, ' '); // wipe sessionPassword
         }
+        return false;
     }
 
-    // todo - for testing only
-    private void getMasterKey() {
-        char[] sessionPassword = null;
-        try {
-            SecretKey secretKey = (SecretKey) mKeyStore.getKey(SESSIONKEYALIAS, null);
-            SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBE");
-            sessionPassword = ((PBEKeySpec) secretKeyFactory.getKeySpec(secretKey, PBEKeySpec.class)).getPassword();
-
-            secretKey = (SecretKey) mKeyStore.getKey(MASTERKEYALIAS, sessionPassword);
-            char[] masterPassword = ((PBEKeySpec) secretKeyFactory.getKeySpec(secretKey, PBEKeySpec.class)).getPassword();
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException e) {
-            mLogger.error("Exception thrown when calling getMasterKey", e);
-        } finally {
-            if (sessionPassword != null)
-                Arrays.fill(sessionPassword, ' '); // wipe sessionPassword
-        }
+    // if success, the mSalt is set to be the newly created random salt
+    // and mHashedMasterPassword is set to be the hashed password.
+    // if failure, neither mSalt and mHashedMasterPassword is changed and exception will be thrown
+    public void setMasterPassword(final char[] password) throws NoSuchAlgorithmException,
+            InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException {
+        byte[] newSalt = randomBytes(SALTLEN);
+        byte[] hashedNewMasterPassword;
+        hashedNewMasterPassword = hash(password, newSalt);
+        putMasterPasswordInKeyStore(password);
+        mHashedMasterPassword = hashedNewMasterPassword;
+        mSalt = newSalt;
     }
 }

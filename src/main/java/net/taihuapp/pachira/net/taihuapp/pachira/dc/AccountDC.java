@@ -36,10 +36,11 @@ public class AccountDC {
     public int getAccountID() { return mAccountID; }
     public int getDCID() { return mDCID; }
     public String getRoutingNumber() { return mRoutingNumber; }
-    public String getAccountNumber() { return mAccountNumber; }
+    public String getEncryptedAccountNumber() { return mAccountNumber; }
+    public void setEncryptedAccountNumber(String s) { mAccountNumber = s; }
 
     @Override
     public String toString() {
-        return getAccountID() + ", " + getDCID() + ", " + getRoutingNumber() + ", " + getAccountNumber();
+        return getAccountID() + ", " + getDCID() + ", " + getRoutingNumber() + ", " + getEncryptedAccountNumber();
     }
 }

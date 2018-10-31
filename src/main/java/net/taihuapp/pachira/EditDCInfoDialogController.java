@@ -85,10 +85,8 @@ public class EditDCInfoDialogController {
 
         mFIComboBox.setConverter(new FIDataConverter());
         mFIComboBox.getItems().clear();
-        mFIComboBox.getItems().add(null);
         mFIComboBox.getItems().addAll(mMainApp.getFIDataList());
-        mFIComboBox.setValue(mMainApp.getFIDataByID(dcInfo.getFIID()));
-        new AutoCompleteComboBoxHelper<>(mFIComboBox);
+        mFIComboBox.getSelectionModel().select(mMainApp.getFIDataByID(dcInfo.getFIID()));
 
         mDCNameTextField.setText(dcInfo.getName());
         mFIComboBox.getSelectionModel().select(mMainApp.getFIDataByID(dcInfo.getFIID()));
@@ -169,6 +167,9 @@ public class EditDCInfoDialogController {
         mPasswordPasswordField.visibleProperty().bind(mShowPasswordCheckBox.selectedProperty().not());
         mPasswordTextField.visibleProperty().bind(mShowPasswordCheckBox.selectedProperty());
         mPasswordPasswordField.textProperty().bindBidirectional(mPasswordTextField.textProperty());
+
+        mShowUserNameCheckBox.setSelected(false);
+        mShowPasswordCheckBox.setSelected(false);
 
         mSaveButton.disableProperty().bind(mChangedProperty.not());
     }

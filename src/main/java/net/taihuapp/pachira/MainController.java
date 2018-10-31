@@ -33,16 +33,20 @@ import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import net.taihuapp.pachira.net.taihuapp.pachira.dc.AccountDC;
 import org.apache.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -68,6 +72,10 @@ public class MainController {
     private Menu mEditMenu;
     @FXML
     private Menu mOFXMenu;
+    @FXML
+    private MenuItem mDownloadAccountTransactionMenuItem;
+    @FXML
+    private MenuItem mSetAccountDirectConnectionMenuItem;
     @FXML
     private MenuItem mCreateMasterPasswordMenuItem;
     @FXML
@@ -148,10 +156,17 @@ public class MainController {
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
-        mCreateMasterPasswordMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty().not());
-        mUpdateMasterPasswordMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty());
-        mDeleteMasterPasswordMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty());
-        mDirectConnectionMenuItem.visibleProperty().bind(mMainApp.hasMasterPasswordProperty());
+        mDownloadAccountTransactionMenuItem.disableProperty().bind(
+                Bindings.createBooleanBinding(() -> {
+                            final Account a = mMainApp.getCurrentAccount();
+                            return a == null || mMainApp.getAccountDC(a.getID()) == null;
+                        }, mMainApp.getCurrentAccountProperty(),mMainApp.getAccountDCList()));
+
+        mSetAccountDirectConnectionMenuItem.disableProperty().bind(mMainApp.getCurrentAccountProperty().isNull());
+        mCreateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty());
+        mUpdateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
+        mDeleteMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
+        mDirectConnectionMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
 
         if (mMainApp.getAcknowledgeTimeStamp() == null)
             mMainApp.showSplashScreen(true);
@@ -253,6 +268,69 @@ public class MainController {
         rootAccount.getCurrentBalanceProperty().bind(Bindings.createObjectBinding(() ->
                 groupAccountList.stream().map(Account::getCurrentBalance).reduce(BigDecimal.ZERO, BigDecimal::add),
                 groupAccountList));
+    }
+
+    @FXML
+    private void downloadAccountTransactions() {
+        try {
+            if (!mMainApp.hasMasterPasswordInKeyStore()) {
+                List<String> passwords = mMainApp.showPasswordDialog(PasswordDialogController.MODE.ENTER);
+                if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
+                    // either didn't enter master password or failed to enter a correct one
+                    MainApp.showWarningDialog("Download Account Transactions",
+                            "Failed to input correct Master Password",
+                            "Account transactions cannot be downloaded." );
+                    return;
+                }
+            }
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
+                | UnrecoverableKeyException e) {
+            mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+            return;
+        }
+        System.out.println("Download Account Transactions");
+    }
+
+    @FXML
+    private void setAccountDirectConnection() {
+        try {
+            if (!mMainApp.hasMasterPasswordInKeyStore()) {
+                List<String> passwords = mMainApp.showPasswordDialog(PasswordDialogController.MODE.ENTER);
+                if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
+                    // either didn't enter master password or failed to enter a correct one
+                    MainApp.showWarningDialog("Edit Direct Connection",
+                            "Failed to input correct Master Password",
+                            "Direct connection cannot be edited");
+                    return;
+                }
+            }
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
+                | UnrecoverableKeyException e) {
+            mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation((MainApp.class.getResource("/view/EditAccountDirectConnectionDialog.fxml")));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Edit Direct Connection");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(mMainApp.getStage());
+            dialogStage.setScene(new Scene(loader.load()));
+
+            EditAccountDirectConnectionDialogController controller = loader.getController();
+            Account a = mMainApp.getCurrentAccount();
+            AccountDC adc = mMainApp.getAccountDC(a.getID());
+            if (adc == null)
+                adc = new AccountDC(a.getID(), 0, "", "");
+            controller.setMainApp(mMainApp, dialogStage, adc);
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            mLogger.error("IOException", e);
+            mMainApp.showExceptionDialog("Exception", "IOException", e.getMessage(), e);
+        }
     }
 
     @FXML

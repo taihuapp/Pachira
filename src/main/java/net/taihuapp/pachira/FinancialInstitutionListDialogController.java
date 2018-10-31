@@ -37,6 +37,7 @@ import javafx.stage.Stage;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 public class FinancialInstitutionListDialogController {
 
@@ -141,7 +142,29 @@ public class FinancialInstitutionListDialogController {
 
     @FXML
     private void handleDelete() {
-        System.out.println("Delete");
+        // check usage
+        DirectConnection.FIData fiData = mFITableView.getSelectionModel().getSelectedItem();
+        int fiDataID = fiData.getID();
+        FilteredList<DirectConnection> usageList = new FilteredList<>(mMainApp.getDCInfoList(),
+                dc -> dc.getFIID() == fiDataID);
+        if (usageList.size() > 0) {
+            StringBuilder contentSB = new StringBuilder("It is used by following Direct Connection(s):\n");
+            for (DirectConnection dc : usageList) {
+                contentSB.append(" ").append(dc.getName()).append("\n");
+            }
+            contentSB.append("It can't be deleted.");
+            MainApp.showWarningDialog("Warning", "Financial Institution can't be deleted.",
+                    contentSB.toString());
+            return;
+        }
+        try {
+            mMainApp.deleteFIDataFromDB(fiDataID);
+            mMainApp.initFIDataList();
+        } catch (SQLException e) {
+            mLogger.error(MainApp.SQLExceptionToString(e), e);
+            mMainApp.showExceptionDialog("Exception", "Database Exception",
+                    MainApp.SQLExceptionToString(e), e);
+        }
     }
 
     @FXML

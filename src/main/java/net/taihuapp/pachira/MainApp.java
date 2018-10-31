@@ -24,7 +24,9 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -158,6 +160,7 @@ public class MainApp extends Application {
     private ObservableList<Account> mAccountList = FXCollections.observableArrayList(
             a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(),
                     a.getCurrentBalanceProperty() });
+    private ObservableList<AccountDC> mAccountDCList = FXCollections.observableArrayList();
     private ObservableList<Tag> mTagList = FXCollections.observableArrayList();
     private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
@@ -171,12 +174,20 @@ public class MainApp extends Application {
 
     private final ObservableList<ReminderTransaction> mReminderTransactionList = FXCollections.observableArrayList();
 
-    private Account mCurrentAccount = null;
+    private ObjectProperty<Account> mCurrentAccountProperty = new SimpleObjectProperty<>(null);
+    ObjectProperty<Account> getCurrentAccountProperty() { return mCurrentAccountProperty; }
+    void setCurrentAccount(Account a) { mCurrentAccountProperty.set(a); }
+    Account getCurrentAccount() { return mCurrentAccountProperty.get(); }
 
     private BooleanProperty mHasMasterPasswordProperty = new SimpleBooleanProperty(false);
 
-    void setCurrentAccount(Account a) { mCurrentAccount = a; }
-    Account getCurrentAccount() { return mCurrentAccount; }
+    ObservableList<AccountDC> getAccountDCList() { return mAccountDCList; }
+    AccountDC getAccountDC(int accountID) {
+        for (AccountDC adc : getAccountDCList())
+            if (adc.getAccountID() == accountID)
+                return adc;
+        return null;
+    }
 
     // get opened named from pref
     List<String> getOpenedDBNames() {
@@ -376,6 +387,7 @@ public class MainApp extends Application {
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
+        alert.setResizable(true);
         alert.showAndWait();
     }
 
@@ -618,6 +630,7 @@ public class MainApp extends Application {
         }
     }
 
+    // todo use try-with-resources
     // delete reminder
     void deleteReminderFromDB(int reminderID) throws SQLException {
         String sqlCmd = "delete from REMINDERS where ID = ?";
@@ -1891,6 +1904,27 @@ public class MainApp extends Application {
         account.updateTransactionListBalance();
     }
 
+    // reload from AccountDC table
+    void initAccountDCList() {
+        mAccountDCList.clear();
+        if (mConnection == null)
+            return;
+        String sqlCmd = "select ACCOUNTID, DCID, ROUTINGNUMBER, ACCOUNTNUMBER from ACCOUNTDCS order by ACCOUNTID";
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            while (resultSet.next()) {
+                int accountID = resultSet.getInt("ACCOUNTID");
+                int dcID = resultSet.getInt("DCID");
+                String routingNumber = resultSet.getString("ROUTINGNUMBER");
+                String accountNumber = resultSet.getString("ACCOUNTNUMBER");
+
+                mAccountDCList.add(new AccountDC(accountID, dcID, routingNumber, accountNumber));
+            }
+        } catch (SQLException e) {
+            mLogger.error("SQLException " + e.getSQLState(), e);
+        }
+    }
+
     // should be called after mTransactionList being properly initialized
     void initAccountList() {
         mAccountList.clear();
@@ -1969,7 +2003,7 @@ public class MainApp extends Application {
     // initialize DCInfo List from Database table
     // return encoded hashed master password or null if not exist
     String initDCInfoList() throws SQLException {
-        mDCInfoList.clear();
+        getDCInfoList().clear();
         if (mConnection == null)
             return null;
 
@@ -2018,6 +2052,12 @@ public class MainApp extends Application {
         } catch (SQLException e) {
             mLogger.error("SQLException on initFIDataList " + e.getSQLState(), e);
             showExceptionDialog("Exception", "SQLException", SQLExceptionToString(e), e);
+        }
+    }
+
+    void deleteFIDataFromDB(int fiDataID) throws SQLException {
+        try (Statement statement = mConnection.createStatement()) {
+            statement.executeUpdate("delete from FIDATA where ID = " + fiDataID);
         }
     }
 
@@ -3489,6 +3529,7 @@ public class MainApp extends Application {
 
         initFIDataList();
         initVault();
+        initAccountDCList();
     }
 
     // encrypt a char array using master password in the vault, return encrypted and encoded
@@ -3537,18 +3578,32 @@ public class MainApp extends Application {
     }
 
     // delete everything in DCInfo Table
-    private void emptyDCInfoTable() throws SQLException {
+    private void emptyDCTableAndAccountDCSTable() throws SQLException {
+        boolean savepointSetHere = false;
         try (Statement statement = mConnection.createStatement()) {
+            savepointSetHere = setDBSavepoint();
             statement.execute("delete from DCINFO");
+            statement.execute("delete from ACCOUNTDCS");
+            if (savepointSetHere)
+                commitDB();
+        } catch (SQLException e) {
+            if (savepointSetHere)
+                rollbackDB();
+            throw e;
+        } finally {
+            if (savepointSetHere)
+                releaseDBSavepoint();
         }
     }
 
+
     // delete master password in vault
-    // empty DCInfo table
+    // empty DCInfo table and AccountDCS table
     // empty DCInfoList
     void deleteMasterPassword() throws KeyStoreException, SQLException {
         getVault().deleteMasterPassword();
-        emptyDCInfoTable();
+        emptyDCTableAndAccountDCSTable();
+        mAccountDCList.clear();
         mDCInfoList.clear();
         hasMasterPasswordProperty().set(getVault().hasMasterPassword());
     }
@@ -3569,19 +3624,26 @@ public class MainApp extends Application {
 
         final List<char[]> clearUserNameList = new ArrayList<>();
         final List<char[]> clearPasswordList = new ArrayList<>();
+        final List<char[]> clearAccountNumberList = new ArrayList<>();
 
         try {
-            for (DirectConnection dc : mDCInfoList) {
+            for (DirectConnection dc : getDCInfoList()) {
                 clearUserNameList.add(decrypt(dc.getEncryptedUserName()));
                 clearPasswordList.add(decrypt(dc.getEncryptedPassword()));
             }
+            for (AccountDC adc : getAccountDCList())
+                clearAccountNumberList.add(decrypt(adc.getEncryptedAccountNumber()));
 
             getVault().setMasterPassword(newPasswordChars);
 
-            for (int i = 0; i < mDCInfoList.size(); i++) {
-                DirectConnection dc = mDCInfoList.get(i);
+            for (int i = 0; i < getDCInfoList().size(); i++) {
+                DirectConnection dc = getDCInfoList().get(i);
                 dc.setEncryptedUserName(encrypt(clearUserNameList.get(i)));
                 dc.setEncryptedPassword(encrypt(clearPasswordList.get(i)));
+            }
+            for (int i = 0; i < getAccountDCList().size(); i++) {
+                AccountDC adc = getAccountDCList().get(i);
+                adc.setEncryptedAccountNumber(encrypt(clearAccountNumberList.get(i)));
             }
         } finally {
             // wipe it clean
@@ -3603,9 +3665,12 @@ public class MainApp extends Application {
                 throw e;
             }
             mergeMasterPasswordToDB(getVault().getEncodedHashedMasterPassword());
-            for (DirectConnection dc : mDCInfoList) {
+            for (DirectConnection dc : getDCInfoList()) {
                 insertUpdateDCToDB(dc);
             }
+            for (AccountDC adc : getAccountDCList())
+                mergeAccountDCToDB(adc);
+
             commitDB();
             return true;
         } catch (SQLException e) {
@@ -3621,6 +3686,8 @@ public class MainApp extends Application {
             for (char[] chars : clearUserNameList)
                 Arrays.fill(chars, ' ');
             for (char[] chars : clearPasswordList)
+                Arrays.fill(chars, ' ');
+            for (char[] chars : clearAccountNumberList)
                 Arrays.fill(chars, ' ');
 
             if (savepointSetHere)
@@ -3685,6 +3752,17 @@ public class MainApp extends Application {
                     showExceptionDialog("Database Error", "Unable to rollback",
                             SQLExceptionToString(e1), e1);
                 }
+            }
+        } finally {
+            if (savepointSetHere) {
+                try {
+                    releaseDBSavepoint();
+                } catch (SQLException e) {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
+                    showExceptionDialog("Database Error", "releaseDBSavepint failed",
+                            SQLExceptionToString(e), e);
+                }
+
             }
         }
         return false;
@@ -4012,8 +4090,8 @@ public class MainApp extends Application {
         sqlCmd = "create table ACCOUNTDCS ("
                 + "ACCOUNTID integer UNIQUE NOT NULL, "
                 + "DCID integer NOT NULL, "
-                + "ROUTINGNUMBER varchar(9), "
-                + "ACCOUNTNUMBER varchar(256), "  // encrypted account number
+                + "ROUTINGNUMBER varchar(9) NOT NULL, "
+                + "ACCOUNTNUMBER varchar(256) NOT NULL, "  // encrypted account number
                 + "primary key (ACCOUNTID))";
         sqlCreateTable(sqlCmd);
 
@@ -4403,21 +4481,20 @@ public class MainApp extends Application {
 
     private Vault getVault() { return mVault; }
 
-    private void mergeAccountDCToDB(AccountDC adc) throws SQLException {
-        /*
-        AccountDCS ("
-                + "ACCOUNTID integer NOT NULL, "
-                + "DCID integer NOT NULL, "
-                + "ROUTINGNUMBER varchar(9), "
-                + "ACCOUNTNUMBER varchar(32))"
-                */
+    void deleteAccountDCFromDB(int accountID) throws SQLException {
+        try (Statement statement = mConnection.createStatement()) {
+            statement.executeUpdate("delete from ACCOUNTDCS where ACCOUNTID = " + accountID);
+        }
+    }
+
+    void mergeAccountDCToDB(AccountDC adc) throws SQLException {
         try (Statement statement = mConnection.createStatement()) {
             statement.executeUpdate(
-                    "merge into ACCOUNTDCS (ACCOUNTID, DCID, ROUTINGNUMBER, ACCOUNTNUMBER) values ('"
-                    + adc.getAccountNumber() + ", "
+                    "merge into ACCOUNTDCS (ACCOUNTID, DCID, ROUTINGNUMBER, ACCOUNTNUMBER) values ("
+                    + adc.getAccountID() + ", "
                     + adc.getDCID() + ", "
-                    + adc.getRoutingNumber() + ", "
-                    + adc.getAccountNumber() + ")");
+                    + "'" + adc.getRoutingNumber() + "', "
+                    + "'" + adc.getEncryptedAccountNumber() + "')");
         }
     }
 
@@ -4440,6 +4517,18 @@ public class MainApp extends Application {
 
     // DCInfoList
     ObservableList<DirectConnection> getDCInfoList() { return mDCInfoList; }
+    DirectConnection getDCInfoByName(String s) {
+        for (DirectConnection dc : getDCInfoList())
+            if (dc.getName().equals(s))
+                return dc;
+        return null;
+    }
+    DirectConnection getDCInfoByID(int id) {
+        for (DirectConnection dc : getDCInfoList())
+            if (dc.getID() == id)
+                return dc;
+        return null;
+    }
 
     @Override
     public void stop() {

@@ -20,6 +20,19 @@
 
 package net.taihuapp.pachira;
 
+import com.webcohesion.ofx4j.client.AccountStatement;
+import com.webcohesion.ofx4j.client.FinancialInstitution;
+import com.webcohesion.ofx4j.client.FinancialInstitutionAccount;
+import com.webcohesion.ofx4j.client.impl.BaseFinancialInstitutionData;
+import com.webcohesion.ofx4j.client.impl.FinancialInstitutionImpl;
+import com.webcohesion.ofx4j.client.main.DownloadAccountInfo;
+import com.webcohesion.ofx4j.client.net.OFXV1Connection;
+import com.webcohesion.ofx4j.domain.data.banking.AccountType;
+import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
+import com.webcohesion.ofx4j.io.AggregateMarshaller;
+import com.webcohesion.ofx4j.io.OFXWriter;
+import com.webcohesion.ofx4j.io.v1.OFXV1Writer;
+import com.webcohesion.ofx4j.io.v2.OFXV2Writer;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -47,12 +60,11 @@ import org.h2.tools.ChangeFileEncryption;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
@@ -4083,6 +4095,52 @@ public class MainApp extends Application {
             mLogger.error("SQLException: " + e.getSQLState(), e);
         }
         return dbVersion;
+    }
+
+    void DCDownloadTransactions() {
+        try {
+            OFXV1Connection connection = new OFXV1Connection();
+            AccountDC adc = getAccountDC(getCurrentAccount().getID());
+            DirectConnection dc = getDCInfoByID(adc.getDCID());
+            DirectConnection.FIData fiData = getFIDataByID(dc.getFIID());
+            BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
+            bfid.setFinancialInstitutionId(fiData.getFIID());
+            bfid.setOFXURL(new URL(fiData.getURL()));
+            bfid.setName(fiData.getName());
+            bfid.setOrganization(fiData.getORG());
+            FinancialInstitution fi = new FinancialInstitutionImpl(bfid, connection);
+
+            DownloadAccountInfo.FinancialInstitutionAccountType bankAccountType =
+                    DownloadAccountInfo.FinancialInstitutionAccountType.banking; // todo
+            BankAccountDetails bankAccountDetails = new BankAccountDetails();
+            bankAccountDetails.setAccountNumber(new String(decrypt(adc.getEncryptedAccountNumber())));
+            bankAccountDetails.setAccountType(AccountType.CHECKING); //todo
+            bankAccountDetails.setBankId(adc.getRoutingNumber());
+            String username = new String(decrypt(dc.getEncryptedUserName()));
+            String password = new String(decrypt(dc.getEncryptedPassword()));
+            FinancialInstitutionAccount fiAccount = fi.loadBankAccount(bankAccountDetails, username, password);
+            java.util.Date endDate = new java.util.Date();
+            java.util.Date startDate = new java.util.Date(endDate.getTime() - (4L * 7 * 24 * 60 * 60 * 1000));
+
+            AccountStatement statement = fiAccount.readStatement(startDate, endDate);
+            AggregateMarshaller marshaller = new AggregateMarshaller();
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            OFXWriter writer;
+            boolean v2 = true;
+            if (v2)
+                writer = new OFXV2Writer(bytes);
+            else
+                writer = new OFXV1Writer(bytes);
+            marshaller.marshal(statement, writer);
+            writer.close();
+            System.out.println(bytes.toString());
+        } catch (MalformedURLException e) {
+            mLogger.error("MalformedURLException", e);
+        } catch (Exception e) {
+            mLogger.error("DownloadAccountInfo throws exception " + e.getMessage(), e);
+            showExceptionDialog("Exception", "Download Account Transaction Exception",
+                    e.getMessage(), e);
+        }
     }
 
     private void createDirectConnectTables() {

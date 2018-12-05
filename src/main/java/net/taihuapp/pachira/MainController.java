@@ -285,10 +285,13 @@ public class MainController {
             }
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
                 | UnrecoverableKeyException e) {
+            mLogger.error("Verify Master Password throws exception " + e.getMessage(), e);
             mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
             return;
         }
         System.out.println("Download Account Transactions");
+
+        mMainApp.DCDownloadTransactions();
     }
 
     @FXML

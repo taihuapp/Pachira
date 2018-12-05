@@ -49,7 +49,7 @@
         <dependency>
             <groupId>com.webcohesion.ofx4j</groupId>
             <artifactId>ofx4j</artifactId>
-            <version>1.10</version>
+            <version>1.13</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.ccil.cowan.tagsoup/tagsoup -->

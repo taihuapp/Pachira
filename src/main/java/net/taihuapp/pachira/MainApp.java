@@ -2149,7 +2149,7 @@ public class MainApp extends Application {
                 if (sqlDate != null)
                     aDate = sqlDate.toLocalDate();
                 else
-                    aDate = tDate;
+                    aDate = null;
                 String reference = resultSet.getString("REFERENCE");
                 String payee = resultSet.getString("PAYEE");
                 String memo = resultSet.getString("MEMO");
@@ -2557,7 +2557,13 @@ public class MainApp extends Application {
             int dateComparison = o1.getTDate().compareTo(o2.getTDate());
             if (dateComparison != 0)
                 return dateComparison;
-            dateComparison = o1.getADate().compareTo(o2.getADate());
+            LocalDate aDate1 = o1.getADate();
+            LocalDate aDate2 = o2.getADate();
+            if (aDate1 == null)
+                aDate1 = o1.getTDate();
+            if (aDate2 == null)
+                aDate2 = o2.getTDate();
+            dateComparison = aDate1.compareTo(aDate2);
             if (dateComparison != 0)
                 return dateComparison;
 
@@ -2595,8 +2601,11 @@ public class MainApp extends Application {
                             k -> new ArrayList<>());
                     splitList.add(t);
                 } else if (Transaction.hasQuantity(t.getTradeAction())) {
+                    LocalDate aDate = t.getADate();
+                    if (aDate == null)
+                        aDate = t.getTDate();
                     securityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
-                            t.getTradeAction(), t.getADate(), t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
+                            t.getTradeAction(), aDate, t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
                             getMatchInfoList(tid));
                 }
             }

@@ -38,7 +38,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.sql.SQLException;
 import java.util.Arrays;
 
-
 public class EditAccountDirectConnectionDialogController {
 
     private static final Logger mLogger = Logger.getLogger(EditAccountDirectConnectionDialogController.class);
@@ -57,6 +56,8 @@ public class EditAccountDirectConnectionDialogController {
     @FXML
     private Label mAccountNameLabel;
     @FXML
+    private ComboBox<String> mAccountTypeComboBox;
+    @FXML
     private ComboBox<DirectConnection> mDCComboBox;
     @FXML
     private TextField mRoutingNumberTextField;
@@ -73,13 +74,39 @@ public class EditAccountDirectConnectionDialogController {
         mStage = stage;
         mMainApp = mainApp;
 
+        Account account = mMainApp.getCurrentAccount();
+        // be careful here.  There are different Account.Type here
+        // One is from Pachira Account class, the other is from ofx4j class
+        mAccountTypeComboBox.getItems().clear();
+        switch (account.getType()) {
+            case SPENDING:
+                for (com.webcohesion.ofx4j.domain.data.banking.AccountType at
+                        : com.webcohesion.ofx4j.domain.data.banking.AccountType.values())
+                    mAccountTypeComboBox.getItems().add(at.name());
+                break;
+            case INVESTING:
+                for (com.webcohesion.ofx4j.domain.data.investment.accounts.AccountType at
+                        : com.webcohesion.ofx4j.domain.data.investment.accounts.AccountType.values())
+                    mAccountTypeComboBox.getItems().add(at.name());
+                break;
+            case DEBT:
+                mAccountTypeComboBox.getItems().add("");
+                mAccountTypeComboBox.getItems().add("CREDITCARD");
+                break;
+            default:
+                // do nothing
+                break;
+        }
+        String type = adc.getAccountType();
+        mAccountTypeComboBox.getSelectionModel().select(type);
+
         mDCComboBox.setConverter(new DCInfoConverter());
         mDCComboBox.getItems().clear();
         mDCComboBox.getItems().add(new DirectConnection(0, "", 0, "", ""));  // add a blank one
         mDCComboBox.getItems().addAll(mMainApp.getDCInfoList());
         mDCComboBox.getSelectionModel().select(mMainApp.getDCInfoByID(adc.getDCID()));
 
-        mAccountNameLabel.setText(mMainApp.getCurrentAccount().getName());
+        mAccountNameLabel.setText(account.getName());
         mRoutingNumberTextField.setText(adc.getRoutingNumber());
         char[] clearAccountNumber = null;
         try {
@@ -101,13 +128,15 @@ public class EditAccountDirectConnectionDialogController {
         ChangeListener<String> textChangeListener = (obs, o, n) -> setChanged();
         mRoutingNumberTextField.textProperty().addListener(textChangeListener);
         mAccountNumberPasswordField.textProperty().addListener(textChangeListener);
+        mAccountTypeComboBox.valueProperty().addListener((obs, o, n) -> setChanged());
         mDCComboBox.valueProperty().addListener((obs, o, n) -> setChanged());
     }
 
     @FXML
     private void handleSave() {
         int dcID = mDCComboBox.getValue().getID();
-        int aid = mMainApp.getCurrentAccount().getID();
+        Account account = mMainApp.getCurrentAccount();
+        int aid = account.getID();
 
         char[] clearAccountNumber = null;
         try {
@@ -120,7 +149,10 @@ public class EditAccountDirectConnectionDialogController {
                 String ean = "";
                 if (clearAccountNumber.length > 0)
                     ean = mMainApp.encrypt(clearAccountNumber);
-                mMainApp.mergeAccountDCToDB(new AccountDC(aid, dcID, mRoutingNumberTextField.getText(), ean));
+                String at = mAccountTypeComboBox.getValue();
+                // note, every time an AccountDC is changed, the last download date time is reset
+                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, mRoutingNumberTextField.getText(), ean,
+                        new java.util.Date(0L)));
             }
             mMainApp.initAccountDCList();
             mStage.close();

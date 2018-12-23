@@ -44,8 +44,8 @@ public class Transaction {
             mMessage = m;
         }
 
-        public boolean isValid() { return mIsValid; }
-        public String getMessage() { return mMessage; }
+        boolean isValid() { return mIsValid; }
+        String getMessage() { return mMessage; }
     }
 
     private static final Logger mLogger = Logger.getLogger(Transaction.class);
@@ -111,7 +111,7 @@ public class Transaction {
     }
 
     private int mID = -1;
-    private int mAccountID = -1;
+    private int mAccountID;
     private final ObjectProperty<LocalDate> mTDateProperty = new SimpleObjectProperty<>(LocalDate.now());
     private final ObjectProperty<LocalDate> mADateProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<Status> mStatusProperty = new SimpleObjectProperty<>(Status.UNCLEARED);
@@ -138,6 +138,7 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mDescriptionProperty = new SimpleStringProperty("");
+    private final StringProperty mFITIDProperty = new SimpleStringProperty("");
     private int mMatchID = -1; // transfer transaction id
     private int mMatchSplitID = -1;
 
@@ -148,8 +149,6 @@ public class Transaction {
     int getAccountID() { return mAccountID; }
     ObjectProperty<LocalDate> getTDateProperty() { return mTDateProperty; }
     ObjectProperty<LocalDate> getADateProperty() { return mADateProperty; }
-    StringProperty getReferenceProperty() { return mReferenceProperty; }
-    String getReference() { return getReferenceProperty().get(); }
     StringProperty getPayeeProperty() { return mPayeeProperty; }
     String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
@@ -170,9 +169,17 @@ public class Transaction {
     ObjectProperty<BigDecimal> getOldQuantityProperty() { return mOldQuantityProperty; }
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
+    StringProperty getReferenceProperty() { return mReferenceProperty; }
+    String getReference() { return getReferenceProperty().get(); }
+    void setReference(String r) { getReferenceProperty().set(r); }
+
     ObjectProperty<Status> getStatusProperty() { return mStatusProperty; }
     Status getStatus() { return getStatusProperty().get(); }
     void setStatus(Status s) { getStatusProperty().set(s); }
+
+    StringProperty getFITIDProperty() { return mFITIDProperty; }
+    String getFITID() { return getFITIDProperty().get(); }
+    void setFIDID(String fitid) { getFITIDProperty().set(fitid); }
 
     ObjectProperty<TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
     TradeAction getTradeAction() { return getTradeActionProperty().get();}
@@ -364,7 +371,7 @@ public class Transaction {
         }, getTradeActionProperty(), getAmountProperty()));
     }
 
-    public ValidationStatus validate() {
+    ValidationStatus validate() {
         // check if it is self transferring
         StringBuilder sb = new StringBuilder();
         boolean valid = true;
@@ -543,7 +550,8 @@ public class Transaction {
                        String securityName, String reference, String payee, BigDecimal price,
                        BigDecimal quantity, BigDecimal oldQuantity, String memo,
                        BigDecimal commission, BigDecimal accruedInterest, BigDecimal amount,
-                       int categoryID, int tagID, int matchID, int matchSplitID, List<SplitTransaction> stList) {
+                       int categoryID, int tagID, int matchID, int matchSplitID, List<SplitTransaction> stList,
+                       String fitid) {
         mID = id;
         mAccountID = accountID;
         mMatchID = matchID;
@@ -568,6 +576,7 @@ public class Transaction {
             for (SplitTransaction st : stList)
                 mSplitTransactionList.add(new SplitTransaction(st));
         }
+        mFITIDProperty.set(fitid);
 
         bindProperties();
         // bind description property now
@@ -581,7 +590,7 @@ public class Transaction {
                 t0.getReference(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
                 t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAccruedInterest(), t0.getAmount(),
                 t0.getCategoryID(), t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID(),
-                t0.getSplitTransactionList());
+                t0.getSplitTransactionList(), t0.getFITID());
     }
 
     // return false if this is NOT a transfer

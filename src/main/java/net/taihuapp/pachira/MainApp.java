@@ -20,19 +20,17 @@
 
 package net.taihuapp.pachira;
 
+import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.client.AccountStatement;
 import com.webcohesion.ofx4j.client.FinancialInstitution;
 import com.webcohesion.ofx4j.client.FinancialInstitutionAccount;
 import com.webcohesion.ofx4j.client.impl.BaseFinancialInstitutionData;
 import com.webcohesion.ofx4j.client.impl.FinancialInstitutionImpl;
-import com.webcohesion.ofx4j.client.main.DownloadAccountInfo;
 import com.webcohesion.ofx4j.client.net.OFXV1Connection;
 import com.webcohesion.ofx4j.domain.data.banking.AccountType;
 import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
-import com.webcohesion.ofx4j.io.AggregateMarshaller;
-import com.webcohesion.ofx4j.io.OFXWriter;
-import com.webcohesion.ofx4j.io.v1.OFXV1Writer;
-import com.webcohesion.ofx4j.io.v2.OFXV2Writer;
+import com.webcohesion.ofx4j.domain.data.common.TransactionType;
+import com.webcohesion.ofx4j.domain.data.signup.AccountProfile;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -60,7 +58,10 @@ import org.h2.tools.ChangeFileEncryption;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.MalformedURLException;
@@ -68,11 +69,13 @@ import java.net.URL;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.*;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -128,6 +131,8 @@ public class MainApp extends Application {
     private static final int TRANSACTIONTRADEACTIONLEN = 16;
     private static final int TRANSACTIONSTATUSLEN = 16;
     private static final int TRANSACTIONTRANSFERREMINDERLEN = 40;
+    // OFX FITID.  Specification says upto 255 char
+    private static final int TRANSACTIONFITIDLEN = 256;
     private static final int ADDRESSLINELEN = 32;
 
     private static final int AMORTLINELEN = 32;
@@ -784,15 +789,16 @@ public class MainApp extends Application {
                     "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                     "STATUS, CATEGORYID, TAGID, MEMO, PRICE, QUANTITY, COMMISSION, " +
                     "MATCHTRANSACTIONID, MATCHSPLITTRANSACTIONID, PAYEE, ADATE, OLDQUANTITY, " +
-                    "REFERENCE, SPLITFLAG, ACCRUEDINTEREST) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "REFERENCE, SPLITFLAG, ACCRUEDINTEREST, FITID) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         } else {
             sqlCmd = "update TRANSACTIONS set " +
                     "ACCOUNTID = ?, DATE = ?, AMOUNT = ?, TRADEACTION = ?, " +
                     "SECURITYID = ?, STATUS = ?, CATEGORYID = ?, TAGID = ?, MEMO = ?, " +
                     "PRICE = ?, QUANTITY = ?, COMMISSION = ?, " +
                     "MATCHTRANSACTIONID = ?, MATCHSPLITTRANSACTIONID = ?, " +
-                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ?, REFERENCE = ?, SPLITFLAG = ?, ACCRUEDINTEREST = ? " +
+                    "PAYEE = ?, ADATE = ?, OLDQUANTITY = ?, REFERENCE = ?, SPLITFLAG = ?, ACCRUEDINTEREST = ?," +
+                    "FITID = ? " +
                     "where ID = ?";
         }
 
@@ -827,8 +833,9 @@ public class MainApp extends Application {
             preparedStatement.setString(18, t.getReferenceProperty().get());
             preparedStatement.setBoolean(19, !t.getSplitTransactionList().isEmpty());
             preparedStatement.setBigDecimal(20, t.getAccruedInterest());
+            preparedStatement.setString(21, t.getFITID());
             if (t.getID() > 0)
-                preparedStatement.setInt(21, t.getID());
+                preparedStatement.setInt(22, t.getID());
 
             if (preparedStatement.executeUpdate() == 0)
                 throw(new SQLException("Failure: " + sqlCmd));
@@ -1241,7 +1248,8 @@ public class MainApp extends Application {
     // output matching Transaction.TradeAction
     private static Transaction.TradeAction mapBankingTransactionTA(int cid, BigDecimal signedAmount) {
         if (categoryOrTransferTest(cid) >= 0)
-            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
+            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT
+                    : Transaction.TradeAction.WITHDRAW;
 
         return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
     }
@@ -1431,8 +1439,8 @@ public class MainApp extends Application {
             sqlCmd = "insert into TRANSACTIONS " +
                     "(ACCOUNTID, DATE, AMOUNT, STATUS, CATEGORYID, " +
                     "MEMO, REFERENCE, " +
-                    "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID, TRADEACTION, TAGID" +
-                    ") values (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+                    "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID, TRADEACTION, TAGID, FITID" +
+                    ") values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
             try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
                 String categoryOrTransferStr = bt.getCategoryOrTransfer();
@@ -1456,6 +1464,7 @@ public class MainApp extends Application {
                 preparedStatement.setInt(11, amortID);
                 preparedStatement.setString(12, ta.name());
                 preparedStatement.setInt(13, tagID);
+                preparedStatement.setString(14, "");
                 preparedStatement.executeUpdate();
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                     if (resultSet.next()) {
@@ -1504,8 +1513,8 @@ public class MainApp extends Application {
 
         String sqlCmd = "insert into TRANSACTIONS " +
                 "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
-                "STATUS, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY) " +
-                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "STATUS, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY, FITID) " +
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
             int cid = mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer());
             QIFParser.TradeTransaction.Action action = tt.getAction();
@@ -1544,6 +1553,7 @@ public class MainApp extends Application {
                 preparedStatement.setBigDecimal(12, BigDecimal.TEN);
             else
                 preparedStatement.setBigDecimal(12, null);
+            preparedStatement.setString(13, ""); // empty string for FITID
             preparedStatement.executeUpdate();
             try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                 if (resultSet.next()) {
@@ -1921,16 +1931,21 @@ public class MainApp extends Application {
         mAccountDCList.clear();
         if (mConnection == null)
             return;
-        String sqlCmd = "select ACCOUNTID, DCID, ROUTINGNUMBER, ACCOUNTNUMBER from ACCOUNTDCS order by ACCOUNTID";
+        String sqlCmd = "select ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
+                + "LASTDOWNLOADDATE, LASTDOWNLOADTIME from ACCOUNTDCS order by ACCOUNTID";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int accountID = resultSet.getInt("ACCOUNTID");
                 int dcID = resultSet.getInt("DCID");
+                String accountType = resultSet.getString("ACCOUNTTYPE");
                 String routingNumber = resultSet.getString("ROUTINGNUMBER");
                 String accountNumber = resultSet.getString("ACCOUNTNUMBER");
-
-                mAccountDCList.add(new AccountDC(accountID, dcID, routingNumber, accountNumber));
+                java.util.Date lastDownloadDate = resultSet.getDate("LASTDOWNLOADDATE");
+                java.sql.Time lastDownloadTime = resultSet.getTime("LASTDOWNLOADTIME");
+                lastDownloadDate.setTime(lastDownloadTime.getTime());
+                mAccountDCList.add(new AccountDC(accountID, accountType, dcID, routingNumber, accountNumber,
+                        lastDownloadDate));
             }
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -2184,10 +2199,12 @@ public class MainApp extends Application {
                         name = security.getName();
                 }
 
+                String fitid = resultSet.getString("FITID");
+
                 Transaction transaction = new Transaction(id, aid, tDate, aDate, tradeAction, status, name, reference,
                         payee, price, quantity, oldQuantity, memo, commission, accruedInterest, amount,
                         cid, tagID, matchID, matchSplitID,
-                        resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null);
+                        resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null, fitid);
 
                 tList.add(transaction);  // add transaction to simple list first.
             }
@@ -3459,6 +3476,8 @@ public class MainApp extends Application {
         if (newV == 6) {
             createDirectConnectTables();
             try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate("alter table TRANSACTIONS add (FITID varchar("
+                        + TRANSACTIONFITIDLEN + ") NOT NULL default '')");
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 5) {
@@ -3616,7 +3635,6 @@ public class MainApp extends Application {
                 releaseDBSavepoint();
         }
     }
-
 
     // delete master password in vault
     // empty DCInfo table and AccountDCS table
@@ -4106,7 +4124,7 @@ public class MainApp extends Application {
         return dbVersion;
     }
 
-    void DCDownloadTransactions() {
+    void DCDownloadAccountInfo() {
         try {
             OFXV1Connection connection = new OFXV1Connection();
             AccountDC adc = getAccountDC(getCurrentAccount().getID());
@@ -4119,30 +4137,25 @@ public class MainApp extends Application {
             bfid.setOrganization(fiData.getORG());
             FinancialInstitution fi = new FinancialInstitutionImpl(bfid, connection);
 
-            DownloadAccountInfo.FinancialInstitutionAccountType bankAccountType =
-                    DownloadAccountInfo.FinancialInstitutionAccountType.banking; // todo
-            BankAccountDetails bankAccountDetails = new BankAccountDetails();
-            bankAccountDetails.setAccountNumber(new String(decrypt(adc.getEncryptedAccountNumber())));
-            bankAccountDetails.setAccountType(AccountType.CHECKING); //todo
-            bankAccountDetails.setBankId(adc.getRoutingNumber());
             String username = new String(decrypt(dc.getEncryptedUserName()));
             String password = new String(decrypt(dc.getEncryptedPassword()));
-            FinancialInstitutionAccount fiAccount = fi.loadBankAccount(bankAccountDetails, username, password);
-            java.util.Date endDate = new java.util.Date();
-            java.util.Date startDate = new java.util.Date(endDate.getTime() - (4L * 7 * 24 * 60 * 60 * 1000));
-
-            AccountStatement statement = fiAccount.readStatement(startDate, endDate);
-            AggregateMarshaller marshaller = new AggregateMarshaller();
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            OFXWriter writer;
-            boolean v2 = true;
-            if (v2)
-                writer = new OFXV2Writer(bytes);
-            else
-                writer = new OFXV1Writer(bytes);
-            marshaller.marshal(statement, writer);
-            writer.close();
-            System.out.println(bytes.toString());
+            //Collection<AccountProfile> profiles = fi.readAccountProfiles(username, password);
+            for (AccountProfile profiles : fi.readAccountProfiles(username, password)) {
+                System.out.println("Desc: " + profiles.getDescription());
+                if (profiles.getBankSpecifics() != null) {
+                    System.out.println("Bank Specifics:        ");
+                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getBankId());
+                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getAccountNumber());
+                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getAccountType());
+                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getAccountKey());
+                }
+                if (profiles.getCreditCardSpecifics() != null) {
+                    System.out.println("Credit Card:");
+                }
+                if (profiles.getInvestmentSpecifics() != null) {
+                    System.out.println("Investment:");
+                }
+            }
         } catch (MalformedURLException e) {
             mLogger.error("MalformedURLException", e);
         } catch (Exception e) {
@@ -4152,13 +4165,244 @@ public class MainApp extends Application {
         }
     }
 
+    // todo
+    // These few methods should belong to Direction, but I need to put a FIData object instead of
+    // a FIID in DirectConnection
+    // Later.
+    FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection) throws MalformedURLException {
+        OFXV1Connection connection = new OFXV1Connection();
+        DirectConnection.FIData fiData = getFIDataByID(directConnection.getFIID());
+        BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
+        bfid.setFinancialInstitutionId(fiData.getFIID());
+        bfid.setOFXURL(new URL(fiData.getURL()));
+        bfid.setName(fiData.getName());
+        bfid.setOrganization(fiData.getORG());
+        return new FinancialInstitutionImpl(bfid, connection);
+    }
+
+    Collection<AccountProfile> DCDownloadFinancialInstitutionAccountProfiles(DirectConnection directConnection)
+            throws MalformedURLException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException,
+            UnrecoverableKeyException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException, OFXException {
+        FinancialInstitution financialInstitution = DCGetFinancialInstitution(directConnection);
+        String username = new String(decrypt(directConnection.getEncryptedUserName()));
+        String password = new String(decrypt(directConnection.getEncryptedPassword()));
+
+        return financialInstitution.readAccountProfiles(username, password);
+    }
+
+    // download account statement from DirectConnection
+    // currently only support SPENDING account type
+    AccountStatement DCDownloadAccountStatement(Account account)
+            throws IllegalArgumentException, MalformedURLException, NoSuchAlgorithmException,
+            InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
+            NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException, SQLException, OFXException {
+        Account.Type accountType = account.getType();
+        if (!accountType.equals(Account.Type.SPENDING)) {
+            throw new IllegalArgumentException("DCDownloadAccountStatement currently only supports SPENDING account, "
+                    + account.getType() + " is currently not supported.");
+        }
+
+        AccountDC adc = getAccountDC(account.getID());
+        DirectConnection directConnection = getDCInfoByID(adc.getDCID());
+        FinancialInstitution financialInstitution = DCGetFinancialInstitution(directConnection);
+
+        BankAccountDetails bankAccountDetails = new BankAccountDetails();
+        bankAccountDetails.setAccountNumber(new String(decrypt(adc.getEncryptedAccountNumber())));
+        bankAccountDetails.setAccountType(AccountType.valueOf(adc.getAccountType()));
+        bankAccountDetails.setBankId(adc.getRoutingNumber());
+        String username = new String(decrypt(directConnection.getEncryptedUserName()));
+        String password = new String(decrypt(directConnection.getEncryptedPassword()));
+        FinancialInstitutionAccount fiAccount = financialInstitution.loadBankAccount(bankAccountDetails,
+                username, password);
+        java.util.Date endDate = new java.util.Date();
+        java.util.Date startDate = adc.getLastDownloadDateTime();
+
+        AccountStatement statement = fiAccount.readStatement(startDate, endDate);
+        importAccountStatement(account, statement);
+        adc.setLastDownloadDateTime(endDate);
+        mergeAccountDCToDB(adc);
+        return statement;
+    }
+
+    // Banking transaction logic is currently coded in.
+    private void importAccountStatement(Account account, AccountStatement statement)
+            throws SQLException {
+        if (statement.getTransactionList() == null)
+            return;  // didn't download any transaction, do nothing
+
+        HashSet<String> downloadedIDSet = new HashSet<>();
+        for (Transaction t : account.getTransactionList()) {
+            if (!t.getFITID().isEmpty())
+                downloadedIDSet.add(t.getFITID());
+        }
+
+        Set<TransactionType> unTestedTransactionType = new HashSet<>();
+
+        ArrayList<Transaction> tobeImported = new ArrayList<>();
+        for (com.webcohesion.ofx4j.domain.data.common.Transaction ofx4jT
+                : statement.getTransactionList().getTransactions()) {
+            if (downloadedIDSet.contains(ofx4jT.getId()))
+                continue; // this transaction has been downloaded. skip
+
+            // posted is always at 1200 UTC, which would convert to the same date at any time zone
+            LocalDate tDate = ofx4jT.getDatePosted().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            Transaction.TradeAction ta = null;
+            BigDecimal amount = ofx4jT.getBigDecimalAmount();
+            Category category = new Category();
+            switch (ofx4jT.getTransactionType()) {
+                case CREDIT:
+                case DEP:
+                case DIRECTDEP:
+                    ta = Transaction.TradeAction.DEPOSIT;
+                    break;
+                case CHECK:
+                case DEBIT:
+                case DIRECTDEBIT:
+                case PAYMENT:
+                case REPEATPMT:
+                    ta = Transaction.TradeAction.WITHDRAW;
+                    amount = amount.negate();
+                    break;
+                case INT:
+                    ta = Transaction.TradeAction.DEPOSIT;
+                    category = getCategoryByName("Interest Inc");
+                    break;
+                case DIV:
+                    ta = Transaction.TradeAction.DEPOSIT;
+                    category = getCategoryByName("Div Income");
+                    break;
+                case FEE:
+                case SRVCHG:
+                    ta = Transaction.TradeAction.WITHDRAW;
+                    category = getCategoryByName("Fees & Charges");
+                    break;
+                case XFER:
+                    if (amount.compareTo(BigDecimal.ZERO) >= 0)
+                        ta = Transaction.TradeAction.XIN;
+                    else {
+                        ta = Transaction.TradeAction.XOUT;
+                        amount = amount.negate();
+                    }
+                    break;
+                case ATM:
+                case CASH:
+                case OTHER:
+                case POS:
+                    if (amount.compareTo(BigDecimal.ZERO) >= 0) {
+                        ta = Transaction.TradeAction.DEPOSIT;
+                    } else {
+                        ta = Transaction.TradeAction.WITHDRAW;
+                        amount = amount.negate();
+                    }
+                    break;
+            }
+
+            if (!ofx4jT.getTransactionType().equals(TransactionType.OTHER))
+                unTestedTransactionType.add(ofx4jT.getTransactionType());
+
+            Transaction transaction = new Transaction(account.getID(), tDate, ta,
+                    category == null ? 0 : category.getID());
+
+            transaction.setAmount(amount);
+            transaction.setFIDID(ofx4jT.getId());
+
+            String refString;
+            if (ofx4jT.getCheckNumber() != null) {
+                refString = ofx4jT.getCheckNumber();
+                if (ofx4jT.getReferenceNumber() != null)
+                    refString += " " + ofx4jT.getReferenceNumber();
+            } else {
+                if (ofx4jT.getReferenceNumber() != null)
+                    refString = ofx4jT.getReferenceNumber();
+                else
+                    refString = "";
+            }
+            transaction.setReference(refString);
+
+
+            String payee;
+            if (ofx4jT.getName() != null) {
+                payee = ofx4jT.getName();
+                if (ofx4jT.getPayee() != null && ofx4jT.getPayee().getName() != null)
+                    payee += " " + ofx4jT.getPayee().getName();
+            } else {
+                if (ofx4jT.getPayee() != null && ofx4jT.getPayee().getName() != null)
+                    payee = ofx4jT.getPayee().getName();
+                else
+                    payee = "";
+            }
+            transaction.setPayee(payee);
+
+            transaction.setMemo(ofx4jT.getMemo());
+
+            tobeImported.add(transaction);
+        }
+
+        if (!tobeImported.isEmpty()) {
+            // we need to import some transactions
+            boolean savepointSetHere = false;
+            try {
+                savepointSetHere = setDBSavepoint();
+                for (Transaction t : tobeImported) {
+                    insertUpdateTransactionToDB(t);
+                }
+
+                if (savepointSetHere)
+                    commitDB();
+
+                for (Transaction t : tobeImported)
+                    insertUpdateTransactionToMasterList(t);
+
+                updateAccountBalance(account.getID());
+
+            } catch (SQLException e) {
+                if (savepointSetHere) {
+                    try {
+                        mLogger.error("SQLException: " + e.getSQLState(), e);
+                        String title = "Database Error";
+                        String header = "Unable to insert/update SAVEDREPORTS Setting";
+                        String content = SQLExceptionToString(e);
+                        showExceptionDialog(title, header, content, e);
+                        rollbackDB();
+                    } catch (SQLException e1) {
+                        mLogger.error("SQLException: " + e1.getSQLState(), e1);
+                        String title = "Database Error";
+                        String header = "Unable to roll back";
+                        String content = SQLExceptionToString(e1);
+                        showExceptionDialog(title, header, content, e1);
+                    }
+                } else {
+                    throw e;
+                }
+            } finally {
+                if (savepointSetHere) {
+                    try {
+                        releaseDBSavepoint();
+                    } catch (SQLException e) {
+                        mLogger.error("SQLException: " + e.getSQLState(), e);
+                        String title = "Database Error";
+                        String header = "Unable to release savepoint and set DB autocommit";
+                        String content = SQLExceptionToString(e);
+                        showExceptionDialog(title, header, content, e);
+                    }
+                }
+            }
+        }
+
+    }
+
     private void createDirectConnectTables() {
         String sqlCmd;
         sqlCmd = "create table ACCOUNTDCS ("
                 + "ACCOUNTID integer UNIQUE NOT NULL, "
+                + "ACCOUNTTYPE varchar(16) NOT NULL, "
                 + "DCID integer NOT NULL, "
                 + "ROUTINGNUMBER varchar(9) NOT NULL, "
                 + "ACCOUNTNUMBER varchar(256) NOT NULL, "  // encrypted account number
+                + "LASTDOWNLOADDATE Date NOT NULL, "
+                + "LASTDOWNLOADTIME Time Not NULL, "
                 + "primary key (ACCOUNTID))";
         sqlCreateTable(sqlCmd);
 
@@ -4316,6 +4560,7 @@ public class MainApp extends Application {
                 + "AMOUNTTRANSFERRED decimal(20,4), "
                 + "MATCHTRANSACTIONID integer, "   // matching transfer transaction id
                 + "MATCHSPLITTRANSACTIONID integer, "  // matching split
+                + "FITID varchar(" + TRANSACTIONFITIDLEN + ") not null, "
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
@@ -4556,12 +4801,23 @@ public class MainApp extends Application {
 
     void mergeAccountDCToDB(AccountDC adc) throws SQLException {
         try (Statement statement = mConnection.createStatement()) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
+            TimeZone tzUTC = TimeZone.getTimeZone("UTC");
+            dateFormat.setTimeZone(tzUTC);
+            timeFormat.setTimeZone(tzUTC);
+            String dateString = dateFormat.format(adc.getLastDownloadDateTime());
+            String timeString = timeFormat.format(adc.getLastDownloadDateTime());
             statement.executeUpdate(
-                    "merge into ACCOUNTDCS (ACCOUNTID, DCID, ROUTINGNUMBER, ACCOUNTNUMBER) values ("
-                    + adc.getAccountID() + ", "
-                    + adc.getDCID() + ", "
-                    + "'" + adc.getRoutingNumber() + "', "
-                    + "'" + adc.getEncryptedAccountNumber() + "')");
+                    "merge into ACCOUNTDCS (ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
+                    + "LASTDOWNLOADDATE, LASTDOWNLOADTIME) values ("
+                            + adc.getAccountID() + ", "
+                            + "'" + adc.getAccountType() + "', "
+                            + adc.getDCID() + ", "
+                            + "'" + adc.getRoutingNumber() + "', "
+                            + "'" + adc.getEncryptedAccountNumber() +  "', "
+                            + "'" + dateString + "', "
+                            + "'" + timeString + "')");
         }
     }
 

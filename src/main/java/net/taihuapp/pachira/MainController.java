@@ -291,7 +291,11 @@ public class MainController {
         }
         System.out.println("Download Account Transactions");
 
-        mMainApp.DCDownloadTransactions();
+        try {
+            mMainApp.DCDownloadAccountStatement(mMainApp.getCurrentAccount());
+        } catch (Exception e) {
+            System.out.println("more work here");
+        }
     }
 
     @FXML
@@ -327,7 +331,7 @@ public class MainController {
             Account a = mMainApp.getCurrentAccount();
             AccountDC adc = mMainApp.getAccountDC(a.getID());
             if (adc == null)
-                adc = new AccountDC(a.getID(), 0, "", "");
+                adc = new AccountDC(a.getID(), "", 0, "", "", new java.util.Date(0L));
             controller.setMainApp(mMainApp, dialogStage, adc);
             dialogStage.showAndWait();
         } catch (IOException e) {

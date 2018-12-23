@@ -20,27 +20,38 @@
 
 package net.taihuapp.pachira.net.taihuapp.pachira.dc;
 
+import java.util.Date;
+
 public class AccountDC {
     private int mAccountID;
+    private String mAccountType;
     private int mDCID;
     private String mRoutingNumber;  // encrypted
     private String mAccountNumber;  // encrypted
+    private Date mLastDownloadDT;  // UTC Date time for last download
 
-    public AccountDC(int accountID, int DCID, String rn, String an) {
+    public AccountDC(int accountID, String accountType, int DCID, String rn, String an, Date lddt) {
         mAccountID = accountID;
+        mAccountType = accountType;
         mDCID = DCID;
         mRoutingNumber = rn;
         mAccountNumber = an;
+        mLastDownloadDT = lddt;
     }
 
     public int getAccountID() { return mAccountID; }
+    public String getAccountType() { return mAccountType; }
     public int getDCID() { return mDCID; }
     public String getRoutingNumber() { return mRoutingNumber; }
     public String getEncryptedAccountNumber() { return mAccountNumber; }
     public void setEncryptedAccountNumber(String s) { mAccountNumber = s; }
+    public Date getLastDownloadDateTime() { return mLastDownloadDT; }
+
+    public void setLastDownloadDateTime(Date ld) { mLastDownloadDT = ld; }
 
     @Override
     public String toString() {
-        return getAccountID() + ", " + getDCID() + ", " + getRoutingNumber() + ", " + getEncryptedAccountNumber();
+        return getAccountID() + ", " + getAccountType() + ", " + getDCID() + ", " + getRoutingNumber()
+                + ", " + getEncryptedAccountNumber();
     }
 }

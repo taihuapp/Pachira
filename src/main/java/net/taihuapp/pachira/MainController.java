@@ -289,7 +289,6 @@ public class MainController {
             mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
             return;
         }
-        System.out.println("Download Account Transactions");
 
         try {
             mMainApp.DCDownloadAccountStatement(mMainApp.getCurrentAccount());
@@ -777,6 +776,36 @@ public class MainController {
                 }
             });
 
+            // menuitem for downloaded transaction to merge with manually entered one
+            final MenuItem mergeMI = new MenuItem("Merge...");
+            mergeMI.setOnAction(e -> {
+                final Transaction downloadedTransaction = row.getItem();
+
+                Stage dialogStage = new Stage();
+                dialogStage.initModality(Modality.WINDOW_MODAL);
+                dialogStage.initOwner(mMainApp.getStage());
+                MergeCandidateDialog mcd = new MergeCandidateDialog(mMainApp, dialogStage, downloadedTransaction);
+                dialogStage.showAndWait();
+                Transaction selected = mcd.getSelectedTransaction();
+                if (selected != null) {
+                    Transaction mergedTransaction = Transaction.mergeDownloadedTransaction(
+                            selected, downloadedTransaction);
+
+                    if (!mMainApp.alterTransaction(selected, mergedTransaction, new ArrayList<>())) {
+                        showWarningDialog("Merge Transaction Failed",
+                                "Failed to merge a downoaded transaction with an existing one",
+                                "Transactions remained un-merged");
+                        return;
+                    }
+
+                    if (!mMainApp.alterTransaction(downloadedTransaction, null, new ArrayList<>())) {
+                        showWarningDialog("Delete Transaction Failed",
+                                "Failed to delete downloaded transaction after merge.",
+                                "Duplicating downloaded transaction remains in DB.");
+                    }
+                }
+            });
+
             for (Transaction.Status status : Transaction.Status.values()) {
                 MenuItem statusMI = new MenuItem("Mark as " + status.toString());
                 statusMI.setOnAction(e -> {
@@ -792,6 +821,8 @@ public class MainController {
                 });
                 contextMenu.getItems().add(statusMI);
             }
+            contextMenu.getItems().add(new SeparatorMenuItem());
+            contextMenu.getItems().add(mergeMI);
             contextMenu.getItems().add(new SeparatorMenuItem());
             contextMenu.getItems().add(deleteMI);
             contextMenu.getItems().add(moveToMenu);
@@ -866,6 +897,8 @@ public class MainController {
                         mi.setDisable((mi.getText() != null)
                                 && mi.getText().endsWith(nTransaction.getStatus().toString()));
                     }
+
+                    mergeMI.setDisable(nTransaction.getFITID().isEmpty());
                 } else {
                     row.pseudoClassStateChanged(reconciled, false);
                     row.pseudoClassStateChanged(future, false);

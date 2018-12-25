@@ -28,6 +28,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -35,19 +36,16 @@ import javafx.stage.Stage;
 import java.time.LocalDate;
 import java.util.Arrays;
 
-class SearchResultDialog {
+class MergeCandidateDialog {
     private Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
 
-    static class SearchTransactionTableView extends TransactionTableView {
+    static class MergeCandidateTransactionTableView extends TransactionTableView {
         @Override
         final void setColumnVisibility() {
             for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                    mTransactionAccountColumn,
                     mTransactionDescriptionColumn,
-                    mTransactionInvestAmountColumn,
-                    mTransactionCashAmountColumn,
-                    mTransactionPaymentColumn,
-                    mTransactionDepositColumn,
                     mTransactionBalanceColumn
             )) {
                 tc.setVisible(false);
@@ -55,57 +53,74 @@ class SearchResultDialog {
         }
 
         @Override
-        final void setColumnSortability() {}  // all columns remains sortable
+        final void setColumnSortability() {} // all columns remain sortable
 
-        SearchTransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) {
-            super(mainApp, tList);
-        }
+        MergeCandidateTransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) { super(mainApp, tList);}
     }
 
     private void handleClose() { mDialogStage.close(); }
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
 
     // constructor
-    SearchResultDialog(String searchString, MainApp mainApp, Stage stage) {
+    MergeCandidateDialog(MainApp mainApp, Stage stage, final Transaction downloadedTransaction) {
         mDialogStage = stage;
 
-        SearchTransactionTableView searchTransactionTableView = new SearchTransactionTableView(mainApp,
-                mainApp.getStringSearchTransactionList(searchString));
-
-        searchTransactionTableView.setRowFactory(tv -> {
+        MergeCandidateTransactionTableView mergeCandidateTransactionTableView =
+                new MergeCandidateTransactionTableView(mainApp,
+                        mainApp.getMergeCandidateTransactionList(downloadedTransaction));
+        mergeCandidateTransactionTableView.setRowFactory(tv -> {
             TableRow<Transaction> row = new TableRow<>();
+            // double click select the merge candidate
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {
                     mSelectedTransaction = row.getItem();
                     handleClose();
                 }
             });
-
-            // high light future transactions
             PseudoClass future = PseudoClass.getPseudoClass("future");
             row.itemProperty().addListener((obs, oTransaction, nTransaction) ->
                     row.pseudoClassStateChanged(future, (nTransaction != null)
                     && nTransaction.getTDate().isAfter(LocalDate.now())));
             return row;
         });
-        searchTransactionTableView.getStylesheets().add(getClass()
+
+        mergeCandidateTransactionTableView.getStylesheets().add(getClass()
                 .getResource("/css/TransactionTableView.css").toExternalForm());
 
-        Label resultLabel = new Label();
-        resultLabel.setText("Found " + searchTransactionTableView.getItems().size()
-                + " transactions match '" + searchString + "'");
+        Label infoLabel = new Label();
+        infoLabel.setText("Found " + mergeCandidateTransactionTableView.getItems().size()
+                + " possible merge candidate transactions");
 
-        Button closeButton =  new Button();
-        closeButton.setText("Close");
-        closeButton.setOnAction(e -> mDialogStage.close());
+        Button mergeButton = new Button();
+        mergeButton.setText("Merge");
+        mergeButton.disableProperty().bind(mergeCandidateTransactionTableView.getSelectionModel()
+                .selectedItemProperty().isNull());
+        mergeButton.setOnAction(e -> {
+            mSelectedTransaction = mergeCandidateTransactionTableView.getSelectionModel().getSelectedItem();
+            mDialogStage.close();
+        });
+
+        Button cancelButton = new Button();
+        cancelButton.setText("Cancel");
+        cancelButton.setOnAction(e -> {
+            mSelectedTransaction = null;
+            mDialogStage.close();
+        });
+
+        HBox hBox = new HBox();
+        hBox.getChildren().addAll(mergeButton, cancelButton);
+
+        Insets insets = new Insets(5,5,5,5);
+        HBox.setMargin(mergeButton, insets);
+        HBox.setMargin(cancelButton, insets);
 
         VBox vBox = new VBox();
-        vBox.getChildren().addAll(resultLabel, searchTransactionTableView, closeButton);
+        vBox.getChildren().addAll(infoLabel, mergeCandidateTransactionTableView, hBox);
+        VBox.setMargin(infoLabel, insets);
+        VBox.setMargin(mergeCandidateTransactionTableView, insets);
+        VBox.setMargin(hBox, insets);
 
-        VBox.setMargin(resultLabel, new Insets(5,5,5,5));
-        VBox.setMargin(searchTransactionTableView, new Insets(5,5,5,5));
-        VBox.setMargin(closeButton, new Insets(5,5,5,5));
-        VBox.setVgrow(searchTransactionTableView, Priority.ALWAYS);
+        VBox.setVgrow(mergeCandidateTransactionTableView, Priority.ALWAYS);
 
         mDialogStage.setScene(new Scene(vBox));
     }

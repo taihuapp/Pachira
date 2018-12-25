@@ -147,7 +147,6 @@ public class Transaction {
     // getters
     int getID() { return mID; }
     int getAccountID() { return mAccountID; }
-    ObjectProperty<LocalDate> getTDateProperty() { return mTDateProperty; }
     ObjectProperty<LocalDate> getADateProperty() { return mADateProperty; }
     StringProperty getPayeeProperty() { return mPayeeProperty; }
     String getPayee() { return getPayeeProperty().get(); }
@@ -169,6 +168,10 @@ public class Transaction {
     ObjectProperty<BigDecimal> getOldQuantityProperty() { return mOldQuantityProperty; }
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
+    ObjectProperty<LocalDate> getTDateProperty() { return mTDateProperty; }
+    LocalDate getTDate() { return getTDateProperty().get(); }
+    private void setTDate(LocalDate td) { getTDateProperty().set(td); }
+
     StringProperty getReferenceProperty() { return mReferenceProperty; }
     String getReference() { return getReferenceProperty().get(); }
     void setReference(String r) { getReferenceProperty().set(r); }
@@ -177,7 +180,7 @@ public class Transaction {
     Status getStatus() { return getStatusProperty().get(); }
     void setStatus(Status s) { getStatusProperty().set(s); }
 
-    StringProperty getFITIDProperty() { return mFITIDProperty; }
+    private StringProperty getFITIDProperty() { return mFITIDProperty; }
     String getFITID() { return getFITIDProperty().get(); }
     void setFIDID(String fitid) { getFITIDProperty().set(fitid); }
 
@@ -392,7 +395,6 @@ public class Transaction {
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
     String getDescription() { return getDescriptionProperty().get(); }
 
-    LocalDate getTDate() { return mTDateProperty.get(); }
     LocalDate getADate() { return mADateProperty.get(); }
     BigDecimal getPrice() { return mPriceProperty.get(); }
     BigDecimal getQuantity() { return mQuantityProperty.get(); }
@@ -650,5 +652,89 @@ public class Transaction {
             default:
                 return false;
         }
+    }
+
+    // Merge a downloaded transaction into a mannually entered transaction
+    // transactionA is a manually entered transaction (getFITID().isEmpty() == true)
+    // transactionB is a downloaded transaction (getFITID().isEmpty() == false)
+    // the result transaction will keep the following from transactionA
+    //   id, tradeAction
+    // the result transaction will keep the following from transactionB
+    //   Date, fitID, CHECKNUM (if not empty)
+    // all other fields of the result transaction will have merged information
+    static Transaction mergeDownloadedTransaction(final Transaction transactionA, final Transaction transactionB) {
+
+        String fitIDA = transactionA.getFITID();
+        String fitIDB = transactionB.getFITID();
+        if (!fitIDA.isEmpty() || fitIDB.isEmpty())
+            throw new IllegalArgumentException("mergeDownloadedTransaction expected "
+                            + "a manually entered transaction and "
+                            + "a downloaded transaction, but got a "
+                            + (fitIDA.isEmpty() ? "manually entered" : "downloaded") + " transactioa "
+                            + "and a "
+                            + (fitIDB.isEmpty() ? "manually entered" : "downloaded") + " transactioa ");
+
+        TradeAction taA = transactionA.getTradeAction();
+        TradeAction taB = transactionB.getTradeAction();
+        boolean tradeActionCompatible = false;
+        switch (taA) {
+            case DEPOSIT:
+            case XIN:
+                tradeActionCompatible = (taB == TradeAction.DEPOSIT || taB == TradeAction.XIN);
+                break;
+            case WITHDRAW:
+            case XOUT:
+                tradeActionCompatible = (taB == TradeAction.WITHDRAW || taB == TradeAction.XOUT);
+                break;
+            default:
+                break;
+        }
+        if (!tradeActionCompatible)
+            throw new IllegalArgumentException("Incompatible TradeActions: "
+                    + taA.toString() + "/" + taB.toString());
+
+        // copy over everything from transactionA first
+        Transaction mergedTransaction = new Transaction(transactionA);
+
+        // set Date
+        mergedTransaction.setTDate(transactionB.getTDate());
+
+        // set fitid
+        mergedTransaction.setFIDID(transactionB.getFITID());
+
+        // set category
+        if (mergedTransaction.getCategoryID() > -MainApp.MIN_ACCOUNT_ID &&
+                mergedTransaction.getCategoryID() < MainApp.MIN_CATEGORY_ID) {
+            // mergedTransaction has an empty category field, copy from TransactionB
+            mergedTransaction.setCategoryID(transactionB.getCategoryID());
+        }
+
+        // set Reference field
+        String refStringB = transactionB.getReference();
+        if (!(refStringB == null || refStringB.isEmpty())) {
+            mergedTransaction.setReference(refStringB);
+        }
+
+        // set Payee field
+        String payeeA = transactionA.getPayee();
+        String payeeB = transactionB.getPayee();
+        if (!(payeeB == null || payeeB.isEmpty())) {
+            if (payeeA == null || payeeA.isEmpty())
+                mergedTransaction.setPayee(payeeB);
+            else
+                mergedTransaction.setPayee(payeeA + " " + payeeB);
+        }
+
+        // set Memo field
+        String memoA = transactionA.getMemo();
+        String memoB = transactionB.getMemo();
+        if (!(memoB == null || memoB.isEmpty())) {
+            if (payeeA == null || payeeA.isEmpty())
+                mergedTransaction.setMemo(memoB);
+            else
+                mergedTransaction.setMemo(memoA + " " + memoB);
+        }
+
+        return mergedTransaction;
     }
 }

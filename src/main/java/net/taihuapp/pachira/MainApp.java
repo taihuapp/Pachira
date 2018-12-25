@@ -4169,7 +4169,7 @@ public class MainApp extends Application {
     // These few methods should belong to Direction, but I need to put a FIData object instead of
     // a FIID in DirectConnection
     // Later.
-    FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection) throws MalformedURLException {
+    private FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection) throws MalformedURLException {
         OFXV1Connection connection = new OFXV1Connection();
         DirectConnection.FIData fiData = getFIDataByID(directConnection.getFIID());
         BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
@@ -4238,6 +4238,9 @@ public class MainApp extends Application {
                 downloadedIDSet.add(t.getFITID());
         }
 
+        Set<TransactionType> testedTransactionType = new HashSet<>();
+        testedTransactionType.add(TransactionType.OTHER);
+
         Set<TransactionType> unTestedTransactionType = new HashSet<>();
 
         ArrayList<Transaction> tobeImported = new ArrayList<>();
@@ -4299,7 +4302,7 @@ public class MainApp extends Application {
                     break;
             }
 
-            if (!ofx4jT.getTransactionType().equals(TransactionType.OTHER))
+            if (!testedTransactionType.contains(ofx4jT.getTransactionType()))
                 unTestedTransactionType.add(ofx4jT.getTransactionType());
 
             Transaction transaction = new Transaction(account.getID(), tDate, ta,
@@ -4389,8 +4392,16 @@ public class MainApp extends Application {
                     }
                 }
             }
-        }
 
+            if (!unTestedTransactionType.isEmpty()) {
+                StringBuilder context = new StringBuilder();
+                for (TransactionType tt : unTestedTransactionType)
+                    context.append(tt.toString()).append("\n");
+                showWarningDialog("Untested Download Transaction Type",
+                        "The following downloaded transaction type are not fully tested, preceed with caution:",
+                        context.toString());
+            }
+        }
     }
 
     private void createDirectConnectTables() {
@@ -4722,7 +4733,24 @@ public class MainApp extends Application {
         return realizedGain;
     }
 
-    ObservableList<Transaction> getFilteredTransactionList(String searchString) {
+    ObservableList<Transaction> getMergeCandidateTransactionList(final Transaction transaction)
+            throws IllegalArgumentException {
+        final Account account = getAccountByID(transaction.getAccountID());
+        if (!account.getType().equals(Account.Type.SPENDING)) {
+            // for account type other than SPENDING,
+            throw new IllegalArgumentException("Account type " + account.getType().toString()
+                    + " is not supported yet");
+        }
+        BigDecimal netAmount = transaction.getDeposit().subtract(transaction.getPayment());
+        final Predicate<Transaction> filterCriteria = t ->
+                t.getTDate().isAfter(transaction.getTDate().minusWeeks(2))
+                        && t.getTDate().isBefore(transaction.getTDate().plusWeeks(2))
+                        && t.getFITID().isEmpty()
+                        && t.getDeposit().subtract(t.getPayment()).compareTo(netAmount) == 0;
+        return new FilteredList<>(account.getTransactionList(), filterCriteria);
+    }
+
+    ObservableList<Transaction> getStringSearchTransactionList(String searchString) {
         // search is case insensitive
         final String lowerSearchString = searchString.toLowerCase();
 
@@ -4790,6 +4818,7 @@ public class MainApp extends Application {
             mLogger.error("IOException", e);
         }
     }
+
 
     private Vault getVault() { return mVault; }
 

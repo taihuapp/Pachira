@@ -299,9 +299,9 @@ class QIFParser {
         private BigDecimal mTAmount;
         private BigDecimal mUAmount;  // not sure what's the difference between T and U amounts
         private Transaction.Status mStatus;
-        private String mCheckNumber; // check number or ref, such as ATM, etc, so string is used
-        private String mPayee;
-        private String mMemo;
+        private String mCheckNumber = ""; // check number or ref, such as ATM, etc, so string is used
+        private String mPayee = "";
+        private String mMemo = "";
         private List<String> mAddressList; // QIF says up to 6 lines.
         private String mCategory; // L line if matches [*], then transfer, otherwise, category
         private String mTag; // L line may contain tag as well
@@ -406,7 +406,7 @@ class QIFParser {
                         bt.addAddress(l.substring(1));
                         break;
                     case 'L':
-                        String names[] = l.substring(1).split("/");
+                        String[] names = l.substring(1).split("/");
                         if (!names[0].isEmpty())
                             bt.setCategory(names[0]);
                         if (names.length > 1 && !names[1].isEmpty())
@@ -417,7 +417,7 @@ class QIFParser {
                             bt.addSplit(splitBT);
                         }
                         splitBT = new SplitBT();
-                        String names0[] = l.substring(1).split("/");
+                        String[] names0 = l.substring(1).split("/");
                         if (!names0[0].isEmpty())
                             splitBT.setCategory(names0[0]);
                         if (names0.length > 1 && !names0[1].isEmpty())
@@ -480,7 +480,7 @@ class QIFParser {
         private BigDecimal mQuantity;
         private Transaction.Status mStatus;
         private String mTransferReminderText; // P line
-        private String mMemo;
+        private String mMemo = "";
         private BigDecimal mCommission;
         private String mCategoryOrTransfer; // L line
         private String mTag;
@@ -748,7 +748,7 @@ class QIFParser {
                 mLogger.error("Price record, expected 1 line, got " + lines.size());
                 return null;
             }
-            String tokens[] = lines.get(0).split(",");
+            String[] tokens = lines.get(0).split(",");
             if (tokens.length != 3) {
                 mLogger.error("Expect 3 ',' separated fields, got " + tokens.length);
                 return null;

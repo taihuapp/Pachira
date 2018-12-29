@@ -710,30 +710,26 @@ public class Transaction {
         }
 
         // set Reference field
+        // take Reference from transactionB if it is not empty
         String refStringB = transactionB.getReference();
-        if (!(refStringB == null || refStringB.isEmpty())) {
+        if (refStringB.isEmpty())
             mergedTransaction.setReference(refStringB);
-        }
 
-        // set Payee field
+        // set Payee field, combine A + B
         String payeeA = transactionA.getPayee();
         String payeeB = transactionB.getPayee();
-        if (!(payeeB == null || payeeB.isEmpty())) {
-            if (payeeA == null || payeeA.isEmpty())
-                mergedTransaction.setPayee(payeeB);
-            else
-                mergedTransaction.setPayee(payeeA + " " + payeeB);
-        }
+        if (payeeA.isEmpty())
+            mergedTransaction.setPayee(payeeB);
+        else if (!payeeB.isEmpty())
+            mergedTransaction.setPayee(payeeA + " " + payeeB);
 
         // set Memo field
         String memoA = transactionA.getMemo();
         String memoB = transactionB.getMemo();
-        if (!(memoB == null || memoB.isEmpty())) {
-            if (payeeA == null || payeeA.isEmpty())
-                mergedTransaction.setMemo(memoB);
-            else
-                mergedTransaction.setMemo(memoA + " " + memoB);
-        }
+        if (memoA.isEmpty())
+            mergedTransaction.setMemo(memoB);
+        else if (!memoB.isEmpty())
+            mergedTransaction.setMemo(memoA + " " + memoB);
 
         return mergedTransaction;
     }

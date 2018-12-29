@@ -125,8 +125,8 @@ public class MainApp extends Application {
     private static final int AMOUNT_TOTAL_LEN = 20;
     private static final int AMOUNT_FRACTION_LEN = 4;
 
-    private static final int TRANSACTIONMEMOLEN = 64;
-    private static final int TRANSACTIONREFLEN = 8;
+    private static final int TRANSACTIONMEMOLEN = 255;
+    private static final int TRANSACTIONREFLEN = 16;
     private static final int TRANSACTIONPAYEELEN = 64;
     private static final int TRANSACTIONTRADEACTIONLEN = 16;
     private static final int TRANSACTIONSTATUSLEN = 16;
@@ -1513,8 +1513,8 @@ public class MainApp extends Application {
 
         String sqlCmd = "insert into TRANSACTIONS " +
                 "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
-                "STATUS, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY, FITID) " +
-                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "STATUS, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY, FITID, REFERENCE, PAYEE) " +
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
             int cid = mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer());
             QIFParser.TradeTransaction.Action action = tt.getAction();
@@ -1554,6 +1554,8 @@ public class MainApp extends Application {
             else
                 preparedStatement.setBigDecimal(12, null);
             preparedStatement.setString(13, ""); // empty string for FITID
+            preparedStatement.setString(14, ""); // empty string for REFERENCE
+            preparedStatement.setString(15, ""); // empty string for PAYEE
             preparedStatement.executeUpdate();
             try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                 if (resultSet.next()) {
@@ -3476,8 +3478,22 @@ public class MainApp extends Application {
         if (newV == 6) {
             createDirectConnectTables();
             try (Statement statement = mConnection.createStatement()) {
+
+                statement.executeUpdate("update TRANSACTIONS set MEMO = '' where MEMO is null");
+                statement.executeUpdate("alter table TRANSACTIONS alter column MEMO varchar("
+                        + TRANSACTIONMEMOLEN + ") not null default''");
+
+                statement.executeUpdate("update TRANSACTIONS set REFERENCE = '' where REFERENCE is null");
+                statement.executeUpdate("alter table Transactions alter column REFERENCE varchar("
+                        + TRANSACTIONREFLEN + ")");
+
+                statement.executeUpdate("update TRANSACTIONS set PAYEE = '' where PAYEE is null");
+                statement.executeUpdate("alter table Transactions alter column PAYEE varchar("
+                        + TRANSACTIONPAYEELEN + ")");
+
                 statement.executeUpdate("alter table TRANSACTIONS add (FITID varchar("
                         + TRANSACTIONFITIDLEN + ") NOT NULL default '')");
+
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 5) {
@@ -4554,9 +4570,9 @@ public class MainApp extends Application {
                 + "STATUS varchar(" + TRANSACTIONSTATUSLEN + ") not null, " // status
                 + "CATEGORYID integer, "   // positive for category ID, negative for transfer account id
                 + "TAGID integer, "
-                + "MEMO varchar(" + TRANSACTIONMEMOLEN + "), "
-                + "REFERENCE varchar (" + TRANSACTIONREFLEN + "), "  // reference or check number as string
-                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
+                + "MEMO varchar(" + TRANSACTIONMEMOLEN + ") not null, "
+                + "REFERENCE varchar (" + TRANSACTIONREFLEN + ") not null, "  // reference or check number as string
+                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + ") not null, "
                 + "SPLITFLAG boolean, "
                 + "ADDRESSID integer, "
                 + "AMORTIZATIONID integer, "

@@ -75,7 +75,7 @@ public class FinancialInstitutionListDialogController {
     private TableColumn<FinancialInstitutionData, String> mOFXFIDataURLTableColumn;
 
     @FXML
-    FilteredList<FinancialInstitutionData> mFilteredOFXFIDataList = null;
+    private FilteredList<FinancialInstitutionData> mFilteredOFXFIDataList = null;
 
     @FXML
     private Button mEditButton;
@@ -173,8 +173,28 @@ public class FinancialInstitutionListDialogController {
 
     @FXML
     private void handleImport() {
-        FinancialInstitutionData fiData = mOFXFIDataTableView.getSelectionModel().getSelectedItem();
-        System.out.println("Importing: " + fiData.getName() + " " + fiData.getId());
+        FinancialInstitutionData ofxFIData = mOFXFIDataTableView.getSelectionModel().getSelectedItem();
+        String fiID = ofxFIData.getFinancialInstitutionId();
+        String subID = ofxFIData.getId();
+        String brokerID = ofxFIData.getBrokerId();
+        String name = ofxFIData.getName();
+        String org = ofxFIData.getOrganization();
+        String url = ofxFIData.getOFXURL().toString();
+        DirectConnection.FIData fiData = new DirectConnection.FIData(-1,
+                fiID == null ? "" : fiID,
+                subID == null ? "" : subID,
+                brokerID == null ? "" : brokerID,
+                name == null ? "" : name,
+                org,
+                url);
+        try {
+            mMainApp.insertUpdateFIDataToDB(fiData);
+            mMainApp.initFIDataList();
+        } catch (SQLException e) {
+            mLogger.error("SQLException", e);
+            mMainApp.showExceptionDialog("SQLException", "Import Financial Institution Data failed",
+                    MainApp.SQLExceptionToString(e), e);
+        }
     }
 
     @FXML

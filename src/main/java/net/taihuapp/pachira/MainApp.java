@@ -4449,7 +4449,7 @@ public class MainApp extends Application {
                 + "NAME varchar(128) UNIQUE NOT NULL, " // not null, can be empty
                 + "ORG varchar(128) NOT NULL, "
                 + "BROKERID varchar(32) NOT NULL, "
-                + "URL varchar(2084) NOT NULL, "
+                + "URL varchar(2084) UNIQUE NOT NULL, "
                 + "primary key (ID), "
                 + "CONSTRAINT FIID_SUBID UNIQUE(FIID, SUBID))";
         sqlCreateTable(sqlCmd);

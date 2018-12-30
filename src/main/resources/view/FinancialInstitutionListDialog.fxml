@@ -4,24 +4,27 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.152" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.FinancialInstitutionListDialogController">
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.FinancialInstitutionListDialogController">
    <children>
-      <Label text="Imported Financial Institution List">
+      <Label text="Imported/Created Financial Institutions">
          <VBox.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </VBox.margin>
       </Label>
-      <TableView fx:id="mFITableView" prefHeight="200.0" prefWidth="200.0">
+      <TableView fx:id="mImportedFIDataTableView">
         <columns>
-          <TableColumn fx:id="mFINameTableColumn" prefWidth="150.0" text="Name" />
-          <TableColumn fx:id="mFIFIIDTableColumn" prefWidth="100.0" text="FI ID" />
-            <TableColumn fx:id="mFISubIDTableColumn" prefWidth="100.0" text="Sub ID" />
-            <TableColumn fx:id="mFIORGTableColumn" prefWidth="150.0" text="ORG" />
-            <TableColumn fx:id="mFIURLTableColumn" prefWidth="250.0" text="URL" />
+          <TableColumn fx:id="mImportedFIDataNameTableColumn" prefWidth="150.0" text="Name" />
+          <TableColumn fx:id="mImportedFIDataFIIDTableColumn" prefWidth="100.0" text="FI ID" />
+            <TableColumn fx:id="mImportedFIDataFISubIDTableColumn" prefWidth="100.0" text="Sub ID" />
+            <TableColumn fx:id="mImportedFIDataORGTableColumn" prefWidth="150.0" text="ORG" />
+            <TableColumn fx:id="mImportedFIDataURLTableColumn" prefWidth="290.0" text="URL" />
         </columns>
          <VBox.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
@@ -37,22 +40,42 @@
             <Button mnemonicParsing="false" onAction="#handleNew" text="New" />
          </buttons>
       </ButtonBar>
-      <Label text="OFX Financial Institution List" visible="false">
+      <Separator />
+      <Label text="OFX Financial Institution">
          <VBox.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </VBox.margin>
       </Label>
-      <TableView fx:id="mOFXFIDataTableView" prefHeight="200.0" prefWidth="600.0" visible="false">
+      <TableView fx:id="mOFXFIDataTableView">
          <columns>
-            <TableColumn fx:id="mOFXFIDataNameTableColumn" prefWidth="100.0" text="Name" />
-            <TableColumn fx:id="mOFXFIDataFIIDTableColumn" prefWidth="85.0" text="FI ID" />
-            <TableColumn fx:id="mOFXFIDataIDTableColumn" prefWidth="85.0" text="ID" />
-            <TableColumn fx:id="mOFXFIDataORGTableColumn" prefWidth="120.0" text="ORG" />
-            <TableColumn fx:id="mOFXFIDataURLTableColumn" prefWidth="200.0" text="URL" />
+            <TableColumn fx:id="mOFXFIDataNameTableColumn" prefWidth="150.0" text="Name" />
+            <TableColumn fx:id="mOFXFIDataFIIDTableColumn" prefWidth="100.0" text="FI ID" />
+            <TableColumn fx:id="mOFXFIDataIDTableColumn" prefWidth="100.0" text="Sub ID" />
+            <TableColumn fx:id="mOFXFIDataORGTableColumn" prefWidth="150.0" text="ORG" />
+            <TableColumn fx:id="mOFXFIDataURLTableColumn" prefWidth="290.0" text="URL" />
          </columns>
          <VBox.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </VBox.margin>
       </TableView>
+      <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0">
+         <children>
+            <Button fx:id="mImportButton" mnemonicParsing="false" onAction="#handleImport" text="Import">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+            <Label text="Filter:">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Label>
+            <TextField fx:id="mFilterTextField">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </TextField>
+         </children>
+      </HBox>
    </children>
 </VBox>

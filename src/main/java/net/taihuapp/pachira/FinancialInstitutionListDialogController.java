@@ -32,6 +32,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.apache.log4j.Logger;
@@ -47,17 +48,17 @@ public class FinancialInstitutionListDialogController {
     private Stage mDialogStage;
 
     @FXML
-    private TableView<DirectConnection.FIData> mFITableView;
+    private TableView<DirectConnection.FIData> mImportedFIDataTableView;
     @FXML
-    private TableColumn<DirectConnection.FIData, String> mFINameTableColumn;
+    private TableColumn<DirectConnection.FIData, String> mImportedFIDataNameTableColumn;
     @FXML
-    private TableColumn<DirectConnection.FIData, String> mFIFIIDTableColumn;
+    private TableColumn<DirectConnection.FIData, String> mImportedFIDataFIIDTableColumn;
     @FXML
-    private TableColumn<DirectConnection.FIData, String> mFISubIDTableColumn;
+    private TableColumn<DirectConnection.FIData, String> mImportedFIDataFISubIDTableColumn;
     @FXML
-    private TableColumn<DirectConnection.FIData, String> mFIORGTableColumn;
+    private TableColumn<DirectConnection.FIData, String> mImportedFIDataORGTableColumn;
     @FXML
-    private TableColumn<DirectConnection.FIData, String> mFIURLTableColumn;
+    private TableColumn<DirectConnection.FIData, String> mImportedFIDataURLTableColumn;
 
 
     @FXML
@@ -74,11 +75,16 @@ public class FinancialInstitutionListDialogController {
     private TableColumn<FinancialInstitutionData, String> mOFXFIDataURLTableColumn;
 
     @FXML
+    FilteredList<FinancialInstitutionData> mFilteredOFXFIDataList = null;
+
+    @FXML
     private Button mEditButton;
     @FXML
     private Button mDeleteButton;
     @FXML
     private Button mImportButton;
+    @FXML
+    private TextField mFilterTextField;
 
     void setMainApp(MainApp mainApp, Stage stage) {
         mMainApp = mainApp;
@@ -89,21 +95,19 @@ public class FinancialInstitutionListDialogController {
             FilteredList<DirectConnection.FIData> filteredFIDataList =
                     new FilteredList<>(mMainApp.getFIDataList());
             SortedList<DirectConnection.FIData> sortedFIDataList = new SortedList<>(filteredFIDataList);
-            sortedFIDataList.comparatorProperty().bind(mFITableView.comparatorProperty());
-            mFITableView.setItems(sortedFIDataList);
+            sortedFIDataList.comparatorProperty().bind(mImportedFIDataTableView.comparatorProperty());
+            mImportedFIDataTableView.setItems(sortedFIDataList);
 
-
-            FilteredList<FinancialInstitutionData> filteredOFXFIDataList =
-                    new FilteredList<>(FXCollections.observableArrayList(
+            mFilteredOFXFIDataList = new FilteredList<>(FXCollections.observableArrayList(
                             (new LocalResourceFIDataStore()).getInstitutionDataList()));
-            SortedList<FinancialInstitutionData> sortedOFXFIDataList = new SortedList<>(filteredOFXFIDataList);
+            SortedList<FinancialInstitutionData> sortedOFXFIDataList = new SortedList<>(mFilteredOFXFIDataList);
 
             sortedOFXFIDataList.comparatorProperty().bind(mOFXFIDataTableView.comparatorProperty());
             mOFXFIDataTableView.setItems(sortedOFXFIDataList);
-            for (FinancialInstitutionData fiData : sortedOFXFIDataList) {
+            /*for (FinancialInstitutionData fiData : sortedOFXFIDataList) {
                 mLogger.info("Name = " + fiData.getName() + ", FIID = " + fiData.getFinancialInstitutionId()
                         + ", ID = " + fiData.getId());
-            }
+            }*/
         } catch (IOException e) {
             mLogger.error("IOException", e);
         }
@@ -137,13 +141,13 @@ public class FinancialInstitutionListDialogController {
 
     @FXML
     private void handleEdit() {
-        showEditFIDataDialog(new DirectConnection.FIData(mFITableView.getSelectionModel().getSelectedItem()));
+        showEditFIDataDialog(new DirectConnection.FIData(mImportedFIDataTableView.getSelectionModel().getSelectedItem()));
     }
 
     @FXML
     private void handleDelete() {
         // check usage
-        DirectConnection.FIData fiData = mFITableView.getSelectionModel().getSelectedItem();
+        DirectConnection.FIData fiData = mImportedFIDataTableView.getSelectionModel().getSelectedItem();
         int fiDataID = fiData.getID();
         FilteredList<DirectConnection> usageList = new FilteredList<>(mMainApp.getDCInfoList(),
                 dc -> dc.getFIID() == fiDataID);
@@ -168,12 +172,18 @@ public class FinancialInstitutionListDialogController {
     }
 
     @FXML
+    private void handleImport() {
+        FinancialInstitutionData fiData = mOFXFIDataTableView.getSelectionModel().getSelectedItem();
+        System.out.println("Importing: " + fiData.getName() + " " + fiData.getId());
+    }
+
+    @FXML
     private void initialize() {
-        mFINameTableColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
-        mFIFIIDTableColumn.setCellValueFactory(cd -> cd.getValue().getFIIDProperty());
-        mFISubIDTableColumn.setCellValueFactory(cd -> cd.getValue().getSubIDProperty());
-        mFIORGTableColumn.setCellValueFactory(cd -> cd.getValue().getORGProperty());
-        mFIURLTableColumn.setCellValueFactory(cd -> cd.getValue().getURLProperty());
+        mImportedFIDataNameTableColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
+        mImportedFIDataFIIDTableColumn.setCellValueFactory(cd -> cd.getValue().getFIIDProperty());
+        mImportedFIDataFISubIDTableColumn.setCellValueFactory(cd -> cd.getValue().getSubIDProperty());
+        mImportedFIDataORGTableColumn.setCellValueFactory(cd -> cd.getValue().getORGProperty());
+        mImportedFIDataURLTableColumn.setCellValueFactory(cd -> cd.getValue().getURLProperty());
 
         mOFXFIDataNameTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getName()));
         mOFXFIDataFIIDTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getFinancialInstitutionId()));
@@ -181,7 +191,22 @@ public class FinancialInstitutionListDialogController {
         mOFXFIDataORGTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getOrganization()));
         mOFXFIDataURLTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getOFXURL().toString()));
 
-        mEditButton.disableProperty().bind(mFITableView.getSelectionModel().selectedItemProperty().isNull());
-        mDeleteButton.disableProperty().bind(mFITableView.getSelectionModel().selectedItemProperty().isNull());
+        mEditButton.disableProperty().bind(mImportedFIDataTableView.getSelectionModel().selectedItemProperty().isNull());
+        mDeleteButton.disableProperty().bind(mImportedFIDataTableView.getSelectionModel().selectedItemProperty().isNull());
+        mImportButton.disableProperty().bind(mOFXFIDataTableView.getSelectionModel().selectedItemProperty().isNull());
+        mFilterTextField.textProperty().addListener((obs, ov, nv) -> {
+            if (mFilteredOFXFIDataList != null) {
+                String nvLower = nv.toLowerCase();
+                mFilteredOFXFIDataList.setPredicate(fiData -> nv.isEmpty()
+                        || (fiData.getName() != null && fiData.getName().toLowerCase().contains(nvLower))
+                        || (fiData.getFinancialInstitutionId() != null &&
+                        fiData.getFinancialInstitutionId().toLowerCase().contains(nvLower))
+                        || (fiData.getId() != null && fiData.getId().toLowerCase().contains(nvLower))
+                        || (fiData.getOrganization() != null &&
+                        fiData.getOrganization().toLowerCase().contains(nvLower))
+                        || (fiData.getOFXURL() != null &&
+                        fiData.getOFXURL().toString().toLowerCase().contains(nvLower)));
+            }
+        });
     }
 }

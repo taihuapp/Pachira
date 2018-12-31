@@ -4140,47 +4140,6 @@ public class MainApp extends Application {
         return dbVersion;
     }
 
-    Collection<AccountProfile> DCDownloadAccountProfiles(DirectConnection dc)
-            throws MalformedURLException, NoSuchAlgorithmException, InvalidKeySpecException,
-            KeyStoreException, UnrecoverableKeyException, NoSuchPaddingException, InvalidKeyException,
-            InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, OFXException {
-        OFXV1Connection connection = new OFXV1Connection();
-        DirectConnection.FIData fiData = getFIDataByID(dc.getFIID());
-        BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
-        bfid.setFinancialInstitutionId(fiData.getFIID());
-        bfid.setOFXURL(new URL(fiData.getURL()));
-        bfid.setName(fiData.getName());
-        bfid.setOrganization(fiData.getORG());
-        FinancialInstitution fi = new FinancialInstitutionImpl(bfid, connection);
-
-        String username = new String(decrypt(dc.getEncryptedUserName()));
-        String password = new String(decrypt(dc.getEncryptedPassword()));
-        return fi.readAccountProfiles(username, password);
-            /*for (AccountProfile profiles : fi.readAccountProfiles(username, password)) {
-                System.out.println("Desc: " + profiles.getDescription());
-                if (profiles.getBankSpecifics() != null) {
-                    System.out.println("Bank Specifics:        ");
-                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getBankId());
-                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getAccountNumber());
-                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getAccountType());
-                    System.out.println("    " + profiles.getBankSpecifics().getBankAccount().getAccountKey());
-                }
-                if (profiles.getCreditCardSpecifics() != null) {
-                    System.out.println("Credit Card:");
-                }
-                if (profiles.getInvestmentSpecifics() != null) {
-                    System.out.println("Investment:");
-                }
-            }
-        } catch (MalformedURLException e) {
-            mLogger.error("MalformedURLException", e);
-        } catch (Exception e) {
-            mLogger.error("DownloadAccountInfo throws exception " + e.getMessage(), e);
-            showExceptionDialog("Exception", "Download Account Transaction Exception",
-                    e.getMessage(), e);
-        } */
-    }
-
     // todo
     // These few methods should belong to Direction, but I need to put a FIData object instead of
     // a FIID in DirectConnection

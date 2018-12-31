@@ -59,21 +59,12 @@ public class EditAccountDirectConnectionDialogController {
     private MainApp mMainApp;
     private AccountDC mADC;
     private BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
-    private void setChanged() { mChangedProperty.set(true); }
     private boolean isChanged() { return mChangedProperty.get(); }
 
     @FXML
     private Label mAccountNameLabel;
     @FXML
-    private ComboBox<String> mAccountTypeComboBox;
-    @FXML
     private ComboBox<DirectConnection> mDCComboBox;
-    @FXML
-    private TextField mRoutingNumberTextField;
-    @FXML
-    private TextField mAccountNumberTextField;
-    @FXML
-    private PasswordField mAccountNumberPasswordField;
     @FXML
     private CheckBox mShowAccountNumberCheckBox;
     @FXML
@@ -89,8 +80,6 @@ public class EditAccountDirectConnectionDialogController {
     private TableColumn<BankAccountDetails, String> mLast4AccountNumberTableColumn;
     @FXML
     private TableColumn<BankAccountDetails, String> mAccountNumberTableColumn;
-    @FXML
-    private Button mSelectButton;
 
     private boolean compareBankAccountDetailsWithADC(BankAccountDetails bad, AccountDC adc) {
         if (bad == null)
@@ -135,33 +124,6 @@ public class EditAccountDirectConnectionDialogController {
         mADC = adc;
 
         Account account = mMainApp.getCurrentAccount();
-        // be careful here.  There are different Account.Type here
-        // One is from Pachira Account class, the other is from ofx4j class
-/*
-        mAccountTypeComboBox.getItems().clear();
-        switch (account.getType()) {
-            case SPENDING:
-                for (com.webcohesion.ofx4j.domain.data.banking.AccountType at
-                        : com.webcohesion.ofx4j.domain.data.banking.AccountType.values())
-                    mAccountTypeComboBox.getItems().add(at.name());
-                break;
-            case INVESTING:
-                for (com.webcohesion.ofx4j.domain.data.investment.accounts.AccountType at
-                        : com.webcohesion.ofx4j.domain.data.investment.accounts.AccountType.values())
-                    mAccountTypeComboBox.getItems().add(at.name());
-                break;
-            case DEBT:
-                mAccountTypeComboBox.getItems().add("");
-                mAccountTypeComboBox.getItems().add("CREDITCARD");
-                break;
-            default:
-                // do nothing
-                break;
-        }
-        String type = adc.getAccountType();
-        mAccountTypeComboBox.getSelectionModel().select(type);
-
-*/
         mDCComboBox.setConverter(new DCInfoConverter());
         mDCComboBox.getItems().clear();
         // adding null item for ComboBox would lead to a IndexOutOfBoundsException when null is selected
@@ -170,34 +132,8 @@ public class EditAccountDirectConnectionDialogController {
         mDCComboBox.getItems().addAll(mMainApp.getDCInfoList());
 
         mAccountNameLabel.setText(account.getName());
-/*
-        mRoutingNumberTextField.setText(adc.getRoutingNumber());
-        char[] clearAccountNumber = null;
-        try {
-            if (adc.getEncryptedAccountNumber().isEmpty())
-                clearAccountNumber = new char[0];
-            else
-                clearAccountNumber = mMainApp.decrypt(adc.getEncryptedAccountNumber());
-            mAccountNumberPasswordField.setText(new String(clearAccountNumber));
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
-                | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException
-                | InvalidAlgorithmParameterException | BadPaddingException e) {
-            mLogger.error("Unable to decrypt account number for " + mAccountNameLabel.getText(), e);
-        } finally {
-            if (clearAccountNumber != null)
-                Arrays.fill(clearAccountNumber, ' ');
-        }
-*/
 
         // add change listeners
-/*
-        ChangeListener<String> textChangeListener = (obs, o, n) -> setChanged();
-        mRoutingNumberTextField.textProperty().addListener(textChangeListener);
-        mAccountNumberPasswordField.textProperty().addListener(textChangeListener);
-        mAccountTypeComboBox.valueProperty().addListener((obs, o, n) -> setChanged());
-        mDCComboBox.valueProperty().addListener((obs, o, n) -> setChanged());
-*/
-
         mDCComboBox.getSelectionModel().selectedItemProperty().addListener((obs, odc, ndc) -> {
             switch (mMainApp.getCurrentAccount().getType()) {
                 case SPENDING:
@@ -255,21 +191,22 @@ public class EditAccountDirectConnectionDialogController {
         Account account = mMainApp.getCurrentAccount();
         int aid = account.getID();
 
-        char[] clearAccountNumber = null;
         try {
+            BankAccountDetails bad = mBankAccountTableView.getSelectionModel().getSelectedItem();
             if (dcID <= 0) {
                 if (MainApp.showConfirmationDialog("Confirmation", "Direct connection is empty",
                         "entry will be deleted"))
                     mMainApp.deleteAccountDCFromDB(aid);
+            } else if (bad == null) {
+                if (MainApp.showConfirmationDialog("Confirmation", "No account selected",
+                        "Account Direct Connection entry will be deleted"))
+                    mMainApp.deleteAccountDCFromDB(aid);
             } else {
-                clearAccountNumber = mAccountNumberPasswordField.getText().toCharArray();
-                String ean = "";
-                if (clearAccountNumber.length > 0)
-                    ean = mMainApp.encrypt(clearAccountNumber);
-                String at = mAccountTypeComboBox.getValue();
+                String at = bad.getAccountType().name();
+                String rn = bad.getRoutingNumber();
+                String ean = mMainApp.encrypt(bad.getAccountNumber().toCharArray());
                 // note, every time an AccountDC is changed, the last download date time is reset
-                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, mRoutingNumberTextField.getText(), ean,
-                        new java.util.Date(0L)));
+                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, rn, ean, new java.util.Date(0L)));
             }
             mMainApp.initAccountDCList();
             mStage.close();
@@ -282,9 +219,6 @@ public class EditAccountDirectConnectionDialogController {
                 | IllegalBlockSizeException | BadPaddingException e) {
             mLogger.error("Encrypt throws " + e.getClass().getName(), e);
             mMainApp.showExceptionDialog("Exception", "Encryption Exception", e.getMessage(), e);
-        } finally {
-            if (clearAccountNumber != null)
-                Arrays.fill(clearAccountNumber, ' ');
         }
     }
 
@@ -298,43 +232,28 @@ public class EditAccountDirectConnectionDialogController {
     }
 
     @FXML
-    private void handleSelect() {
-        BankAccountDetails bad = mBankAccountTableView.getSelectionModel().getSelectedItem();
-        if (bad == null)
-            return;  // we shouldn't be here.
-
-        mAccountTypeComboBox.getSelectionModel().select(bad.getAccountType().name());
-        mRoutingNumberTextField.setText(bad.getRoutingNumber());
-        mAccountNumberTextField.setText(bad.getAccountNumber());
-
-    }
-
-    @FXML
     private void initialize() {
         mShowAccountNumberCheckBox.selectedProperty().addListener((obs, ov, nv) -> {
-            mAccountNumberPasswordField.setVisible(!nv);
-            mAccountNumberTextField.setVisible(nv);
             mLast4AccountNumberTableColumn.setVisible(!nv);
             mAccountNumberTableColumn.setVisible(nv);
         });
-        mAccountNumberTextField.textProperty().bindBidirectional(mAccountNumberPasswordField.textProperty());
 
         mShowAccountNumberCheckBox.setSelected(false);
 
         mSaveButton.disableProperty().bind(mChangedProperty.not());
 
-        mAccountTypeTableColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getAccountType()));
-        mRoutineNumberTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getRoutingNumber()));
-        mLast4AccountNumberTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(
-                "x-" + (cd.getValue().getAccountNumber().length() > 4 ?
+        mAccountTypeTableColumn.setCellValueFactory(cd ->
+                new ReadOnlyObjectWrapper<>(cd.getValue().getAccountType()));
+        mRoutineNumberTableColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper(cd.getValue().getRoutingNumber()));
+        mLast4AccountNumberTableColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper("x-" + (cd.getValue().getAccountNumber().length() > 4 ?
                         cd.getValue().getAccountNumber().substring(cd.getValue().getAccountNumber().length()-4) :
                         cd.getValue().getAccountNumber())));
-        mAccountNumberTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getAccountNumber()));
+        mAccountNumberTableColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper(cd.getValue().getAccountNumber()));
 
-        mSelectButton.disableProperty().bind(mBankAccountTableView.getSelectionModel().selectedItemProperty().isNull());
-
-        mBankAccountTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
-            mChangedProperty.set(!compareBankAccountDetailsWithADC(nv, mADC));
-        });
+        mBankAccountTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) ->
+                mChangedProperty.set(!compareBankAccountDetailsWithADC(nv, mADC)));
     }
 }

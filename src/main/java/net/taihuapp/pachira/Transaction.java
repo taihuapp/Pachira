@@ -712,7 +712,7 @@ public class Transaction {
         // set Reference field
         // take Reference from transactionB if it is not empty
         String refStringB = transactionB.getReference();
-        if (refStringB.isEmpty())
+        if (!refStringB.isEmpty())
             mergedTransaction.setReference(refStringB);
 
         // set Payee field, combine A + B

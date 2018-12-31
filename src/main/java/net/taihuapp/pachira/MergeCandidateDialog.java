@@ -95,6 +95,7 @@ class MergeCandidateDialog {
         mergeButton.setText("Merge");
         mergeButton.disableProperty().bind(mergeCandidateTransactionTableView.getSelectionModel()
                 .selectedItemProperty().isNull());
+        mergeButton.setDefaultButton(true);
         mergeButton.setOnAction(e -> {
             mSelectedTransaction = mergeCandidateTransactionTableView.getSelectionModel().getSelectedItem();
             mDialogStage.close();
@@ -122,6 +123,9 @@ class MergeCandidateDialog {
 
         VBox.setVgrow(mergeCandidateTransactionTableView, Priority.ALWAYS);
 
+        if (mergeCandidateTransactionTableView.getItems().size() > 0)
+            mergeCandidateTransactionTableView.getSelectionModel().select(0);  // select the very first
         mDialogStage.setScene(new Scene(vBox));
+        mergeButton.requestFocus();
     }
 }

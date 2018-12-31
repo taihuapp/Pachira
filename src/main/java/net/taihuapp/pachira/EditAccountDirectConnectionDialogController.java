@@ -20,9 +20,16 @@
 
 package net.taihuapp.pachira;
 
+import com.webcohesion.ofx4j.OFXException;
+import com.webcohesion.ofx4j.domain.data.banking.AccountType;
+import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
+import com.webcohesion.ofx4j.domain.data.signup.AccountProfile;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -33,6 +40,7 @@ import org.apache.log4j.Logger;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import java.net.MalformedURLException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.SQLException;
@@ -49,6 +57,7 @@ public class EditAccountDirectConnectionDialogController {
 
     private Stage mStage;
     private MainApp mMainApp;
+    private AccountDC mADC;
     private BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
     private void setChanged() { mChangedProperty.set(true); }
     private boolean isChanged() { return mChangedProperty.get(); }
@@ -70,13 +79,65 @@ public class EditAccountDirectConnectionDialogController {
     @FXML
     private Button mSaveButton;
 
+    @FXML
+    private TableView<BankAccountDetails> mBankAccountTableView;
+    @FXML
+    private TableColumn<BankAccountDetails, AccountType> mAccountTypeTableColumn;
+    @FXML
+    private TableColumn<BankAccountDetails, String> mRoutineNumberTableColumn;
+    @FXML
+    private TableColumn<BankAccountDetails, String> mLast4AccountNumberTableColumn;
+    @FXML
+    private TableColumn<BankAccountDetails, String> mAccountNumberTableColumn;
+    @FXML
+    private Button mSelectButton;
+
+    private boolean compareBankAccountDetailsWithADC(BankAccountDetails bad, AccountDC adc) {
+        if (bad == null)
+            return adc.getDCID() == 0;
+
+        if (!bad.getAccountType().name().equals(adc.getAccountType()))
+            return false;
+        if (!bad.getRoutingNumber().equals(adc.getRoutingNumber()))
+            return false;
+
+        char[] clearADCAccountNumber = null;
+        try {
+            clearADCAccountNumber = mMainApp.decrypt(adc.getEncryptedAccountNumber());
+            return compareStringWithChars(bad.getAccountNumber(), clearADCAccountNumber);
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
+                                UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
+                                InvalidAlgorithmParameterException | IllegalBlockSizeException |
+                                BadPaddingException e ) {
+            mLogger.error(e.getClass(), e);
+            mMainApp.showExceptionDialog(e.getClass().getName(), "Decryption Error",
+                    e.getMessage(), e);
+        } finally {
+            if (clearADCAccountNumber != null)
+                Arrays.fill(clearADCAccountNumber, ' ');
+        }
+        return false;
+    }
+
+    private boolean compareStringWithChars(String s, char[] cs) {
+        if (s.length() != cs.length)
+            return false;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) != cs[i])
+                return false;
+        }
+        return true;
+    }
+
     void setMainApp(MainApp mainApp, Stage stage, AccountDC adc) {
         mStage = stage;
         mMainApp = mainApp;
+        mADC = adc;
 
         Account account = mMainApp.getCurrentAccount();
         // be careful here.  There are different Account.Type here
         // One is from Pachira Account class, the other is from ofx4j class
+/*
         mAccountTypeComboBox.getItems().clear();
         switch (account.getType()) {
             case SPENDING:
@@ -100,13 +161,16 @@ public class EditAccountDirectConnectionDialogController {
         String type = adc.getAccountType();
         mAccountTypeComboBox.getSelectionModel().select(type);
 
+*/
         mDCComboBox.setConverter(new DCInfoConverter());
         mDCComboBox.getItems().clear();
+        // adding null item for ComboBox would lead to a IndexOutOfBoundsException when null is selected
+        // this is a bug in javafx 8 https://bugs.openjdk.java.net/browse/JDK-8134923
         mDCComboBox.getItems().add(new DirectConnection(0, "", 0, "", ""));  // add a blank one
         mDCComboBox.getItems().addAll(mMainApp.getDCInfoList());
-        mDCComboBox.getSelectionModel().select(mMainApp.getDCInfoByID(adc.getDCID()));
 
         mAccountNameLabel.setText(account.getName());
+/*
         mRoutingNumberTextField.setText(adc.getRoutingNumber());
         char[] clearAccountNumber = null;
         try {
@@ -123,13 +187,66 @@ public class EditAccountDirectConnectionDialogController {
             if (clearAccountNumber != null)
                 Arrays.fill(clearAccountNumber, ' ');
         }
+*/
 
         // add change listeners
+/*
         ChangeListener<String> textChangeListener = (obs, o, n) -> setChanged();
         mRoutingNumberTextField.textProperty().addListener(textChangeListener);
         mAccountNumberPasswordField.textProperty().addListener(textChangeListener);
         mAccountTypeComboBox.valueProperty().addListener((obs, o, n) -> setChanged());
         mDCComboBox.valueProperty().addListener((obs, o, n) -> setChanged());
+*/
+
+        mDCComboBox.getSelectionModel().selectedItemProperty().addListener((obs, odc, ndc) -> {
+            switch (mMainApp.getCurrentAccount().getType()) {
+                case SPENDING:
+                    ObservableList<BankAccountDetails> bankAccounts = FXCollections.observableArrayList();
+                    BankAccountDetails accountToSelect = null;
+                    if (ndc.getID() > 0) {
+                        try {
+                            for (AccountProfile ap : mMainApp.DCDownloadFinancialInstitutionAccountProfiles(ndc)) {
+                                if (ap != null && ap.getBankSpecifics() != null) {
+                                    BankAccountDetails bad = ap.getBankSpecifics().getBankAccount();
+                                    bankAccounts.add(bad);
+                                    if (compareBankAccountDetailsWithADC(bad, mADC)) {
+                                        accountToSelect = bad;
+                                    }
+                                }
+                            }
+                        } catch (MalformedURLException e) {
+                            mLogger.error("MalformedURLException", e);
+                            mMainApp.showExceptionDialog("MalformedURLException", "Bad URL",
+                                    e.getMessage(), e);
+
+                        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
+                                UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
+                                InvalidAlgorithmParameterException | IllegalBlockSizeException |
+                                BadPaddingException e) {
+                            mLogger.error(e.getClass(), e);
+                            mMainApp.showExceptionDialog(e.getClass().getName(), "Decryption Error",
+                                    e.getMessage(), e);
+                        } catch (OFXException e) {
+                            mLogger.error("OFXException", e);
+                            mMainApp.showExceptionDialog("OFXException", "OFXCeception", e.getMessage(), e);
+                        }
+                    }
+
+                    mBankAccountTableView.getItems().setAll(bankAccounts);
+                    if (accountToSelect == null)
+                        mBankAccountTableView.getSelectionModel().clearSelection();
+                    else
+                        mBankAccountTableView.getSelectionModel().select(accountToSelect);
+
+                    break;
+                case INVESTING:
+                case DEBT:
+                case PROPERTY:
+                default:
+                    break;
+            }
+        });
+        mDCComboBox.getSelectionModel().select(mMainApp.getDCInfoByID(adc.getDCID()));
     }
 
     @FXML
@@ -181,13 +298,43 @@ public class EditAccountDirectConnectionDialogController {
     }
 
     @FXML
+    private void handleSelect() {
+        BankAccountDetails bad = mBankAccountTableView.getSelectionModel().getSelectedItem();
+        if (bad == null)
+            return;  // we shouldn't be here.
+
+        mAccountTypeComboBox.getSelectionModel().select(bad.getAccountType().name());
+        mRoutingNumberTextField.setText(bad.getRoutingNumber());
+        mAccountNumberTextField.setText(bad.getAccountNumber());
+
+    }
+
+    @FXML
     private void initialize() {
-        mAccountNumberPasswordField.visibleProperty().bind(mShowAccountNumberCheckBox.selectedProperty().not());
-        mAccountNumberTextField.visibleProperty().bind(mShowAccountNumberCheckBox.selectedProperty());
+        mShowAccountNumberCheckBox.selectedProperty().addListener((obs, ov, nv) -> {
+            mAccountNumberPasswordField.setVisible(!nv);
+            mAccountNumberTextField.setVisible(nv);
+            mLast4AccountNumberTableColumn.setVisible(!nv);
+            mAccountNumberTableColumn.setVisible(nv);
+        });
         mAccountNumberTextField.textProperty().bindBidirectional(mAccountNumberPasswordField.textProperty());
 
         mShowAccountNumberCheckBox.setSelected(false);
 
         mSaveButton.disableProperty().bind(mChangedProperty.not());
+
+        mAccountTypeTableColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getAccountType()));
+        mRoutineNumberTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getRoutingNumber()));
+        mLast4AccountNumberTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(
+                "x-" + (cd.getValue().getAccountNumber().length() > 4 ?
+                        cd.getValue().getAccountNumber().substring(cd.getValue().getAccountNumber().length()-4) :
+                        cd.getValue().getAccountNumber())));
+        mAccountNumberTableColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getAccountNumber()));
+
+        mSelectButton.disableProperty().bind(mBankAccountTableView.getSelectionModel().selectedItemProperty().isNull());
+
+        mBankAccountTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
+            mChangedProperty.set(!compareBankAccountDetailsWithADC(nv, mADC));
+        });
     }
 }

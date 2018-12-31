@@ -4140,23 +4140,23 @@ public class MainApp extends Application {
         return dbVersion;
     }
 
-    void DCDownloadAccountInfo() {
-        try {
-            OFXV1Connection connection = new OFXV1Connection();
-            AccountDC adc = getAccountDC(getCurrentAccount().getID());
-            DirectConnection dc = getDCInfoByID(adc.getDCID());
-            DirectConnection.FIData fiData = getFIDataByID(dc.getFIID());
-            BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
-            bfid.setFinancialInstitutionId(fiData.getFIID());
-            bfid.setOFXURL(new URL(fiData.getURL()));
-            bfid.setName(fiData.getName());
-            bfid.setOrganization(fiData.getORG());
-            FinancialInstitution fi = new FinancialInstitutionImpl(bfid, connection);
+    Collection<AccountProfile> DCDownloadAccountProfiles(DirectConnection dc)
+            throws MalformedURLException, NoSuchAlgorithmException, InvalidKeySpecException,
+            KeyStoreException, UnrecoverableKeyException, NoSuchPaddingException, InvalidKeyException,
+            InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, OFXException {
+        OFXV1Connection connection = new OFXV1Connection();
+        DirectConnection.FIData fiData = getFIDataByID(dc.getFIID());
+        BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
+        bfid.setFinancialInstitutionId(fiData.getFIID());
+        bfid.setOFXURL(new URL(fiData.getURL()));
+        bfid.setName(fiData.getName());
+        bfid.setOrganization(fiData.getORG());
+        FinancialInstitution fi = new FinancialInstitutionImpl(bfid, connection);
 
-            String username = new String(decrypt(dc.getEncryptedUserName()));
-            String password = new String(decrypt(dc.getEncryptedPassword()));
-            //Collection<AccountProfile> profiles = fi.readAccountProfiles(username, password);
-            for (AccountProfile profiles : fi.readAccountProfiles(username, password)) {
+        String username = new String(decrypt(dc.getEncryptedUserName()));
+        String password = new String(decrypt(dc.getEncryptedPassword()));
+        return fi.readAccountProfiles(username, password);
+            /*for (AccountProfile profiles : fi.readAccountProfiles(username, password)) {
                 System.out.println("Desc: " + profiles.getDescription());
                 if (profiles.getBankSpecifics() != null) {
                     System.out.println("Bank Specifics:        ");
@@ -4178,14 +4178,15 @@ public class MainApp extends Application {
             mLogger.error("DownloadAccountInfo throws exception " + e.getMessage(), e);
             showExceptionDialog("Exception", "Download Account Transaction Exception",
                     e.getMessage(), e);
-        }
+        } */
     }
 
     // todo
     // These few methods should belong to Direction, but I need to put a FIData object instead of
     // a FIID in DirectConnection
     // Later.
-    private FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection) throws MalformedURLException {
+    private FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection)
+            throws MalformedURLException {
         OFXV1Connection connection = new OFXV1Connection();
         DirectConnection.FIData fiData = getFIDataByID(directConnection.getFIID());
         BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
@@ -4209,7 +4210,7 @@ public class MainApp extends Application {
 
     // download account statement from DirectConnection
     // currently only support SPENDING account type
-    AccountStatement DCDownloadAccountStatement(Account account)
+    void DCDownloadAccountStatement(Account account)
             throws IllegalArgumentException, MalformedURLException, NoSuchAlgorithmException,
             InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
             NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
@@ -4239,7 +4240,6 @@ public class MainApp extends Application {
         importAccountStatement(account, statement);
         adc.setLastDownloadDateTime(endDate);
         mergeAccountDCToDB(adc);
-        return statement;
     }
 
     // Banking transaction logic is currently coded in.

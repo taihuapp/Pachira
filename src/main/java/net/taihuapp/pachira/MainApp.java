@@ -886,7 +886,7 @@ public class MainApp extends Application {
 
     private void insertUpdateSplitTransactionsToDB(int tid, List<SplitTransaction> stList) throws SQLException {
         // load all existing split transactions for tid from database
-        List<SplitTransaction> oldSTList = loadSplitTransactions(tid);
+        List<SplitTransaction> oldSTList = loadSplitTransactions(tid).get(tid);
 
         // delete those split transactions not in stList
         List<Integer> exIDList = new ArrayList<>();
@@ -1745,7 +1745,8 @@ public class MainApp extends Application {
 
                 DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, ad, isDOM, isFWD);
                 mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount, estCnt,
-                        accountID, categoryID, transferAccountID, tagID, memo, ds, loadSplitTransactions(-id)));
+                        accountID, categoryID, transferAccountID, tagID, memo, ds,
+                        loadSplitTransactions(-id).getOrDefault(-id, new ArrayList<>())));
             }
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -2117,14 +2118,33 @@ public class MainApp extends Application {
         }
     }
 
-    private List<SplitTransaction> loadSplitTransactions(int tid) {
-        List<SplitTransaction> stList = new ArrayList<>();
+    // if input tid == 0, returns a Map with
+    //     keys of the Map is Transaction id
+    //     corresponding values are the List of SplitTransaction for the given TransactionID
+    // if input tid != 0, returns a Map with one single entry
+    // values in TRANSACTIONID column could be either positive or negative
+    // a negative TRANSACTIONID value means the the splittransaction belongs to a Reminder Transaction
+    // instead of a normal transaction
+    private Map<Integer, List<SplitTransaction>> loadSplitTransactions(int tidIn) {
+        Map<Integer, List<SplitTransaction>> stListMap = new HashMap<>();
 
-        String sqlCmd = "select * from SPLITTRANSACTIONS where TRANSACTIONID = " + tid + " order by ID";
+        int key = tidIn;
+        List<SplitTransaction> value = null;
+        if (tidIn != 0) {
+            value = new ArrayList<>();
+            stListMap.put(key, value);
+        }
+
+        String sqlCmd;
+        if (tidIn <= 0)
+            sqlCmd = "select * from SPLITTRANSACTIONS order by TRANSACTIONID, ID";
+        else
+            sqlCmd = "select * from SPLITTRANSACTIONS where TRANSACTIONID = " + tidIn + " order by ID";
 
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
+                int tid = resultSet.getInt("TRANSACTIONID");
                 int id = resultSet.getInt("ID");
                 int cid = resultSet.getInt("CATEGORYID");
                 int tagid = resultSet.getInt("TAGID");
@@ -2138,12 +2158,22 @@ public class MainApp extends Application {
                 // do we need percentage?
                 // ignore it for now
                 int matchID = resultSet.getInt("MATCHTRANSACTIONID");
-                stList.add(new SplitTransaction(id, cid, tagid, payee, memo, amount, matchID));
+
+                // tid == 0 should never happen.
+                // but if I don't put it there, Intellij warns possible null pointer exception
+                if (tid != key || tid == 0) {
+                    // we have a new Transaction id
+                    key = tid;
+                    value = new ArrayList<>();
+                    stListMap.put(key, value);
+                }
+                value.add(new SplitTransaction(id, cid, tagid, payee, memo, amount, matchID));
             }
         }  catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
         }
-        return stList;
+
+        return stListMap;
     }
 
     // initialize mTransactionList order by ID
@@ -2152,6 +2182,9 @@ public class MainApp extends Application {
         mTransactionList.clear();
         if (mConnection == null)
             return;
+
+        // load ALL split transactions
+        Map<Integer, List<SplitTransaction>> stListMap = loadSplitTransactions(0);
 
         List<Transaction> tList = new ArrayList<>();  // a simple list to temporarily hold all transactions
         String sqlCmd = "select * from TRANSACTIONS order by ID";
@@ -2202,12 +2235,11 @@ public class MainApp extends Application {
                 }
 
                 String fitid = resultSet.getString("FITID");
-
                 Transaction transaction = new Transaction(id, aid, tDate, aDate, tradeAction, status, name, reference,
                         payee, price, quantity, oldQuantity, memo, commission, accruedInterest, amount,
                         cid, tagID, matchID, matchSplitID,
-                        resultSet.getBoolean("SPLITFLAG") ? loadSplitTransactions(id) : null, fitid);
-
+                        resultSet.getBoolean("SPLITFLAG") ?
+                                stListMap.getOrDefault(id, new ArrayList<>()) : null, fitid);
                 tList.add(transaction);  // add transaction to simple list first.
             }
             mTransactionList.setAll(tList); // now all all contents of the simple list to main list.

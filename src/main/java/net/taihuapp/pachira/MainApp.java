@@ -3817,12 +3817,12 @@ public class MainApp extends Application {
             savepointSetHere = setDBSavepoint();
             //
             for (Transaction t : tList) {
-                statement.addBatch("update TRANSACTIONS set STATUS = "
-                    + t.getStatus().name() + " where ID = " + t.getID());
+                statement.addBatch("update TRANSACTIONS set STATUS = '"
+                    + t.getStatus().name() + "' where ID = " + t.getID());
             }
 
-            statement.addBatch("update ACCOUNTS set LASTRECONCILEDATE = " + d.toString()
-                    + " where ID = "+ a.getID());
+            statement.addBatch("update ACCOUNTS set LASTRECONCILEDATE = '" + d.toString()
+                    + "' where ID = "+ a.getID());
             statement.executeBatch();
             if (savepointSetHere)
                 commitDB();
@@ -3849,7 +3849,6 @@ public class MainApp extends Application {
                     showExceptionDialog("Database Error", "releaseDBSavepint failed",
                             SQLExceptionToString(e), e);
                 }
-
             }
         }
         return false;
@@ -3876,6 +3875,16 @@ public class MainApp extends Application {
                     mLogger.error("SQLException: " + e1.getSQLState(), e1);
                     showExceptionDialog("Database Error", "Unable to rollback",
                             SQLExceptionToString(e1), e1);
+                }
+            }
+        } finally {
+            if (savepointSetHere) {
+                try {
+                    releaseDBSavepoint();
+                } catch (SQLException e) {
+                    mLogger.error("SQLException" + e.getSQLState(), e);
+                    showExceptionDialog("Database Error", "releaseDBSavepint failed",
+                            SQLExceptionToString(e), e);
                 }
             }
         }

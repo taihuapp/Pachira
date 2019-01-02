@@ -44,6 +44,8 @@ import java.net.MalformedURLException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Arrays;
 
 public class EditAccountDirectConnectionDialogController {
@@ -206,7 +208,14 @@ public class EditAccountDirectConnectionDialogController {
                 String rn = bad.getRoutingNumber();
                 String ean = mMainApp.encrypt(bad.getAccountNumber().toCharArray());
                 // note, every time an AccountDC is changed, the last download date time is reset
-                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, rn, ean, new java.util.Date(0L)));
+                java.util.Date lastDownloadDate;
+                LocalDate lastReconcileDate = account.getLastReconcileDate();
+                if (lastReconcileDate == null)
+                    lastDownloadDate = new java.util.Date(0L); // set to very early so we can download everything
+                else
+                    lastDownloadDate = java.util.Date.from(lastReconcileDate.atStartOfDay()
+                            .atZone(ZoneId.systemDefault()).toInstant());
+                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, rn, ean, lastDownloadDate));
             }
             mMainApp.initAccountDCList();
             mStage.close();

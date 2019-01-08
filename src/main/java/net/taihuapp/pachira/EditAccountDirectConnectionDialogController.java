@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -215,7 +215,7 @@ public class EditAccountDirectConnectionDialogController {
                 else
                     lastDownloadDate = java.util.Date.from(lastReconcileDate.atStartOfDay()
                             .atZone(ZoneId.systemDefault()).toInstant());
-                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, rn, ean, lastDownloadDate));
+                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, rn, ean, lastDownloadDate, null));
             }
             mMainApp.initAccountDCList();
             mStage.close();

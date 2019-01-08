@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -112,7 +112,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 6;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 7;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -1935,7 +1935,7 @@ public class MainApp extends Application {
         if (mConnection == null)
             return;
         String sqlCmd = "select ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
-                + "LASTDOWNLOADDATE, LASTDOWNLOADTIME from ACCOUNTDCS order by ACCOUNTID";
+                + "LASTDOWNLOADDATE, LASTDOWNLOADTIME, LASTDOWNLOADLEDGEBAL from ACCOUNTDCS order by ACCOUNTID";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
@@ -1947,8 +1947,9 @@ public class MainApp extends Application {
                 java.util.Date lastDownloadDate = resultSet.getDate("LASTDOWNLOADDATE");
                 java.sql.Time lastDownloadTime = resultSet.getTime("LASTDOWNLOADTIME");
                 lastDownloadDate.setTime(lastDownloadTime.getTime());
+                BigDecimal ledgeBal = resultSet.getBigDecimal("LASTDOWNLOADLEDGEBAL");
                 mAccountDCList.add(new AccountDC(accountID, accountType, dcID, routingNumber, accountNumber,
-                        lastDownloadDate));
+                        lastDownloadDate, ledgeBal));
             }
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -3507,7 +3508,12 @@ public class MainApp extends Application {
 
         // need to run this to update DBVERSION
         final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
-        if (newV == 6) {
+        if (newV == 7) {
+            try (Statement statement = mConnection.createStatement()) {
+                alterAccountDCSTable();
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 6) {
             createDirectConnectTables();
             try (Statement statement = mConnection.createStatement()) {
 
@@ -3818,7 +3824,7 @@ public class MainApp extends Application {
             //
             for (Transaction t : tList) {
                 statement.addBatch("update TRANSACTIONS set STATUS = '"
-                    + t.getStatus().name() + "' where ID = " + t.getID());
+                    + Transaction.Status.RECONCILED.name() + "' where ID = " + t.getID());
             }
 
             statement.addBatch("update ACCOUNTS set LASTRECONCILEDATE = '" + d.toString()
@@ -4236,9 +4242,21 @@ public class MainApp extends Application {
         java.util.Date endDate = new java.util.Date();
         java.util.Date startDate = adc.getLastDownloadDateTime();
 
+        // lastReconcileDate should correspond to the end of business of on that day
+        // at the local time zone (use systemDefault zone for now).
+        // so we use the start of the next day as the start date
+        LocalDate lastReconcileDate = account.getLastReconcileDate();
+        java.util.Date lastReconcileDatePlusOneDay = lastReconcileDate == null ?
+                null : Date.from(lastReconcileDate.plusDays(1).atStartOfDay()
+                .atZone(ZoneId.systemDefault()).toInstant());
+        if (lastReconcileDatePlusOneDay != null && startDate.compareTo(lastReconcileDatePlusOneDay) < 0)
+            startDate = lastReconcileDatePlusOneDay;
+
         AccountStatement statement = fiAccount.readStatement(startDate, endDate);
         importAccountStatement(account, statement);
-        adc.setLastDownloadDateTime(endDate);
+        adc.setLastDownloadInfo(statement.getLedgerBalance().getAsOfDate(),
+                new BigDecimal(statement.getLedgerBalance().getAmount()).setScale(SecurityHolding.CURRENCYDECIMALLEN,
+                        RoundingMode.HALF_UP));
         mergeAccountDCToDB(adc);
     }
 
@@ -4356,6 +4374,8 @@ public class MainApp extends Application {
 
             transaction.setMemo(ofx4jT.getMemo());
 
+            transaction.setStatus(Transaction.Status.CLEARED); // downloaded transactions are all cleared
+
             tobeImported.add(transaction);
         }
 
@@ -4420,6 +4440,14 @@ public class MainApp extends Application {
         }
     }
 
+    private void alterAccountDCSTable() {
+        try (Statement statement = mConnection.createStatement()) {
+            statement.executeUpdate("alter table ACCOUNTDCS add (LASTDOWNLOADLEDGEBAL decimal(20, 4))");
+        } catch (SQLException e) {
+            mLogger.error("SQLException", e);
+        }
+    }
+
     private void createDirectConnectTables() {
         String sqlCmd;
         sqlCmd = "create table ACCOUNTDCS ("
@@ -4460,11 +4488,12 @@ public class MainApp extends Application {
         if (mConnection == null)
             return;
 
-        // create Settings Table first.
+        // create Settings Table first.ACCOUNTDC
         createSettingsTable(DBVERSIONVALUE);
 
         // create AccountDC, DCInfo, and FIData Tables
         createDirectConnectTables();
+        alterAccountDCSTable();
 
         // Accounts table
         // ID starts from 1
@@ -4761,6 +4790,7 @@ public class MainApp extends Application {
         final Predicate<Transaction> filterCriteria = t ->
                 t.getTDate().isAfter(transaction.getTDate().minusWeeks(2))
                         && t.getTDate().isBefore(transaction.getTDate().plusWeeks(2))
+                        && !t.getStatus().equals(Transaction.Status.RECONCILED)
                         && t.getFITID().isEmpty()
                         && t.getDeposit().subtract(t.getPayment()).compareTo(netAmount) == 0;
         return new FilteredList<>(account.getTransactionList(), filterCriteria);
@@ -4853,16 +4883,31 @@ public class MainApp extends Application {
             timeFormat.setTimeZone(tzUTC);
             String dateString = dateFormat.format(adc.getLastDownloadDateTime());
             String timeString = timeFormat.format(adc.getLastDownloadDateTime());
-            statement.executeUpdate(
-                    "merge into ACCOUNTDCS (ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
-                    + "LASTDOWNLOADDATE, LASTDOWNLOADTIME) values ("
-                            + adc.getAccountID() + ", "
-                            + "'" + adc.getAccountType() + "', "
-                            + adc.getDCID() + ", "
-                            + "'" + adc.getRoutingNumber() + "', "
-                            + "'" + adc.getEncryptedAccountNumber() +  "', "
-                            + "'" + dateString + "', "
-                            + "'" + timeString + "')");
+            BigDecimal ledgeBal = adc.getLastDownloadLedgeBalance();
+            if (ledgeBal != null) {
+                statement.executeUpdate(
+                        "merge into ACCOUNTDCS (ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
+                                + "LASTDOWNLOADDATE, LASTDOWNLOADTIME, LASTDOWNLOADLEDGEBAL) values ("
+                                + adc.getAccountID() + ", "
+                                + "'" + adc.getAccountType() + "', "
+                                + adc.getDCID() + ", "
+                                + "'" + adc.getRoutingNumber() + "', "
+                                + "'" + adc.getEncryptedAccountNumber() + "', "
+                                + "'" + dateString + "', "
+                                + "'" + timeString + "', "
+                                + ledgeBal.toString() + ")");
+            } else {
+                statement.executeUpdate(
+                        "merge into ACCOUNTDCS (ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
+                                + "LASTDOWNLOADDATE, LASTDOWNLOADTIME) values ("
+                                + adc.getAccountID() + ", "
+                                + "'" + adc.getAccountType() + "', "
+                                + adc.getDCID() + ", "
+                                + "'" + adc.getRoutingNumber() + "', "
+                                + "'" + adc.getEncryptedAccountNumber() + "', "
+                                + "'" + dateString + "', "
+                                + "'" + timeString + "')");
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira.net.taihuapp.pachira.dc;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 public class AccountDC {
@@ -29,14 +30,17 @@ public class AccountDC {
     private String mRoutingNumber;  // encrypted
     private String mAccountNumber;  // encrypted
     private Date mLastDownloadDT;  // UTC Date time for last download
+    private BigDecimal mLedgeBalance;
 
-    public AccountDC(int accountID, String accountType, int DCID, String rn, String an, Date lddt) {
+    public AccountDC(int accountID, String accountType, int DCID, String rn, String an, Date lddt,
+                     BigDecimal ledgeBal) {
         mAccountID = accountID;
         mAccountType = accountType;
         mDCID = DCID;
         mRoutingNumber = rn;
         mAccountNumber = an;
         mLastDownloadDT = lddt;
+        mLedgeBalance = ledgeBal;
     }
 
     public int getAccountID() { return mAccountID; }
@@ -46,8 +50,11 @@ public class AccountDC {
     public String getEncryptedAccountNumber() { return mAccountNumber; }
     public void setEncryptedAccountNumber(String s) { mAccountNumber = s; }
     public Date getLastDownloadDateTime() { return mLastDownloadDT; }
-
-    public void setLastDownloadDateTime(Date ld) { mLastDownloadDT = ld; }
+    public BigDecimal getLastDownloadLedgeBalance() { return mLedgeBalance; }
+    public void setLastDownloadInfo(Date ld, BigDecimal ledgeBal) {
+        mLastDownloadDT = ld;
+        mLedgeBalance = ledgeBal;
+    }
 
     @Override
     public String toString() {

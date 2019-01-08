@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -38,10 +38,12 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.BigDecimalStringConverter;
+import net.taihuapp.pachira.net.taihuapp.pachira.dc.AccountDC;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -132,6 +134,11 @@ public class ReconcileDialogController {
     private TableColumn<SecurityBalance, BigDecimal> mEndingBalanceTableColumn;
     @FXML
     private TableColumn<SecurityBalance, BigDecimal> mBalanceDifferenceTableColumn;
+    @FXML
+    private CheckBox mUseDownloadCheckBox;
+
+    private LocalDate mLastDownloadDate = null;
+    private BigDecimal mDownloadedLedgeBalance = null;
 
     private ReconcileTransactionTableView mTransactionTableView;
     private Map<Integer, Transaction.Status> mOriginalStatusMap = new HashMap<>();
@@ -271,6 +278,27 @@ public class ReconcileDialogController {
         tilePane.getChildren().addAll(markAllButton, cancelButton, finishButton);
 
         mVBox.getChildren().addAll(mTransactionTableView, tilePane);
+
+        AccountDC adc = mMainApp.getAccountDC(account.getID());
+        mUseDownloadCheckBox.setDisable(true); // disable as default
+        if (adc != null && adc.getLastDownloadLedgeBalance() != null) {
+            // we have a good download here
+            mLastDownloadDate =
+                    adc.getLastDownloadDateTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            mDownloadedLedgeBalance = adc.getLastDownloadLedgeBalance();
+            if (lastReconcileDate == null || mLastDownloadDate.compareTo(lastReconcileDate) >= 0) {
+                mUseDownloadCheckBox.setDisable(false);
+            }
+        }
+        mUseDownloadCheckBox.selectedProperty().addListener((obs, ov, nv) -> {
+            if ((nv != null) && nv) {
+                mEndDatePicker.setValue(mLastDownloadDate);
+                for (SecurityBalance sb : mSecurityBalanceTableView.getItems()) {
+                    if (sb.getName().equals("CASH"))
+                        sb.mEndingBalanceProperty.set(mDownloadedLedgeBalance);
+                }
+            }
+        });
      }
 
     @FXML

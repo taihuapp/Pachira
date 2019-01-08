@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -52,6 +52,7 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -329,8 +330,16 @@ public class MainController {
             EditAccountDirectConnectionDialogController controller = loader.getController();
             Account a = mMainApp.getCurrentAccount();
             AccountDC adc = mMainApp.getAccountDC(a.getID());
-            if (adc == null)
-                adc = new AccountDC(a.getID(), "", 0, "", "", new java.util.Date(0L));
+            if (adc == null) {
+                java.util.Date lastDownloadDate;
+                LocalDate lastReconcileDate = a.getLastReconcileDate();
+                if (lastReconcileDate == null)
+                    lastDownloadDate = new java.util.Date(0L);  // set to very early
+                else
+                    lastDownloadDate = java.util.Date.from(lastReconcileDate.atStartOfDay()
+                            .atZone(ZoneId.systemDefault()).toInstant());
+                adc = new AccountDC(a.getID(), "", 0, "", "", lastDownloadDate, null);
+            }
             controller.setMainApp(mMainApp, dialogStage, adc);
             dialogStage.showAndWait();
         } catch (IOException e) {

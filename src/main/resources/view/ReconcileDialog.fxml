@@ -1,6 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!--
+  ~ Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+  ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  ~
+  ~ This file is part of Pachira.
+  ~
+  ~ Pachira is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or any
+  ~ later version.
+  ~
+  ~ Pachira is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
@@ -16,13 +37,14 @@
          <columnConstraints>
             <ColumnConstraints hgrow="NEVER" minWidth="10.0" />
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
          </columnConstraints>
          <rowConstraints>
             <RowConstraints vgrow="NEVER" />
             <RowConstraints vgrow="NEVER" />
          </rowConstraints>
          <children>
-            <Label text="Previous Statement Ending Date">
+            <Label text="Previous Reconcile Date">
                <GridPane.margin>
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                </GridPane.margin>
@@ -45,6 +67,7 @@
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                </GridPane.margin>
             </DatePicker>
+            <CheckBox fx:id="mUseDownloadCheckBox" mnemonicParsing="false" text="Use Latest Download Info" GridPane.columnIndex="2" GridPane.rowIndex="1" />
          </children>
       </GridPane>
       <TableView fx:id="mSecurityBalanceTableView" maxWidth="-Infinity">

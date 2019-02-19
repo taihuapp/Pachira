@@ -912,7 +912,7 @@ public class EditTransactionDialogController {
                 mSecurityComboBox.setVisible(true);
                 mPriceLabel.setVisible(true);
                 mPriceTextField.setVisible(true);
-                mPriceTextField.setEditable(true);
+                mPriceTextField.setEditable(false);
                 mCommissionLabel.setVisible(true);
                 mCommissionTextField.setVisible(true);
                 mAccruedInterestLabel.setVisible(true);
@@ -927,7 +927,7 @@ public class EditTransactionDialogController {
                 mTotalLabel.setVisible(true);
                 mTotalTextField.setVisible(true);
                 mTotalLabel.setText("Total Cost:");
-                mTotalTextField.setEditable(false);
+                mTotalTextField.setEditable(true);
                 break;
             case REINVDIV:
             case REINVINT:

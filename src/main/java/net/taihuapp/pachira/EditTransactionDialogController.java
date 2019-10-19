@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -626,9 +626,9 @@ public class EditTransactionDialogController {
             // has split
             // unset category or transfer
             if (mCategoryComboBox.isVisible())
-                mCategoryComboBox.getSelectionModel().select(new Integer(0));
+                mCategoryComboBox.getSelectionModel().select(Integer.valueOf(0));
             if (mTransferAccountComboBox.isVisible())
-                mTransferAccountComboBox.getSelectionModel().select(new Integer(0));
+                mTransferAccountComboBox.getSelectionModel().select(Integer.valueOf(0));
         }
     }
 
@@ -1001,7 +1001,7 @@ public class EditTransactionDialogController {
             int cid = mTransaction.getCategoryID();
             Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
                     mTransaction.getCategoryIDProperty().asObject());
-            mCategoryComboBox.getSelectionModel().select(new Integer(cid));
+            mCategoryComboBox.getSelectionModel().select(Integer.valueOf(cid));
         } else {
             mCategoryComboBox.getSelectionModel().selectFirst();  // make sure it selects something not null
         }

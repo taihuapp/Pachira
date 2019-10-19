@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -137,7 +137,9 @@ public class ReminderTransactionListDialogController {
         }
 
         int accountID = reminder.getAccountID();
-        Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta, reminder.getCategoryID());
+        Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta,
+                ta == Transaction.TradeAction.XOUT ? -reminder.getTransferAccountID()
+                        : reminder.getCategoryID());
         transaction.setAmount(reminder.getAmount());
         transaction.setPayee(reminder.getPayee());
         transaction.setMemo(reminder.getMemo());

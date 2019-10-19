@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import com.opencsv.CSVReader;
 import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.client.AccountStatement;
 import com.webcohesion.ofx4j.client.FinancialInstitution;
@@ -50,6 +51,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 import net.taihuapp.pachira.net.taihuapp.pachira.dc.AccountDC;
 import net.taihuapp.pachira.net.taihuapp.pachira.dc.Vault;
 import org.apache.log4j.Logger;
@@ -58,10 +60,7 @@ import org.h2.tools.ChangeFileEncryption;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.MalformedURLException;
@@ -1810,8 +1809,8 @@ public class MainApp extends Application {
                         cnt++;
                     }
                     if (cnt > 0)
-                        amt = amt.divide(BigDecimal.valueOf(cnt), amt.scale());
-                    amt = amt.setScale(AMOUNT_FRACTION_LEN, BigDecimal.ROUND_HALF_UP);
+                        amt = amt.divide(BigDecimal.valueOf(cnt), AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
+                    amt = amt.setScale(AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
                     reminder.setAmount(amt);
                 }
                 LocalDate lastDueDate = lastDueDateMap.get(rid);
@@ -3076,6 +3075,147 @@ public class MainApp extends Application {
         mLogger.error(message);
     }
 
+    // import price data stored in a 3+ column csv file
+    // The csv file may have headers
+    // the 3 required columns are
+    // Symbol, Price, Date
+    // All other columns after the first 3 columns are ignored
+    void importPrices() {
+        // first present a file chooser to select the csv file to be imported
+        File file;
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
+                Arrays.asList("*.csv", "*.CSV")));
+        fileChooser.setTitle("Import Prices in CSV file...");
+        file = fileChooser.showOpenDialog(mPrimaryStage);
+        if (file == null) {
+            mLogger.info("import cancelled");
+            return;
+        }
+        mLogger.info("import " + file.getAbsolutePath());
+
+        // pair of security id and price
+        List<Pair<Integer, Price>> priceList = new ArrayList<>();
+        List<String[]> skippedLines = new ArrayList<>();
+        // parse the csv file
+        try (CSVReader reader = new CSVReader(new FileReader(file))) {
+            List<String[]> lines = reader.readAll();
+            Iterator<String[]> lineIterator = lines.iterator();
+            DateTimeFormatter ldFormatter = DateTimeFormatter.ofPattern("yyyy/MM/d");
+            while (lineIterator.hasNext()) {
+                String[] line = lineIterator.next();
+                if (line[0].equals("Symbol")) {
+                    skippedLines.add(line);
+                    continue; // this is the header line
+                }
+                if (line.length < 3 ) {
+                    mLogger.warn("Bad formatted line: " + String.join(",", line));
+                    skippedLines.add(line);
+                    continue;
+                }
+
+                Integer securityID = getSecurityID(line[0]);
+                BigDecimal p = new BigDecimal(line[1]);
+                if (securityID < 0) {
+                    mLogger.warn("Unknown Security: " + line[0]);
+                    skippedLines.add(line);
+                    continue;
+                }
+
+                if (p.compareTo(BigDecimal.ZERO) < 0) {
+                    mLogger.warn("Negative Price: " + line[0] + "," + line[1] + "," + line[2]);
+                    skippedLines.add(line);
+                    continue;
+                }
+
+                try {
+                    LocalDate date = LocalDate.parse(line[2], ldFormatter);
+                    priceList.add(new Pair<>(securityID, new Price(date, p)));
+                } catch (DateTimeParseException e) {
+                    mLogger.warn("Bad formatted date: " + line[2], e);
+                }
+            }
+        } catch (FileNotFoundException e) {
+            showExceptionDialog("Exception Dialog", "File Not Found", file.getAbsolutePath() + " not found", e);
+        } catch (IOException e) {
+            showExceptionDialog("Exception Dialog", "IOException", e.getLocalizedMessage(), e);
+        }
+
+        // database work
+        boolean savepointSetHere;
+        try {
+            savepointSetHere = setDBSavepoint();
+            if (!savepointSetHere) {
+                SQLException e = new SQLException("Database savepoint unexpectedly set by the caller. Can't continue");
+                mLogger.error(SQLExceptionToString(e), e);
+                throw e;
+            }
+
+            mergePricesToDB(priceList);
+
+            // savepoint is set here, so commit now
+            commitDB();
+
+            StringBuilder message = new StringBuilder(priceList.size() + " prices imported.\n");
+            if (skippedLines.size() > 0) {
+                message.append('\n').append(skippedLines.size()).append(" lines skipped:\n");
+                for (String[] skippedLine : skippedLines) {
+                    message.append("  ");
+                    for (int i = 0; i < Math.min(3, skippedLine.length); i++)
+                        message.append(skippedLine[i]).append(',');
+                    if (skippedLine.length > 3)
+                        message.append("...\n");
+                    else
+                        message.append('\n');
+                }
+            }
+            showInformationDialog("Import Prices", "Done", message.toString());
+        } catch (SQLException e) {
+            // savepoint was set here, roll back after exception
+            try {
+                rollbackDB();
+                mLogger.error("SQLException: " + e.getSQLState(), e);
+                showExceptionDialog("Database Error", "Reconcile account failed",
+                        SQLExceptionToString(e), e);
+            } catch (SQLException e1) {
+                mLogger.error("SQLException: " + e1.getSQLState(), e1);
+                showExceptionDialog("Database Error", "Unable to rollback",
+                        SQLExceptionToString(e1), e1);
+            }
+        }  finally {
+            // savepoint was set here, release now
+            try {
+                releaseDBSavepoint();
+            } catch (SQLException e) {
+                mLogger.error("SQLException: " + e.getSQLState(), e);
+                showExceptionDialog("Database Error", "releaseDBSavepint failed",
+                        SQLExceptionToString(e), e);
+            }
+        }
+
+        // reload account list
+        initAccountList();
+    }
+
+    // merge prices to database
+    private void mergePricesToDB(List<Pair<Integer, Price>> pList) throws SQLException {
+        String mergeSQL = "merge into PRICES (SECURITYID, DATE, PRICE) values (?, ?, ?)";
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(mergeSQL)) {
+            Iterator<Pair<Integer, Price>> iterator = pList.iterator();
+            Pair<Integer, Price> p;
+            while (iterator.hasNext()) {
+                p = iterator.next();
+                preparedStatement.setInt(1, p.getKey());
+                preparedStatement.setDate(2, Date.valueOf(p.getValue().getDate()));
+                preparedStatement.setBigDecimal(3, p.getValue().getPrice());
+
+                preparedStatement.executeUpdate();
+            }
+        } catch (SQLException e) {
+            mLogger.error(SQLExceptionToString(e), e);
+            throw e;
+        }
+    }
     // import data from QIF file
     void importQIF() {
         ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
@@ -3099,7 +3239,6 @@ public class MainApp extends Application {
         if (file == null) {
             return;
         }
-
         QIFParser qifParser = new QIFParser(result.orElse(""));
         try {
             if (qifParser.parseFile(file) < 0) {

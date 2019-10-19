@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -37,7 +37,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="60.0" minWidth="100.0" prefHeight="600.0" prefWidth="1000.0" stylesheets="@../css/Main.css" xmlns="http://javafx.com/javafx/8.0.152" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.MainController">
+<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="60.0" minWidth="100.0" prefHeight="600.0" prefWidth="1000.0" stylesheets="@../css/Main.css" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.MainController">
    <center>
       <VBox fx:id="mTransactionVBox" BorderPane.alignment="CENTER">
          <children>
@@ -121,7 +121,12 @@
                         </Menu>
                         <MenuItem fx:id="mChangePasswordMenuItem" mnemonicParsing="false" onAction="#handleChangePassword" text="Change Password" />
                         <MenuItem fx:id="mBackupMenuItem" mnemonicParsing="false" onAction="#handleBackup" text="Backup" />
-                        <MenuItem fx:id="mImportQIFMenuItem" mnemonicParsing="false" onAction="#handleImportQIF" text="Import QIF" />
+                        <Menu fx:id="mImportMenu" mnemonicParsing="false" text="Import...">
+                          <items>
+                              <MenuItem mnemonicParsing="false" onAction="#handleImportPrices" text="Prices" />
+                            <MenuItem mnemonicParsing="false" onAction="#handleImportQIF" text="QIF" />
+                          </items>
+                        </Menu>
                         <MenuItem fx:id="mFixDBMenuItem" mnemonicParsing="false" onAction="#handleFixDB" text="Fix DB" />
                     <MenuItem mnemonicParsing="false" onAction="#handleClose" text="Close" />
                   </items>

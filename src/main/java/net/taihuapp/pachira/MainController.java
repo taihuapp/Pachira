@@ -94,7 +94,7 @@ public class MainController {
     @FXML
     private MenuItem mBackupMenuItem;
     @FXML
-    private MenuItem mImportQIFMenuItem;
+    private Menu mImportMenu;
     @FXML
     private MenuItem mFixDBMenuItem;
     @FXML
@@ -497,6 +497,11 @@ public class MainController {
     }
 
     @FXML
+    private void handleImportPrices() {
+        mMainApp.importPrices();
+    }
+
+    @FXML
     private void handleImportQIF() {
         mMainApp.importQIF();
         mMainApp.initAccountList();
@@ -588,7 +593,7 @@ public class MainController {
         mReportsMenu.setVisible(isConnected);
         mChangePasswordMenuItem.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);
-        mImportQIFMenuItem.setVisible(isConnected);
+        mImportMenu.setVisible(isConnected);
         mFixDBMenuItem.setVisible(isConnected);
         mAccountTreeTableView.setVisible(isConnected);
         mSearchButton.setVisible(isConnected);
@@ -676,7 +681,7 @@ public class MainController {
     @FXML
     private void initialize() {
         mAccountNameTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getNameProperty());
-        mAccountNameTreeTableColumn.setCellFactory(column -> new TreeTableCell<Account, String>() {
+        mAccountNameTreeTableColumn.setCellFactory(column -> new TreeTableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -691,7 +696,7 @@ public class MainController {
         });
 
         mAccountBalanceTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getCurrentBalanceProperty());
-        mAccountBalanceTreeTableColumn.setCellFactory(column -> new TreeTableCell<Account, BigDecimal>() {
+        mAccountBalanceTreeTableColumn.setCellFactory(column -> new TreeTableCell<>() {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
@@ -920,7 +925,7 @@ public class MainController {
 
         // transaction table
         mTransactionStatusColumn.setCellValueFactory(cd -> cd.getValue().getStatusProperty());
-        mTransactionStatusColumn.setCellFactory(c -> new TableCell<Transaction, Transaction.Status>() {
+        mTransactionStatusColumn.setCellFactory(c -> new TableCell<>() {
             @Override
             protected void updateItem(Transaction.Status item, boolean empty) {
                 super.updateItem(item, empty);
@@ -956,10 +961,10 @@ public class MainController {
         });
 
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
-                new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {
+                new Callback<>() {
                     @Override
                     public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> column) {
-                        return new TableCell<Transaction, BigDecimal>() {
+                        return new TableCell<>() {
                             @Override
                             protected void updateItem(BigDecimal item, boolean empty) {
                                 super.updateItem(item, empty);
@@ -990,10 +995,10 @@ public class MainController {
 
         mTransactionBalanceColumn.setCellValueFactory(cellData->cellData.getValue().getBalanceProperty());
         mTransactionBalanceColumn.setCellFactory(
-                new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {
+                new Callback<>() {
                     @Override
                     public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> column) {
-                        return new TableCell<Transaction, BigDecimal>() {
+                        return new TableCell<>() {
                             @Override
                             protected void updateItem(BigDecimal item, boolean empty) {
                                 super.updateItem(item, empty);

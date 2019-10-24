@@ -3100,15 +3100,12 @@ public class MainApp extends Application {
         // parse the csv file
         try (CSVReader reader = new CSVReader(new FileReader(file))) {
             List<String[]> lines = reader.readAll();
-            Iterator<String[]> lineIterator = lines.iterator();
-            DateTimeFormatter ldFormatter = DateTimeFormatter.ofPattern("yyyy/MM/d");
-            while (lineIterator.hasNext()) {
-                String[] line = lineIterator.next();
+            for (String[] line : lines) {
                 if (line[0].equals("Symbol")) {
                     skippedLines.add(line);
                     continue; // this is the header line
                 }
-                if (line.length < 3 ) {
+                if (line.length < 3) {
                     mLogger.warn("Bad formatted line: " + String.join(",", line));
                     skippedLines.add(line);
                     continue;
@@ -3128,11 +3125,14 @@ public class MainApp extends Application {
                     continue;
                 }
 
-                try {
-                    LocalDate date = LocalDate.parse(line[2], ldFormatter);
-                    priceList.add(new Pair<>(securityID, new Price(date, p)));
-                } catch (DateTimeParseException e) {
-                    mLogger.warn("Bad formatted date: " + line[2], e);
+                List<String> patterns = Arrays.asList("yyyy/M/d", "M/d/yyyy");
+                for (String s : patterns) {
+                    try {
+                        LocalDate ld = LocalDate.parse(line[2], DateTimeFormatter.ofPattern(s));
+                        priceList.add(new Pair<>(securityID, new Price(ld, p)));
+                        break;
+                    } catch (DateTimeParseException ignored) {
+                    }
                 }
             }
         } catch (FileNotFoundException e) {

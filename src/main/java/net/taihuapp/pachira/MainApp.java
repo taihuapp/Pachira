@@ -3125,7 +3125,7 @@ public class MainApp extends Application {
                     continue;
                 }
 
-                List<String> patterns = Arrays.asList("yyyy/M/d", "M/d/yyyy");
+                List<String> patterns = Arrays.asList("yyyy/M/d", "M/d/yyyy", "M/d/yy");
                 for (String s : patterns) {
                     try {
                         LocalDate ld = LocalDate.parse(line[2], DateTimeFormatter.ofPattern(s));

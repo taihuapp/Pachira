@@ -124,6 +124,7 @@
                         <Menu fx:id="mImportMenu" mnemonicParsing="false" text="Import...">
                           <items>
                               <MenuItem mnemonicParsing="false" onAction="#handleImportPrices" text="Prices" />
+                              <MenuItem fx:id="mImportOFXAccountStatementMenuItem" mnemonicParsing="false" onAction="#handleImportOFXAccountStatement" text="OFX Account Statement" />
                             <MenuItem mnemonicParsing="false" onAction="#handleImportQIF" text="QIF" />
                           </items>
                         </Menu>

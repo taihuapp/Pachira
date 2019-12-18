@@ -96,6 +96,8 @@ public class MainController {
     @FXML
     private Menu mImportMenu;
     @FXML
+    private MenuItem mImportOFXAccountStatementMenuItem;
+    @FXML
     private MenuItem mFixDBMenuItem;
     @FXML
     private TreeTableView<Account> mAccountTreeTableView;
@@ -156,6 +158,8 @@ public class MainController {
         mMainApp = mainApp;
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
+
+        mImportOFXAccountStatementMenuItem.disableProperty().bind(mMainApp.getCurrentAccountProperty().isNull());
 
         mDownloadAccountTransactionMenuItem.disableProperty().bind(
                 Bindings.createBooleanBinding(() -> {
@@ -500,6 +504,9 @@ public class MainController {
     private void handleImportPrices() {
         mMainApp.importPrices();
     }
+
+    @FXML
+    private void handleImportOFXAccountStatement() { mMainApp.importOFXAccountStatement(); }
 
     @FXML
     private void handleImportQIF() {

@@ -30,8 +30,10 @@ import com.webcohesion.ofx4j.client.impl.FinancialInstitutionImpl;
 import com.webcohesion.ofx4j.client.net.OFXV1Connection;
 import com.webcohesion.ofx4j.domain.data.banking.AccountType;
 import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
+import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
 import com.webcohesion.ofx4j.domain.data.common.TransactionType;
 import com.webcohesion.ofx4j.domain.data.signup.AccountProfile;
+import com.webcohesion.ofx4j.io.OFXParseException;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -44,10 +46,12 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.HPos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -3075,6 +3079,83 @@ public class MainApp extends Application {
         mLogger.error(message);
     }
 
+    // import OFX Account statement
+    // current account has to be non-null
+    void importOFXAccountStatement() {
+        if (getCurrentAccount() == null) {
+            showExceptionDialog("Exception", "Strange error happened", "Current Account is null", null);
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("ofx files",
+                Arrays.asList("*.ofx", "*.OFX")));
+        fileChooser.setTitle("Import OFX Account Statements file...");
+        File file = fileChooser.showOpenDialog(mPrimaryStage);
+        if (file == null) {
+            mLogger.info("Import cancelled");
+            return;
+        }
+        mLogger.info("import" + file.getAbsolutePath());
+
+        OFXBankStatementReader reader = new OFXBankStatementReader();
+        BankStatementResponse statement;
+        try {
+            statement = reader.readOFXStatement(new FileInputStream(file));
+
+            String warning = reader.getWarning();
+            if (warning != null) {
+                mLogger.warn("importOFXAccountStatement " + file.getAbsolutePath()
+                        + " encountered warning:\n" + warning);
+                showWarningDialog("Warning","Import OFX Statement Warning", warning);
+            }
+
+            // show confirmation dialog
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            GridPane gridPane = new GridPane();
+            gridPane.setHgap(10);
+            gridPane.setVgap(10);
+            gridPane.setMaxWidth(Double.MAX_VALUE);
+            gridPane.add(new Label("Routing Number"), 1, 0);
+
+            Label accountNumber = new Label("Account Number");
+            accountNumber.setTextAlignment(TextAlignment.RIGHT);
+            gridPane.add(accountNumber, 2, 0);
+
+            gridPane.add(new Label("Current Account"), 0, 1);
+            gridPane.add(new Label("routing #"), 1, 1);
+
+            Label currentAccountNumber = new Label("account #");
+            currentAccountNumber.setTextAlignment(TextAlignment.RIGHT);
+            gridPane.add(currentAccountNumber, 2, 1);
+
+            gridPane.add(new Label("Import Info"), 0, 2);
+            gridPane.add(new Label(statement.getAccount().getBankId()), 1, 2);
+            Label importAccountNumber = new Label(statement.getAccount().getAccountNumber());
+            importAccountNumber.setTextAlignment(TextAlignment.RIGHT);
+            gridPane.add(importAccountNumber, 2, 2);
+
+            GridPane.setHalignment(accountNumber, HPos.RIGHT);
+            GridPane.setHalignment(currentAccountNumber, HPos.RIGHT);
+            GridPane.setHalignment(importAccountNumber, HPos.RIGHT);
+
+            alert.getDialogPane().setContent(gridPane);
+            alert.setTitle("Confirmation");
+            int nTrans = statement.getTransactionList().getTransactions().size();
+            alert.setHeaderText("Do you want to import " + nTrans + " transactions?");
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isEmpty() || result.get() != ButtonType.OK)
+                return;
+
+            importAccountStatement(getCurrentAccount(), statement);
+        } catch (IOException | OFXParseException | SQLException e) {
+            mLogger.error("ImportOFXAccountStatement exception", e);
+            showExceptionDialog("Exception", e.getClass().getName(),
+                    "Import OFX Account Statement Exception", e);
+        }
+    }
+
     // import price data stored in a 3+ column csv file
     // The csv file may have headers
     // the 3 required columns are
@@ -4511,7 +4592,8 @@ public class MainApp extends Application {
             }
             transaction.setPayee(payee);
 
-            transaction.setMemo(ofx4jT.getMemo());
+            String memo = ofx4jT.getMemo();
+            transaction.setMemo(memo == null ? "" : memo);
 
             transaction.setStatus(Transaction.Status.CLEARED); // downloaded transactions are all cleared
 

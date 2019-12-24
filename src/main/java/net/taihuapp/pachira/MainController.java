@@ -167,7 +167,8 @@ public class MainController {
                             return a == null || mMainApp.getAccountDC(a.getID()) == null;
                         }, mMainApp.getCurrentAccountProperty(),mMainApp.getAccountDCList()));
 
-        mSetAccountDirectConnectionMenuItem.disableProperty().bind(mMainApp.getCurrentAccountProperty().isNull());
+        mSetAccountDirectConnectionMenuItem.disableProperty().bind(mMainApp.getCurrentAccountProperty().isNull()
+                .or(mMainApp.hasMasterPasswordProperty().not()));
         mCreateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty());
         mUpdateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
         mDeleteMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());

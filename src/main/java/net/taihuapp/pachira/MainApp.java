@@ -145,7 +145,7 @@ public class MainApp extends Application {
     static final int PRICE_FRACTION_DISP_LEN = 6;
 
     private static final int QUANTITY_TOTAL_LEN = 20;
-    private static final int QUANTITY_FRACTION_LEN = 8;
+    static final int QUANTITY_FRACTION_LEN = 8;
     static final int QUANTITY_FRACTION_DISP_LEN = 6;
 
     static final int SAVEDREPORTSNAMELEN = 32;
@@ -371,7 +371,7 @@ public class MainApp extends Application {
 
     Transaction getTransactionByID(int tid) {
         int idx = getTransactionIndexByID(tid);
-        if (idx > 0)
+        if (idx >= 0)
             return mTransactionList.get(idx);
         return null;
     }
@@ -446,6 +446,19 @@ public class MainApp extends Application {
     }
 
     Stage getStage() { return mPrimaryStage; }
+
+    // given a transaction ID, return a ID list of transactions covering it
+    List<Integer> lotMatchedBy(int tid) throws SQLException {
+        List<Integer> lotMatchList = new ArrayList<>();
+        String sqlCmd = "select TRANSID from LOTMATCH where MATCHID = " + tid;
+        try (Statement statement = mConnection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            while (resultSet.next()) {
+                lotMatchList.add(resultSet.getInt("TRANSID"));
+            }
+            return lotMatchList;
+        }
+    }
 
     // if id <= 0, load all settings and return a list
     // if id > 0, load the setting with given id, return a list of length 1 (or 0 if no matching id found)
@@ -2672,7 +2685,8 @@ public class MainApp extends Application {
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
 
-            if (securityHolding.getQuantity().signum() == 0) {
+            if (securityHolding.getQuantity().setScale(QUANTITY_FRACTION_DISP_LEN,
+                    RoundingMode.HALF_UP).signum() == 0) {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
                 continue;
@@ -2743,7 +2757,7 @@ public class MainApp extends Application {
             while (rs.next()) {
                 int mid = rs.getInt("MATCHID");
                 BigDecimal quantity = rs.getBigDecimal("MATCHQUANTITY");
-                matchInfoList.add(new SecurityHolding.MatchInfo(tid, mid, quantity));
+                matchInfoList.add(new SecurityHolding.MatchInfo(mid, quantity));
             }
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -4133,25 +4147,46 @@ public class MainApp extends Application {
         if (oldT == null && newT == null)
             return true; // nothing to do
 
-        if (oldT != null && oldT.getMatchID() > 0) {
-            // oldT is a linked transaction,
-            if (oldT.getMatchSplitID() > 0) {
-                // oldT is linked to a SplitTransaction
-                showWarningDialog("Linked to A Split Transaction",
-                        "Linked to a split transaction",
-                        "Please edit the linked split transaction.");
-                return false;
-            }
-            Transaction.TradeAction oldTA = oldT.getTradeAction();
-            if (oldTA == Transaction.TradeAction.XIN || oldTA == Transaction.TradeAction.XOUT) {
-                Transaction oldXferT = getTransactionByID(oldT.getMatchID());
-                if (oldXferT != null) {
-                    Transaction.TradeAction oldXferTA = oldXferT.getTradeAction();
-                    if (oldXferTA != Transaction.TradeAction.XIN && oldXferTA != Transaction.TradeAction.XOUT) {
-                        showWarningDialog("Linked to An Investing Transaction",
-                                "Linked to an investing transaction",
-                                "Please edit the linked investing transaction.");
+        if (oldT != null) {
+            if (newT == null) {
+                // deleting oldT, make sure it is not covered by SELL or CVTSHT
+                try {
+                    List<Integer> matchList = lotMatchedBy(oldT.getID());
+                    int len = matchList.size();
+                    if (!matchList.isEmpty()) {
+                        showWarningDialog("Transaction is lot matched",
+                                "Transaction is lot matched by " + len + " transaction(s)",
+                                "Cannot delete transaction which is lot matched.");
                         return false;
+                    }
+                } catch (SQLException e) {
+                    mLogger.error("SQLException: " + e.getSQLState(), e);
+                    showExceptionDialog("Database Error", "Unable to check LotMatch",
+                            SQLExceptionToString(e), e);
+                    return false;
+                }
+            }
+
+            if (oldT.getMatchID() > 0) {
+                // oldT is a linked transaction,
+                if (oldT.getMatchSplitID() > 0) {
+                    // oldT is linked to a SplitTransaction
+                    showWarningDialog("Linked to A Split Transaction",
+                            "Linked to a split transaction",
+                            "Please edit the linked split transaction.");
+                    return false;
+                }
+                Transaction.TradeAction oldTA = oldT.getTradeAction();
+                if (oldTA == Transaction.TradeAction.XIN || oldTA == Transaction.TradeAction.XOUT) {
+                    Transaction oldXferT = getTransactionByID(oldT.getMatchID());
+                    if (oldXferT != null) {
+                        Transaction.TradeAction oldXferTA = oldXferT.getTradeAction();
+                        if (oldXferTA != Transaction.TradeAction.XIN && oldXferTA != Transaction.TradeAction.XOUT) {
+                            showWarningDialog("Linked to An Investing Transaction",
+                                    "Linked to an investing transaction",
+                                    "Please edit the linked investing transaction.");
+                            return false;
+                        }
                     }
                 }
             }
@@ -4475,8 +4510,8 @@ public class MainApp extends Application {
         AccountStatement statement = fiAccount.readStatement(startDate, endDate);
         importAccountStatement(account, statement);
         adc.setLastDownloadInfo(statement.getLedgerBalance().getAsOfDate(),
-                new BigDecimal(statement.getLedgerBalance().getAmount()).setScale(SecurityHolding.CURRENCYDECIMALLEN,
-                        RoundingMode.HALF_UP));
+                BigDecimal.valueOf(statement.getLedgerBalance().getAmount())
+                        .setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
         mergeAccountDCToDB(adc);
     }
 
@@ -4933,7 +4968,6 @@ public class MainApp extends Application {
         List<SecurityHolding> securityHoldingList = updateAccountSecurityHoldingList(account,
                 transaction.getTDate(), transaction.getID());
         List<SecurityHolding.MatchInfo> miList = getMatchInfoList(transaction.getID());
-        int scale = transaction.getAmount().scale();
         List<CapitalGainItem> capitalGainItemList = new ArrayList<>();
         for (SecurityHolding securityHolding : securityHoldingList) {
             if (!securityHolding.getSecurityName().equals(transaction.getSecurityName()))
@@ -4943,43 +4977,33 @@ public class MainApp extends Application {
             BigDecimal remainCash = transaction.getAmount();
             BigDecimal remainQuantity = transaction.getQuantity();
             FilteredList<SecurityHolding.LotInfo> lotInfoList = new FilteredList<>(securityHolding.getLotInfoList());
+            Map<Integer, SecurityHolding.MatchInfo> matchMap = new HashMap<>();
             if (!miList.isEmpty()) {
                 // we have a matchInfo list,
-                Set<Integer> matchTIDSet = new HashSet<>();
                 for (SecurityHolding.MatchInfo mi : miList)
-                    matchTIDSet.add(mi.getMatchTransactionID());
-                lotInfoList.setPredicate(li -> matchTIDSet.contains(li.getTransactionID()));
+                    matchMap.put(mi.getMatchTransactionID(), mi);
+                lotInfoList.setPredicate(li -> matchMap.containsKey(li.getTransactionID()));
             }
-            for (SecurityHolding.LotInfo li : securityHolding.getLotInfoList()) {
+            //for (SecurityHolding.LotInfo li : securityHolding.getLotInfoList()) {
+            for (SecurityHolding.LotInfo li : lotInfoList) {
                 BigDecimal costBasis;
                 BigDecimal proceeds;
-                BigDecimal matchQuantity;
                 Transaction matchTransaction;
 
                 matchTransaction = getTransactionByID(li.getTransactionID());
-                if (li.getQuantity().compareTo(remainQuantity) < 0) {
-                    // li doesn't have enough to offset all.
-                    matchQuantity = li.getQuantity();
+                SecurityHolding.MatchInfo mi = matchMap.get(li.getTransactionID());
+                BigDecimal liMatchQuantity = (mi == null) ?
+                        li.getQuantity().min(remainQuantity) : mi.getMatchQuantity();
 
-                    costBasis = li.getCostBasis();
-                    proceeds = remainCash.multiply(li.getQuantity()).divide(remainQuantity,
-                            scale, RoundingMode.HALF_UP);
-                    remainCash = remainCash.subtract(proceeds);
-                    remainQuantity = remainQuantity.subtract(matchQuantity);
-                } else {
-                    // li can offset all
-                    matchQuantity = remainQuantity;
-                    costBasis = li.getCostBasis().multiply(remainQuantity).divide(li.getQuantity(),
-                            scale, RoundingMode.HALF_UP);
-                    proceeds = remainCash;
-                    remainQuantity = BigDecimal.ZERO;
-                    remainCash = BigDecimal.ZERO;
-                }
+                costBasis = li.getCostBasis().multiply(liMatchQuantity).divide(li.getQuantity(), RoundingMode.HALF_UP);
+                proceeds = remainCash.multiply(liMatchQuantity).divide(remainQuantity, RoundingMode.HALF_UP);
+                remainCash = remainCash.subtract(proceeds);
+                remainQuantity = remainQuantity.subtract(liMatchQuantity);
                 if (ta.equals(Transaction.TradeAction.SELL))
-                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, matchQuantity,
+                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, liMatchQuantity,
                             costBasis, proceeds));
                 else
-                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, matchQuantity,
+                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, liMatchQuantity,
                             proceeds, costBasis));
 
                 if (remainQuantity.compareTo(BigDecimal.ZERO) == 0)

@@ -64,7 +64,7 @@ public class EditTransactionDialogController {
         }
     }
 
-    private class MyBigDecimalStringConverter extends BigDecimalStringConverter {
+    private static class MyBigDecimalStringConverter extends BigDecimalStringConverter {
         public String toString(BigDecimal b) {
             return (b == null) ? "" : MainApp.DOLLAR_CENT_FORMAT.format(b);
         }
@@ -364,9 +364,6 @@ public class EditTransactionDialogController {
             mTransaction.setID(mMainApp.insertUpdateTransactionToDB(dbCopyT));
 
             // for new transactions, tid in elements of mMatchInfoList is -1, need to update
-            for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
-                mi.setTransactionID(dbCopyT.getID());
-            }
             mMainApp.putMatchInfoList(dbCopyT.getID(), mMatchInfoList);
 
             // handle linked transactions here
@@ -411,8 +408,10 @@ public class EditTransactionDialogController {
                         // matchID was in
                         boolean delete = true;
                         for (Transaction t : updateTList) {
-                            if (t.getID() == st.getMatchID())
+                            if (t.getID() == st.getMatchID()) {
                                 delete = false;
+                                break;
+                            }
                         }
                         Transaction t = mMainApp.getTransactionByID(st.getMatchID());
                         // the transaction might changed, let's update account balance.
@@ -549,14 +548,30 @@ public class EditTransactionDialogController {
                         "Please select a valid account to transfer.");
                 return false;
             }
-        } else if ((ta == SELL || ta == CVTSHRT) && !mMatchInfoList.isEmpty()) {
-            BigDecimal matchQ = BigDecimal.ZERO;
-            for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
-                matchQ = matchQ.add(mi.getMatchQuantity());
+        } else if (ta == SELL || ta == CVTSHRT) {
+            // check to see if there is enough to sell or to cover
+            List<SecurityHolding> shList = mMainApp.updateAccountSecurityHoldingList(mMainApp.getCurrentAccount(),
+                    mTransaction.getTDate(), mTransaction.getID());
+            boolean isOK = false;
+            for (SecurityHolding sh : shList) {
+                // if security holding with the same security name
+                // and has enough quantity for the covering trade,
+                // then set isOK to true
+                if (sh.getSecurityName().equals(mTransaction.getSecurityName())
+                    && sh.getQuantity().compareTo(mTransaction.getQuantity()) >= 0) {
+                    isOK = true;
+                    break;
+                }
             }
-            if (matchQ.compareTo(mTransaction.getQuantity()) != 0) {
-                showWarningDialog("Warning", "Mismatching Specify Lot Quantity",
-                        "Please check specify lots.");
+
+            if (!isOK) {
+                String header, content = "Please check trade quantity";
+                if (ta == SELL) {
+                    header = "Sell quantity exceeded existing holding quantity";
+                } else {
+                    header = "Short cover quantity exceeded existing short quantity";
+                }
+                showWarningDialog("Warning", header, content);
                 return false;
             }
         }
@@ -1026,7 +1041,7 @@ public class EditTransactionDialogController {
                     new BigDecimalStringConverter());
 
         if (isReinvest || (!isIncome && !isCashTransfer)) {
-            ObjectBinding<BigDecimal> price = new ObjectBinding<BigDecimal>() {
+            ObjectBinding<BigDecimal> price = new ObjectBinding<>() {
                 {
                     super.bind(mTransaction.getAmountProperty(), mTransaction.getQuantityProperty(),
                             mTransaction.getCommissionProperty(), mTransaction.getAccruedInterestProperty());

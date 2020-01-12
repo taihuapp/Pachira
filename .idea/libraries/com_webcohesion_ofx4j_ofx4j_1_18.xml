@@ -1,0 +1,16 @@
+<component name="libraryTable">
+  <library name="com.webcohesion.ofx4j:ofx4j:1.18" type="repository">
+    <properties maven-id="com.webcohesion.ofx4j:ofx4j:1.18" />
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/webcohesion/ofx4j/ofx4j/1.18/ofx4j-1.18.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/commons-logging/commons-logging/1.2/commons-logging-1.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/be/cyberelf/nanoxml/nanoxml/2.2.3/nanoxml-2.2.3.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/reflections/reflections/0.9.10/reflections-0.9.10.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/guava/guava/15.0/guava-15.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/javassist/javassist/3.19.0-GA/javassist-3.19.0-GA.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/code/findbugs/annotations/2.0.1/annotations-2.0.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

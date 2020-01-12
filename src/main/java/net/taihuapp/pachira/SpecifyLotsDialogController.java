@@ -137,26 +137,41 @@ public class SpecifyLotsDialogController {
         }
 
         if (selected) {
-            if (selectedQ.compareTo(mTransaction.getQuantity().abs()) != 0) {
-                // show warning dialog and go back
-                String header;
-                if (selectedQ.compareTo(mTransaction.getQuantity().abs()) > 0)
-                    header = "Selected too many shares";
-                else
-                    header = "Selected too few shares";
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setHeaderText(header);
-                alert.setContentText("Selected number of shares should match traded shares");
-                alert.showAndWait();
-                return;
+            if (selectedQ.compareTo(mTransaction.getQuantity()) != 0) {
+                // selectedQ not match getQuantity
+                // it could due to rounding
+                boolean hasResidual = false;
+                for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
+                    if (sli.getSelectedShares().compareTo(sli.getQuantity()) != 0) {
+                        hasResidual = true;
+                        break;
+                    }
+                }
+
+                boolean roundingOK = selectedQ.subtract(mTransaction.getQuantity())
+                        .setScale(MainApp.QUANTITY_FRACTION_LEN-1, RoundingMode.HALF_UP)
+                        .compareTo(BigDecimal.ZERO) == 0;
+
+                if (hasResidual && !roundingOK) {
+                    // show warning dialog and go back
+                    String header;
+                    if (selectedQ.compareTo(mTransaction.getQuantity()) > 0)
+                        header = "Selected too many shares";
+                    else
+                        header = "Selected too few shares";
+                    Alert alert = new Alert(Alert.AlertType.WARNING);
+                    alert.setHeaderText(header);
+                    alert.setContentText("Selected number of shares should match traded shares");
+                    alert.showAndWait();
+                    return;
+                }
             }
 
             mMatchInfoList.clear();
             for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
                 if (sli.getSelectedShares() == null || sli.getSelectedShares().compareTo(BigDecimal.ZERO) == 0)
                     continue;
-                mMatchInfoList.add(new SecurityHolding.MatchInfo(mTransaction.getID(), sli.getTransactionID(),
-                        sli.getSelectedShares()));
+                mMatchInfoList.add(new SecurityHolding.MatchInfo(sli.getTransactionID(), sli.getSelectedShares()));
             }
         }
         mDialogStage.close();
@@ -204,21 +219,32 @@ public class SpecifyLotsDialogController {
             return;
         }
 
-        int sliIdx = 0;  // index for running through
-        for (SecurityHolding.MatchInfo mi : mMatchInfoList)
-            while (sliIdx < mSpecifyLotInfoList.size()) {
-                SpecifyLotInfo sli = mSpecifyLotInfoList.get(sliIdx);
+        // pair off between mSpecifyLotInfoList and mMatchInfoList
+        for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+            for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
                 if (sli.getTransactionID() == mi.getMatchTransactionID()) {
                     sli.setSelectedShares(mi.getMatchQuantity());
-                    sli.updateRealizedPNL(t);
+                    sli.updateRealizedPNL(mTransaction);
                     break;
                 }
-                sliIdx++;
             }
+        }
 
         mLotInfoTableView.setEditable(true);
         mLotInfoTableView.setItems(mSpecifyLotInfoList);
-
+        mLotInfoTableView.setRowFactory(tv -> {
+            // double click the row will select all available quantity for this row
+            TableRow<SpecifyLotInfo> row = new TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if ((e.getClickCount() == 2) && (!row.isEmpty())) {
+                    SpecifyLotInfo sli = row.getItem();
+                    sli.setSelectedShares(sli.getQuantity());
+                    sli.updateRealizedPNL(t);
+                    updateSelectedShares();
+                }
+            });
+            return row;
+        });
         mDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
         mTypeColumn.setCellValueFactory(cellData->cellData.getValue().getTradeActionProperty());
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
@@ -229,10 +255,15 @@ public class SpecifyLotsDialogController {
         mSelectedColumn.setCellFactory(TextFieldTableCell.forTableColumn(new BigDecimalStringConverter()));
         mSelectedColumn.setOnEditCommit(
                 event -> {
-                    event.getTableView().getItems().get(event.getTablePosition().getRow())
-                            .setSelectedShares(event.getNewValue());
-                    event.getTableView().getItems().get(event.getTablePosition().getRow())
-                            .updateRealizedPNL(mTransaction);
+                    BigDecimal nv = event.getNewValue();
+                    if (nv == null)
+                        nv = BigDecimal.ZERO;
+                    SpecifyLotInfo sli = event.getRowValue();
+                    BigDecimal ava = sli.getQuantity();
+                    if (nv.compareTo(ava) > 0)
+                        nv = ava;
+                    sli.setSelectedShares(nv);
+                    sli.updateRealizedPNL(mTransaction);
                     updateSelectedShares();
                 }
         );

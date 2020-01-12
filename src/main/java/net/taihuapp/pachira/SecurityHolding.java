@@ -106,21 +106,15 @@ public class SecurityHolding extends LotHolding {
     }
 
     static class MatchInfo {
-        private int mTransactionID;
         private final int mMatchTransactionID;
         private final BigDecimal mMatchQuantity;  // always positive
 
-        MatchInfo(int tid, int mid, BigDecimal q) {
-            mTransactionID = tid;
+        MatchInfo(int mid, BigDecimal q) {
             mMatchTransactionID = mid;
             mMatchQuantity = q;
         }
 
-        // we need a setting for mTransactionID
-        void setTransactionID(int id) { mTransactionID = id; }
-
         // getters
-        int getTransactionID() { return mTransactionID; }
         int getMatchTransactionID() { return mMatchTransactionID; }
         BigDecimal getMatchQuantity() { return mMatchQuantity; }
     }
@@ -147,7 +141,7 @@ public class SecurityHolding extends LotHolding {
     ObservableList<LotInfo> getLotInfoList() { return mLotInfoList; }
 
     private BigDecimal scaleCostBasis(BigDecimal oldC, BigDecimal oldQ, BigDecimal newQ) {
-        return oldC.multiply(newQ).divide(oldQ, oldC.scale(), RoundingMode.HALF_UP);
+        return oldC.multiply(newQ).divide(oldQ, CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
     }
 
     // update market value and PNL
@@ -312,15 +306,18 @@ public class SecurityHolding extends LotHolding {
     }
 
     void adjustStockSplit(BigDecimal newQuantity, BigDecimal oldQuantity) {
-        BigDecimal newQTotal = BigDecimal.ZERO;
+        BigDecimal oldQTotal = BigDecimal.ZERO;
         for (LotInfo li : getLotInfoList()) {
             BigDecimal oldQ = li.getQuantity();
             BigDecimal oldP = li.getPrice();
-            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, oldQ.scale(), RoundingMode.HALF_UP);
-            newQTotal = newQTotal.add(newQ);
+            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, MainApp.QUANTITY_FRACTION_LEN,
+                    RoundingMode.HALF_UP);
+            oldQTotal = oldQTotal.add(oldQ);
             li.setQuantity(newQ);
-            li.setPrice(li.getPrice().multiply(oldQuantity).divide(newQuantity, oldP.scale(), RoundingMode.HALF_UP));
+            li.setPrice(oldP.multiply(oldQuantity).divide(newQuantity, MainApp.QUANTITY_FRACTION_LEN,
+                    RoundingMode.HALF_UP));
         }
-        setQuantity(newQTotal);
+        setQuantity(oldQTotal.multiply(newQuantity).divide(oldQuantity, MainApp.QUANTITY_FRACTION_LEN,
+                RoundingMode.HALF_UP));
     }
 }

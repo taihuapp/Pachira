@@ -91,12 +91,11 @@ public class HoldingsDialogController {
         mPriceColumn.setCellValueFactory(p -> p.getValue().getValue().getPriceProperty());
         mPriceColumn.setComparator(null);
 
-        mPriceColumn.setCellFactory(new Callback<TreeTableColumn<LotHolding, BigDecimal>,
-                TreeTableCell<LotHolding, BigDecimal>>() {
+        mPriceColumn.setCellFactory(new Callback<>() {
             @Override
             public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding,
                     BigDecimal> paramTreeTableColumn) {
-                return new TextFieldTreeTableCell<LotHolding, BigDecimal>(new StringConverter<BigDecimal>() {
+                return new TextFieldTreeTableCell<>(new StringConverter<BigDecimal>() {
                     @Override
                     public String toString(BigDecimal object) {
                         if (object == null)
@@ -128,7 +127,7 @@ public class HoldingsDialogController {
                             if (treeItem != null) {
                                 String label = treeItem.getValue().getLabel();
                                 if (mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) > 1
-                                    || label.equals("TOTAL") || label.equals("CASH")) {
+                                        || label.equals("TOTAL") || label.equals("CASH")) {
                                     setEditable(false); // it seems the setEditable need to be called again and again
                                 } else {
                                     setEditable(true);
@@ -171,7 +170,7 @@ public class HoldingsDialogController {
                         + "Date           : " + date + "\n"
                         + "Price          : " + newPrice + "?");
                 Optional<ButtonType> result = alert.showAndWait();
-                if (!result.isPresent() || result.get() != ButtonType.OK)
+                if (result.isEmpty() || result.get() != ButtonType.OK)
                     return; // don't save, go back
             }
 
@@ -191,10 +190,10 @@ public class HoldingsDialogController {
         });
 
         Callback<TreeTableColumn<LotHolding, BigDecimal>, TreeTableCell<LotHolding, BigDecimal>> dollarCentsCF =
-                new Callback<TreeTableColumn<LotHolding, BigDecimal>, TreeTableCell<LotHolding, BigDecimal>>() {
+                new Callback<>() {
                     @Override
                     public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding, BigDecimal> column) {
-                        return new TreeTableCell<LotHolding, BigDecimal>() {
+                        return new TreeTableCell<>() {
                             @Override
                             protected void updateItem(BigDecimal item, boolean empty) {
                                 super.updateItem(item, empty);
@@ -213,10 +212,10 @@ public class HoldingsDialogController {
 
         mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
                 new ReadOnlyObjectWrapper<>(p.getValue().getValue().getQuantity()));
-        mQuantityColumn.setCellFactory(new Callback<TreeTableColumn<LotHolding, BigDecimal>, TreeTableCell<LotHolding, BigDecimal>>() {
+        mQuantityColumn.setCellFactory(new Callback<>() {
             @Override
             public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding, BigDecimal> param) {
-                return new TreeTableCell<LotHolding, BigDecimal>() {
+                return new TreeTableCell<>() {
                     @Override
                     protected void updateItem(BigDecimal item, boolean empty) {
                         super.updateItem(item, empty);

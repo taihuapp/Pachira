@@ -123,8 +123,8 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  // this is amount
     // cash amount, derived from total amount
     private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private transient ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private transient ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
     private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
@@ -276,11 +276,32 @@ public class Transaction {
             }
         }, mTradeActionProperty, mQuantityProperty));
 
-        // mCashAmountProperty and mInvestAmountProperty depends on mTradeActionProperty and mAmountProperty
+        mPaymentProperty.bind(Bindings.createObjectBinding(() -> {
+            switch (getTradeAction()) {
+                case XOUT:
+                case WITHDRAW:
+                    return getAmount();
+                default:
+                    return BigDecimal.ZERO;
+            }
+        }, getTradeActionProperty(), getAmountProperty()));
+
+        mDepositProperty.bind(Bindings.createObjectBinding(() -> {
+            switch (getTradeAction()) {
+                case XIN:
+                case DEPOSIT:
+                    return getAmount();
+                default:
+                    return BigDecimal.ZERO;
+            }
+        }, getTradeActionProperty(), getAmountProperty()));
+
+        // mCashAmountProperty depends on TradeAction, Deposit, Payment
         mCashAmountProperty.bind(Bindings.createObjectBinding(() -> isTransfer() ?
                 getDeposit().subtract(getPayment()) : cashFlow(),
-                getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
+                getTradeActionProperty(), getDepositeProperty(), getPaymentProperty()));
 
+        // mInvestAmountProperty depends on mTradeActionProperty and mAmountProperty
         mInvestAmountProperty.bind(Bindings.createObjectBinding(() -> {
             switch (getTradeAction()) {
                 case BUY:
@@ -317,26 +338,6 @@ public class Transaction {
                     return BigDecimal.ZERO;
             }
         }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
-
-        mPaymentProperty.bind(Bindings.createObjectBinding(() -> {
-            switch (getTradeAction()) {
-                case XOUT:
-                case WITHDRAW:
-                    return getAmount();
-                default:
-                    return BigDecimal.ZERO;
-            }
-        }, getTradeActionProperty(), getAmountProperty()));
-
-        mDepositProperty.bind(Bindings.createObjectBinding(() -> {
-            switch (getTradeAction()) {
-                case XIN:
-                case DEPOSIT:
-                    return getAmount();
-                default:
-                    return BigDecimal.ZERO;
-            }
-        }, getTradeActionProperty(), getAmountProperty()));
     }
 
     ValidationStatus validate() {
@@ -482,9 +483,6 @@ public class Transaction {
     void setPayee(String payee) { getPayeeProperty().set(payee); }
 
     void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
-    void setPrice(BigDecimal p) { mPriceProperty.set(p); }
-    void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
-    void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
     void setMemo(String memo) { mMemoProperty.set(memo); }
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
@@ -613,7 +611,6 @@ public class Transaction {
             case XOUT:
             case DEPOSIT:
             case WITHDRAW:
-                return false;
             default:
                 return false;
         }
@@ -635,9 +632,9 @@ public class Transaction {
             throw new IllegalArgumentException("mergeDownloadedTransaction expected "
                             + "a manually entered transaction and "
                             + "a downloaded transaction, but got a "
-                            + (fitIDA.isEmpty() ? "manually entered" : "downloaded") + " transactioa "
+                            + (fitIDA.isEmpty() ? "manually entered" : "downloaded") + " transaction "
                             + "and a "
-                            + (fitIDB.isEmpty() ? "manually entered" : "downloaded") + " transactioa ");
+                            + (fitIDB.isEmpty() ? "manually entered" : "downloaded") + " transaction ");
 
         TradeAction taA = transactionA.getTradeAction();
         TradeAction taB = transactionB.getTradeAction();

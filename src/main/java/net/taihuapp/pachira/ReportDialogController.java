@@ -70,7 +70,7 @@ public class ReportDialogController {
     private static final String NOCATEGORY = "(No Category)";
 
     static class Setting {
-        private int mID = -1;
+        private int mID;
         private String mName = "";
         private final ReportType mType;
         private DatePeriod mDatePeriod;
@@ -970,14 +970,14 @@ public class ReportDialogController {
                         line.commission = dcFormat.format(t.getCommission());
                         totalCommissionAmt = totalCommissionAmt.add(comm);
                     }
-                    BigDecimal cash = t.getCashAmount();
+                    BigDecimal cash = t.cashFlow();
                     if (cash != null) {
-                        line.cashAmt = dcFormat.format(t.getCashAmount());
+                        line.cashAmt = dcFormat.format(cash);
                         totalCashAmt = totalCashAmt.add(cash);
                     }
                     BigDecimal inv = t.getInvestAmount();
                     if (inv != null) {
-                        line.invAmt = dcFormat.format(t.getInvestAmount());
+                        line.invAmt = dcFormat.format(inv);
                         totalInvAmt = totalInvAmt.add(inv);
                     }
                     lineList.add(line);

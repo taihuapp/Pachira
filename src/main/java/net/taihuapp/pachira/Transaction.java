@@ -277,44 +277,9 @@ public class Transaction {
         }, mTradeActionProperty, mQuantityProperty));
 
         // mCashAmountProperty and mInvestAmountProperty depends on mTradeActionProperty and mAmountProperty
-        mCashAmountProperty.bind(Bindings.createObjectBinding(() -> {
-            switch (getTradeAction()) {
-                case BUY:
-                case CVTSHRT:
-                case MARGINT:
-                case MISCEXP:
-                    return isTransfer() ? BigDecimal.ZERO : getAmount().negate();
-                case SELL:
-                case SHTSELL:
-                case CGLONG:
-                case CGMID:
-                case CGSHORT:
-                case DIV:
-                case INTINC:
-                case MISCINC:
-                case RTRNCAP:
-                    return isTransfer() ? BigDecimal.ZERO : getAmount();
-                case REINVDIV:
-                case REINVINT:
-                case REINVLG:
-                case REINVMD:
-                case REINVSH:
-                case STKSPLIT:
-                case SHRSIN:
-                case SHRSOUT:
-                case XFRSHRS:
-                    return BigDecimal.ZERO;
-                case XIN:
-                case DEPOSIT:
-                    return getAmount();
-                case XOUT:
-                case WITHDRAW:
-                    return getAmount().negate();
-                default:
-                    mLogger.error("TradingAction " + getTradeAction() + " not implement yet");
-                    return BigDecimal.ZERO;
-            }
-        }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
+        mCashAmountProperty.bind(Bindings.createObjectBinding(() -> isTransfer() ?
+                getDeposit().subtract(getPayment()) : cashFlow(),
+                getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
 
         mInvestAmountProperty.bind(Bindings.createObjectBinding(() -> {
             switch (getTradeAction()) {
@@ -470,8 +435,8 @@ public class Transaction {
             case CVTSHRT:
             case MARGINT:
             case MISCEXP:
-            case XIN:
-            case DEPOSIT:
+            case XOUT:
+            case WITHDRAW:
                 return getAmount().negate();
             case DIV:
             case INTINC:
@@ -482,8 +447,8 @@ public class Transaction {
             case RTRNCAP:
             case SELL:
             case SHTSELL:
-            case XOUT:
-            case WITHDRAW:
+            case XIN:
+            case DEPOSIT:
                 return getAmount();
             case REINVDIV:
             case REINVINT:

@@ -37,6 +37,8 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collections;
 
+import static java.time.temporal.ChronoUnit.DAYS;
+
 public class ReminderTransactionListDialogController {
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;
@@ -200,13 +202,17 @@ public class ReminderTransactionListDialogController {
     private void handleCheckbox() {
         boolean showCompleted = mShowCompletedTransactionsCheckBox.isSelected();
         ObservableList<ReminderTransaction> rtList = mMainApp.getReminderTransactionList(showCompleted);
-        mReminderTransactionTableView.setItems(rtList);
-        int i;
-        for (i = 0; i < rtList.size(); i++) {
-            String status = rtList.get(i).getStatus();
-            if (status.equals(ReminderTransaction.DUESOON) || status.equals(ReminderTransaction.OVERDUE))
-                break;
+        int cnt = 0;
+        long minDistance = -1;
+        for (int i = 0; i < rtList.size(); i++) {
+            long distance = Math.abs(DAYS.between(LocalDate.now(), rtList.get(i).getDueDate()));
+            if (minDistance < 0 || distance < minDistance) {
+                cnt = i;
+                minDistance = distance;
+            }
         }
+        mReminderTransactionTableView.setItems(rtList);
+        mReminderTransactionTableView.scrollTo(cnt);
     }
 
     @FXML
@@ -230,7 +236,7 @@ public class ReminderTransactionListDialogController {
             // return reminder estimated amount
             return cellData.getValue().getReminder().getAmountProperty();
         });
-        mAmountTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, BigDecimal>() {
+        mAmountTableColumn.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
@@ -246,9 +252,9 @@ public class ReminderTransactionListDialogController {
         });
 
         mStatusTableColumn.setCellValueFactory(cellData -> cellData.getValue().getStatusProperty());
-        mStatusTableColumn.setCellFactory(column -> new TableCell<ReminderTransaction, String>() {
+        mStatusTableColumn.setCellFactory(column -> new TableCell<>() {
             @Override
-            protected  void updateItem(String item, boolean empty) {
+            protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
 
                 setGraphic(null);
@@ -279,7 +285,7 @@ public class ReminderTransactionListDialogController {
         });
 
         mTagTableColumn.setCellValueFactory(cd -> cd.getValue().getReminder().getTagIDProperty().asObject());
-        mTagTableColumn.setCellFactory(c -> new TableCell<ReminderTransaction, Integer>() {
+        mTagTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override
             protected void updateItem(Integer item, boolean empty) {
                 super.updateItem(item, empty);

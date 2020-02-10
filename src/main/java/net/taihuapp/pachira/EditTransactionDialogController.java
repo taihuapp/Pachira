@@ -24,6 +24,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
@@ -35,6 +36,7 @@ import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
@@ -205,6 +207,28 @@ public class EditTransactionDialogController {
         return mTransaction.getID();
     }
 
+    // The edited date in a DatePicker obj is not saved when the obj is going out of focus
+    // this code is a workaround
+    private static void datePickerWorkAround(final DatePicker datePicker) {
+        datePicker.getEditor().focusedProperty().addListener((obj, wasFocused, isFocused) -> {
+            if (!isFocused) // got out of focus, save the edited value
+                captureEditedDate(datePicker);
+        });
+        datePicker.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ENTER) // enter key was hit
+                captureEditedDate(datePicker);
+        });
+    }
+
+    private static void captureEditedDate(final DatePicker datePicker) {
+        try {
+            datePicker.setValue(datePicker.getConverter().fromString(datePicker.getEditor().getText()));
+        } catch(DateTimeParseException e) {
+            // invalid edited date, use the current value
+            datePicker.getEditor().setText(datePicker.getConverter().toString(datePicker.getValue()));
+        }
+    }
+
     // transaction can either be null, or an existing transaction
     void setMainApp(MainApp mainApp, Transaction transaction, Stage stage,
                     List<Account> accountList, Account defaultAccount,
@@ -248,6 +272,11 @@ public class EditTransactionDialogController {
                 mTransactionOrig = transaction;
         }
         mMatchInfoList = mMainApp.getMatchInfoList(mTransaction.getID());
+
+        // There is a bug in java which edited date is not automatically saved when the DatePicker object
+        // is out of focus.  So this piece code is added to do just that.
+        datePickerWorkAround(mTDatePicker);
+        datePickerWorkAround(mADatePicker);
 
         setupTransactionDialog();
     }

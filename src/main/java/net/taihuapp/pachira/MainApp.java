@@ -56,8 +56,8 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import net.taihuapp.pachira.net.taihuapp.pachira.dc.AccountDC;
-import net.taihuapp.pachira.net.taihuapp.pachira.dc.Vault;
+import net.taihuapp.pachira.dc.AccountDC;
+import net.taihuapp.pachira.dc.Vault;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 

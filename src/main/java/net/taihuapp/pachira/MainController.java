@@ -40,7 +40,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import net.taihuapp.pachira.net.taihuapp.pachira.dc.AccountDC;
+import net.taihuapp.pachira.dc.AccountDC;
 import org.apache.log4j.Logger;
 
 import javax.crypto.BadPaddingException;

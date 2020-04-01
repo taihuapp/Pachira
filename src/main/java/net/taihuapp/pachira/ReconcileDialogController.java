@@ -38,7 +38,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.BigDecimalStringConverter;
-import net.taihuapp.pachira.net.taihuapp.pachira.dc.AccountDC;
+import net.taihuapp.pachira.dc.AccountDC;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;

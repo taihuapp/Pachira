@@ -154,6 +154,7 @@
                                 <argument>755</argument>
                                 <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
                                 <argument>${project.build.directory}/runPachira.sh</argument>
+                                <argument>${project.build.directory}/runPachira.bat</argument>
                             </arguments>
                         </configuration>
                     </execution>

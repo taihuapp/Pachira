@@ -118,22 +118,20 @@ public class AutoCompletion {
                     case END:
                     case TAB:
                         return;
-                    case BACK_SPACE:
-                    case DELETE:
-                        if (textField.getText() != null) {
+                    default:
+                        final String s = textField.getText();
+                        final String s1 = s == null ? "" : s;
+                        if (s != null) {
                             mMoveCaretToPos = true;
                             mCaretPos = textField.getCaretPosition();
                         }
-                        // fall through
-                    default:
                         // setup filter
-                        final String s = textField.getText() == null ? "" : textField.getText();
-                        filteredMenuItems.setPredicate(t -> comparator.matches(s, t.getText()));
+                        filteredMenuItems.setPredicate(t -> comparator.matches(s1, t.getText()));
                         contextMenu.getItems().setAll(filteredMenuItems);
-                        textField.setText(s);
+                        textField.setText(s1);
                         if (!mMoveCaretToPos)
                             mCaretPos = -1;
-                        moveCaret(textField, mCaretPos, s.length());
+                        moveCaret(textField, mCaretPos, s1.length());
                         mMoveCaretToPos = false;
                         break;
                 }
@@ -193,24 +191,21 @@ public class AutoCompletion {
                     case END:
                     case TAB:
                         return;
-                    case BACK_SPACE:
-                    case DELETE:
-                        if (comboBox.getEditor().getText() != null) {
+                    default:
+                        final String s = comboBox.getEditor().getText();
+                        final String s1 = s == null ? "" : s;
+                        if (s != null) {
                             mMoveCaretToPos = true;
                             mCaretPos = comboBox.getEditor().getCaretPosition();
                         }
-                        // fall through
-                    default:
                         // setup filter
-                        final String s = comboBox.getEditor().getText() == null ? "" : comboBox.getEditor().getText();
-                        filteredList.setPredicate(t -> comparator.matches(s, t));
-                        System.err.println(comboBox.getEditor().getText() + "-" + comboBox.getEditor().getCaretPosition()+"-"+mMoveCaretToPos);
-                        comboBox.getEditor().setText(s);
+                        filteredList.setPredicate(t -> comparator.matches(s1, t));
+                        comboBox.getEditor().setText(s1);
                         if (!mMoveCaretToPos)
                             mCaretPos = -1;
-                        moveCaret(comboBox.getEditor(), mCaretPos, s.length());
+                        moveCaret(comboBox.getEditor(), mCaretPos, s1.length());
                         mMoveCaretToPos = false;
-                        if (!filteredList.isEmpty() && !s.isEmpty())
+                        if (!filteredList.isEmpty() && !s1.isEmpty())
                             comboBox.show();
                         break;
                 }

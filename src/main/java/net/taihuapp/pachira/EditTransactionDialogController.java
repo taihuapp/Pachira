@@ -735,7 +735,7 @@ public class EditTransactionDialogController {
         allSecuritySet.removeAll(accountSecuritySet);
         mSecurityComboBox.getItems().addAll(accountSecuritySet);
         mSecurityComboBox.getItems().addAll(allSecuritySet);
-        new AutoCompleteComboBoxHelper<>(mSecurityComboBox);
+        AutoCompletion.autoComplete(mSecurityComboBox);
 
         addEventFilter(mSharesTextField);
         addEventFilter(mOldSharesTextField);
@@ -756,7 +756,7 @@ public class EditTransactionDialogController {
 
         mPayeeTextField.textProperty().unbindBidirectional(mTransaction.getPayeeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
-        new AutoCompleteTextFieldHelper(mPayeeTextField, mMainApp.getPayeeSet());
+        AutoCompletion.autoComplete2(mPayeeTextField, mMainApp.getPayeeSet());
 
         // populate Tag ComboBox
         mTagComboBox.setConverter(new TagIDConverter());
@@ -764,7 +764,7 @@ public class EditTransactionDialogController {
         mTagComboBox.getItems().add(0);
         for (Tag t : mMainApp.getTagList())
             mTagComboBox.getItems().add(t.getID());
-        new AutoCompleteComboBoxHelper<>(mTagComboBox);
+        AutoCompletion.autoComplete(mTagComboBox);
         mTagComboBox.valueProperty().unbindBidirectional(mTransaction.getTagIDProperty().asObject());
         mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty().asObject());
 
@@ -774,7 +774,7 @@ public class EditTransactionDialogController {
         mCategoryComboBox.getItems().add(0); // add an blank category
         for (Category c : mMainApp.getCategoryList())
             mCategoryComboBox.getItems().add(c.getID());
-        new AutoCompleteComboBoxHelper<>(mCategoryComboBox);
+        AutoCompletion.autoComplete(mCategoryComboBox);
 
         // populate TransferAccount Combobox
         mTransferAccountComboBox.setConverter(new AccountIDConverter());

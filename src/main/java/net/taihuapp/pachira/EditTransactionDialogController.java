@@ -30,6 +30,7 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 import org.apache.log4j.Logger;
+import org.controlsfx.control.textfield.TextFields;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -723,9 +724,13 @@ public class EditTransactionDialogController {
 
     private void setupTransactionDialog() {
 
-        mSecurityComboBox.setConverter(new SecurityConverter());
+        SecurityConverter securityConverter = new SecurityConverter();
+        mSecurityComboBox.setConverter(securityConverter);
         mSecurityComboBox.getItems().clear();
-        mSecurityComboBox.getItems().add(new Security());  // add a Blank Security
+        List<String> secStrList = new ArrayList<>();
+        Security blankSecurity = new Security();
+        mSecurityComboBox.getItems().add(blankSecurity);  // add a Blank Security
+        secStrList.add(securityConverter.toString(blankSecurity));
 
         // add account current security list in the front, the list is sorted by Name
         TreeSet<Security> accountSecuritySet = new TreeSet<>(Comparator.comparing(Security::getName));
@@ -733,9 +738,15 @@ public class EditTransactionDialogController {
         TreeSet<Security> allSecuritySet = new TreeSet<>(Comparator.comparing(Security::getName));
         allSecuritySet.addAll(mMainApp.getSecurityList());
         allSecuritySet.removeAll(accountSecuritySet);
+        for (Security security : accountSecuritySet) {
+            secStrList.add(securityConverter.toString(security));
+        }
+        for (Security security : allSecuritySet) {
+            secStrList.add(securityConverter.toString(security));
+        }
         mSecurityComboBox.getItems().addAll(accountSecuritySet);
         mSecurityComboBox.getItems().addAll(allSecuritySet);
-        AutoCompletion.autoComplete(mSecurityComboBox);
+        TextFields.bindAutoCompletion(mSecurityComboBox.getEditor(), secStrList);
 
         addEventFilter(mSharesTextField);
         addEventFilter(mOldSharesTextField);
@@ -756,35 +767,55 @@ public class EditTransactionDialogController {
 
         mPayeeTextField.textProperty().unbindBidirectional(mTransaction.getPayeeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
-        AutoCompletion.autoComplete2(mPayeeTextField, mMainApp.getPayeeSet());
+        TextFields.bindAutoCompletion(mPayeeTextField, mMainApp.getPayeeSet());
 
         // populate Tag ComboBox
-        mTagComboBox.setConverter(new TagIDConverter());
+        TagIDConverter tagIDConverter = new TagIDConverter();
+        mTagComboBox.setConverter(tagIDConverter);
         mTagComboBox.getItems().clear();
+        List<String> tagStrList = new ArrayList<>();
         mTagComboBox.getItems().add(0);
-        for (Tag t : mMainApp.getTagList())
+        tagStrList.add(tagIDConverter.toString(0));
+        for (Tag t : mMainApp.getTagList()) {
             mTagComboBox.getItems().add(t.getID());
-        AutoCompletion.autoComplete(mTagComboBox);
+            tagStrList.add(tagIDConverter.toString(t.getID()));
+        }
         mTagComboBox.valueProperty().unbindBidirectional(mTransaction.getTagIDProperty().asObject());
         mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty().asObject());
+        mTagComboBox.setEditable(true);
+        TextFields.bindAutoCompletion(mTagComboBox.getEditor(), tagStrList);
 
         // populate Category ComboBox
-        mCategoryComboBox.setConverter(new CategoryIDConverter());
+        CategoryIDConverter categoryIDConverter = new CategoryIDConverter();
+        mCategoryComboBox.setConverter(categoryIDConverter);
         mCategoryComboBox.getItems().clear(); // just to be safe
+        List<String> catStrList = new ArrayList<>();
         mCategoryComboBox.getItems().add(0); // add an blank category
-        for (Category c : mMainApp.getCategoryList())
+        catStrList.add(categoryIDConverter.toString(0));
+        for (Category c : mMainApp.getCategoryList()) {
             mCategoryComboBox.getItems().add(c.getID());
-        AutoCompletion.autoComplete(mCategoryComboBox);
+            catStrList.add(categoryIDConverter.toString(c.getID()));
+        }
+        //AutoCompletion.autoComplete(mCategoryComboBox);
+        mCategoryComboBox.setEditable(true);
+        TextFields.bindAutoCompletion(mCategoryComboBox.getEditor(), catStrList);
 
         // populate TransferAccount Combobox
-        mTransferAccountComboBox.setConverter(new AccountIDConverter());
+        AccountIDConverter accountIDConverter = new AccountIDConverter();
+        mTransferAccountComboBox.setConverter(accountIDConverter);
         mTransferAccountComboBox.getItems().clear();
+        List<String> actStrList = new ArrayList<>();
         mTransferAccountComboBox.getItems().add(0); // a blank account
+        actStrList.add(accountIDConverter.toString(0));
         for (Account account : mMainApp.getAccountList(null, false, true)) {
             // get all types, non-hidden accounts, exclude deleted_account
-            if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID())
+            if (account.getID() != mAccountComboBox.getSelectionModel().getSelectedItem().getID()) {
                 mTransferAccountComboBox.getItems().add(-account.getID());
+                actStrList.add(accountIDConverter.toString(-account.getID()));
+            }
         }
+        mTransferAccountComboBox.setEditable(true);
+        TextFields.bindAutoCompletion(mTransferAccountComboBox.getEditor(), actStrList);
 
         mTradeActionChoiceBox.getSelectionModel().selectedItemProperty()
                 .addListener((ob, o, n) -> { if (n != null) setupInvestmentTransactionDialog(n); });

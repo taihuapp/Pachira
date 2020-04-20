@@ -167,7 +167,7 @@ public class MainApp extends Application {
     private Connection mConnection = null;  // todo replace Connection with a custom db class object
     private Savepoint mSavepoint = null;
 
-    private Vault mVault = new Vault();
+    private final Vault mVault = new Vault();
 
     // mTransactionList is ordered by ID.  It's important for getTransactionByID to work
     // mTransactionListSort2 is ordered by accountID, Date, and ID
@@ -177,29 +177,29 @@ public class MainApp extends Application {
                     .thenComparing(Transaction::getID));
 
     // we want to watch the change of hiddenflag and displayOrder
-    private ObservableList<Account> mAccountList = FXCollections.observableArrayList(
+    private final ObservableList<Account> mAccountList = FXCollections.observableArrayList(
             a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(),
                     a.getCurrentBalanceProperty() });
-    private ObservableList<AccountDC> mAccountDCList = FXCollections.observableArrayList();
-    private ObservableList<Tag> mTagList = FXCollections.observableArrayList();
-    private ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
-    private ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
-    private ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
-    private ObservableList<DirectConnection.FIData> mFIDataList = FXCollections.observableArrayList();
-    private ObservableList<DirectConnection> mDCInfoList = FXCollections.observableArrayList();
+    private final ObservableList<AccountDC> mAccountDCList = FXCollections.observableArrayList();
+    private final ObservableList<Tag> mTagList = FXCollections.observableArrayList();
+    private final ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
+    private final ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
+    private final ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
+    private final ObservableList<DirectConnection.FIData> mFIDataList = FXCollections.observableArrayList();
+    private final ObservableList<DirectConnection> mDCInfoList = FXCollections.observableArrayList();
 
-    private SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
+    private final SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
 
     private final Map<Integer, Reminder> mReminderMap = new HashMap<>();
 
     private final ObservableList<ReminderTransaction> mReminderTransactionList = FXCollections.observableArrayList();
 
-    private ObjectProperty<Account> mCurrentAccountProperty = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<Account> mCurrentAccountProperty = new SimpleObjectProperty<>(null);
     ObjectProperty<Account> getCurrentAccountProperty() { return mCurrentAccountProperty; }
     void setCurrentAccount(Account a) { mCurrentAccountProperty.set(a); }
     Account getCurrentAccount() { return mCurrentAccountProperty.get(); }
 
-    private BooleanProperty mHasMasterPasswordProperty = new SimpleBooleanProperty(false);
+    private final BooleanProperty mHasMasterPasswordProperty = new SimpleBooleanProperty(false);
 
     ObservableList<AccountDC> getAccountDCList() { return mAccountDCList; }
     AccountDC getAccountDC(int accountID) {
@@ -2900,7 +2900,7 @@ public class MainApp extends Application {
             dialogStage.initOwner(parent);
             dialogStage.setScene(new Scene(loader.load()));
 
-            EditTransactionDialogController controller = loader.getController();
+            EditTransactionDialogControllerNew controller = loader.getController();
             controller.setMainApp(this, transaction, dialogStage, accountList, defaultAccount, taList);
             dialogStage.showAndWait();
             return controller.getTransactionID();

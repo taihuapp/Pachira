@@ -472,6 +472,7 @@ public class Transaction {
     // setters
     void setID(int id) { mID = id; }
     void setAccountID(int aid) { mAccountID = aid; }
+    void setADate(LocalDate aDate) { getADateProperty().set(aDate); }
     void setMatchID(int mid, int mSplitID) {
         mMatchID = mid;
         mMatchSplitID = mSplitID;
@@ -481,8 +482,11 @@ public class Transaction {
         getAmountProperty().set(amt);
     }
     void setPayee(String payee) { getPayeeProperty().set(payee); }
-
     void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
+    void setOldQuantity(BigDecimal q) { mOldQuantityProperty.set(q); }
+    void setAccruedInterest(BigDecimal ai) { mAccuedInterestProperty.set(ai); }
+    void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
+    void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
     void setMemo(String memo) { mMemoProperty.set(memo); }
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }

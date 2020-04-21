@@ -656,7 +656,7 @@ public class EditTransactionDialogControllerNew {
                 if (st.getCategoryID() <= -MainApp.MIN_ACCOUNT_ID && st.getAmount().compareTo(BigDecimal.ZERO) != 0) {
                     // this is a non-zero amount transfer
                     Transaction stLinkedT = new Transaction(-st.getCategoryID(), dbCopyT.getTDate(),
-                            st.getAmount().compareTo(BigDecimal.ZERO) > 0 ? XOUT : XIN, -categoryID);
+                            st.getAmount().compareTo(BigDecimal.ZERO) > 0 ? XOUT : XIN, -dbCopyT.getAccountID());
                     stLinkedT.setID(st.getMatchID());
                     stLinkedT.setAmount(st.getAmount().abs()); // st amount carries sign, stLinedT doesn't
                     stLinkedT.setPayee(st.getPayee());

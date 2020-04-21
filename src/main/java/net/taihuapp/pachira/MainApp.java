@@ -4277,6 +4277,9 @@ public class MainApp extends Application {
                     }
                 }
 
+                // update MatchTransactionID in splitTransactions
+                insertUpdateSplitTransactionsToDB(newT.getID(), newT.getSplitTransactionList());
+
                 // update price for involved security
                 security = newT.getSecurityName() == null ? null :
                         getSecurityByName(newT.getSecurityName());

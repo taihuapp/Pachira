@@ -34,7 +34,6 @@ import org.controlsfx.control.textfield.TextFields;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -540,6 +539,24 @@ public class EditTransactionDialogControllerNew {
         Platform.runLater(() -> mTradeActionChoiceBox.requestFocus());
     }
 
+    // enter transaction to database and master list
+    // return true of successful, false otherwise
+    private boolean enterTransaction() {
+        // accountID is not automatically updated, update now
+        mTransaction.setAccountID(mAccountComboBox.getSelectionModel().getSelectedItem().getID());
+
+        // clean data attached to invisible controls
+        cleanInvisibleControlData();
+
+        // validate transaction now
+        if (!validateTransaction())
+            return false;
+
+        // most work is done by alterTransaction method
+        return mMainApp.alterTransaction(mTransactionOrig, new Transaction(mTransaction), mMatchInfoList);
+    }
+
+/*
     private boolean enterTransaction() {
         // clean data attached to invisible controls
         cleanInvisibleControlData();
@@ -762,6 +779,7 @@ public class EditTransactionDialogControllerNew {
         // we're done
         return true;
     }
+*/
 
     // maybe this logic should be moved to Transaction class
     private boolean validateTransaction() {
@@ -945,6 +963,9 @@ public class EditTransactionDialogControllerNew {
         if (enterTransaction()) {
             mTransaction.setID(0);
             mTransaction.setMatchID(-1, -1);
+            mTransaction.getSplitTransactionList().clear();
+            mMatchInfoList.clear();
+            mSplitTransactionListChanged = false;
             mTransactionOrig = null;
             handleClear();
             mTradeActionChoiceBox.requestFocus();

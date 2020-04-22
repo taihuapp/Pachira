@@ -402,8 +402,10 @@ public class EditTransactionDialogControllerNew {
         autoCompleteComboBox(mSecurityComboBox);
         mSecurityComboBox.visibleProperty().bind(mReferenceTextField.visibleProperty().not());
         mSecurityNameLabel.visibleProperty().bind(mSecurityComboBox.visibleProperty());
+        Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
         Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(), mSecurityComboBox.valueProperty(),
                 mSecurityComboBox.getConverter());
+        mSecurityComboBox.getSelectionModel().select(currentSecurity);
 
         // payee, same visibility as reference
         TextFields.bindAutoCompletion(mPayeeTextField, mMainApp.getPayeeSet());
@@ -474,8 +476,9 @@ public class EditTransactionDialogControllerNew {
                         subTotal = amount.subtract(commission).subtract(accruedInterest);
                     final BigDecimal price = subTotal.divide(quantity, MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                     return BIGDECIMALSTRINGCONVERTER.toString(price);
-                }, mTradeActionChoiceBox.valueProperty(), mTotalTextField.textProperty(), mSharesTextField.textProperty(),
-                mCommissionTextField.textProperty(), mAccruedInterestTextField.textProperty()));
+                }, mTransaction.getTradeActionProperty(), mTransaction.getAmountProperty(),
+                mTransaction.getQuantityProperty(), mTransaction.getCommissionProperty(),
+                mTransaction.getAccruedInterestProperty()));
         mPriceLabel.visibleProperty().bind(mPriceTextField.visibleProperty());
 
         // commission, same visibility as price

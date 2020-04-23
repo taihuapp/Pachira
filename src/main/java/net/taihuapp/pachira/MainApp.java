@@ -853,8 +853,10 @@ public class MainApp extends Application {
             if (t.getID() > 0)
                 preparedStatement.setInt(22, t.getID());
 
-            if (preparedStatement.executeUpdate() == 0)
-                throw(new SQLException("Failure: " + sqlCmd));
+            if (preparedStatement.executeUpdate() == 0) {
+                String message = t.getID() > 0 ? ("Update transaction " + t.getID()) : "Insert transaction";
+                throw (new SQLException(message + " failed. " + sqlCmd));
+            }
 
             if (t.getID() <= 0) {
                 try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
@@ -4393,6 +4395,8 @@ public class MainApp extends Application {
         } catch (SQLException e) {
             try {
                 mLogger.error("SQLException: " + e.getSQLState(), e);
+                showExceptionDialog("SQLException", "Datebase error, no changes are made",
+                        SQLExceptionToString(e), e);
                 rollbackDB();
             } catch (SQLException e1) {
                 mLogger.error("SQLException: " + e1.getSQLState(), e1);

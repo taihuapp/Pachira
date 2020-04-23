@@ -4247,7 +4247,9 @@ public class MainApp extends Application {
                     newLinkedT.setAmount(newT.getAmount());
                     newLinkedT.setMemo(newT.getMemo());
                     newLinkedT.setPayee(newPayee);
+
                     newT.setMatchID(insertUpdateTransactionToDB(newLinkedT), -1);
+                    insertUpdateTransactionToDB(newT);
 
                     updateTSet.add(newLinkedT);
                     accountIDSet.add(newLinkedT.getAccountID());

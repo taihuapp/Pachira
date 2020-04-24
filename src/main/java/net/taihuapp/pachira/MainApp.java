@@ -4251,11 +4251,14 @@ public class MainApp extends Application {
                     newLinkedT.setPayee(newPayee);
 
                     newT.setMatchID(insertUpdateTransactionToDB(newLinkedT), -1);
-                    insertUpdateTransactionToDB(newT);
 
                     updateTSet.add(newLinkedT);
                     accountIDSet.add(newLinkedT.getAccountID());
+                } else {
+                    // non transfer, make sure it's not linked to anything
+                    newT.setMatchID(-1, -1);
                 }
+                insertUpdateTransactionToDB(newT);  // update MatchID for newT in DB
 
                 // handle transfer in split transaction
                 for (SplitTransaction st : newT.getSplitTransactionList()) {

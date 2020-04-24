@@ -236,8 +236,9 @@ public class EditTransactionDialogControllerNew {
         mDialogStage = stage;
 
         mTransactionOrig = transaction;
-        mTransaction = Objects.requireNonNullElseGet(transaction, () -> new Transaction(defaultAccount.getID(),
-                LocalDate.now(), defaultAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0));
+        mTransaction = transaction != null ? new Transaction(transaction) :
+                new Transaction(defaultAccount.getID(), LocalDate.now(),
+                        defaultAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
         mMatchInfoList = mainApp.getMatchInfoList(mTransaction.getID());
 
         // setup controls
@@ -801,8 +802,8 @@ public class EditTransactionDialogControllerNew {
             }
             if (mMainApp.getAccountByID(-categoryID) == null
                     && mTransaction.getSplitTransactionList().isEmpty()) {
-                mLogger.warn("Invalid transfer account");
-                showWarningDialog("Invalid transfer account",
+                mLogger.warn("Invalid transfer account, ID = " + (-categoryID));
+                showWarningDialog("Invalid transfer account, ID = " + (-categoryID),
                         "Please select a valid transfer account");
                 return false;
             }

@@ -780,8 +780,8 @@ public class EditTransactionDialogController {
             mTagComboBox.getItems().add(t.getID());
             tagStrList.add(tagIDConverter.toString(t.getID()));
         }
-        mTagComboBox.valueProperty().unbindBidirectional(mTransaction.getTagIDProperty().asObject());
-        mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty().asObject());
+        mTagComboBox.valueProperty().unbindBidirectional(mTransaction.getTagIDProperty());
+        mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty());
         mTagComboBox.setEditable(true);
         TextFields.bindAutoCompletion(mTagComboBox.getEditor(), tagStrList);
 
@@ -1067,7 +1067,7 @@ public class EditTransactionDialogController {
         Bindings.unbindBidirectional(mCategoryComboBox.valueProperty(), mTransaction.getCategoryIDProperty());
         if (mTransferAccountComboBox.isVisible()) {
             Bindings.bindBidirectional(mTransferAccountComboBox.valueProperty(),
-                    mTransaction.getCategoryIDProperty().asObject());
+                    mTransaction.getCategoryIDProperty());
         } else {
             mTransferAccountComboBox.getSelectionModel().selectFirst(); // make sure it selects something not null
         }
@@ -1075,7 +1075,7 @@ public class EditTransactionDialogController {
         if (mCategoryComboBox.isVisible()) {
             int cid = mTransaction.getCategoryID();
             Bindings.bindBidirectional(mCategoryComboBox.valueProperty(),
-                    mTransaction.getCategoryIDProperty().asObject());
+                    mTransaction.getCategoryIDProperty());
             mCategoryComboBox.getSelectionModel().select(Integer.valueOf(cid));
         } else {
             mCategoryComboBox.getSelectionModel().selectFirst();  // make sure it selects something not null

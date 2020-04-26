@@ -319,7 +319,7 @@ public class EditTransactionDialogControllerNew {
                     return "Put Cash Into:";
             }
         }, mTradeActionChoiceBox.valueProperty()));
-        mTransferAccountComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty().asObject());
+        mTransferAccountComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
 
         // category comboBox
         mCategoryComboBox.setConverter(new StringConverter<>() {
@@ -341,7 +341,7 @@ public class EditTransactionDialogControllerNew {
         autoCompleteComboBox(mCategoryComboBox);
         mCategoryComboBox.visibleProperty().bind(mTransferAccountComboBox.visibleProperty().not());
         mCategoryLabel.visibleProperty().bind(mCategoryComboBox.visibleProperty());
-        mCategoryComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty().asObject());
+        mCategoryComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
 
         // memo always visible
         mMemoTextField.textProperty().bindBidirectional(mTransaction.getMemoProperty());
@@ -372,7 +372,7 @@ public class EditTransactionDialogControllerNew {
         autoCompleteComboBox(mTagComboBox);
         mTagComboBox.setVisible(defaultAccount.getType() != Account.Type.INVESTING);
         mTagLabel.setVisible(defaultAccount.getType() != Account.Type.INVESTING);
-        mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty().asObject());
+        mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty());
 
         // reference
         mReferenceTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {

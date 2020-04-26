@@ -103,7 +103,7 @@ public class Transaction {
         XFRSHRS("Shares Transferred"), XIN("Cash Transferred In"), XOUT("Cash Transferred Out"),
         DEPOSIT("Deposit"), WITHDRAW("Withdraw");
 
-        private String mValue;
+        private final String mValue;
         TradeAction(String v) { mValue = v; }
 
         @Override
@@ -126,8 +126,8 @@ public class Transaction {
     private transient ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private transient ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
-    private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
-    private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
+    private final ObjectProperty<Integer> mCategoryIDProperty = new SimpleObjectProperty<>(0);
+    private final ObjectProperty<Integer> mTagIDProperty = new SimpleObjectProperty<>(0);
     private final ObjectProperty<BigDecimal> mBalanceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     // investment amount, derived from total amount
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -152,9 +152,8 @@ public class Transaction {
     String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
     String getMemo() { return getMemoProperty().get(); }
-    IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
-    IntegerProperty getTagIDProperty() { return mTagIDProperty; }
-
+    ObjectProperty<Integer> getCategoryIDProperty() { return mCategoryIDProperty; }
+    ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
     ObjectProperty<BigDecimal> getInvestAmountProperty() { return mInvestAmountProperty; }
     ObjectProperty<BigDecimal> getCashAmountProperty() { return mCashAmountProperty; }

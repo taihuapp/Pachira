@@ -339,7 +339,11 @@ public class EditTransactionDialogControllerNew {
         for (Category category : mainApp.getCategoryList())
             mCategoryComboBox.getItems().addAll(category.getID());
         autoCompleteComboBox(mCategoryComboBox);
-        mCategoryComboBox.visibleProperty().bind(mTransferAccountComboBox.visibleProperty().not());
+        // category combobox only visible for DEPOSIT or WITHDRAW
+        mCategoryComboBox.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
+            final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
+            return ta == DEPOSIT || ta == WITHDRAW;
+        }, mTradeActionChoiceBox.valueProperty()));
         mCategoryLabel.visibleProperty().bind(mCategoryComboBox.visibleProperty());
         mCategoryComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
 

@@ -156,6 +156,10 @@ public class EditTransactionDialogControllerNew {
         if (!mADatePicker.isVisible())
             mTransaction.setADate(mTransaction.getTDate());
 
+        if ((!mCategoryComboBox.isVisible() && mTransaction.getCategoryID() > 0)
+            || (!mTransferAccountComboBox.isVisible() && mTransaction.getCategoryID() < 0))
+            mTransaction.setCategoryID(0);
+
         if (!mSplitTransactionButton.isVisible())
             mTransaction.getSplitTransactionList().clear();
 
@@ -692,10 +696,36 @@ public class EditTransactionDialogControllerNew {
         List<SplitTransaction> outSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage,
                 mTransaction.getSplitTransactionList(), mTransaction.getPayment().subtract(mTransaction.getDeposit()));
 
-        if (outSplitTransactionList != null) {
-            mSplitTransactionListChanged = true;
-            mTransaction.setSplitTransactionList(outSplitTransactionList);
+        if (outSplitTransactionList == null) {
+            // it was cancelled. do nothing
+            return;
         }
+
+        if (outSplitTransactionList.size() == 1) {
+            // we really need at least 2 to split
+            SplitTransaction st = outSplitTransactionList.get(0);
+            mTransaction.getCategoryIDProperty().set(st.getCategoryID());
+            mTransaction.setMemo(st.getMemo());
+            mTransaction.setPayee(st.getPayee());
+            mTransaction.setMatchID(st.getMatchID(),-1);
+
+            if (st.isTransfer(mTransaction.getID())) {
+                if (st.getAmount().compareTo(BigDecimal.ZERO) >= 0)
+                    mTransaction.getTradeActionProperty().set(XIN);
+                else
+                    mTransaction.getTradeActionProperty().set(XOUT);
+            } else {
+                if (st.getAmount().compareTo(BigDecimal.ZERO) >= 0)
+                    mTransaction.getTradeActionProperty().set(DEPOSIT);
+                else
+                    mTransaction.getTradeActionProperty().set(WITHDRAW);
+            }
+            // do really need split
+            outSplitTransactionList.clear();
+        }
+
+        mSplitTransactionListChanged = true;
+        mTransaction.setSplitTransactionList(outSplitTransactionList);
 
         if (!mTransaction.getSplitTransactionList().isEmpty()) {
             // has split, unset category or transfer

@@ -488,7 +488,7 @@ public class Transaction {
     void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
     void setMemo(String memo) { mMemoProperty.set(memo); }
     void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
-    private void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
+    void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
     void setTagID(int tid) { mTagIDProperty.set(tid); }
     void setSplitTransactionList(List<SplitTransaction> stList) {
         mSplitTransactionList.clear();

@@ -186,6 +186,26 @@ public class EditTransactionDialogControllerNew {
 
         if (!mSpecifyLotButton.isVisible())
             mMatchInfoList.clear();
+        else {
+            // even if specify lot button is visible, but if the lot info is not
+            // valid, still clear is.
+            boolean isOK = true;
+            BigDecimal totalQuantity = BigDecimal.ZERO;
+            for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+                Transaction transaction = mMainApp.getTransactionByID(mi.getMatchTransactionID());
+                if (!transaction.getTDate().isBefore(mTransaction.getTDate())
+                        || !transaction.getSecurityName().equals(mTransaction.getSecurityName())) {
+                    isOK = false;  // this is not good.
+                    break;
+                }
+                totalQuantity = totalQuantity.add(mi.getMatchQuantity());
+            }
+            if (totalQuantity.compareTo(mTransaction.getQuantity()) != 0)
+                isOK = false;
+
+            if (!isOK)
+                mMatchInfoList.clear();
+        }
     }
 
     private static <T> void autoCompleteComboBox(ComboBox<T> comboBox) {

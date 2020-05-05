@@ -4214,9 +4214,6 @@ public class MainApp extends Application {
                 // insert/update MatchInfo to database
                 putMatchInfoList(newTID, newMatchInfoList);
 
-                updateTSet.add(newT);
-                accountIDSet.add(newT.getAccountID());
-
                 // handle transfer
                 if(-newT.getCategoryID() >= MIN_ACCOUNT_ID && !newT.isSplit()) {
                     // transfer transaction, no split
@@ -4258,7 +4255,6 @@ public class MainApp extends Application {
                     // non transfer, make sure it's not linked to anything
                     newT.setMatchID(-1, -1);
                 }
-                insertUpdateTransactionToDB(newT);  // update MatchID for newT in DB
 
                 // handle transfer in split transaction
                 for (SplitTransaction st : newT.getSplitTransactionList()) {
@@ -4284,8 +4280,10 @@ public class MainApp extends Application {
                     }
                 }
 
-                // update MatchTransactionID in splitTransactions
-                insertUpdateSplitTransactionsToDB(newT.getID(), newT.getSplitTransactionList());
+                insertUpdateTransactionToDB(newT);  // update MatchID for newT in DB
+
+                updateTSet.add(new Transaction(newT));  // add a copy of newT to master list
+                accountIDSet.add(newT.getAccountID());
 
                 // update price for involved security
                 security = newT.getSecurityName() == null ? null :
@@ -5202,7 +5200,9 @@ public class MainApp extends Application {
 
     @Override
     public void stop() {
-        closeConnection();
+        closeConnection();  // close database connection if any.
+        Platform.exit(); // this shutdown JavaFX
+        System.exit(0);  // this is needed to stop any timer tasks not otherwise stopped.
     }
 
     @Override

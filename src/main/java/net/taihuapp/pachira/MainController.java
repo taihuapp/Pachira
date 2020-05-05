@@ -479,7 +479,8 @@ public class MainController {
 
     @FXML
     private void handleClose() {
-        Platform.exit();
+        // call MainApp.stop
+        mMainApp.stop();
     }
 
     @FXML

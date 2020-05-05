@@ -44,7 +44,12 @@ import static net.taihuapp.pachira.Transaction.TradeAction.*;
 public class EditTransactionDialogControllerNew {
     private static final Logger mLogger = Logger.getLogger(EditTransactionDialogControllerNew.class);
 
-    private static final BigDecimalStringConverter BIGDECIMALSTRINGCONVERTER = new BigDecimalStringConverter();
+    private static final BigDecimalStringConverter BIGDECIMALSTRINGCONVERTER = new BigDecimalStringConverter() {
+        public BigDecimal fromString(String s) {
+            BigDecimal b = super.fromString(s);
+            return b == null ? BigDecimal.ZERO : b;
+        }
+    };
     private static final BigDecimalStringConverter DOLLARCENTSTRINGCONVERTER = new BigDecimalStringConverter() {
         public String toString(BigDecimal b) {
             return b == null ? "" : MainApp.DOLLAR_CENT_FORMAT.format(b);
@@ -243,9 +248,9 @@ public class EditTransactionDialogControllerNew {
         MainApp.showWarningDialog("Warning", header, content);
     }
 
-    // return the original transaction ID or -1
+    // return ID for mTransaction
     int getTransactionID() {
-        return mTransactionOrig == null ? -1 : mTransactionOrig.getID();
+        return mTransaction.getID();
     }
 
     // The input transaction is not altered
@@ -585,7 +590,7 @@ public class EditTransactionDialogControllerNew {
             return false;
 
         // most work is done by alterTransaction method
-        return mMainApp.alterTransaction(mTransactionOrig, new Transaction(mTransaction), mMatchInfoList);
+        return mMainApp.alterTransaction(mTransactionOrig, mTransaction, mMatchInfoList);
     }
 
     // maybe this logic should be moved to Transaction class

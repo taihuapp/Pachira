@@ -264,10 +264,14 @@ public class EditTransactionDialogControllerNew {
         mMainApp = mainApp;
         mDialogStage = stage;
 
-        mTransactionOrig = transaction;
-        mTransaction = transaction != null ? new Transaction(transaction) :
-                new Transaction(defaultAccount.getID(), LocalDate.now(),
-                        defaultAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
+        if (transaction == null) {
+            mTransactionOrig = transaction;
+            mTransaction = new Transaction(defaultAccount.getID(), LocalDate.now(),
+                    defaultAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
+        } else {
+            mTransactionOrig = transaction.getID() > 0 ? transaction : null;
+            mTransaction = new Transaction(transaction);
+        }
         mMatchInfoList = mainApp.getMatchInfoList(mTransaction.getID());
 
         // setup controls
@@ -568,7 +572,7 @@ public class EditTransactionDialogControllerNew {
         // to enter-done, don't even show enter-new button.
         // either we are editing an existing transaction or
         // enter an reminder transaction, don't do enter-new
-        boolean defaultEnterDone = mTransactionOrig != null;
+        boolean defaultEnterDone = transaction != null;
         mEnterDoneButton.setDefaultButton(defaultEnterDone);
         mEnterNewButton.setDefaultButton(!defaultEnterDone);
         mEnterNewButton.setVisible(!defaultEnterDone);

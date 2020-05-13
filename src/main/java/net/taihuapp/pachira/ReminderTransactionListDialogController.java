@@ -124,24 +124,11 @@ public class ReminderTransactionListDialogController {
     private void handleEnter() {
         ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
         Reminder reminder = rt.getReminder();
-        Transaction.TradeAction ta;
-        switch (reminder.getType()) {
-            case PAYMENT:
-                ta = Transaction.TradeAction.WITHDRAW;
-                break;
-            case TRANSFER:
-                ta = Transaction.TradeAction.XOUT;
-                break;
-            case DEPOSIT:
-            default:
-                ta = Transaction.TradeAction.DEPOSIT;
-                break;
-        }
+        Transaction.TradeAction ta = reminder.getType() == Reminder.Type.PAYMENT ?
+                Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT;
 
         int accountID = reminder.getAccountID();
-        Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta,
-                ta == Transaction.TradeAction.XOUT ? -reminder.getTransferAccountID()
-                        : reminder.getCategoryID());
+        Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta, reminder.getCategoryID());
         transaction.setAmount(reminder.getAmount());
         transaction.setPayee(reminder.getPayee());
         transaction.setMemo(reminder.getMemo());
@@ -284,7 +271,7 @@ public class ReminderTransactionListDialogController {
                     + ds.getBaseUnit().toString().toLowerCase());
         });
 
-        mTagTableColumn.setCellValueFactory(cd -> cd.getValue().getReminder().getTagIDProperty().asObject());
+        mTagTableColumn.setCellValueFactory(cd -> cd.getValue().getReminder().getTagIDProperty());
         mTagTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override
             protected void updateItem(Integer item, boolean empty) {

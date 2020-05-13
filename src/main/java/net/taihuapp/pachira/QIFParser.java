@@ -302,10 +302,10 @@ class QIFParser {
         private String mCheckNumber = ""; // check number or ref, such as ATM, etc, so string is used
         private String mPayee = "";
         private String mMemo = "";
-        private List<String> mAddressList; // QIF says up to 6 lines.
+        private final List<String> mAddressList; // QIF says up to 6 lines.
         private String mCategory; // L line if matches [*], then transfer, otherwise, category
         private String mTag; // L line may contain tag as well
-        private List<SplitBT> mSplitList;
+        private final List<SplitBT> mSplitList;
         private String[] mAmortizationLines;
 
         // default constructor
@@ -469,7 +469,7 @@ class QIFParser {
         enum Action { BUY, CGLONG, CGMID, CGSHORT, DIV, INTINC, MISCEXP,
             MISCINC, REINVDIV, REINVINT, REINVLG, REINVMD, REINVSH,
             RTRNCAP, RTRNCAPX, SELL, SHRSIN, SHRSOUT, SHTSELL, SHTSELLX,
-            STKSPLIT, XIN, XOUT, DEPOSIT, WITHDRAW //, WITHDRWX
+            STKSPLIT, DEPOSIT, WITHDRAW
         }
 
         private String mAccountName;
@@ -630,20 +630,20 @@ class QIFParser {
                                 tt.getCategoryOrTransfer().startsWith("[") &&
                                 tt.getCategoryOrTransfer().endsWith("]");
                         if (tAmount != null && tAmount.signum() < 0) {
-                            actionStr = isTransfer ? "XOUT" : "WITHDRAW";
+                            actionStr = "WITHDRAW";
                             tt.setTAmount(tAmount.negate());
                             BigDecimal uAmount = tt.getUAmount();
                             if (uAmount != null)
                                 tt.setUAmount(uAmount.negate());
                         } else {
-                            actionStr = isTransfer ? "XIN" : "DEPOSIT";
+                            actionStr = "DEPOSIT";
                         }
                         break;
                     case "CONTRIBX":
-                        actionStr = "XIN";
+                        actionStr = "DEPOSIT";
                         break;
                     case "WITHDRWX":
-                        actionStr = "XOUT";
+                        actionStr = "WITHDRAW";
                         break;
                 }
                 tt.setAction(Action.valueOf(actionStr));
@@ -770,15 +770,15 @@ class QIFParser {
                 }
             } else {
                 int whole, num, den, idx1;
-                den = Integer.valueOf(tokens[1].substring(idx0 + 1));
+                den = Integer.parseInt(tokens[1].substring(idx0 + 1));
                 idx1 = tokens[1].indexOf(' ');
                 if (idx1 == -1) {
                     // no space
                     whole = 0;
-                    num = Integer.valueOf(tokens[1].substring(0,idx0));
+                    num = Integer.parseInt(tokens[1].substring(0,idx0));
                 } else {
-                    whole = Integer.valueOf(tokens[1].substring(0, idx1));
-                    num = Integer.valueOf(tokens[1].substring(idx1+1, idx0));
+                    whole = Integer.parseInt(tokens[1].substring(0, idx1));
+                    num = Integer.parseInt(tokens[1].substring(idx1+1, idx0));
                 }
                 price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den),
                         MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP)));
@@ -787,15 +787,15 @@ class QIFParser {
         }
     }
 
-    private String mDefaultAccountName;
-    private List<Account> mAccountList;
-    private Set<Category> mCategorySet;
-    private Set<Tag> mTagSet;
-    private List<Security> mSecurityList;
-    private List<BankTransaction> mBankTransactionList;
-    private List<TradeTransaction> mTradeTransactionList;
-    private List<MemorizedTransaction> mMemorizedTransactionList;
-    private List<Price> mPriceList;
+    private final String mDefaultAccountName;
+    private final List<Account> mAccountList;
+    private final Set<Category> mCategorySet;
+    private final Set<Tag> mTagSet;
+    private final List<Security> mSecurityList;
+    private final List<BankTransaction> mBankTransactionList;
+    private final List<TradeTransaction> mTradeTransactionList;
+    private final List<MemorizedTransaction> mMemorizedTransactionList;
+    private final List<Price> mPriceList;
 
     private void matchTransferTransaction() {
         // TODO: 4/6/16

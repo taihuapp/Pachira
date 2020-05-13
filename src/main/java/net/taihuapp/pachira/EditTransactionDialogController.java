@@ -43,7 +43,7 @@ import java.util.*;
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class EditTransactionDialogController {
-
+/*
     private static final Logger mLogger = Logger.getLogger(EditTransactionDialogController.class);
 
     private class TagIDConverter extends StringConverter<Integer> {
@@ -1150,4 +1150,6 @@ public class EditTransactionDialogController {
         mTotalTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
                 new MyBigDecimalStringConverter());
     }
+
+*/
 }

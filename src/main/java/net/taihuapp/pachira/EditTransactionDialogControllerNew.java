@@ -20,8 +20,13 @@
 
 package net.taihuapp.pachira;
 
+import impl.org.controlsfx.autocompletion.AutoCompletionTextFieldBinding;
+import impl.org.controlsfx.autocompletion.SuggestionProvider;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
@@ -38,6 +43,7 @@ import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.function.Predicate;
 
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
@@ -66,6 +72,51 @@ public class EditTransactionDialogControllerNew {
         }
     };
 
+    static class CategoryTransferAccountIDComboBoxWrapper {
+        private final ComboBox<Integer> mComboBox;
+        private final FilteredList<Integer> mFilteredCTIDList;
+        private final SuggestionProvider<String> mProvider;
+
+        // the converter should be set on the comboBox
+        CategoryTransferAccountIDComboBoxWrapper(final ComboBox<Integer> comboBox, ObservableList<Integer> idList) {
+            mComboBox = comboBox;
+            mFilteredCTIDList = new FilteredList<>(idList);
+            mComboBox.getItems().setAll(mFilteredCTIDList);
+
+            // set autocompletion
+            mComboBox.setEditable(true);
+            List<String> strList = new ArrayList<>();
+            for (Integer integer : mFilteredCTIDList) {
+                strList.add(mComboBox.getConverter().toString(integer));
+            }
+            mProvider = SuggestionProvider.create(strList);
+            new AutoCompletionTextFieldBinding<>(comboBox.getEditor(), mProvider);
+        }
+
+        void setFilter(boolean excludeCategory, int excludeAID) {
+            Predicate<Integer> p;
+            if (excludeCategory) {
+                if (excludeAID < 0)
+                    p = i -> i <= 0;
+                else
+                    p = i -> i <= 0 && i != -excludeAID;
+            } else {
+                if (excludeAID < 0)
+                    p = i -> true;
+                else
+                    p = i -> i != -excludeAID;
+            }
+            mFilteredCTIDList.setPredicate(p);
+            mComboBox.getItems().setAll(mFilteredCTIDList);
+            List<String> strList = new ArrayList<>();
+            for (Integer integer : mFilteredCTIDList) {
+                strList.add(mComboBox.getConverter().toString(integer));
+            }
+            mProvider.clearSuggestions();
+            mProvider.addPossibleSuggestions(strList);
+        }
+    }
+
     @FXML
     private ChoiceBox<Transaction.TradeAction> mTradeActionChoiceBox;
     @FXML
@@ -77,13 +128,10 @@ public class EditTransactionDialogControllerNew {
     @FXML
     private ComboBox<Account> mAccountComboBox;
     @FXML
-    private Label mTransferAccountLabel;
-    @FXML
-    private ComboBox<Integer> mTransferAccountComboBox;
-    @FXML
     private Label mCategoryLabel;
     @FXML
     private ComboBox<Integer> mCategoryComboBox;
+    private CategoryTransferAccountIDComboBoxWrapper mCategoryComboBoxWrapper;
     @FXML
     private Label mTagLabel;
     @FXML
@@ -161,8 +209,7 @@ public class EditTransactionDialogControllerNew {
         if (!mADatePicker.isVisible())
             mTransaction.setADate(mTransaction.getTDate());
 
-        if ((!mCategoryComboBox.isVisible() && mTransaction.getCategoryID() > 0)
-            || (!mTransferAccountComboBox.isVisible() && mTransaction.getCategoryID() < 0))
+        if ((!mCategoryComboBox.isVisible()))
             mTransaction.setCategoryID(0);
 
         if (!mSplitTransactionButton.isVisible())
@@ -265,7 +312,7 @@ public class EditTransactionDialogControllerNew {
         mDialogStage = stage;
 
         if (transaction == null) {
-            mTransactionOrig = transaction;
+            mTransactionOrig = null;
             mTransaction = new Transaction(defaultAccount.getID(), LocalDate.now(),
                     defaultAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
         } else {
@@ -279,6 +326,13 @@ public class EditTransactionDialogControllerNew {
         // trade action always visible
         mTradeActionChoiceBox.getItems().setAll(taList);
         mTradeActionChoiceBox.valueProperty().bindBidirectional(mTransaction.getTradeActionProperty());
+        mTradeActionChoiceBox.valueProperty().addListener((obs, ov, nv) -> {
+            final Account account = mAccountComboBox.getValue();
+            if (nv == null || account == null || mCategoryComboBoxWrapper == null)
+                return;
+
+            mCategoryComboBoxWrapper.setFilter(nv != DEPOSIT && nv != WITHDRAW, account.getID());
+        });
 
         // trade date always visible
         captureEditedDate(mTDatePicker);
@@ -307,77 +361,63 @@ public class EditTransactionDialogControllerNew {
             // setup autocompletion if more than one account
             autoCompleteComboBox(mAccountComboBox);
         }
+        mAccountComboBox.valueProperty().addListener((obs, ov, nv) -> {
+            final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
+            if (nv == null || ta == null || mCategoryComboBoxWrapper == null)
+                return;
+
+            mCategoryComboBoxWrapper.setFilter(ta != DEPOSIT && ta != WITHDRAW, nv.getID());
+        });
         // mAccountComboBox is NOT bind to transaction accountId property because
         // transaction doesn't have account
         mAccountComboBox.getSelectionModel().select(defaultAccount);
 
-        // Transfer account comboBox
-        mTransferAccountComboBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Integer integer) {
-                Account account = mainApp.getAccountByID(-integer); // negative
-                return account == null ? "" : account.getName();
-            }
-
-            @Override
-            public Integer fromString(String s) {
-                Account account = mainApp.getAccountByName(s);
-                return account == null ? 0 : -account.getID();  // negative
-            }
-        });
-        mTransferAccountComboBox.getItems().add(0); // add an blank account first
-        for (Account account : mainApp.getAccountList(null, false, true)) {
-            if (account.getID() != defaultAccount.getID())
-                mTransferAccountComboBox.getItems().add(-account.getID());  // negative
-        }
-        autoCompleteComboBox(mTransferAccountComboBox);
-        mTransferAccountComboBox.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
-            final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-            return (ta != STKSPLIT && ta != DEPOSIT && ta != WITHDRAW && ta != SHRSIN && ta != SHRSOUT
-                    && ta != REINVDIV && ta != REINVINT && ta != REINVLG && ta != REINVMD && ta != REINVSH);
-        }, mTradeActionChoiceBox.valueProperty()));
-        mTransferAccountLabel.visibleProperty().bind(mTransferAccountComboBox.visibleProperty());
-        mTransferAccountLabel.textProperty().bind(Bindings.createStringBinding(() -> {
-            switch (mTradeActionChoiceBox.getValue()) {
-                case XOUT:
-                    return "Transfer Cash To:";
-                case XIN:
-                    return "Transfer Cash From:";
-                case BUY:
-                case CVTSHRT:
-                case MISCEXP:
-                case MARGINT:
-                    return "Use Cash From:";
-                default:
-                    return "Put Cash Into:";
-            }
-        }, mTradeActionChoiceBox.valueProperty()));
-        mTransferAccountComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
-
         // category comboBox
         mCategoryComboBox.setConverter(new StringConverter<>() {
             @Override
-            public String toString(Integer integer) {
-                Category category = mainApp.getCategoryByID(integer);
-                return category == null ? "" : category.getName();
+            public String toString(Integer id) {
+                if (id == null)
+                    return "";
+                return mMainApp.mapCategoryOrAccountIDToName(id);
             }
 
             @Override
-            public Integer fromString(String s) {
-                Category category = mainApp.getCategoryByName(s);
-                return category == null ? 0 : category.getID();
+            public Integer fromString(String name) {
+                return mMainApp.mapCategoryOrAccountNameToID(name);
             }
         });
-        mCategoryComboBox.getItems().add(0); // add a blank at the beginning.
-        for (Category category : mainApp.getCategoryList())
-            mCategoryComboBox.getItems().addAll(category.getID());
-        autoCompleteComboBox(mCategoryComboBox);
-        // category combobox only visible for DEPOSIT or WITHDRAW
+        ObservableList<Integer> idList = FXCollections.observableArrayList();
+        idList.add(0);
+        for (Category category : mMainApp.getCategoryList())
+            idList.add(category.getID());
+        for (Account account : mMainApp.getAccountList(null, false, true))
+            idList.add(-account.getID());
+        mCategoryComboBoxWrapper = new CategoryTransferAccountIDComboBoxWrapper(mCategoryComboBox, idList);
+        mCategoryComboBoxWrapper.setFilter(mTransaction.getTradeAction() != DEPOSIT
+                && mTransaction.getTradeAction() != WITHDRAW, defaultAccount.getID());
+
+        // category combobox visibility
         mCategoryComboBox.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-            return ta == DEPOSIT || ta == WITHDRAW;
+            return (ta != STKSPLIT && ta != SHRSIN && ta != SHRSOUT && ta != REINVDIV && ta != REINVINT
+                    && ta != REINVLG && ta != REINVMD && ta != REINVSH);
         }, mTradeActionChoiceBox.valueProperty()));
         mCategoryLabel.visibleProperty().bind(mCategoryComboBox.visibleProperty());
+        mCategoryLabel.textProperty().bind(Bindings.createStringBinding(() -> {
+            switch (mTradeActionChoiceBox.getValue()) {
+                case DEPOSIT:
+                    return "Category/Transfer from";
+                case WITHDRAW:
+                    return "Category/Transfer to";
+                case BUY:
+                case MISCEXP:
+                case CVTSHRT:
+                case MARGINT:
+                    return "Use cash from";
+                default:
+                    return "Put cash to";
+            }
+        }, mTradeActionChoiceBox.valueProperty()));
         mCategoryComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
 
         // memo always visible
@@ -386,7 +426,7 @@ public class EditTransactionDialogControllerNew {
         // split transaction button, visible for X*, Deposit and Withdraw
         mSplitTransactionButton.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-            return ta == XIN || ta == XOUT || ta == DEPOSIT || ta == WITHDRAW;
+            return ta == DEPOSIT || ta == WITHDRAW;
         }, mTradeActionChoiceBox.valueProperty()));
 
         // tag
@@ -414,7 +454,7 @@ public class EditTransactionDialogControllerNew {
         // reference
         mReferenceTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-            return (ta == DEPOSIT || ta == WITHDRAW || ta == XIN || ta == XOUT);
+            return (ta == DEPOSIT || ta == WITHDRAW);
         }, mTradeActionChoiceBox.valueProperty()));
         mReferenceLabel.visibleProperty().bind(mReferenceTextField.visibleProperty());
         mReferenceTextField.textProperty().bindBidirectional(mTransaction.getReferenceProperty());
@@ -544,14 +584,11 @@ public class EditTransactionDialogControllerNew {
         mTotalTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return ta == BUY || ta == SELL || ta == SHRSIN || ta == SHTSELL || ta == CVTSHRT
-                    || ta == XIN || ta == XOUT || ta == DEPOSIT || ta == WITHDRAW;
+                    || ta == DEPOSIT || ta == WITHDRAW;
         }, mTradeActionChoiceBox.valueProperty()));
         mTotalLabel.visibleProperty().bind(mTotalTextField.visibleProperty());
         mTotalLabel.textProperty().bind(Bindings.createStringBinding(() -> {
             switch (mTradeActionChoiceBox.getValue()) {
-                case XIN:
-                case XOUT:
-                    return "Transfer Amount:";
                 case BUY:
                 case CVTSHRT:
                 case SHRSIN:
@@ -602,10 +639,10 @@ public class EditTransactionDialogControllerNew {
 
         final Transaction.TradeAction ta = mTransaction.getTradeAction();
         final int accountID = mTransaction.getAccountID();
+        final int categoryID = mTransaction.getCategoryID();
 
         // check transfer account
-        if (ta == XIN || ta == XOUT) {
-            final int categoryID = mTransaction.getCategoryID();
+        if (categoryID < 0) {
             if (accountID == -categoryID) {
                 mLogger.warn("Self Transfer Transaction not allowed");
                 showWarningDialog("Self transfer transaction not allowed",
@@ -702,8 +739,7 @@ public class EditTransactionDialogControllerNew {
             }
 
             // some trade action allows null security, others doesn't
-            if (!(ta == DIV || ta == INTINC || ta == XIN || ta == XOUT || ta == DEPOSIT || ta == WITHDRAW
-                    || ta == MARGINT)) {
+            if (!(ta == DIV || ta == INTINC  || ta == DEPOSIT || ta == WITHDRAW || ta == MARGINT)) {
                 String header = "Empty security";
                 mLogger.warn(header);
                 showWarningDialog(header, "Please select a valid security");
@@ -738,17 +774,11 @@ public class EditTransactionDialogControllerNew {
             mTransaction.setPayee(st.getPayee());
             mTransaction.setMatchID(st.getMatchID(),-1);
 
-            if (st.isTransfer(mTransaction.getID())) {
-                if (st.getAmount().compareTo(BigDecimal.ZERO) >= 0)
-                    mTransaction.getTradeActionProperty().set(XIN);
-                else
-                    mTransaction.getTradeActionProperty().set(XOUT);
-            } else {
-                if (st.getAmount().compareTo(BigDecimal.ZERO) >= 0)
-                    mTransaction.getTradeActionProperty().set(DEPOSIT);
-                else
-                    mTransaction.getTradeActionProperty().set(WITHDRAW);
-            }
+            if (st.getAmount().compareTo(BigDecimal.ZERO) >= 0)
+                mTransaction.getTradeActionProperty().set(DEPOSIT);
+            else
+                mTransaction.getTradeActionProperty().set(WITHDRAW);
+
             // do really need split
             outSplitTransactionList.clear();
         }
@@ -756,12 +786,9 @@ public class EditTransactionDialogControllerNew {
         mSplitTransactionListChanged = true;
         mTransaction.setSplitTransactionList(outSplitTransactionList);
 
-        if (!mTransaction.getSplitTransactionList().isEmpty()) {
+        if (!mTransaction.getSplitTransactionList().isEmpty() && mCategoryComboBox.isVisible()) {
             // has split, unset category or transfer
-            if (mCategoryComboBox.isVisible())
-                mCategoryComboBox.getSelectionModel().select(Integer.valueOf(0));
-            if (mTransferAccountComboBox.isVisible())
-                mTransferAccountComboBox.getSelectionModel().select(Integer.valueOf(0));
+            mCategoryComboBox.getSelectionModel().select(Integer.valueOf(0));
         }
     }
 

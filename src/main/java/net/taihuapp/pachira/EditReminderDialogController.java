@@ -21,12 +21,16 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
+import javafx.util.converter.IntegerStringConverter;
 import javafx.util.converter.NumberStringConverter;
+import org.controlsfx.control.textfield.TextFields;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -46,14 +50,15 @@ public class EditReminderDialogController {
         }
     }
 
+    // Category and Transfer Account
     private class CategoryIDConverter extends StringConverter<Integer> {
-        public Integer fromString(String categoryName) {
-            Category c = mMainApp.getCategoryByName(categoryName);
-            return c == null ? 0 : c.getID();
+        public Integer fromString(String name) {
+            return mMainApp.mapCategoryOrAccountNameToID(name);
         }
-        public String toString(Integer cid) {
-            Category c = (cid == null) ? null : mMainApp.getCategoryByID(cid);
-            return c == null ? "" : c.getName();
+        public String toString(Integer id) {
+            if (id == null)
+                return "";
+            return mMainApp.mapCategoryOrAccountIDToName(id);
         }
     }
 
@@ -146,17 +151,6 @@ public class EditReminderDialogController {
         // todo need a changelistenser for mCountBeforeEndTextField
 
         mTypeChoiceBox.getItems().setAll(Reminder.Type.values());
-        final Callable<Boolean> converter0 = () -> mTypeChoiceBox.valueProperty().get() != Reminder.Type.TRANSFER;
-        mCategoryIDLabel.visibleProperty().bind(Bindings.createBooleanBinding(converter0,
-                mTypeChoiceBox.valueProperty()));
-        mCategoryIDComboBox.visibleProperty().bind(Bindings.createBooleanBinding(converter0,
-                mTypeChoiceBox.valueProperty()));
-
-        final Callable<Boolean> converter1 = () ->  mTypeChoiceBox.valueProperty().get() == Reminder.Type.TRANSFER;
-        mTransferAccountIDLabel.visibleProperty().bind(Bindings.createBooleanBinding(converter1,
-                mTypeChoiceBox.valueProperty()));
-        mTransferAccountIDComboBox.visibleProperty().bind(Bindings.createBooleanBinding(converter1,
-                mTypeChoiceBox.valueProperty()));
     }
 
     void setMainApp(MainApp mainApp, Reminder reminder, Stage stage) {
@@ -168,41 +162,37 @@ public class EditReminderDialogController {
         // seems no need to do unbindbidirectional
         mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
-        new AutoCompleteTextFieldHelper(mPayeeTextField, mMainApp.getPayeeSet());
+        TextFields.bindAutoCompletion(mPayeeTextField, mMainApp.getPayeeSet());
 
         mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
                 new BigDecimalStringConverter());
         mEstimateNumOccuranceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
-                new NumberStringConverter());
+                new IntegerStringConverter());
 
         mAccountIDComboBox.setConverter(new AccountIDConverter());
         mAccountIDComboBox.getItems().clear();
         for (Account a : mMainApp.getAccountList(Account.Type.SPENDING, false, true))
             mAccountIDComboBox.getItems().add(a.getID());
-        Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty().asObject());
+        Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
         if (mAccountIDComboBox.getSelectionModel().isEmpty())
             mAccountIDComboBox.getSelectionModel().selectFirst(); // if no account selected, default the first.
 
         mCategoryIDComboBox.setConverter(new CategoryIDConverter());
-        mCategoryIDComboBox.getItems().clear();
-        mCategoryIDComboBox.getItems().add(0);
-        for (Category c : mMainApp.getCategoryList())
-            mCategoryIDComboBox.getItems().add(c.getID());
-        new AutoCompleteComboBoxHelper<>(mCategoryIDComboBox);
-        Bindings.bindBidirectional(mCategoryIDComboBox.valueProperty(), mReminder.getCategoryIDProperty().asObject());
+        ObservableList<Integer> idList = FXCollections.observableArrayList();
+        idList.add(0);
+        for (Category category : mMainApp.getCategoryList())
+            idList.add(category.getID());
+        for (Account account : mainApp.getAccountList(null, false, true)) {
+            idList.add(-account.getID());
+        }
+        new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox, idList);
+        Bindings.bindBidirectional(mCategoryIDComboBox.valueProperty(), mReminder.getCategoryIDProperty());
 
         mTagIDComboBox.setConverter(new TagIDConverter());
         mTagIDComboBox.getItems().clear();
         for (Tag t : mMainApp.getTagList())
             mTagIDComboBox.getItems().add(t.getID());
-        Bindings.bindBidirectional(mTagIDComboBox.valueProperty(), mReminder.getTagIDProperty().asObject());
-
-        mTransferAccountIDComboBox.setConverter(new AccountIDConverter());
-        mTransferAccountIDComboBox.getItems().clear();
-        for (Account a : mMainApp.getAccountList(Account.Type.SPENDING, false, true))
-            mAccountIDComboBox.getItems().add(a.getID());
-        Bindings.bindBidirectional(mTransferAccountIDComboBox.valueProperty(),
-                mReminder.getTransferAccountIDProperty().asObject());
+        Bindings.bindBidirectional(mTagIDComboBox.valueProperty(), mReminder.getTagIDProperty());
 
         mTransferAccountIDComboBox.setConverter(new AccountIDConverter());
         mTransferAccountIDComboBox.getItems().clear();

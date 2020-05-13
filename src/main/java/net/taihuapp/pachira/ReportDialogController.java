@@ -77,10 +77,10 @@ public class ReportDialogController {
         private LocalDate mStartDate;
         private LocalDate mEndDate;
         private Frequency mFrequency;
-        private Set<Account> mSelectedAccountSet = new HashSet<>();
-        private Set<Integer> mSelectedCategoryIDSet = new HashSet<>();
-        private Set<Integer> mSelectedSecurityIDSet = new HashSet<>();
-        private Set<Transaction.TradeAction> mSelectedTradeActionSet = new HashSet<>();
+        private final Set<Account> mSelectedAccountSet = new HashSet<>();
+        private final Set<Integer> mSelectedCategoryIDSet = new HashSet<>();
+        private final Set<Integer> mSelectedSecurityIDSet = new HashSet<>();
+        private final Set<Transaction.TradeAction> mSelectedTradeActionSet = new HashSet<>();
         private String mPayeeContains = "";
         private Boolean mPayeeRegEx = false;
         private String mMemoContains = "";
@@ -133,10 +133,6 @@ public class ReportDialogController {
         List<Account> getSelectedAccountList(MainApp mainApp) {
             Account.Type t;
             switch (getType()) {
-                case NAV:
-                case BANKTRANS:
-                    t = null;
-                    break;
                 case INVESTINCOME:
                 case INVESTTRANS:
                 case CAPITALGAINS:
@@ -661,7 +657,7 @@ public class ReportDialogController {
                     break; // we are done with this account
 
                 String sName = t.getSecurityName();
-                Integer sID;
+                int sID;
                 if (sName == null || sName.equals("")) {
                     sName = NOSECURITY;
                     sID = 0;
@@ -745,8 +741,6 @@ public class ReportDialogController {
                         break;
                     case MARGINT:
                     case XFRSHRS:
-                    case XIN:
-                    case XOUT:
                     case DEPOSIT:
                     case WITHDRAW:
                     default:

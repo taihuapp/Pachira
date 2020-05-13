@@ -115,7 +115,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 7;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 8;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -678,13 +678,13 @@ public class MainApp extends Application {
         if (reminder.getID() <= 0) {
             sqlCmd = "insert into REMINDERS "
                     + "(TYPE, PAYEE, AMOUNT, ACCOUNTID, CATEGORYID, "
-                    + "TRANSFERACCOUNTID, TAGID, MEMO, STARTDATE, ENDDATE, "
+                    + "TAGID, MEMO, STARTDATE, ENDDATE, "
                     + "BASEUNIT, NUMPERIOD, ALERTDAYS, ISDOM, ISFWD, ESTCOUNT) "
                     + "values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?)";
         } else {
             sqlCmd = "update REMINDERS set "
                     + "TYPE = ?, PAYEE = ?, AMOUNT = ?, ACCOUNTID = ?, CATEGORYID = ?, "
-                    + "TRANSFERACCOUNTID = ?, TAGID = ?, MEMO = ?, STARTDATE = ?, ENDDATE = ?, "
+                    + "TAGID = ?, MEMO = ?, STARTDATE = ?, ENDDATE = ?, "
                     + "BASEUNIT = ?, NUMPERIOD = ?, ALERTDAYS = ?, ISDOM = ?, ISFWD = ?, ESTCOUNT = ? "
                     + "where ID = ?";
         }
@@ -698,21 +698,20 @@ public class MainApp extends Application {
             preparedStatement.setBigDecimal(3, reminder.getAmount());
             preparedStatement.setInt(4, reminder.getAccountID());
             preparedStatement.setInt(5, reminder.getCategoryID());
-            preparedStatement.setInt(6, reminder.getTransferAccountID());
-            preparedStatement.setInt(7, reminder.getTagID());
-            preparedStatement.setString(8, reminder.getMemo());
-            preparedStatement.setDate(9, Date.valueOf(reminder.getDateSchedule().getStartDate()));
+            preparedStatement.setInt(6, reminder.getTagID());
+            preparedStatement.setString(7, reminder.getMemo());
+            preparedStatement.setDate(8, Date.valueOf(reminder.getDateSchedule().getStartDate()));
 
-            preparedStatement.setDate(10, reminder.getDateSchedule().getEndDate() == null ?
+            preparedStatement.setDate(9, reminder.getDateSchedule().getEndDate() == null ?
                     null : Date.valueOf(reminder.getDateSchedule().getEndDate()));
-            preparedStatement.setString(11, reminder.getDateSchedule().getBaseUnit().name());
-            preparedStatement.setInt(12, reminder.getDateSchedule().getNumPeriod());
-            preparedStatement.setInt(13, reminder.getDateSchedule().getAlertDay());
-            preparedStatement.setBoolean(14, reminder.getDateSchedule().isDOMBased());
-            preparedStatement.setBoolean(15, reminder.getDateSchedule().isForward());
-            preparedStatement.setInt(16, reminder.getEstimateCount());
+            preparedStatement.setString(10, reminder.getDateSchedule().getBaseUnit().name());
+            preparedStatement.setInt(11, reminder.getDateSchedule().getNumPeriod());
+            preparedStatement.setInt(12, reminder.getDateSchedule().getAlertDay());
+            preparedStatement.setBoolean(13, reminder.getDateSchedule().isDOMBased());
+            preparedStatement.setBoolean(14, reminder.getDateSchedule().isForward());
+            preparedStatement.setInt(15, reminder.getEstimateCount());
             if (reminder.getID() > 0)
-                preparedStatement.setInt(17, reminder.getID());
+                preparedStatement.setInt(16, reminder.getID());
 
             preparedStatement.executeUpdate();
             if (reminder.getID() <= 0) {
@@ -1262,24 +1261,6 @@ public class MainApp extends Application {
         return "[" + a.getName() + "]";
     }
 
-    // Take categoryOrTransferID cid, and signedAmount for a banking transaction
-    // output matching Transaction.TradeAction
-    private static Transaction.TradeAction mapBankingTransactionTA(int cid, BigDecimal signedAmount) {
-        if (categoryOrTransferTest(cid) >= 0)
-            return signedAmount.signum() >= 0 ?  Transaction.TradeAction.DEPOSIT
-                    : Transaction.TradeAction.WITHDRAW;
-
-        return signedAmount.signum() >= 0 ? Transaction.TradeAction.XIN : Transaction.TradeAction.XOUT;
-    }
-
-    private static int categoryOrTransferTest(int cid) {
-        if (cid >= MIN_CATEGORY_ID)
-            return 1; // is category
-        if (cid <= -MIN_ACCOUNT_ID)
-            return -1; // is transfer account
-        return 0;  // neither
-    }
-
     // name is a category name or an account name wrapped by [].
     // if a valid account is seen, the negative of the corresponding account id is returned.
     // if a wrapped name cannot be mapped to a valid account, then the Deleted Account is used
@@ -1468,7 +1449,8 @@ public class MainApp extends Application {
                     categoryOrTransferID = 0;
                 }
                 int tagID = mapTagNameToID(bt.getTag());
-                Transaction.TradeAction ta = mapBankingTransactionTA(categoryOrTransferID, bt.getTAmount());
+                Transaction.TradeAction ta = bt.getTAmount().signum() >= 0 ?
+                        Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
                 preparedStatement.setInt(1, account.getID());
                 preparedStatement.setDate(2, Date.valueOf(bt.getDate()));
                 preparedStatement.setBigDecimal(3, bt.getTAmount().abs());
@@ -1537,18 +1519,8 @@ public class MainApp extends Application {
             int cid = mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer());
             QIFParser.TradeTransaction.Action action = tt.getAction();
             if (cid == -account.getID()) {
-                // self transfer, set to no transfer and change XIN/XOUT to DEPOSIT/WITHDRW
+                // self transfer, set to no transfer
                 cid = 0;
-                switch (action) {
-                    case XIN:
-                        action = QIFParser.TradeTransaction.Action.DEPOSIT;
-                        break;
-                    case XOUT:
-                        action = QIFParser.TradeTransaction.Action.WITHDRAW;
-                        break;
-                    default:
-                        break;
-                }
             }
             preparedStatement.setInt(1, account.getID());
             preparedStatement.setDate(2, Date.valueOf(tt.getDate()));
@@ -1749,7 +1721,6 @@ public class MainApp extends Application {
                 int estCnt = resultSet.getInt("ESTCOUNT");
                 int accountID = resultSet.getInt("ACCOUNTID");
                 int categoryID = resultSet.getInt("CATEGORYID");
-                int transferAccountID = resultSet.getInt("TRANSFERACCOUNTID");
                 int tagID = resultSet.getInt("TAGID");
                 String memo = resultSet.getString("MEMO");
                 LocalDate startDate = resultSet.getDate("STARTDATE").toLocalDate();
@@ -1763,7 +1734,7 @@ public class MainApp extends Application {
 
                 DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, ad, isDOM, isFWD);
                 mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount, estCnt,
-                        accountID, categoryID, transferAccountID, tagID, memo, ds,
+                        accountID, categoryID, tagID, memo, ds,
                         loadSplitTransactions(-id).getOrDefault(-id, new ArrayList<>())));
             }
         } catch (SQLException e) {
@@ -2882,8 +2853,7 @@ public class MainApp extends Application {
     void showEditTransactionDialog(Stage parent, Transaction transaction) {
         List<Transaction.TradeAction> taList = (getCurrentAccount().getType() == Account.Type.INVESTING) ?
                 Arrays.asList(Transaction.TradeAction.values()) :
-                Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT,
-                        Transaction.TradeAction.XIN, Transaction.TradeAction.XOUT);
+                Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
         showEditTransactionDialog(parent, transaction, Collections.singletonList(getCurrentAccount()),
                 getCurrentAccount(), taList);
     }
@@ -3744,7 +3714,35 @@ public class MainApp extends Application {
 
         // need to run this to update DBVERSION
         final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
-        if (newV == 7) {
+        if (newV == 8) {
+            // replace XIN to DEPOSIT AND XOUT to WITHDRAW in Transactions table
+            final String updateXIN = "update TRANSACTIONS set TRADEACTION = 'DEPOSIT' where TRADEACTION = 'XIN'";
+            final String updateXOUT = "update TRANSACTIONS set TRADEACTION = 'WITHDRAW' where TRADEACTION = 'XOUT'";
+            final String updateReminder = "update REMINDERS set (TYPE, CATEGORYID) = ('PAYMENT', -TRANSFERACCOUNTID) "
+                    + "where TYPE = 'TRANSFER'";
+            // first copy XIN and XOUT to temp table
+            // delete XIN and XOUT in savedreportdetails
+            // change XIN to DEPOSIT and XOUT to WITHDRAW in temp
+            // insert altered rows back to savedreportdetails if such a row doesn't already exist
+            final String updateSavedReportDetails = "create table TEMP as select * from SAVEDREPORTDETAILS "
+                    + "where ITEMVALUE = 'XIN' or ITEMVALUE = 'XOUT'; "
+                    + "delete from SAVEDREPORTDETAILS where  ITEMVALUE = 'XIN' or ITEMVALUE = 'XOUT'; "
+                    + "update TEMP set ITEMVALUE = ('DEPOSIT') where ITEMVALUE = 'XIN'; "
+                    + "update TEMP set ITEMVALUE = ('WITHDRAW') where ITEMVALUE = 'XOUT'; "
+                    + "insert into SAVEDREPORTDETAILS select * from TEMP t where not exists("
+                    + "select * from SAVEDREPORTDETAILS s where s.REPORTID = t.REPORTID and s.ITEMNAME = t.ITEMNAME);"
+                    + "drop table TEMP;";
+            final String alterTable = "alter table REMINDERS drop TRANSFERACCOUNTID";
+
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(updateXIN);
+                statement.executeUpdate(updateXOUT);
+                statement.executeUpdate(updateReminder);
+                statement.executeUpdate(alterTable);
+                statement.executeUpdate(updateSavedReportDetails);
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 7) {
             try (Statement statement = mConnection.createStatement()) {
                 alterAccountDCSTable();
                 statement.executeUpdate(mergeSQL);
@@ -4179,16 +4177,21 @@ public class MainApp extends Application {
                     return false;
                 }
                 Transaction.TradeAction oldTA = oldT.getTradeAction();
-                if (oldTA == Transaction.TradeAction.XIN || oldTA == Transaction.TradeAction.XOUT) {
+                if (oldTA == Transaction.TradeAction.DEPOSIT || oldTA == Transaction.TradeAction.WITHDRAW) {
                     Transaction oldXferT = getTransactionByID(oldT.getMatchID());
                     if (oldXferT != null) {
                         Transaction.TradeAction oldXferTA = oldXferT.getTradeAction();
-                        if (oldXferTA != Transaction.TradeAction.XIN && oldXferTA != Transaction.TradeAction.XOUT) {
+                        if (oldXferTA != Transaction.TradeAction.DEPOSIT && oldXferTA != Transaction.TradeAction.WITHDRAW) {
                             showWarningDialog("Linked to An Investing Transaction",
                                     "Linked to an investing transaction",
                                     "Please edit the linked investing transaction.");
                             return false;
                         }
+                    } else {
+                        // it shouldn't happen
+                        showWarningDialog("Linked to an null transaction",
+                                "Linked to a null transaction", "Something is wrong!");
+                        return false;
                     }
                 }
             }
@@ -4230,8 +4233,6 @@ public class MainApp extends Application {
                     switch (newT.getTradeAction()) {
                         case DEPOSIT:
                         case WITHDRAW:
-                        case XIN:
-                        case XOUT:
                             newPayee = newT.getPayee();
                             break;
                         default:
@@ -4262,7 +4263,7 @@ public class MainApp extends Application {
                         // this st is a transfer
                         Transaction stLinkedT = new Transaction(-st.getCategoryID(), newT.getTDate(),
                                 st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
-                                        Transaction.TradeAction.XOUT : Transaction.TradeAction.XIN,
+                                        Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT,
                                 -newT.getAccountID());
                         stLinkedT.setID(st.getMatchID());
                         stLinkedT.setAmount(st.getAmount().abs());
@@ -4582,9 +4583,9 @@ public class MainApp extends Application {
                     break;
                 case XFER:
                     if (amount.compareTo(BigDecimal.ZERO) >= 0)
-                        ta = Transaction.TradeAction.XIN;
+                        ta = Transaction.TradeAction.DEPOSIT;
                     else {
-                        ta = Transaction.TradeAction.XOUT;
+                        ta = Transaction.TradeAction.WITHDRAW;
                         amount = amount.negate();
                     }
                     break;

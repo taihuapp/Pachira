@@ -100,7 +100,7 @@ public class Transaction {
         STKSPLIT("Stock Split"), SHRSIN("Shares Transferred In"), SHRSOUT("Shares Transferred Out"),
         MISCEXP("Misc Expense"), MISCINC("Misc Income"), RTRNCAP("Return Capital"),
         SHTSELL("Short Sell"), CVTSHRT("Cover Short Sell"), MARGINT("Margin Interest"),
-        XFRSHRS("Shares Transferred"), XIN("Cash Transferred In"), XOUT("Cash Transferred Out"),
+        XFRSHRS("Shares Transferred"), // XIN("Cash Transferred In"), XOUT("Cash Transferred Out"),
         DEPOSIT("Deposit"), WITHDRAW("Withdraw");
 
         private final String mValue;
@@ -123,8 +123,8 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  // this is amount
     // cash amount, derived from total amount
     private final ObjectProperty<BigDecimal> mCashAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private transient ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private transient ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private transient final ObjectProperty<BigDecimal> mPaymentProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private transient final ObjectProperty<BigDecimal> mDepositProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final ObjectProperty<Integer> mCategoryIDProperty = new SimpleObjectProperty<>(0);
     private final ObjectProperty<Integer> mTagIDProperty = new SimpleObjectProperty<>(0);
@@ -212,8 +212,6 @@ public class Transaction {
                 case MARGINT:
                 case MISCEXP:
                 case MISCINC:
-                case DEPOSIT:
-                case WITHDRAW:
                 case DIV:
                 case CGLONG:
                 case CGMID:
@@ -221,9 +219,9 @@ public class Transaction {
                 case INTINC:
                 case RTRNCAP:
                     return mAmountProperty.get().stripTrailingZeros().toPlainString();
-                case XIN:
-                case XOUT:
-                    return getPayee();
+                case DEPOSIT:
+                case WITHDRAW:
+                    return getMemo();
                 case SHRSOUT:
                     return getQuantity().stripTrailingZeros().toPlainString() + " shares";
                 case XFRSHRS:
@@ -263,8 +261,6 @@ public class Transaction {
                 case RTRNCAP:
                 case SHRSIN:
                 case WITHDRAW:
-                case XIN:
-                case XOUT:
                 case MARGINT:
                 case STKSPLIT:
                     return getQuantity();
@@ -275,25 +271,13 @@ public class Transaction {
             }
         }, mTradeActionProperty, mQuantityProperty));
 
-        mPaymentProperty.bind(Bindings.createObjectBinding(() -> {
-            switch (getTradeAction()) {
-                case XOUT:
-                case WITHDRAW:
-                    return getAmount();
-                default:
-                    return BigDecimal.ZERO;
-            }
-        }, getTradeActionProperty(), getAmountProperty()));
+        mPaymentProperty.bind(Bindings.createObjectBinding(() ->
+            getTradeAction() == TradeAction.WITHDRAW ? getAmount() : BigDecimal.ZERO,
+                getTradeActionProperty(), getAmountProperty()));
 
-        mDepositProperty.bind(Bindings.createObjectBinding(() -> {
-            switch (getTradeAction()) {
-                case XIN:
-                case DEPOSIT:
-                    return getAmount();
-                default:
-                    return BigDecimal.ZERO;
-            }
-        }, getTradeActionProperty(), getAmountProperty()));
+        mDepositProperty.bind(Bindings.createObjectBinding(() ->
+            getTradeAction() == TradeAction.DEPOSIT ? getAmount() : BigDecimal.ZERO,
+                getTradeActionProperty(), getAmountProperty()));
 
         // mCashAmountProperty depends on TradeAction, Deposit, Payment
         mCashAmountProperty.bind(Bindings.createObjectBinding(() -> isTransfer() ?
@@ -327,9 +311,7 @@ public class Transaction {
                 case MISCINC:
                 case STKSPLIT:
                 case XFRSHRS:
-                case XIN:
                 case DEPOSIT:
-                case XOUT:
                 case WITHDRAW:
                     return BigDecimal.ZERO;
                 default:
@@ -398,9 +380,8 @@ public class Transaction {
             case REINVSH:
             case DEPOSIT:
             case WITHDRAW:
-            case XIN:
             case MARGINT:
-                return TradeAction.XOUT;
+                return TradeAction.WITHDRAW;
             case DIV:
             case CGLONG:
             case CGMID:
@@ -410,8 +391,7 @@ public class Transaction {
             case RTRNCAP:
             case SELL:
             case SHTSELL:
-            case XOUT:
-                return TradeAction.XIN;
+                return TradeAction.DEPOSIT;
             case SHRSIN:
                 return TradeAction.SHRSOUT;
             case SHRSOUT:
@@ -435,7 +415,6 @@ public class Transaction {
             case CVTSHRT:
             case MARGINT:
             case MISCEXP:
-            case XOUT:
             case WITHDRAW:
                 return getAmount().negate();
             case DIV:
@@ -447,7 +426,6 @@ public class Transaction {
             case RTRNCAP:
             case SELL:
             case SHTSELL:
-            case XIN:
             case DEPOSIT:
                 return getAmount();
             case REINVDIV:
@@ -571,17 +549,9 @@ public class Transaction {
     }
 
     // return true if it is a cash transaction
-    // i.e. mTradeAction is one of XIN, XOUT, DEPOSIT, WITHDRAW
+    // i.e. mTradeAction is one of DEPOSIT, WITHDRAW
     boolean isCash() {
-        switch (getTradeAction()) {
-            case XIN:
-            case XOUT:
-            case DEPOSIT:
-            case WITHDRAW:
-                return true;
-            default:
-                return false;
-        }
+        return getTradeAction() == TradeAction.DEPOSIT || getTradeAction() == TradeAction.WITHDRAW;
     }
 
     // return true if the transaction may change quantity, false otherwise
@@ -610,8 +580,6 @@ public class Transaction {
             case MISCINC:
             case RTRNCAP:
             case MARGINT:
-            case XIN:
-            case XOUT:
             case DEPOSIT:
             case WITHDRAW:
             default:
@@ -619,7 +587,7 @@ public class Transaction {
         }
     }
 
-    // Merge a downloaded transaction into a mannually entered transaction
+    // Merge a downloaded transaction into a manually entered transaction
     // transactionA is a manually entered transaction (getFITID().isEmpty() == true)
     // transactionB is a downloaded transaction (getFITID().isEmpty() == false)
     // the result transaction will keep the following from transactionA
@@ -644,12 +612,8 @@ public class Transaction {
         boolean tradeActionCompatible = false;
         switch (taA) {
             case DEPOSIT:
-            case XIN:
-                tradeActionCompatible = (taB == TradeAction.DEPOSIT || taB == TradeAction.XIN);
-                break;
             case WITHDRAW:
-            case XOUT:
-                tradeActionCompatible = (taB == TradeAction.WITHDRAW || taB == TradeAction.XOUT);
+                tradeActionCompatible = taB == taA;
                 break;
             default:
                 break;

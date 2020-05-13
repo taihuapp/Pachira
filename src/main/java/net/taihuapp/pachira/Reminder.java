@@ -29,17 +29,16 @@ import java.util.List;
 
 class Reminder {
 
-    enum Type { PAYMENT, DEPOSIT, TRANSFER }
+    enum Type { PAYMENT, DEPOSIT }
 
     private int mID = -1;
     private final ObjectProperty<Type> mTypeProperty = new SimpleObjectProperty<>(Type.PAYMENT);
     private final StringProperty mPayeeProperty = new SimpleStringProperty("");
     private final ObjectProperty<BigDecimal> mAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private final IntegerProperty mEstimateCountProperty = new SimpleIntegerProperty(0);
-    private final IntegerProperty mAccountIDProperty = new SimpleIntegerProperty(0);
-    private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
-    private final IntegerProperty mTransferAccountIDProperty = new SimpleIntegerProperty(0);
-    private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
+    private final ObjectProperty<Integer> mEstimateCountProperty = new SimpleObjectProperty<>(0);
+    private final ObjectProperty<Integer> mAccountIDProperty = new SimpleObjectProperty<>(0);
+    private final ObjectProperty<Integer> mCategoryIDProperty = new SimpleObjectProperty<>(0);
+    private final ObjectProperty<Integer> mTagIDProperty = new SimpleObjectProperty<>(0);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final List<SplitTransaction> mSplitTransactionList = new ArrayList<>();
     private DateSchedule mDateSchedule;
@@ -55,13 +54,11 @@ class Reminder {
     // copy constructor
     Reminder(Reminder r) {
         this(r.getID(), r.getType(), r.getPayee(), r.getAmount(), r.getEstimateCount(), r.getAccountID(),
-                r.getCategoryID(), r.getTransferAccountID(), r.getTagID(), r.getMemo(), r.getDateSchedule(),
-                r.getSplitTransactionList());
+                r.getCategoryID(), r.getTagID(), r.getMemo(), r.getDateSchedule(), r.getSplitTransactionList());
     }
 
     Reminder(int id, Type type, String payee, BigDecimal amount, int estCnt, int accountID, int categoryID,
-             int transferAccountID, int tagID, String memo, DateSchedule ds,
-             List<SplitTransaction> stList) {
+             int tagID, String memo, DateSchedule ds, List<SplitTransaction> stList) {
         mID = id;
         mTypeProperty.set(type);
         mPayeeProperty.set(payee);
@@ -69,7 +66,6 @@ class Reminder {
         mEstimateCountProperty.set(estCnt);
         mAccountIDProperty.set(accountID);
         mCategoryIDProperty.set(categoryID);
-        mTransferAccountIDProperty.set(transferAccountID);
         mTagIDProperty.set(tagID);
         mMemoProperty.set(memo);
         mDateSchedule = ds;
@@ -96,23 +92,19 @@ class Reminder {
     BigDecimal getAmount() { return getAmountProperty().get(); }
     void setAmount(BigDecimal a) { getAmountProperty().set(a); }
 
-    IntegerProperty getEstimateCountProperty() { return mEstimateCountProperty; }
+    ObjectProperty<Integer> getEstimateCountProperty() { return mEstimateCountProperty; }
     Integer getEstimateCount() { return getEstimateCountProperty().get(); }
     void setEstimateCount(int c) { getEstimateCountProperty().set(c); }
 
-    IntegerProperty getAccountIDProperty() { return mAccountIDProperty; }
+    ObjectProperty<Integer> getAccountIDProperty() { return mAccountIDProperty; }
     Integer getAccountID() { return getAccountIDProperty().get(); }
     void setAccountID(int i) { getAccountIDProperty().set(i); }
 
-    IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
+    ObjectProperty<Integer> getCategoryIDProperty() { return mCategoryIDProperty; }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
     void setCategoryID(int i) { getCategoryIDProperty().set(i); }
 
-    IntegerProperty getTransferAccountIDProperty() { return mTransferAccountIDProperty; }
-    Integer getTransferAccountID() { return getTransferAccountIDProperty().get(); }
-    void setTransferAccountID(int i) { getTransferAccountIDProperty().set(i); }
-
-    IntegerProperty getTagIDProperty() { return mTagIDProperty; }
+    ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
     Integer getTagID() { return getTagIDProperty().get(); }
     void setTagID(int i) { getTagIDProperty().set(i); }
 

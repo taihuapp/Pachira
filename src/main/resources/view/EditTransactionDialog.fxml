@@ -33,14 +33,14 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.TilePane?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditTransactionDialogControllerNew">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="620.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditTransactionDialogControllerNew">
     <top>
         <ChoiceBox fx:id="mTradeActionChoiceBox" prefWidth="200.0" BorderPane.alignment="CENTER_LEFT" />
     </top>
    <center>
       <GridPane hgap="10.0" BorderPane.alignment="CENTER">
         <columnConstraints>
-            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="120.0" />
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
           <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="85.0" />
           <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="115.0" />
@@ -64,8 +64,8 @@
              <DatePicker fx:id="mTDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="1" />
              <DatePicker fx:id="mADatePicker" GridPane.columnIndex="1" GridPane.rowIndex="2" />
              <ComboBox fx:id="mAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-             <ComboBox fx:id="mTransferAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />             <Label fx:id="mSecurityNameLabel" text="Security Name:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-             <Label fx:id="mCategoryLabel" text="Category" GridPane.rowIndex="4" />
+             <Label fx:id="mSecurityNameLabel" text="Security Name:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+             <Label fx:id="mCategoryLabel" text="Category/Transfer from" GridPane.rowIndex="4" />
              <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
              <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="6" />
              <Label fx:id="mReferenceLabel" text="Number" GridPane.columnIndex="2" GridPane.rowIndex="1" />
@@ -78,7 +78,6 @@
              <Label fx:id="mCommissionLabel" text="Commission:" GridPane.columnIndex="2" GridPane.rowIndex="5" />
              <Label fx:id="mAccruedInterestLabel" text="Accrued Interest" GridPane.columnIndex="2" GridPane.rowIndex="6" />
              <Label fx:id="mTotalLabel" text="Total Cost:" GridPane.columnIndex="2" GridPane.rowIndex="8" />
-             <Label fx:id="mTransferAccountLabel" text="Transfer Account:" GridPane.rowIndex="4" />
              <Label text="Memo:" GridPane.rowIndex="5" />
              <TextField fx:id="mIncomeTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="2" />
              <TextField fx:id="mSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="3" />

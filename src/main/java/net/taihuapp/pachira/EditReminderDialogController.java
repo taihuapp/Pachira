@@ -21,8 +21,6 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -50,18 +48,6 @@ public class EditReminderDialogController {
         }
     }
 
-    // Category and Transfer Account
-    private class CategoryIDConverter extends StringConverter<Integer> {
-        public Integer fromString(String name) {
-            return mMainApp.mapCategoryOrAccountNameToID(name);
-        }
-        public String toString(Integer id) {
-            if (id == null)
-                return "";
-            return mMainApp.mapCategoryOrAccountIDToName(id);
-        }
-    }
-
     // this converts account id to account name
     // different from the converter in EditTransactions
     private class AccountIDConverter extends StringConverter<Integer> {
@@ -86,7 +72,7 @@ public class EditReminderDialogController {
     @FXML
     private TextField mAmountTextField;
     @FXML
-    private TextField mEstimateNumOccuranceTextField;
+    private TextField mEstimateNumOccurrenceTextField;
     @FXML
     private Label mAccountIDLabel;
     @FXML
@@ -95,10 +81,8 @@ public class EditReminderDialogController {
     private Label mCategoryIDLabel;
     @FXML
     private ComboBox<Integer> mCategoryIDComboBox;
-    @FXML
-    private Label mTransferAccountIDLabel;
-    @FXML
-    private ComboBox<Integer> mTransferAccountIDComboBox;
+    private EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper
+            mCategoryTransferAccountIDComboBoxWrapper;
     @FXML
     private ComboBox<Integer> mTagIDComboBox;
     @FXML
@@ -146,7 +130,7 @@ public class EditReminderDialogController {
         mEstimateAmountRadioButton.setToggleGroup(mAmountGroup);
 
         mAmountTextField.visibleProperty().bindBidirectional(mFixedAmountRadioButton.selectedProperty());
-        mEstimateNumOccuranceTextField.visibleProperty().bindBidirectional(mEstimateAmountRadioButton.selectedProperty());
+        mEstimateNumOccurrenceTextField.visibleProperty().bindBidirectional(mEstimateAmountRadioButton.selectedProperty());
 
         // todo need a changelistenser for mCountBeforeEndTextField
 
@@ -166,7 +150,7 @@ public class EditReminderDialogController {
 
         mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
                 new BigDecimalStringConverter());
-        mEstimateNumOccuranceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
+        mEstimateNumOccurrenceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
                 new IntegerStringConverter());
 
         mAccountIDComboBox.setConverter(new AccountIDConverter());
@@ -176,28 +160,22 @@ public class EditReminderDialogController {
         Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
         if (mAccountIDComboBox.getSelectionModel().isEmpty())
             mAccountIDComboBox.getSelectionModel().selectFirst(); // if no account selected, default the first.
+        mAccountIDComboBox.valueProperty().addListener((obs, ov, nv) -> {
+            if (nv == null || mCategoryTransferAccountIDComboBoxWrapper == null)
+                return;
+            mCategoryTransferAccountIDComboBoxWrapper.setFilter(false, nv);
+        });
 
-        mCategoryIDComboBox.setConverter(new CategoryIDConverter());
-        ObservableList<Integer> idList = FXCollections.observableArrayList();
-        idList.add(0);
-        for (Category category : mMainApp.getCategoryList())
-            idList.add(category.getID());
-        for (Account account : mainApp.getAccountList(null, false, true)) {
-            idList.add(-account.getID());
-        }
-        new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox, idList);
-        Bindings.bindBidirectional(mCategoryIDComboBox.valueProperty(), mReminder.getCategoryIDProperty());
+        mCategoryTransferAccountIDComboBoxWrapper =
+                new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox,
+                        mainApp);
+        mCategoryIDComboBox.valueProperty().bindBidirectional(reminder.getCategoryIDProperty());
 
         mTagIDComboBox.setConverter(new TagIDConverter());
         mTagIDComboBox.getItems().clear();
         for (Tag t : mMainApp.getTagList())
             mTagIDComboBox.getItems().add(t.getID());
         Bindings.bindBidirectional(mTagIDComboBox.valueProperty(), mReminder.getTagIDProperty());
-
-        mTransferAccountIDComboBox.setConverter(new AccountIDConverter());
-        mTransferAccountIDComboBox.getItems().clear();
-        for (Account a : mMainApp.getAccountList(Account.Type.SPENDING, false, true))
-            mTransferAccountIDComboBox.getItems().add(a.getID());
 
         mMemoTextField.textProperty().bindBidirectional(mReminder.getMemoProperty());
 
@@ -256,7 +234,7 @@ public class EditReminderDialogController {
         }
 
         List<SplitTransaction> outputSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage,
-                mReminder.getSplitTransactionList(), netAmount);
+                mAccountIDComboBox.getValue(), mReminder.getSplitTransactionList(), netAmount);
 
         if (outputSplitTransactionList != null) {
             // splitTransactionList changed

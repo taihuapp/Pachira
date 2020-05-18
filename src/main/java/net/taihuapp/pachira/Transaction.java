@@ -373,13 +373,7 @@ public class Transaction {
             case BUY:
             case CVTSHRT:
             case MISCEXP:
-            case REINVDIV:
-            case REINVINT:
-            case REINVLG:
-            case REINVMD:
-            case REINVSH:
             case DEPOSIT:
-            case WITHDRAW:
             case MARGINT:
                 return TradeAction.WITHDRAW;
             case DIV:
@@ -391,11 +385,17 @@ public class Transaction {
             case RTRNCAP:
             case SELL:
             case SHTSELL:
+            case WITHDRAW:
                 return TradeAction.DEPOSIT;
             case SHRSIN:
                 return TradeAction.SHRSOUT;
             case SHRSOUT:
                 return TradeAction.SHRSIN;
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
             case STKSPLIT:
             case XFRSHRS:
                 return null;

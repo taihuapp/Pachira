@@ -35,24 +35,6 @@ import java.util.List;
 
 public class SplitTransactionsDialogController {
 
-    private class CategoryTransferToStringConverter extends StringConverter<Integer> {
-        public Integer fromString(String name) {
-            return mMainApp.mapCategoryOrAccountNameToID(name);
-        }
-        public String toString(Integer cid) {
-            if (cid >= MainApp.MIN_CATEGORY_ID) {
-                Category c = mMainApp.getCategoryByID(cid);
-                return c == null ? "" : c.getName();
-            }
-
-            if (cid <= -MainApp.MIN_ACCOUNT_ID) {
-                Account a = mMainApp.getAccountByID(-cid);
-                return a == null ? "" : MainApp.getWrappedAccountName(a);
-            }
-            return "";
-        }
-    }
-
     private class TagToStringConverter extends StringConverter<Integer> {
         public Integer fromString(String name) {
             return mMainApp.mapTagNameToID(name);
@@ -98,20 +80,13 @@ public class SplitTransactionsDialogController {
     private Button mOKButton;
 
     // the content of stList is copied, the original content is unchanged.
-    void setMainApp(MainApp mainApp, Stage stage, List<SplitTransaction> stList, BigDecimal netAmount) {
+    void setMainApp(MainApp mainApp, int accountID, Stage stage, List<SplitTransaction> stList, BigDecimal netAmount) {
         mMainApp = mainApp;
         mDialogStage = stage;
         mNetAmount = netAmount;
 
-        mCategoryIDComboBox.setConverter(new CategoryTransferToStringConverter());
-        mCategoryIDComboBox.getItems().clear();
-        mCategoryIDComboBox.getItems().add(0); // add a blank
-        for (Category c : mMainApp.getCategoryList()) {
-            mCategoryIDComboBox.getItems().add(c.getID());
-        }
-        for (Account a : mMainApp.getAccountList(null, null, true)) {
-            mCategoryIDComboBox.getItems().add(-a.getID());
-        }
+        (new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox, mainApp))
+                .setFilter(false, accountID);
         mCategoryIDComboBox.getSelectionModel().selectFirst();
 
         mTagIDComboBox.setConverter(new TagToStringConverter());
@@ -128,12 +103,12 @@ public class SplitTransactionsDialogController {
                     st.getTagID(), st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID()));
         }
 
-        mCategoryTableColumn.setCellValueFactory(cd -> cd.getValue().getCategoryIDProperty().asObject());
-        mCategoryTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(new CategoryTransferToStringConverter(),
+        mCategoryTableColumn.setCellValueFactory(cd -> cd.getValue().getCategoryIDProperty());
+        mCategoryTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(mCategoryIDComboBox.getConverter(),
                 mCategoryIDComboBox.getItems()));
 
-        mTagTableColumn.setCellValueFactory(cd -> cd.getValue().getTagIDProperty().asObject());
-        mTagTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(new TagToStringConverter(),
+        mTagTableColumn.setCellValueFactory(cd -> cd.getValue().getTagIDProperty());
+        mTagTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(mTagIDComboBox.getConverter(),
                 mTagIDComboBox.getItems()));
 
         mPayeeTableColumn.setCellValueFactory(cd -> cd.getValue().getPayeeProperty());

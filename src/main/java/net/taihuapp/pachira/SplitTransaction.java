@@ -38,8 +38,8 @@ class SplitTransaction {
 
     // positive for Category ID
     // negative for negative of Transfer Account ID
-    private final IntegerProperty mCategoryIDProperty = new SimpleIntegerProperty(0);
-    private final IntegerProperty mTagIDProperty = new SimpleIntegerProperty(0);
+    private final ObjectProperty<Integer> mCategoryIDProperty = new SimpleObjectProperty<>(0);
+    private final ObjectProperty<Integer> mTagIDProperty = new SimpleObjectProperty<>(0);
     private final StringProperty mPayeeProperty = new SimpleStringProperty();
     private final StringProperty mMemoProperty = new SimpleStringProperty();
 
@@ -65,8 +65,8 @@ class SplitTransaction {
     }
 
     int getID() { return mID; }
-    IntegerProperty getCategoryIDProperty() { return mCategoryIDProperty; }
-    IntegerProperty getTagIDProperty() { return mTagIDProperty; }
+    ObjectProperty<Integer> getCategoryIDProperty() { return mCategoryIDProperty; }
+    ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
     Integer getTagID() { return getTagIDProperty().get(); }
     StringProperty getPayeeProperty() { return mPayeeProperty; }

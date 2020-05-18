@@ -640,9 +640,11 @@ class QIFParser {
                         }
                         break;
                     case "CONTRIBX":
+                    case "XIN":
                         actionStr = "DEPOSIT";
                         break;
                     case "WITHDRWX":
+                    case "XOUT":
                         actionStr = "WITHDRAW";
                         break;
                 }

@@ -680,7 +680,7 @@ public class MainApp extends Application {
                     + "(TYPE, PAYEE, AMOUNT, ACCOUNTID, CATEGORYID, "
                     + "TAGID, MEMO, STARTDATE, ENDDATE, "
                     + "BASEUNIT, NUMPERIOD, ALERTDAYS, ISDOM, ISFWD, ESTCOUNT) "
-                    + "values(?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?)";
+                    + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         } else {
             sqlCmd = "update REMINDERS set "
                     + "TYPE = ?, PAYEE = ?, AMOUNT = ?, ACCOUNTID = ?, CATEGORYID = ?, "
@@ -2524,7 +2524,7 @@ public class MainApp extends Application {
         }
     }
 
-    // update HoldingsList to date but exclude transaction exTid and after.
+    // update HoldingsList to date but exclude transaction exTid
     // an list of cash and total is returned if the account is not an investing account
     List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
         // empty the list first
@@ -2538,7 +2538,9 @@ public class MainApp extends Application {
             } else {
                 for (int i = 0; i < account.getTransactionList().size(); i++) {
                     Transaction t = account.getTransactionList().get(i);
-                    if (t.getTDate().isAfter(date) || t.getID() == exTid) {
+                    if (t.getID() == exTid)
+                        continue;
+                    if (t.getTDate().isAfter(date)) {
                         if (i == 0) {
                             // all transaction are after given date, balance is zero
                             totalCash = BigDecimal.ZERO;
@@ -2581,7 +2583,9 @@ public class MainApp extends Application {
         for (int i = 0; i < account.getTransactionList().size(); i++) {
             // copy over the transactions we are interested
             Transaction t = account.getTransactionList().get(i);
-            if (t.getTDate().isAfter(date) || t.getID() == exTid)
+            if (t.getID() == exTid)
+                continue;
+            if (t.getTDate().isAfter(date))
                 break;
             tList.add(t);
         }
@@ -2809,7 +2813,7 @@ public class MainApp extends Application {
     }
 
     // return true if splittransaction list is changed, false if not.
-    List<SplitTransaction> showSplitTransactionsDialog(Stage parent, List<SplitTransaction> stList,
+    List<SplitTransaction> showSplitTransactionsDialog(Stage parent, int accountID, List<SplitTransaction> stList,
                                                        BigDecimal netAmount) {
         try {
             FXMLLoader loader = new FXMLLoader();
@@ -2822,7 +2826,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             dialogStage.setUserData(false);
             SplitTransactionsDialogController controller = loader.getController();
-            controller.setMainApp(this, dialogStage, stList, netAmount);
+            controller.setMainApp(this, accountID, dialogStage, stList, netAmount);
             dialogStage.showAndWait();
             return controller.getSplitTransactionList();
         } catch (IOException e) {

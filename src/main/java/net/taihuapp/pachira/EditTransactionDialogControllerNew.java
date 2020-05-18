@@ -77,9 +77,33 @@ public class EditTransactionDialogControllerNew {
         private final FilteredList<Integer> mFilteredCTIDList;
         private final SuggestionProvider<String> mProvider;
 
-        // the converter should be set on the comboBox
-        CategoryTransferAccountIDComboBoxWrapper(final ComboBox<Integer> comboBox, ObservableList<Integer> idList) {
+        // the input combobox should be a naked one.
+        CategoryTransferAccountIDComboBoxWrapper(final ComboBox<Integer> comboBox, final MainApp mainApp) {
             mComboBox = comboBox;
+
+            // set converter first
+            mComboBox.setConverter(new StringConverter<>() {
+                @Override
+                public String toString(Integer id) {
+                    if (id == null)
+                        return "";
+                    return mainApp.mapCategoryOrAccountIDToName(id);
+                }
+
+                @Override
+                public Integer fromString(String name) {
+                    return mainApp.mapCategoryOrAccountNameToID(name);
+                }
+            });
+
+            // populate combobox items
+            ObservableList<Integer> idList = FXCollections.observableArrayList();
+            idList.add(0);
+            for (Category category : mainApp.getCategoryList())
+                idList.add(category.getID());
+            for (Account account : mainApp.getAccountList(null, false, true))
+                idList.add(-account.getID());
+
             mFilteredCTIDList = new FilteredList<>(idList);
             mComboBox.getItems().setAll(mFilteredCTIDList);
 
@@ -89,6 +113,8 @@ public class EditTransactionDialogControllerNew {
             for (Integer integer : mFilteredCTIDList) {
                 strList.add(mComboBox.getConverter().toString(integer));
             }
+
+            // setup autocompletion
             mProvider = SuggestionProvider.create(strList);
             new AutoCompletionTextFieldBinding<>(comboBox.getEditor(), mProvider);
         }
@@ -373,26 +399,7 @@ public class EditTransactionDialogControllerNew {
         mAccountComboBox.getSelectionModel().select(defaultAccount);
 
         // category comboBox
-        mCategoryComboBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Integer id) {
-                if (id == null)
-                    return "";
-                return mMainApp.mapCategoryOrAccountIDToName(id);
-            }
-
-            @Override
-            public Integer fromString(String name) {
-                return mMainApp.mapCategoryOrAccountNameToID(name);
-            }
-        });
-        ObservableList<Integer> idList = FXCollections.observableArrayList();
-        idList.add(0);
-        for (Category category : mMainApp.getCategoryList())
-            idList.add(category.getID());
-        for (Account account : mMainApp.getAccountList(null, false, true))
-            idList.add(-account.getID());
-        mCategoryComboBoxWrapper = new CategoryTransferAccountIDComboBoxWrapper(mCategoryComboBox, idList);
+        mCategoryComboBoxWrapper = new CategoryTransferAccountIDComboBoxWrapper(mCategoryComboBox, mainApp);
         mCategoryComboBoxWrapper.setFilter(mTransaction.getTradeAction() != DEPOSIT
                 && mTransaction.getTradeAction() != WITHDRAW, defaultAccount.getID());
 
@@ -758,8 +765,11 @@ public class EditTransactionDialogControllerNew {
 
     @FXML
     private void handleSplitTransactions() {
+        final Account account = mAccountComboBox.getValue();
+        final int accountID = account == null ? -1 : account.getID();
         List<SplitTransaction> outSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage,
-                mTransaction.getSplitTransactionList(), mTransaction.getPayment().subtract(mTransaction.getDeposit()));
+                accountID, mTransaction.getSplitTransactionList(),
+                mTransaction.getPayment().subtract(mTransaction.getDeposit()));
 
         if (outSplitTransactionList == null) {
             // it was cancelled. do nothing

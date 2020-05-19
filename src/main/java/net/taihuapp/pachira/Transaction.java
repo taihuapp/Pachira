@@ -405,6 +405,40 @@ public class Transaction {
         }
     }
 
+    //
+    BigDecimal cashTransferAmount() {
+        switch (getTradeAction()) {
+            case BUY:
+            case CVTSHRT:
+            case MARGINT:
+            case MISCEXP:
+            case DEPOSIT:
+                return getAmount();  // cash transfer into account
+            case SELL:
+            case DIV:
+            case INTINC:
+            case CGLONG:
+            case CGMID:
+            case CGSHORT:
+            case MISCINC:
+            case RTRNCAP:
+            case SHTSELL:
+            case WITHDRAW:
+                return getAmount().negate(); // cash from transaction transfer out of account
+            case REINVDIV:
+            case REINVINT:
+            case REINVLG:
+            case REINVMD:
+            case REINVSH:
+            case STKSPLIT:
+            case SHRSIN:
+            case SHRSOUT:
+            case XFRSHRS:
+            default:
+                return BigDecimal.ZERO;  // no cash transfer
+        }
+    }
+
     // return 1 if a tradeAction increase the cash balance in the account
     // return -1 if a tradeAction decrease the cash balance in the account
     // return 0 if a tradeAction has zero impact on cash balance

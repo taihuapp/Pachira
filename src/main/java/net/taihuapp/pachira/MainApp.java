@@ -134,7 +134,7 @@ public class MainApp extends Application {
     private static final int TRANSACTIONTRADEACTIONLEN = 16;
     private static final int TRANSACTIONSTATUSLEN = 16;
     private static final int TRANSACTIONTRANSFERREMINDERLEN = 40;
-    // OFX FITID.  Specification says upto 255 char
+    // OFX FITID.  Specification says up to 255 char
     private static final int TRANSACTIONFITIDLEN = 256;
     private static final int ADDRESSLINELEN = 32;
 
@@ -2948,7 +2948,7 @@ public class MainApp extends Application {
             }
             if (!t1.isTransfer() || (t1.getMatchID() > 0))
                 continue;
-            if ((fromAccountID == -t1.getCategoryID()) && (cashFlow.add(t1.cashFlow()).signum() == 0))
+            if ((fromAccountID == -t1.getCategoryID()) && (cashFlow.add(t1.cashTransferAmount()).signum() == 0))
                 return j;
         }
         return -1;
@@ -2987,16 +2987,17 @@ public class MainApp extends Application {
                     unMatched++;  // we've seen a unmatched
                     boolean modeAgg = false; // default not aggregate
                     int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
-                            st.getAmount().negate(), transactionList.subList(i+1, nTrans));
+                            st.getAmount(), transactionList.subList(i+1, nTrans));
                     if (matchIdx < 0) {
                         // didn't find match, it's possible more than one split transaction transfering
                         // to the same account, the receiving account aggregates all into one transaction.
                         modeAgg = true; // try aggregate mode
+                        mLogger.info("Aggregate mode");
                         BigDecimal cf = BigDecimal.ZERO;
                         for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
                             SplitTransaction st1 = t0.getSplitTransactionList().get(s1);
                             if (st1.getCategoryID().equals(st.getCategoryID()))
-                                cf = cf.add(st1.getAmount().negate());
+                                cf = cf.add(st1.getAmount());
                         }
                         matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
                                 cf, transactionList.subList(i+1, nTrans));
@@ -3033,7 +3034,7 @@ public class MainApp extends Application {
                     continue;
                 }
                 int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -t0.getCategoryID(),
-                        t0.cashFlow(), transactionList.subList(i+1, nTrans));
+                        t0.cashTransferAmount(), transactionList.subList(i+1, nTrans));
                 if (matchIdx >= 0) {
                     Transaction t1 = transactionList.get(i+1+matchIdx);
                     t0.setMatchID(t1.getID(), -1);
@@ -3066,7 +3067,7 @@ public class MainApp extends Application {
                 + "Remain " + unMatchedList.size() + " unmatched transactions.";
 
         showInformationDialog("FixDB", "Information", message);
-        mLogger.error(message);
+        mLogger.info(message);
     }
 
     // import OFX Account statement

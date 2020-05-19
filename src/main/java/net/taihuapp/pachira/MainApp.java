@@ -2962,7 +2962,7 @@ public class MainApp extends Application {
                         .reversed().thenComparing(Transaction::isSplit).reversed()  // put split first
                         .thenComparing(Transaction::getAccountID));
         final int nTrans = transactionList.size();
-        mLogger.error("Total " + nTrans + " transactions");
+        mLogger.info("Total " + nTrans + " transactions");
 
         if (nTrans == 0)
             return; // nothing to do
@@ -4223,7 +4223,7 @@ public class MainApp extends Application {
                 putMatchInfoList(newTID, newMatchInfoList);
 
                 // handle transfer
-                if(-newT.getCategoryID() >= MIN_ACCOUNT_ID && !newT.isSplit()) {
+                if(-newT.getCategoryID() > MIN_ACCOUNT_ID && !newT.isSplit()) {
                     // transfer transaction, no split
                     final Transaction.TradeAction xferTA = newT.TransferTradeAction();
                     if (xferTA == null) {
@@ -4781,8 +4781,8 @@ public class MainApp extends Application {
                 + "primary key (ID));";
         sqlCreateTable(sqlCmd);
 
-        // insert Deleted account
-        insertUpdateAccountToDB(new Account(MIN_ACCOUNT_ID-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
+        // insert Deleted account as the first account, so the account number is MIN_ACCOUND_ID
+        insertUpdateAccountToDB(new Account(-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
                 "Placeholder for the Deleted Account", true, Integer.MAX_VALUE,
                 null, BigDecimal.ZERO));
 

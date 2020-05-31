@@ -25,7 +25,6 @@ import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -61,11 +60,6 @@ public class MainController {
     private static final Logger mLogger = Logger.getLogger(MainController.class);
 
     private MainApp mMainApp;
-    private final ChangeListener<TreeItem<Account>> mSelectedTreeItemChangeListener = (obs, ov, nv) -> {
-        if (nv != null && nv.getValue().getID() >= MainApp.MIN_ACCOUNT_ID) {
-            showAccountTransactions(nv.getValue());
-        }
-    };
 
     @FXML
     private Menu mRecentDBMenu;
@@ -227,7 +221,6 @@ public class MainController {
                         Account selectedAccount = null;
                         if (selectedItemProperty.get() != null)
                             selectedAccount = selectedItemProperty.get().getValue();
-                        selectedItemProperty.removeListener(mSelectedTreeItemChangeListener); // remove listener for now
 
                         // rebuild children of the typeNode
                         typeNode.getChildren().clear();
@@ -273,9 +266,6 @@ public class MainController {
                                 }
                             }
                         }
-                        // add back the listener
-                        mAccountTreeTableView.getSelectionModel().selectedItemProperty()
-                                .addListener(mSelectedTreeItemChangeListener);
                         if (!hasNewSelection) {
                             // clear Selection here to make sure changeListener is called with
                             // null account.
@@ -740,7 +730,11 @@ public class MainController {
             }
         });
 
-        mAccountTreeTableView.getSelectionModel().selectedItemProperty().addListener(mSelectedTreeItemChangeListener);
+        mAccountTreeTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
+            if (nv != null && nv.getValue().getID() >= MainApp.MIN_ACCOUNT_ID) {
+                showAccountTransactions(nv.getValue());
+            }
+        });
 
         mTransactionTableView.setRowFactory(tv -> new TableRow<>() {
             {

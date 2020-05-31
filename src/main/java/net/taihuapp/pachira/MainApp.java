@@ -201,6 +201,9 @@ public class MainApp extends Application {
 
     private final BooleanProperty mHasMasterPasswordProperty = new SimpleBooleanProperty(false);
 
+    private final TaskExecutor mTaskExecutor = new TaskExecutor(1);
+    TaskExecutor getTaskExecutor() { return mTaskExecutor; }
+
     ObservableList<AccountDC> getAccountDCList() { return mAccountDCList; }
     AccountDC getAccountDC(int accountID) {
         for (AccountDC adc : getAccountDCList())
@@ -1646,7 +1649,7 @@ public class MainApp extends Application {
                 // new account, add
                 mAccountList.add(account);
                 account.setTransactionList(getTransactionListByAccountID(account.getID()));
-                updateAccountBalance(account.getID());
+                updateAccountBalance(account);
             } else if (a != account) {
                 // old account, replace
                 mLogger.error("insertupdateaccounttodb, how did we get here");
@@ -1871,6 +1874,12 @@ public class MainApp extends Application {
         }
     }
 
+    void updateAccountBalance() {
+        for (Account account : getAccountList(null, false, true)) {
+            updateAccountBalance(account);
+        }
+    }
+
     void updateAccountBalance(Security security) {
         // update account balance for all non-hidden accounts contains security in currentsecuritylist
         for (Account account : getAccountList(Account.Type.INVESTING, false, true)) {
@@ -1887,7 +1896,10 @@ public class MainApp extends Application {
             mLogger.error("Invalid account ID: " + accountID);
             return;
         }
+        updateAccountBalance(account);
+    }
 
+    void updateAccountBalance(Account account) {
         // update holdings and balance for INVESTING account
         if (account.getType() == Account.Type.INVESTING) {
             List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
@@ -1975,7 +1987,7 @@ public class MainApp extends Application {
             // load transaction list
             // this method will set account balance for SPENDING account
             account.setTransactionList(getTransactionListByAccountID(account.getID()));
-            updateAccountBalance(account.getID());
+            updateAccountBalance(account);
         }
     }
 
@@ -5207,6 +5219,7 @@ public class MainApp extends Application {
     @Override
     public void stop() {
         closeConnection();  // close database connection if any.
+        getTaskExecutor().shutdown();
         Platform.exit(); // this shutdown JavaFX
         System.exit(0);  // this is needed to stop any timer tasks not otherwise stopped.
     }

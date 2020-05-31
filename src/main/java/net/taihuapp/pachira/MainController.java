@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -175,6 +176,25 @@ public class MainController {
 
         if (mMainApp.getAcknowledgeTimeStamp() == null)
             mMainApp.showSplashScreen(true);
+
+        // updateAccountBalance at midnight
+        mMainApp.getTaskExecutor().scheduleDaily(() -> Platform.runLater(() -> mMainApp.updateAccountBalance()),
+                0, 0);
+
+        // refresh TransactionTableView at midnight
+        mMainApp.getTaskExecutor().scheduleDaily(() -> Platform.runLater(() -> mTransactionTableView.refresh()),
+                0, 0);
+    }
+
+    private boolean isNonTrivialPermutated(ListChangeListener.Change<?> c) {
+        if (!c.wasPermutated())
+            return false;  // not even a permutated change
+
+        for (int i = c.getFrom(); i < c.getTo(); i++)
+            if (c.getPermutation(i) != i)
+                return true;  // there is something nontrivial
+
+        return false;
     }
 
     private void populateTreeTable() {
@@ -200,7 +220,7 @@ public class MainController {
                 root.getChildren().add(typeNode);
             ListChangeListener<Account> accountListChangeListener = c -> {
                 while (c.next()) {
-                    if (c.wasAdded() || c.wasRemoved() || c.wasPermutated()) {
+                    if (c.wasAdded() || c.wasRemoved() || isNonTrivialPermutated(c)) {
                         ReadOnlyObjectProperty<TreeItem<Account>> selectedItemProperty =
                                 mAccountTreeTableView.getSelectionModel().selectedItemProperty();
                         // save the original selectedItem
@@ -681,6 +701,7 @@ public class MainController {
         mTransactionCashAmountColumn.setVisible(isTradingAccount);
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private boolean showChangeReconciledConfirmation() {
         return MainApp.showConfirmationDialog("Confirmation","Reconciled transaction?",
                 "Do you really want to change it?");
@@ -721,213 +742,174 @@ public class MainController {
 
         mAccountTreeTableView.getSelectionModel().selectedItemProperty().addListener(mSelectedTreeItemChangeListener);
 
-        PseudoClass future = PseudoClass.getPseudoClass("future");
-        PseudoClass reconciled = PseudoClass.getPseudoClass("reconciled");
-
-        mTransactionTableView.setRowFactory(tv -> {
-            final TableRow<Transaction> row = new TableRow<>();
-            final ContextMenu contextMenu = new ContextMenu();
-            final MenuItem deleteMI = new MenuItem("Delete");
-            deleteMI.setOnAction(e -> {
-                if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
-                        && !showChangeReconciledConfirmation())
-                    return;
-                // delete this transaction
-                if (MainApp.showConfirmationDialog("Confirmation","Delete transaction?",
-                "Do you really want to delete it?"))
-                    mMainApp.alterTransaction(row.getItem(), null, new ArrayList<>());
-            });
-            final Menu moveToMenu = new Menu("Move to...");
-            for (Account.Type at : Account.Type.values()) {
-                final Menu atMenu = new Menu(at.name());
-                atMenu.getItems().add(new MenuItem(at.name())); // need this placeholder for setOnShowing to work
-                atMenu.setOnShowing(e -> {
-                    atMenu.getItems().clear();
-                    final ObservableList<Account> accountList = mMainApp.getAccountList(at, false, true);
-                    for (Account a : accountList) {
-                        if (a.getID() != row.getItem().getAccountID()) {
-                            MenuItem accountMI = new MenuItem(a.getName());
-                            accountMI.setOnAction(e1 -> {
-                                if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
-                                        && !showChangeReconciledConfirmation())
-                                    return;
-                                Transaction oldT = row.getItem();
-                                List<SecurityHolding.MatchInfo> matchInfoList = mMainApp.getMatchInfoList(oldT.getID());
-                                if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
-                                        "Transaction with Lot Matching",
-                                        "The lot matching information will be lost. " +
-                                                "Do you want to continue?")) {
-                                    // either this transaction doesn't have lot matching information,
-                                    // or user choose to ignore lot matching information
-                                    Account newAccount = mMainApp.getAccountByName(accountMI.getText());
-                                    if (newAccount != null) {
-                                        // let show transaction table for the new account
-                                        TreeItem<Account> groupNode = mAccountTreeTableView.getRoot().getChildren().stream()
-                                                .filter(n -> n.getValue().getType().equals(newAccount.getType()))
-                                                .findFirst().orElse(null);
-                                        if (groupNode != null) {
-                                            TreeItem<Account> accountNode = groupNode.getChildren().stream()
-                                                    .filter(n -> n.getValue().getID() == newAccount.getID())
+        mTransactionTableView.setRowFactory(tv -> new TableRow<>() {
+            {
+                final ContextMenu contextMenu = new ContextMenu();
+                final MenuItem deleteMI = new MenuItem("Delete");
+                deleteMI.setOnAction(e -> {
+                    if (getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                            && !showChangeReconciledConfirmation())
+                        return;
+                    // delete this transaction
+                    if (MainApp.showConfirmationDialog("Confirmation", "Delete transaction?",
+                            "Do you really want to delete it?"))
+                        mMainApp.alterTransaction(getItem(), null, new ArrayList<>());
+                });
+                final Menu moveToMenu = new Menu("Move to...");
+                for (Account.Type at : Account.Type.values()) {
+                    final Menu atMenu = new Menu(at.name());
+                    atMenu.getItems().add(new MenuItem(at.name())); // need this placeholder for setOnShowing to work
+                    atMenu.setOnShowing(e -> {
+                        atMenu.getItems().clear();
+                        final ObservableList<Account> accountList = mMainApp.getAccountList(at, false, true);
+                        for (Account a : accountList) {
+                            if (a.getID() != getItem().getAccountID()) {
+                                MenuItem accountMI = new MenuItem(a.getName());
+                                accountMI.setOnAction(e1 -> {
+                                    if (getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                                            && !showChangeReconciledConfirmation())
+                                        return;
+                                    Transaction oldT = getItem();
+                                    List<SecurityHolding.MatchInfo> matchInfoList = mMainApp.getMatchInfoList(oldT.getID());
+                                    if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
+                                            "Transaction with Lot Matching",
+                                            "The lot matching information will be lost. " +
+                                                    "Do you want to continue?")) {
+                                        // either this transaction doesn't have lot matching information,
+                                        // or user choose to ignore lot matching information
+                                        Account newAccount = mMainApp.getAccountByName(accountMI.getText());
+                                        if (newAccount != null) {
+                                            // let show transaction table for the new account
+                                            TreeItem<Account> groupNode = mAccountTreeTableView.getRoot().getChildren().stream()
+                                                    .filter(n -> n.getValue().getType().equals(newAccount.getType()))
                                                     .findFirst().orElse(null);
-                                            if (accountNode != null) {
-                                                Transaction newT = new Transaction(oldT);
-                                                newT.setAccountID(newAccount.getID());
-                                                Transaction.ValidationStatus vs = newT.validate();
-                                                if (vs.isValid()) {
-                                                    mAccountTreeTableView.getSelectionModel().select(accountNode);
-                                                    mMainApp.alterTransaction(oldT, newT, new ArrayList<>());
-                                                } else {
-                                                    MainApp.showWarningDialog("Invalid Transaction",
-                                                            "Move Cancelled", vs.getMessage());
+                                            if (groupNode != null) {
+                                                TreeItem<Account> accountNode = groupNode.getChildren().stream()
+                                                        .filter(n -> n.getValue().getID() == newAccount.getID())
+                                                        .findFirst().orElse(null);
+                                                if (accountNode != null) {
+                                                    Transaction newT = new Transaction(oldT);
+                                                    newT.setAccountID(newAccount.getID());
+                                                    Transaction.ValidationStatus vs = newT.validate();
+                                                    if (vs.isValid()) {
+                                                        mAccountTreeTableView.getSelectionModel().select(accountNode);
+                                                        mMainApp.alterTransaction(oldT, newT, new ArrayList<>());
+                                                    } else {
+                                                        MainApp.showWarningDialog("Invalid Transaction",
+                                                                "Move Cancelled", vs.getMessage());
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
-                            });
-                            atMenu.getItems().add(accountMI);
+                                });
+                                atMenu.getItems().add(accountMI);
+                            }
                         }
+                    });
+                    moveToMenu.getItems().add(atMenu);
+                }
+                moveToMenu.setOnShowing(e -> {
+                    boolean isCash = getItem().isCash();
+                    for (MenuItem mi : moveToMenu.getItems()) {
+                        mi.setVisible(isCash || mi.getText().equals(Account.Type.INVESTING.name()));
                     }
                 });
-                moveToMenu.getItems().add(atMenu);
-            }
-            moveToMenu.setOnShowing(e-> {
-                boolean isCash = row.getItem().isCash();
-                for (MenuItem mi : moveToMenu.getItems()) {
-                    mi.setVisible(isCash || mi.getText().equals(Account.Type.INVESTING.name()));
-                }
-            });
 
-            // menuitem for downloaded transaction to merge with manually entered one
-            final MenuItem mergeMI = new MenuItem("Merge...");
-            mergeMI.setOnAction(e -> {
-                final Transaction downloadedTransaction = row.getItem();
+                // menuItem for downloaded transaction to merge with manually entered one
+                final MenuItem mergeMI = new MenuItem("Merge...");
+                mergeMI.setOnAction(e -> {
+                    final Transaction downloadedTransaction = getItem();
 
-                Stage dialogStage = new Stage();
-                dialogStage.initModality(Modality.WINDOW_MODAL);
-                dialogStage.initOwner(mMainApp.getStage());
-                MergeCandidateDialog mcd = new MergeCandidateDialog(mMainApp, dialogStage, downloadedTransaction);
-                dialogStage.showAndWait();
-                Transaction selected = mcd.getSelectedTransaction();
-                if (selected != null) {
-                    Transaction mergedTransaction = Transaction.mergeDownloadedTransaction(
-                            selected, downloadedTransaction);
+                    Stage dialogStage = new Stage();
+                    dialogStage.initModality(Modality.WINDOW_MODAL);
+                    dialogStage.initOwner(mMainApp.getStage());
+                    MergeCandidateDialog mcd = new MergeCandidateDialog(mMainApp, dialogStage, downloadedTransaction);
+                    dialogStage.showAndWait();
+                    Transaction selected = mcd.getSelectedTransaction();
+                    if (selected != null) {
+                        Transaction mergedTransaction = Transaction.mergeDownloadedTransaction(
+                                selected, downloadedTransaction);
 
-                    if (!mMainApp.alterTransaction(selected, mergedTransaction, new ArrayList<>())) {
-                        showWarningDialog("Merge Transaction Failed",
-                                "Failed to merge a downoaded transaction with an existing one",
-                                "Transactions remained un-merged");
-                        return;
-                    }
-
-                    if (!mMainApp.alterTransaction(downloadedTransaction, null, new ArrayList<>())) {
-                        showWarningDialog("Delete Transaction Failed",
-                                "Failed to delete downloaded transaction after merge.",
-                                "Duplicating downloaded transaction remains in DB.");
-                    }
-                }
-            });
-
-            for (Transaction.Status status : Transaction.Status.values()) {
-                MenuItem statusMI = new MenuItem("Mark as " + status.toString());
-                statusMI.setOnAction(e -> {
-                    if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
-                            && !showChangeReconciledConfirmation())
-                        return;
-                    if (mMainApp.setTransactionStatusInDB(row.getItem().getID(), status))
-                        row.getItem().setStatus(status);
-                    else
-                        showWarningDialog("Database problem",
-                                    "Unable to change transaction status in DB",
-                                    "Transaction status unchanged.");
-                });
-                contextMenu.getItems().add(statusMI);
-            }
-            contextMenu.getItems().add(new SeparatorMenuItem());
-            contextMenu.getItems().add(mergeMI);
-            contextMenu.getItems().add(new SeparatorMenuItem());
-            contextMenu.getItems().add(deleteMI);
-            contextMenu.getItems().add(moveToMenu);
-
-            row.contextMenuProperty().bind(Bindings.when(row.emptyProperty()).then((ContextMenu) null)
-                    .otherwise(contextMenu));
-            // double click to edit the transaction
-            row.setOnMouseClicked(event -> {
-                if ((event.getClickCount() == 2) && (!row.isEmpty())) {
-                    if (row.getItem().getStatus().equals(Transaction.Status.RECONCILED)
-                            && !showChangeReconciledConfirmation())
-                        return;
-                    final Transaction transaction = row.getItem();
-                    int selectedTransactionID = transaction.getID();
-                    if (transaction.getMatchID() > 0) {
-                        // this is a linked transaction
-                        if (transaction.getMatchSplitID() > 0) {
-                            showWarningDialog("Linked to A Split Transaction",
-                                    "Linked to a split transaction",
-                                    "Please edit the linked split transaction.");
+                        if (!mMainApp.alterTransaction(selected, mergedTransaction, new ArrayList<>())) {
+                            showWarningDialog("Merge Transaction Failed",
+                                    "Failed to merge a downloaded transaction with an existing one",
+                                    "Transactions remained un-merged");
                             return;
                         }
 
-                        if (transaction.isCash()) {
-                            Transaction linkedTransaction = mMainApp.getTransactionByID(transaction.getMatchID());
-                            if (linkedTransaction == null) {
-                                showWarningDialog("Linked to An Investing Transaction",
-                                        "Unable to find the linked transaction",
-                                        "Call help!");
-                                return;
-                            }
-                            if (!linkedTransaction.isCash()) {
-                                 showWarningDialog("Linked to An Investing Transaction",
-                                            "Linked to an investing transaction",
-                                            "Please edit the linked investing transaction.");
-                                 return;
-                            }
+                        if (!mMainApp.alterTransaction(downloadedTransaction, null, new ArrayList<>())) {
+                            showWarningDialog("Delete Transaction Failed",
+                                    "Failed to delete downloaded transaction after merge.",
+                                    "Duplicating downloaded transaction remains in DB.");
                         }
                     }
-                    mMainApp.showEditTransactionDialog(mMainApp.getStage(), new Transaction(row.getItem()));
-                    for (int i = 0; i < mTransactionTableView.getItems().size(); i++) {
-                        if (mTransactionTableView.getItems().get(i).getID() == selectedTransactionID)
-                            mTransactionTableView.getSelectionModel().select(i);
+                });
+
+                for (Transaction.Status status : Transaction.Status.values()) {
+                    MenuItem statusMI = new MenuItem("Mark as " + status.toString());
+                    statusMI.setOnAction(e -> {
+                        if (getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                                && !showChangeReconciledConfirmation())
+                            return;
+                        if (mMainApp.setTransactionStatusInDB(getItem().getID(), status))
+                            getItem().setStatus(status);
+                        else
+                            showWarningDialog("Database problem",
+                                    "Unable to change transaction status in DB",
+                                    "Transaction status unchanged.");
+                    });
+                    contextMenu.getItems().add(statusMI);
+                }
+                contextMenu.getItems().add(new SeparatorMenuItem());
+                contextMenu.getItems().add(mergeMI);
+                contextMenu.getItems().add(new SeparatorMenuItem());
+                contextMenu.getItems().add(deleteMI);
+                contextMenu.getItems().add(moveToMenu);
+
+                contextMenuProperty().bind(Bindings.when(emptyProperty()).then((ContextMenu) null)
+                        .otherwise(contextMenu));
+                // double click to edit the transaction
+                setOnMouseClicked(event -> {
+                    if ((event.getClickCount() == 2) && (!isEmpty())) {
+                        if (getItem().getStatus().equals(Transaction.Status.RECONCILED)
+                                && !showChangeReconciledConfirmation())
+                            return;
+                        final Transaction transaction = getItem();
+                        int selectedTransactionID = transaction.getID();
+                        if (transaction.getMatchID() > 0) {
+                            // this is a linked transaction
+                            if (transaction.getMatchSplitID() > 0) {
+                                showWarningDialog("Linked to A Split Transaction",
+                                        "Linked to a split transaction",
+                                        "Please edit the linked split transaction.");
+                                return;
+                            }
+
+                            if (transaction.isCash()) {
+                                Transaction linkedTransaction = mMainApp.getTransactionByID(transaction.getMatchID());
+                                if (linkedTransaction == null) {
+                                    showWarningDialog("Linked to An Investing Transaction",
+                                            "Unable to find the linked transaction",
+                                            "Call help!");
+                                    return;
+                                }
+                                if (!linkedTransaction.isCash()) {
+                                    showWarningDialog("Linked to An Investing Transaction",
+                                            "Linked to an investing transaction",
+                                            "Please edit the linked investing transaction.");
+                                    return;
+                                }
+                            }
+                        }
+                        mMainApp.showEditTransactionDialog(mMainApp.getStage(), new Transaction(getItem()));
+                        for (int i = 0; i < mTransactionTableView.getItems().size(); i++) {
+                            if (mTransactionTableView.getItems().get(i).getID() == selectedTransactionID)
+                                mTransactionTableView.getSelectionModel().select(i);
+                        }
                     }
-                }
-            });
-
-            // setup pseudoclasses
-            ChangeListener<Transaction.Status> statusChangeListener = (obs, oStatus, nStatus) -> {
-                row.pseudoClassStateChanged(reconciled, nStatus.equals(Transaction.Status.RECONCILED));
-                for (MenuItem mi : contextMenu.getItems()) {
-                    mi.setDisable((mi.getText() != null) && mi.getText().endsWith(nStatus.toString()));
-                }
-            };
-            ChangeListener<LocalDate> dateChangeListener = (obs, oDate, nDate)
-                    -> row.pseudoClassStateChanged(future, nDate.isAfter(LocalDate.now()));
-
-            row.itemProperty().addListener((obs, oTransaction, nTransaction) -> {
-                if (oTransaction != null) {
-                    oTransaction.getStatusProperty().removeListener(statusChangeListener);
-                    oTransaction.getTDateProperty().removeListener(dateChangeListener);
-                }
-                if (nTransaction != null) {
-                    nTransaction.getStatusProperty().addListener(statusChangeListener);
-                    nTransaction.getTDateProperty().addListener(dateChangeListener);
-
-                    row.pseudoClassStateChanged(reconciled,
-                            nTransaction.getStatus().equals(Transaction.Status.RECONCILED));
-                    row.pseudoClassStateChanged(future, nTransaction.getTDate().isAfter(LocalDate.now()));
-
-                    for (MenuItem mi : contextMenu.getItems()) {
-                        mi.setDisable((mi.getText() != null)
-                                && mi.getText().endsWith(nTransaction.getStatus().toString()));
-                    }
-
-                    mergeMI.setDisable(nTransaction.getFITID().isEmpty());
-                } else {
-                    row.pseudoClassStateChanged(reconciled, false);
-                    row.pseudoClassStateChanged(future, false);
-                }
-            });
-
-            return row;
+                });
+            }
         });
         mTransactionTableView.getStylesheets().add(getClass().getResource("/css/TransactionTableView.css").toExternalForm());
 
@@ -943,11 +925,44 @@ public class MainController {
                 } else {
                     setText(String.valueOf(item.toChar()));
                     setStyle("-fx-alignment: CENTER;");
+                    TableRow<Transaction> row = getTableRow();
+                    if (row != null) {
+                        row.pseudoClassStateChanged(PseudoClass.getPseudoClass("reconciled"),
+                                item == Transaction.Status.RECONCILED);
+                        ContextMenu contextMenu = row.getContextMenu();
+                        if (contextMenu != null) {
+                            for (MenuItem mi : contextMenu.getItems()) {
+                                final String miText = mi.getText();
+                                if (miText != null) {
+                                    mi.setDisable(miText.endsWith(item.toString())
+                                            || (miText.startsWith("Merge") && row.getItem().getFITID().isEmpty()));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         });
         mTransactionDateColumn.setCellValueFactory(cellData->cellData.getValue().getTDateProperty());
-        mTransactionDateColumn.setStyle( "-fx-alignment: CENTER;");
+        mTransactionDateColumn.setCellFactory(c -> new TableCell<>() {
+            @Override
+            protected void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item.toString());
+                    setStyle("-fx-alignment: CENTER;");
+                    TableRow<Transaction> row = getTableRow();
+                    if (row != null) {
+                        row.pseudoClassStateChanged(PseudoClass.getPseudoClass("future"),
+                                item.isAfter(LocalDate.now()));
+                    }
+                }
+            }
+        });
+
         mTransactionTradeActionColumn.setCellValueFactory(cellData -> cellData.getValue().getTradeActionProperty());
         mTransactionSecurityNameColumn.setCellValueFactory(cellData -> cellData.getValue().getSecurityNameProperty());
         mTransactionDescriptionColumn.setCellValueFactory(cellData -> cellData.getValue().getDescriptionProperty());

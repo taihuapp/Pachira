@@ -120,6 +120,7 @@ public class EditTransactionDialogControllerNew {
         }
 
         void setFilter(boolean excludeCategory, int excludeAID) {
+            Integer selectedValue = mComboBox.getSelectionModel().getSelectedItem();
             Predicate<Integer> p;
             if (excludeCategory) {
                 if (excludeAID < 0)
@@ -140,6 +141,11 @@ public class EditTransactionDialogControllerNew {
             }
             mProvider.clearSuggestions();
             mProvider.addPossibleSuggestions(strList);
+
+            if (selectedValue == null || !p.test(selectedValue) )
+                mComboBox.getSelectionModel().select(Integer.valueOf(0));
+            else
+                mComboBox.getSelectionModel().select(selectedValue);
         }
     }
 
@@ -847,7 +853,7 @@ public class EditTransactionDialogControllerNew {
             mSplitTransactionListChanged = false;
             mTransactionOrig = null;
             handleClear();
-            mTradeActionChoiceBox.requestFocus();
+            Platform.runLater(() -> mTradeActionChoiceBox.requestFocus());
         }
     }
 }

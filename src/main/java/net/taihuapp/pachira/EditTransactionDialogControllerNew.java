@@ -257,16 +257,16 @@ public class EditTransactionDialogControllerNew {
             mTransaction.setPayee("");
 
         if (!mSharesTextField.isVisible())
-            mTransaction.setQuantity(BigDecimal.ZERO);
+            mTransaction.setQuantity(null);
 
         if (!mOldSharesTextField.isVisible())
-            mTransaction.setOldQuantity(BigDecimal.ZERO);
+            mTransaction.setOldQuantity(null);
 
         if (!mCommissionTextField.isVisible())
-            mTransaction.setCommission(BigDecimal.ZERO);
+            mTransaction.setCommission(null);
 
         if (!mAccruedInterestTextField.isVisible())
-            mTransaction.setAccruedInterest(BigDecimal.ZERO);
+            mTransaction.setAccruedInterest(null);
 
         if (!mSpecifyLotButton.isVisible())
             mMatchInfoList.clear();

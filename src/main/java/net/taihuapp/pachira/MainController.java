@@ -172,8 +172,10 @@ public class MainController {
             mMainApp.showSplashScreen(true);
 
         // updateAccountBalance at midnight
-        mMainApp.getTaskExecutor().scheduleDaily(() -> Platform.runLater(() -> mMainApp.updateAccountBalance()),
-                0, 0);
+        mMainApp.getTaskExecutor().scheduleDaily(() -> Platform.runLater(() -> {
+            ReminderTransaction.CURRENTDATEPROPERTY.set(LocalDate.now());
+            mMainApp.updateAccountBalance();
+                }),0, 0);
 
         // refresh TransactionTableView at midnight
         mMainApp.getTaskExecutor().scheduleDaily(() -> Platform.runLater(() -> mTransactionTableView.refresh()),

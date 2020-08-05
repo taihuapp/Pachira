@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -91,10 +91,10 @@
       </VBox>
    </center>
    <left>
-      <TreeTableView fx:id="mAccountTreeTableView" maxWidth="600.0" minWidth="150.0" prefWidth="265.0" BorderPane.alignment="CENTER">
+      <TreeTableView fx:id="mAccountTreeTableView" maxWidth="600.0" minWidth="200.0" BorderPane.alignment="CENTER">
         <columns>
           <TreeTableColumn fx:id="mAccountNameTreeTableColumn" maxWidth="200.0" minWidth="100.0" prefWidth="140.0" sortable="false" text="Account" />
-          <TreeTableColumn fx:id="mAccountBalanceTreeTableColumn" maxWidth="150.0" minWidth="50.0" prefWidth="125.0" sortable="false" text="Balance" />
+          <TreeTableColumn fx:id="mAccountBalanceTreeTableColumn" maxWidth="170.0" minWidth="50.0" prefWidth="125.0" sortable="false" text="Balance" />
         </columns>
          <BorderPane.margin>
             <Insets bottom="5.0" left="5.0" />

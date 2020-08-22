@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -1569,7 +1569,7 @@ public class MainApp extends Application {
         return rowID;
     }
 
-    private void insertCategoryToDB(QIFParser.Category category) {
+    private void insertCategoryToDB(Category category) {
         String sqlCmd;
         sqlCmd = "insert into CATEGORIES (NAME, DESCRIPTION, INCOMEFLAG, TAXREFNUM, BUDGETAMOUNT) "
                 + "values (?,?,?, ?, ?)";
@@ -1577,7 +1577,7 @@ public class MainApp extends Application {
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
             preparedStatement.setString(1, category.getName());
             preparedStatement.setString(2, category.getDescription());
-            preparedStatement.setBoolean(3, category.isIncome());
+            preparedStatement.setBoolean(3, category.getIsIncome());
             preparedStatement.setInt(4, category.getTaxRefNum());
             preparedStatement.setBigDecimal(5, category.getBudgetAmount());
             preparedStatement.executeUpdate();

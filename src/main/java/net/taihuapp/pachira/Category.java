@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,8 +24,21 @@ import javafx.beans.property.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
 public class Category {
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        // return true if two string contents equal
+        return mNameProperty.get().equals(((Category) o).mNameProperty.get());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mNameProperty.get());
+    }
 
     private int mID;
     private final StringProperty mNameProperty;  // name of the category
@@ -35,7 +48,7 @@ public class Category {
     //               0 for tax related but no valid ref num
     //              >0 actual tax ref number
     private final IntegerProperty mTaxRefNumProperty;  // Tax reference number (for tax-related items,
-    private ObjectProperty<BigDecimal> mBudgetAmountProperty; // budget amount
+    private final ObjectProperty<BigDecimal> mBudgetAmountProperty; // budget amount
 
     // constructor
     Category(int id, String name, String description, boolean isIncome, int taxRefNum) {

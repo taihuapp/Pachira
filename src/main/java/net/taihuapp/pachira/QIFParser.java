@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -57,93 +57,6 @@ class QIFParser {
             }
             return tag;
         }
-
-    static class Category {
-        private int mID;
-        private String mName;  // name of the category
-        private String mDescription;  // description
-        private boolean mIsIncome; // income category flag
-        // mTaxRefNum = -1 for non tax related
-        //               0 for tax related but no valid ref num
-        //              >0 actual tax ref number
-        private int mTaxRefNum;  // Tax reference number (for tax-related items,
-        private BigDecimal mBudgetAmount; // budget amount
-
-        public Category() {
-            mID = -1;
-            mName = "";
-            mDescription = "";
-            mTaxRefNum = -1;
-            mIsIncome = true;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Category category = (Category) o;
-            return Objects.equals(mName, category.mName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(mName);
-        }
-
-        void setID(int id) { mID = id; }
-        int getID() { return mID; }
-        public void setName(String n) { mName = n; }
-        public String getName() { return mName; }
-        void setDescription(String d) { mDescription = d; }
-        String getDescription() { return mDescription; }
-        void setIsTaxRelated(boolean t) {
-            if (t && (getTaxRefNum() < 0)) {
-                setTaxRefNum(0); // set it to be tax related
-            } else if (!t) {
-                setTaxRefNum(-1); // set it to be non tax related
-            }
-        }
-        public boolean isTaxRelated() { return getTaxRefNum() >= 0; }
-        void setTaxRefNum(int r) { mTaxRefNum = r; }
-        int getTaxRefNum() { return mTaxRefNum; }
-        void setIsIncome(boolean i) { mIsIncome = i;}
-        boolean isIncome() { return mIsIncome; }
-        void setBudgetAmount(BigDecimal b) { mBudgetAmount = b; }
-        BigDecimal getBudgetAmount() { return mBudgetAmount; }
-        static Category fromQIFLines(List<String> lines)  {
-            Category category = new Category();
-            for (String l : lines) {
-                switch (l.charAt(0)) {
-                    case 'N':
-                        category.setName(l.substring(1));
-                        break;
-                    case 'D':
-                        category.setDescription(l.substring(1));
-                        break;
-                    case 'T':
-                        category.setIsTaxRelated(true);
-                        break;
-                    case 'R':
-                        category.setTaxRefNum(Integer.parseInt(l.substring(1)));
-                        break;
-                    case 'I':
-                        category.setIsIncome(true);
-                        break;
-                    case 'E':
-                        category.setIsIncome(false);
-                        break;
-                    case 'B':
-                        category.setBudgetAmount(new BigDecimal(l.substring(1).replace(",","")));
-                        break;
-                    default:
-                        return null;
-                }
-            }
-            return category;
-        }
-
-        public String toString() { return "[" + mName + "," + mDescription + "]" ;}
-    }
 
     // starting from lines.get(startIdx) seek the line number of the next line
     // equals match

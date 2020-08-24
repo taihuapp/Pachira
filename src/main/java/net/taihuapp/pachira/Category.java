@@ -23,7 +23,6 @@ package net.taihuapp.pachira;
 import javafx.beans.property.*;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Objects;
 
 public class Category {
@@ -84,13 +83,14 @@ public class Category {
     Boolean getIsIncome() { return getIsIncomeProperty().get(); }
     void setIsIncome(boolean isIncome) { getIsIncomeProperty().set(isIncome); }
 
-    private void setIsTaxRelated(boolean t) {
+    void setIsTaxRelated(boolean t) {
         if (t && (getTaxRefNum() < 0)) {
             setTaxRefNum(0); // set it to be tax related
         } else if (!t) {
             setTaxRefNum(-1); // set it to be non tax related
         }
     }
+
     boolean isTaxRelated() { return getTaxRefNum() >= 0; }
 
     private IntegerProperty getTaxRefNumProperty() { return mTaxRefNumProperty; }
@@ -100,38 +100,6 @@ public class Category {
     private ObjectProperty<BigDecimal> getBudgetAmountProperty() { return mBudgetAmountProperty; }
     BigDecimal getBudgetAmount() { return getBudgetAmountProperty().get(); }
     void setBudgetAmount(BigDecimal b) { getBudgetAmountProperty().set(b); }
-
-    static Category fromQIFLines(List<String> lines)  {
-        Category category = new Category();
-        for (String l : lines) {
-            switch (l.charAt(0)) {
-                case 'N':
-                    category.setName(l.substring(1));
-                    break;
-                case 'D':
-                    category.setDescription(l.substring(1));
-                    break;
-                case 'T':
-                    category.setIsTaxRelated(true);
-                    break;
-                case 'R':
-                    category.setTaxRefNum(Integer.parseInt(l.substring(1)));
-                    break;
-                case 'I':
-                    category.setIsIncome(true);
-                    break;
-                case 'E':
-                    category.setIsIncome(false);
-                    break;
-                case 'B':
-                    category.setBudgetAmount(new BigDecimal(l.substring(1).replace(",","")));
-                    break;
-                default:
-                    return null;
-            }
-        }
-        return category;
-    }
 
     public String toString() { return "[" + getName() + "," + getDescription() + "]" ;}
 }

@@ -42,21 +42,53 @@ class QIFParser {
     private enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT, TAG }
 
     private static Tag parseTagFromQIFLines(List<String> lines)  {
-            Tag tag = new Tag();
-            for (String l : lines) {
-                switch (l.charAt(0)) {
-                    case 'N':
-                        tag.setName(l.substring(1));
-                        break;
-                    case 'D':
-                        tag.setDescription(l.substring(1));
-                        break;
-                    default:
-                        return null;
-                }
+        Tag tag = new Tag();
+        for (String l : lines) {
+            switch (l.charAt(0)) {
+                case 'N':
+                    tag.setName(l.substring(1));
+                    break;
+                case 'D':
+                    tag.setDescription(l.substring(1));
+                    break;
+                default:
+                    return null;
             }
-            return tag;
         }
+        return tag;
+    }
+
+    static Category parseCategoryFromQIFLines(List<String> lines)  {
+        Category category = new Category();
+        for (String l : lines) {
+            switch (l.charAt(0)) {
+                case 'N':
+                    category.setName(l.substring(1));
+                    break;
+                case 'D':
+                    category.setDescription(l.substring(1));
+                    break;
+                case 'T':
+                    category.setIsTaxRelated(true);
+                    break;
+                case 'R':
+                    category.setTaxRefNum(Integer.parseInt(l.substring(1)));
+                    break;
+                case 'I':
+                    category.setIsIncome(true);
+                    break;
+                case 'E':
+                    category.setIsIncome(false);
+                    break;
+                case 'B':
+                    category.setBudgetAmount(new BigDecimal(l.substring(1).replace(",","")));
+                    break;
+                default:
+                    return null;
+            }
+        }
+        return category;
+    }
 
     // starting from lines.get(startIdx) seek the line number of the next line
     // equals match
@@ -833,7 +865,7 @@ class QIFParser {
                     }
                     switch (currentRecordType) {
                         case CAT:
-                            Category category = Category.fromQIFLines(allLines.subList(i, j));
+                            Category category = parseCategoryFromQIFLines(allLines.subList(i, j));
                             if (category != null) {
                                 mCategorySet.add(category);
                             } else {

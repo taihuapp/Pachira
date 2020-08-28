@@ -126,12 +126,8 @@ public class HoldingsDialogController {
                             TreeItem<LotHolding> treeItem = treeTableRow.getTreeItem();
                             if (treeItem != null) {
                                 String label = treeItem.getValue().getLabel();
-                                if (mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) > 1
-                                        || label.equals("TOTAL") || label.equals("CASH")) {
-                                    setEditable(false); // it seems the setEditable need to be called again and again
-                                } else {
-                                    setEditable(true);
-                                }
+                                setEditable(mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) <= 1
+                                        && !label.equals("TOTAL") && !label.equals("CASH")); // it seems the setEditable need to be called again and again
                             }
                         }
                     }
@@ -174,7 +170,7 @@ public class HoldingsDialogController {
                     return; // don't save, go back
             }
 
-            if (!mMainApp.insertUpdatePriceToDB(security.getID(), date, newPrice, 3)) {
+            if (!mMainApp.insertUpdatePriceToDB(security.getID(), security.getTicker(), date, newPrice, 3)) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setHeaderText("Failed to insert/update price:");
                 alert.setContentText("Security Name: " + security.getName() + "\n"

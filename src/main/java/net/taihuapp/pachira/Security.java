@@ -64,7 +64,7 @@ public class Security {
     private int mID;
     private final StringProperty mTickerProperty;
     private final StringProperty mNameProperty;
-    private ObjectProperty<Type> mTypeProperty;
+    private final ObjectProperty<Type> mTypeProperty;
 
     // default constructor
     public Security() {

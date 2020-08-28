@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import javafx.util.Pair;
 import org.apache.log4j.Logger;
 
 import java.io.File;
@@ -102,51 +103,27 @@ class QIFParser {
         return -1;
     }
 
-    static class Security {
-        private String mName;
-        private String mSymbol;
-        private String mType;
-        private String mGoal;
-
-        // constructor
-        public Security() {
-            mName = "";
-            mSymbol = "";
-            mType = "";
-            mGoal = "";
-        }
-
-        void setName(String n) { mName = n; }
-        String getName() { return mName; }
-        void setSymbol(String s) { mSymbol = s; }
-        String getSymbol() { return mSymbol; }
-        void setType(String t) { mType = t; }
-        String getType() { return mType; }
-        void setGoal(String g) { mGoal = g; }
-        String getGoal() { return mGoal; }
-
-        static Security fromQIFLines(List<String> lines) {
-            Security security = new Security();
-            for (String l : lines) {
-                switch (l.charAt(0)) {
-                    case 'N':
-                        security.setName(l.substring(1));
-                        break;
-                    case 'S':
-                        security.setSymbol(l.substring(1));
-                        break;
-                    case 'T':
-                        security.setType(l.substring(1));
-                        break;
-                    case 'G':
-                        security.setGoal((l.substring(1)));
-                        break;
-                    default:
-                        return null;
-                }
+    static Security parseSecurityFromQIFLines(List<String> lines) {
+        Security security = new Security();
+        for (String l : lines) {
+            switch (l.charAt(0)) {
+                case 'N':
+                    security.setName(l.substring(1));
+                    break;
+                case 'S':
+                    security.setTicker(l.substring(1));
+                    break;
+                case 'T':
+                    security.setType(Security.Type.fromString(l.substring(1)));
+                    break;
+                case 'G':
+                    // goal is omitted
+                    break;
+                default:
+                    return null;
             }
-            return security;
         }
+        return security;
     }
 
     static class Account {
@@ -676,62 +653,47 @@ class QIFParser {
         }
     }
 
-    static class Price {
-        private String mSecurity;
-        private LocalDate mDate;
-        private BigDecimal mPrice;
-
-        // setters
-        void setSecurity(String s) { mSecurity = s; }
-        void setDate(LocalDate d) { mDate = d; }
-        void setPrice(BigDecimal p) { mPrice = p; }
-        String getSecurity() { return mSecurity; }
-        LocalDate getDate() { return mDate; }
-        BigDecimal getPrice() { return mPrice; }
-
-
-        static Price fromQIFLines(List<String> lines) {
-            if (lines.size() > 1) {
-                mLogger.error("Price record, expected 1 line, got " + lines.size());
-                return null;
-            }
-            String[] tokens = lines.get(0).split(",");
-            if (tokens.length != 3) {
-                mLogger.error("Expect 3 ',' separated fields, got " + tokens.length);
-                return null;
-            }
-            Price price = new Price();
-            price.setSecurity(tokens[0].replace("\"", ""));
-            price.setDate(parseDate(tokens[2].replace("\"", "").trim()));
-
-            // the actual price has two possible formats:
-            // decimal, xxx.yyyy
-            // fraction [x ]y/z
-            int idx0 = tokens[1].indexOf('/');
-            if (idx0 == -1) {
-                // not a fraction
-                if (tokens[1].length() > 0) {
-                    price.setPrice(new BigDecimal(tokens[1]));
-                } else {
-                    price.setPrice(BigDecimal.ZERO);
-                }
-            } else {
-                int whole, num, den, idx1;
-                den = Integer.parseInt(tokens[1].substring(idx0 + 1));
-                idx1 = tokens[1].indexOf(' ');
-                if (idx1 == -1) {
-                    // no space
-                    whole = 0;
-                    num = Integer.parseInt(tokens[1].substring(0,idx0));
-                } else {
-                    whole = Integer.parseInt(tokens[1].substring(0, idx1));
-                    num = Integer.parseInt(tokens[1].substring(idx1+1, idx0));
-                }
-                price.setPrice((new BigDecimal(whole)).add((new BigDecimal(num)).divide(new BigDecimal(den),
-                        MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP)));
-            }
-            return price;
+    // parse ticker symbol and price from QIF lines
+    Pair<String, Price> parsePriceFromQIFLines(List<String> lines) {
+        if (lines.size() > 1) {
+            mLogger.error("Price record, expected 1 line, got " + lines.size());
+            return null;
         }
+        String[] tokens = lines.get(0).split(",");
+        if (tokens.length != 3) {
+            mLogger.error("Expect 3 ',' separated fields, got " + tokens.length);
+            return null;
+        }
+
+        // the actual price has two possible formats:
+        // decimal, xxx.yyyy
+        // fraction [x ]y/z
+        BigDecimal p;
+        int idx0 = tokens[1].indexOf('/');
+        if (idx0 == -1) {
+            // not a fraction
+            if (tokens[1].length() > 0) {
+                p = new BigDecimal(tokens[1]);
+            } else {
+                p = BigDecimal.ZERO;
+            }
+        } else {
+            int whole, num, den, idx1;
+            den = Integer.parseInt(tokens[1].substring(idx0 + 1));
+            idx1 = tokens[1].indexOf(' ');
+            if (idx1 == -1) {
+                // no space
+                whole = 0;
+                num = Integer.parseInt(tokens[1].substring(0,idx0));
+            } else {
+                whole = Integer.parseInt(tokens[1].substring(0, idx1));
+                num = Integer.parseInt(tokens[1].substring(idx1+1, idx0));
+            }
+            p = new BigDecimal(whole).add(new BigDecimal(num).divide(new BigDecimal(den),
+                    MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP));
+        }
+        return new Pair<>(tokens[0].replace("\"", ""),
+                new Price(parseDate(tokens[2].replace("\"", "").trim()), p));
     }
 
     private final String mDefaultAccountName;
@@ -739,10 +701,10 @@ class QIFParser {
     private final Set<Category> mCategorySet;
     private final Set<Tag> mTagSet;
     private final List<Security> mSecurityList;
+    private final List<Pair<String, Price>> mPriceList;
     private final List<BankTransaction> mBankTransactionList;
     private final List<TradeTransaction> mTradeTransactionList;
     private final List<MemorizedTransaction> mMemorizedTransactionList;
-    private final List<Price> mPriceList;
 
     private void matchTransferTransaction() {
         // TODO: 4/6/16
@@ -896,7 +858,7 @@ class QIFParser {
                             i = j;
                             break;
                         case SECURITY:
-                            Security security = Security.fromQIFLines(allLines.subList(i,j));
+                            Security security = parseSecurityFromQIFLines(allLines.subList(i,j));
                             if (security != null) {
                                 mSecurityList.add(security);
                             } else {
@@ -946,9 +908,9 @@ class QIFParser {
                             i = j;
                             break;
                         case PRICES:
-                            Price price = Price.fromQIFLines(allLines.subList(i,j));
-                            if (price != null) {
-                                mPriceList.add(price);
+                            Pair<String, Price> ticker_price = parsePriceFromQIFLines(allLines.subList(i,j));
+                            if (ticker_price != null) {
+                                mPriceList.add(ticker_price);
                             } else {
                                 mLogger.error("Bad formatted Price record: "
                                         + allLines.subList(i, j));
@@ -973,7 +935,7 @@ class QIFParser {
     List<Security> getSecurityList() { return mSecurityList; }
     Set<Category> getCategorySet() { return mCategorySet; }
     Set<Tag> getTagSet() { return mTagSet; }
-    List<Price> getPriceList() { return mPriceList; }
+    List<Pair<String, Price>> getPriceList() { return mPriceList; }
     List<BankTransaction> getBankTransactionList() { return mBankTransactionList; }
     List<TradeTransaction> getTradeTransactionList() { return mTradeTransactionList; }
     private String getDefaultAccountName() { return mDefaultAccountName; }

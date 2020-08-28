@@ -64,7 +64,7 @@ public class EditSecurityPriceDialogController {
         mMainApp = mainApp;
         mSecurity = security;
         mDialogStage = stage;
-        mPriceList = FXCollections.observableList(mainApp.getSecurityPrice(security.getID()));
+        mPriceList = FXCollections.observableList(mainApp.getSecurityPrice(security.getID(), security.getTicker()));
 
         mNameLabel.setText(security.getName());
 
@@ -72,14 +72,13 @@ public class EditSecurityPriceDialogController {
 
         mPriceTableView.setItems(mPriceList);
         mPriceTableView.setEditable(true); // make it editable
-        mPriceTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            mDeleteButton.setDisable(newValue == null);
-        });
+        mPriceTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
+                -> mDeleteButton.setDisable(newValue == null));
 
         mPriceDateTableColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
 
         mPricePriceTableColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
-        mPricePriceTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new StringConverter<BigDecimal>() {
+        mPricePriceTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new StringConverter<>() {
             @Override
             public String toString(BigDecimal object) {
                 if (object == null)
@@ -131,15 +130,15 @@ public class EditSecurityPriceDialogController {
                         + "Date           : " + date + "\n"
                         + "Price          : " + newPrice + "?");
                 Optional<ButtonType> result = alert.showAndWait();
-                if (!result.isPresent() || result.get() != ButtonType.OK)
+                if (result.isEmpty() || result.get() != ButtonType.OK)
                     return; // don't save, go back
             }
-            if (!mMainApp.insertUpdatePriceToDB(mSecurity.getID(), date, newPrice, dbMode)) {
+            if (!mMainApp.insertUpdatePriceToDB(mSecurity.getID(), mSecurity.getTicker(), date, newPrice, dbMode)) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setHeaderText("Failed to insert/update price:");
                 alert.setContentText("Security Name: " + mSecurity.getName() + "\n"
-                        + "Security Ticker: " + mSecurity.getTicker() + "\n"
                         + "Security ID    : " + mSecurity.getID() + "\n"
+                        + "Security Ticker: " + mSecurity.getTicker() + "\n"
                         + "Date           : " + date + "\n"
                         + "Price          : " + newPrice);
                 alert.showAndWait();
@@ -185,7 +184,8 @@ public class EditSecurityPriceDialogController {
     @FXML
     private void handleDelete() {
         int index = mPriceTableView.getSelectionModel().getSelectedIndex();
-        if (index >= 0 && mMainApp.deleteSecurityPriceFromDB(mSecurity.getID(), mPriceList.get(index).getDate())) {
+        if (index >= 0 && mMainApp.deleteSecurityPriceFromDB(mSecurity.getID(), mSecurity.getTicker(),
+                mPriceList.get(index).getDate())) {
             mPriceList.remove(index);
             mMainApp.updateAccountBalance(mSecurity);
         }

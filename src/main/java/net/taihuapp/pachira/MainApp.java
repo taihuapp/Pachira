@@ -115,7 +115,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 8;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 9;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -1195,10 +1195,17 @@ public class MainApp extends Application {
 
     // return true for DB operation success
     // false otherwise
-    boolean deleteSecurityPriceFromDB(int securityID, LocalDate date) {
-        String sqlCmd = "delete from PRICES where SECURITYID = ? and DATE = ?";
+    boolean deleteSecurityPriceFromDB(Integer securityID, String ticker, LocalDate date) {
+        String sqlCmd;
+        if (ticker.isEmpty())
+            sqlCmd = "delete from PRICES where SECURITYID = ? and DATE = ?";
+        else
+            sqlCmd = "delete from PRICES where TICKER = ? and DATE = ?";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
-            preparedStatement.setInt(1, securityID);
+            if (ticker.isEmpty())
+                preparedStatement.setInt(1, securityID);
+            else
+                preparedStatement.setString(1, ticker);
             preparedStatement.setDate(2, Date.valueOf(date));
             preparedStatement.executeUpdate();
             return true;
@@ -1208,8 +1215,9 @@ public class MainApp extends Application {
             alert.initOwner(mPrimaryStage);
             alert.setTitle("Database Fail Warning");
             alert.setHeaderText("Failed deleting price:");
-            alert.setContentText("Security ID: " + securityID + "\n"
-                               + "Date:        " + date + "\n");
+            alert.setContentText("Ticker:      " + ticker + "\n" +
+                    "Security ID: " + securityID + "\n" +
+                    "Date:        " + date + "\n");
             alert.showAndWait();
             return false;
         }
@@ -1221,28 +1229,33 @@ public class MainApp extends Application {
     //        3 insert and update
     // return true of operation successful
     //        false otherwise
-    boolean insertUpdatePriceToDB(Integer securityID, LocalDate date, BigDecimal p, int mode) {
+    boolean insertUpdatePriceToDB(Integer securityID, String ticker, LocalDate date, BigDecimal p, int mode) {
+        if (ticker.isEmpty() && securityID <= 0)
+            throw new IllegalArgumentException("insertUpdatePriceToDB need valid ticker or securityID:"
+                    + "ID: " + securityID + ", Ticker: '" + ticker + "'");
+
         boolean status = false;
         String sqlCmd;
         switch (mode) {
             case 0:
             case 1:
-                sqlCmd = "insert into PRICES (PRICE, SECURITYID, DATE) values (?, ?, ?)";
+                sqlCmd = "insert into PRICES (PRICE, TICKER, DATE, SECURITYID) values (?, ?, ?, ?)";
                 break;
             case 2:
-                sqlCmd = "update PRICES set PRICE = ? where SECURITYID = ? and DATE = ?";
+                sqlCmd = "update PRICES set PRICE = ? where TICKER = ? and DATE = ? and SECURITYID = ?";
                 break;
             case 3:
-                return insertUpdatePriceToDB(securityID, date, p, 0)
-                        || insertUpdatePriceToDB(securityID, date, p, 2);
+                return insertUpdatePriceToDB(securityID, ticker, date, p, 0)
+                        || insertUpdatePriceToDB(securityID, ticker, date, p, 2);
             default:
                 throw new IllegalArgumentException("insertUpdatePriceToDB called with bad mode = " + mode);
         }
 
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
             preparedStatement.setBigDecimal(1, p);
-            preparedStatement.setInt(2, securityID);
+            preparedStatement.setString(2, ticker);
             preparedStatement.setDate(3, Date.valueOf(date));
+            preparedStatement.setInt(4, ticker.isEmpty() ? securityID : 0);
             preparedStatement.executeUpdate();
             status = true;
         } catch (SQLException e) {
@@ -1675,38 +1688,6 @@ public class MainApp extends Application {
         } catch (NullPointerException e) {
             mLogger.error("NullPointerException", e);
         }
-    }
-
-    private int getSecurityID(String ticker) {
-        if (mConnection == null) {
-            return -1;
-        }
-        String sqlCmd = "select ID from SECURITIES where TICKER = '"
-                + ticker + "'";
-        int id = -1;
-        Statement statement = null;
-        ResultSet resultSet = null;
-        try {
-            statement = mConnection.createStatement();
-            resultSet = statement.executeQuery(sqlCmd);
-            if (resultSet.next()) {
-                id = resultSet.getInt("ID");
-            }
-        } catch (SQLException e) {
-            mLogger.error("SQLException " + e.getSQLState(), e);
-        } finally {
-            try {
-                if (statement != null) {
-                    statement.close();
-                }
-                if (resultSet != null) {
-                    resultSet.close();
-                }
-            } catch (SQLException e) {
-                mLogger.error("SQLException " + e.getSQLState(), e);
-            }
-        }
-        return id;
     }
 
     void initReminderMap() {
@@ -2681,7 +2662,7 @@ public class MainApp extends Application {
                 continue;
             }
 
-            Price price = getLatestSecurityPrice(securityHolding.getSecurityName(), date);
+            Price price = getLatestSecurityPrice(getSecurityByName(securityHolding.getSecurityName()), date);
             BigDecimal p = price == null ? BigDecimal.ZERO : price.getPrice(); // assume zero if no price found
             if (price != null && price.getDate().isBefore(date)) {
                 // need to check if there is stock split between "date" and price.getDate()
@@ -2755,11 +2736,15 @@ public class MainApp extends Application {
     }
 
     // return all the prices in a list, sorted ascending by date.
-    List<Price> getSecurityPrice(int securityID) {
+    List<Price> getSecurityPrice(Integer securityID, String ticker) {
         List<Price> priceList = new ArrayList<>();
 
-        String sqlCmd = "select DATE, PRICE from PRICES where SECURITYID = " + securityID
-                + " order by DATE asc";
+        String sqlCmd;
+        if (ticker.isEmpty())
+            sqlCmd = "select DATE, PRICE from PRICES where SECURITYID = " + securityID;
+        else
+            sqlCmd = "select DATE, PRICE from PRICES where TICKER = '" + ticker + "'";
+
         try (Statement statement = mConnection.createStatement()) {
             ResultSet resultSet = statement.executeQuery(sqlCmd);
             while (resultSet.next()) {
@@ -2772,12 +2757,19 @@ public class MainApp extends Application {
         return priceList;
     }
 
-    // retrive the latest price no later than requested date
-    private Price getLatestSecurityPrice(String securityName, LocalDate date) {
+    // retrieve the latest price no later than requested date
+    private Price getLatestSecurityPrice(Security security, LocalDate date) {
         Price price = null;
-        String sqlCmd = "select top 1 p.price, p.date from PRICES p inner join SECURITIES s " +
-                "where s.NAME = '" + securityName + "' and s.ID = p.SECURITYID " +
-                " and p.DATE <= '" + date.toString() + "' order by DATE desc";
+        if (security == null)
+            return null;
+        String sqlCmd;
+        String ticker = security.getTicker();
+        if (ticker.isEmpty())
+            sqlCmd = "select top 1 PRICE, DATE from PRICES where SECURITYID = " + security.getID() + " " +
+                    "and DATE <= '" + date.toString() + "' order by DATE desc";
+        else
+            sqlCmd = "select top 1 PRICE, DATE from PRICES where TICKER = '" + security.getTicker() + "' " +
+                    "and DATE <= '" + date.toString() + "' order by DATE desc";
         try (Statement statement = mConnection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             if (resultSet.next()) {
@@ -3179,10 +3171,12 @@ public class MainApp extends Application {
         mLogger.info("import " + file.getAbsolutePath());
 
         // pair of security id and price
-        List<Pair<Integer, Price>> priceList = new ArrayList<>();
+        List<Pair<String, Price>> priceList = new ArrayList<>();
         List<String[]> skippedLines = new ArrayList<>();
         // parse the csv file
         try (CSVReader reader = new CSVReader(new FileReader(file))) {
+            Set<String> tickerSet = new HashSet<>();
+            getSecurityList().forEach(s -> tickerSet.add(s.getTicker()));
             List<String[]> lines = reader.readAll();
             for (String[] line : lines) {
                 if (line[0].equals("Symbol")) {
@@ -3195,16 +3189,15 @@ public class MainApp extends Application {
                     continue;
                 }
 
-                Integer securityID = getSecurityID(line[0]);
                 BigDecimal p = new BigDecimal(line[1]);
-                if (securityID < 0) {
-                    mLogger.warn("Unknown Security: " + line[0]);
+                if (p.compareTo(BigDecimal.ZERO) < 0) {
+                    mLogger.warn("Negative Price: " + line[0] + "," + line[1] + "," + line[2]);
                     skippedLines.add(line);
                     continue;
                 }
 
-                if (p.compareTo(BigDecimal.ZERO) < 0) {
-                    mLogger.warn("Negative Price: " + line[0] + "," + line[1] + "," + line[2]);
+                if (!tickerSet.contains(line[0])) {
+                    mLogger.warn("Unknown ticker: " + line[0]);
                     skippedLines.add(line);
                     continue;
                 }
@@ -3213,7 +3206,7 @@ public class MainApp extends Application {
                 for (String s : patterns) {
                     try {
                         LocalDate ld = LocalDate.parse(line[2], DateTimeFormatter.ofPattern(s));
-                        priceList.add(new Pair<>(securityID, new Price(ld, p)));
+                        priceList.add(new Pair<>(line[0], new Price(ld, p)));
                         break;
                     } catch (DateTimeParseException ignored) {
                     }
@@ -3282,14 +3275,14 @@ public class MainApp extends Application {
     }
 
     // merge prices to database
-    private void mergePricesToDB(List<Pair<Integer, Price>> pList) throws SQLException {
-        String mergeSQL = "merge into PRICES (SECURITYID, DATE, PRICE) values (?, ?, ?)";
+    private void mergePricesToDB(List<Pair<String, Price>> pList) throws SQLException {
+        String mergeSQL = "merge into PRICES (SECURITYID, TICKER, DATE, PRICE) values (0, ?, ?, ?)";
         try (PreparedStatement preparedStatement = mConnection.prepareStatement(mergeSQL)) {
-            Iterator<Pair<Integer, Price>> iterator = pList.iterator();
-            Pair<Integer, Price> p;
+            Iterator<Pair<String, Price>> iterator = pList.iterator();
+            Pair<String, Price> p;
             while (iterator.hasNext()) {
                 p = iterator.next();
-                preparedStatement.setInt(1, p.getKey());
+                preparedStatement.setString(1, p.getKey());
                 preparedStatement.setDate(2, Date.valueOf(p.getValue().getDate()));
                 preparedStatement.setBigDecimal(3, p.getValue().getPrice());
 
@@ -3366,21 +3359,15 @@ public class MainApp extends Application {
         }
         initAccountList();
 
-        List<QIFParser.Security> sList = qifParser.getSecurityList();
-        for (QIFParser.Security s : sList) {
-            insertUpdateSecurityToDB(new Security(-1, s.getSymbol(), s.getName(),
-                    Security.Type.fromString(s.getType())));
-        }
+        qifParser.getSecurityList().forEach(this::insertUpdateSecurityToDB);
         initSecurityList();
 
-        List<QIFParser.Price> pList = qifParser.getPriceList();
-        HashMap<String, Integer> tickerIDMap = new HashMap<>();
-        for (QIFParser.Price p : pList) {
-            String security = p.getSecurity();
-            Integer id = tickerIDMap.computeIfAbsent(security, this::getSecurityID);
-            if (!insertUpdatePriceToDB(id, p.getDate(), p.getPrice(), 3)) {
+        for (Pair<String, Price> ticker_price : qifParser.getPriceList()) {
+            String ticker = ticker_price.getKey();
+            Price p = ticker_price.getValue();
+            if (!insertUpdatePriceToDB(0, ticker, p.getDate(), p.getPrice(), 3)) {
                 mLogger.error("Insert to PRICE failed with "
-                        + security + "(" + id + ")," + p.getDate() + "," + p.getPrice());
+                        + ticker + ", " + p.getDate() + ", " + p.getPrice());
             }
         }
 
@@ -3411,8 +3398,9 @@ public class MainApp extends Application {
                 } else {
                     // insert transaction successful, insert price is it has one.
                     BigDecimal p = tt.getPrice();
-                    if (p != null && p.signum() > 0) {
-                        insertUpdatePriceToDB(getSecurityByName(tt.getSecurityName()).getID(), tt.getDate(), p, 0);
+                    Security security = getSecurityByName(tt.getSecurityName());
+                    if (security != null && p != null && p.signum() > 0) {
+                        insertUpdatePriceToDB(security.getID(), security.getTicker(), tt.getDate(), p, 0);
                     }
                 }
             } catch (SQLException e) {
@@ -3731,7 +3719,24 @@ public class MainApp extends Application {
 
         // need to run this to update DBVERSION
         final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
-        if (newV == 8) {
+        if (newV == 9) {
+            // change PRICES table structure, remove duplicate, etc.
+            final String alterPRICESTableSQL = "alter table PRICES add TICKER varchar(16);"
+                    + "update PRICES p set p.TICKER = (select s.TICKER from SECURITIES s where s.ID = p.SECURITYID);"
+                    + "alter table PRICES drop primary key;"
+                    + "update PRICES set SECURITYID = 0 where length(TICKER) > 0;"
+                    + "create table NEWPRICES as select * from PRICES group by SECURITYID, TICKER, DATE;"
+                    + "drop table PRICES;"
+                    + "alter table NEWPRICES rename to PRICES;"
+                    + "alter table PRICES alter column SECURITYID int not null;"
+                    + "alter table PRICES alter column TICKER varchar(16) not null;"
+                    + "alter table PRICES alter column DATE date not null;"
+                    + "alter table PRICES add primary key (securityid, ticker, date);";
+            try (Statement statement = mConnection.createStatement()) {
+                statement.executeUpdate(alterPRICESTableSQL);
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 8) {
             // replace XIN to DEPOSIT AND XOUT to WITHDRAW in Transactions table
             final String updateXIN = "update TRANSACTIONS set TRADEACTION = 'DEPOSIT' where TRADEACTION = 'XIN'";
             final String updateXOUT = "update TRANSACTIONS set TRADEACTION = 'WITHDRAW' where TRADEACTION = 'XOUT'";
@@ -4308,9 +4313,9 @@ public class MainApp extends Application {
                         getSecurityByName(newT.getSecurityName());
                 price = newT.getPrice();
                 if (Transaction.hasQuantity(newT.getTradeAction())
-                        && (security != null) && (price != null)
+                        && (security != null) && (price != null) && !security.getTicker().isEmpty()
                         && (price.compareTo(BigDecimal.ZERO) != 0)) {
-                    insertUpdatePriceToDB(security.getID(), newT.getTDate(), price, 0);
+                    insertUpdatePriceToDB(security.getID(), security.getTicker(), newT.getTDate(), price, 0);
                 }
             }
 
@@ -4809,11 +4814,15 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // Price Table
+        // a price can be keyed by its ticker or its security id.
+        // On insert, if the ticker is not empty, then security id is set to 0, otherwise, a real security id is used.
+        // On retrieve, return either ticker match or security id match.
         sqlCmd = "create table PRICES ("
                 + "SECURITYID integer NOT NULL, "
+                + "TICKER varchar(" + SECURITYTICKERLEN + ") NOT NULL, "
                 + "DATE date NOT NULL, "
                 + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "),"
-                + "PRIMARY KEY (SECURITYID, DATE));";
+                + "PRIMARY KEY (SECURITYID, TICKER, DATE));";
         sqlCreateTable(sqlCmd);
 
         // Category Table

@@ -126,63 +126,53 @@ class QIFParser {
         return security;
     }
 
-    static class Account {
-        private String mName;  // name of the account
-        private String mType;  // Type of the account
-        private BigDecimal mSalesTaxRate; // sales tax rate for tax account
-        private String mDescription; // description of the account
-        private BigDecimal mCreditLimit;  // for credit card account
-        private BigDecimal mBalance; // account balance
-
-        // default constructor set members to default values
-        public Account(String name, String type) {
-            mName = name;
-            mType = type;
-            mSalesTaxRate = BigDecimal.ZERO;
-            mDescription = "";
-            mCreditLimit = BigDecimal.ZERO;
-            mBalance = BigDecimal.ZERO;
-        }
-
-        // setters and getters
-        void setName(String n) { mName = n; }
-        String getName() { return mName; }
-        void setType(String t) { mType = t; }
-        String getType() { return mType; }
-        void setSalesTaxRate(BigDecimal r) { mSalesTaxRate = r; }
-        BigDecimal getSalesTaxRate() { return mSalesTaxRate; }
-        void setDescription(String d) { mDescription = d; }
-        String getDescription() { return mDescription; }
-        void setCreditLimit(BigDecimal c) { mCreditLimit = c; }
-        BigDecimal getCreditLimit() { return mCreditLimit; }
-        void setBalance(BigDecimal b) { mBalance = b; }
-        BigDecimal getBalance() { return mBalance; }
-
-        static Account fromQIFLines(List<String> lines) {
-            Account account = new Account("", "");
-            for (String l : lines) {
-                switch (l.charAt(0)) {
-                    case 'N':
-                        account.setName(l.substring(1));
-                        break;
-                    case 'T':
-                        account.setType(l.substring(1));
-                        break;
-                    case 'R':
-                        account.setSalesTaxRate(new BigDecimal(l.substring(1)));
-                        break;
-                    case 'D':
-                        account.setDescription(l.substring(1));
-                        break;
-                    case 'L':
-                        account.setCreditLimit(new BigDecimal(l.substring(1).replace(",","")));
-                        break;
-                    default:
-                        // bad formatted record, return null
-                        return null;
-                }
+    static Account parseAccountFromQIFLines(List<String> lines) {
+        Account.Type type = null;
+        String name = "";
+        String desc = "";
+        for (String l : lines) {
+            switch (l.charAt(0)) {
+                case 'N':
+                    name = l.substring(1);
+                    break;
+                case 'T':
+                    type = qifAccountType2AccountType(l.substring(1));
+                    break;
+                case 'R':
+                case 'L':
+                    // not used, skip
+                    break;
+                case 'D':
+                    desc = l.substring(1);
+                    break;
+                default:
+                    // bad formatted record, return null
+                    return null;
             }
-            return account;
+        }
+        if (type == null || name.isEmpty())
+            return null;
+
+        return new Account(0, type, name, desc, false, Integer.MAX_VALUE, null, BigDecimal.ZERO);
+    }
+
+    static Account.Type qifAccountType2AccountType(String qifType) {
+        switch (qifType) {
+            case "Bank":
+            case "Cash":
+            case "CCard":
+                return Account.Type.SPENDING;
+            case "Mutual":
+            case "Port":
+            case "401(k)/403(b)":
+            case "Invst":
+                return Account.Type.INVESTING;
+            case "Oth A":
+                return Account.Type.PROPERTY;
+            case "Oth L":
+                return Account.Type.DEBT;
+            default:
+                return null;
         }
     }
 
@@ -846,7 +836,7 @@ class QIFParser {
                             i = j;
                             break;
                         case ACCOUNT:
-                            account = Account.fromQIFLines(allLines.subList(i, j));
+                            account = parseAccountFromQIFLines(allLines.subList(i, j));
                             if (account != null) {
                                 if (autoSwitch) {
                                     mAccountList.add(account);

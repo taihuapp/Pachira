@@ -3326,37 +3326,7 @@ public class MainApp extends Application {
         }
 
         // process parsed records
-        List<QIFParser.Account> aList = qifParser.getAccountList();
-        for (QIFParser.Account qa : aList) {
-            Account.Type at = null;
-            switch (qa.getType()) {
-                case "Bank":
-                case "Cash":
-                case "CCard":
-                    at = Account.Type.SPENDING;
-                    break;
-                case "Mutual":
-                case "Port":
-                case "401(k)/403(b)":
-                    at = Account.Type.INVESTING;
-                    break;
-                case "Oth A":
-                    at = Account.Type.PROPERTY;
-                    break;
-                case "Oth L":
-                    at = Account.Type.DEBT;
-                    break;
-                default:
-                    break;
-            }
-            if (at != null) {
-                insertUpdateAccountToDB(new Account(-1, at, qa.getName(), qa.getDescription(), false,
-                        Integer.MAX_VALUE, null, BigDecimal.ZERO));
-            } else {
-                mLogger.error("Unknown account type: " + qa.getType()
-                        + " for account [" + qa.getName() + "], skip.");
-            }
-        }
+        qifParser.getAccountList().forEach(this::insertUpdateAccountToDB);
         initAccountList();
 
         qifParser.getSecurityList().forEach(this::insertUpdateSecurityToDB);

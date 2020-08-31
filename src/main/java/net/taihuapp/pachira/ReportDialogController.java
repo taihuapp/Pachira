@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -598,7 +598,7 @@ public class ReportDialogController {
                     mMainApp.insertUpdateReportSettingToDB(mSetting);
                 } catch (SQLException e) {
                     mSetting.setID(oldID);  // put back oldID
-                    mMainApp.showExceptionDialog("Error Dialog", "Failed to save report setting!",
+                    MainApp.showExceptionDialog(mDialogStage, "Error Dialog", "Failed to save report setting!",
                             "Make sure the name is not already used.", e);
                 }
             }

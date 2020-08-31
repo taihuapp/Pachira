@@ -415,9 +415,9 @@ public class MainApp extends Application {
     }
 
     // http://code.makery.ch/blog/javafx-dialogs-official/
-    void showExceptionDialog(String title, String header, String content, Exception e) {
+    static void showExceptionDialog(Stage initOwner, String title, String header, String content, Exception e) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.initOwner(mPrimaryStage);
+        alert.initOwner(initOwner);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
@@ -638,14 +638,14 @@ public class MainApp extends Application {
                     String title = "Database Error";
                     String header = "Unable to insert/update SAVEDREPORTS Setting";
                     String content = SQLExceptionToString(e);
-                    showExceptionDialog(title, header, content, e);
+                    showExceptionDialog(mPrimaryStage, title, header, content, e);
                     rollbackDB();
                 } catch (SQLException e1) {
                     mLogger.error("SQLException: " + e1.getSQLState(), e1);
                     String title = "Database Error";
                     String header = "Unable to roll back";
                     String content = SQLExceptionToString(e1);
-                    showExceptionDialog(title, header, content, e1);
+                    showExceptionDialog(mPrimaryStage, title, header, content, e1);
                 }
             } else {
                 // savepoint was set by the caller, throw.
@@ -660,7 +660,7 @@ public class MainApp extends Application {
                     String title = "Database Error";
                     String header = "Unable to release savepoint and set DB autocommit";
                     String content = SQLExceptionToString(e);
-                    showExceptionDialog(title, header, content, e);
+                    showExceptionDialog(mPrimaryStage, title, header, content, e);
                 }
             }
         }
@@ -735,13 +735,13 @@ public class MainApp extends Application {
             if (savepointSetHere) {
                 try {
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "insert/update Reminder failed",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "insert/update Reminder failed",
                             SQLExceptionToString(e), e);
                     rollbackDB();
                 } catch (SQLException e1) {
                     mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                    showExceptionDialog("Database Error", "Failed to rollback reminder database update",
-                            SQLExceptionToString(e1), e1);
+                    showExceptionDialog(mPrimaryStage, "Database Error",
+                            "Failed to rollback reminder database update", SQLExceptionToString(e1), e1);
                 }
             } else {
                 throw e;
@@ -752,7 +752,8 @@ public class MainApp extends Application {
                     releaseDBSavepoint();
                 } catch (SQLException e) {
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "after insertUpdateReminber, set autocommit failed",
+                    showExceptionDialog(mPrimaryStage, "Database Error",
+                            "after insertUpdateReminber, set autocommit failed",
                             SQLExceptionToString(e), e);
                 }
             }
@@ -770,7 +771,8 @@ public class MainApp extends Application {
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             mLogger.error("SQLException: " + e.getSQLState(), e);
-            showExceptionDialog("Database Error", "Failed to insert into ReminderTransactions!",
+            showExceptionDialog(mPrimaryStage, "Database Error",
+                    "Failed to insert into ReminderTransactions!",
                     SQLExceptionToString(e), e);
         }
     }
@@ -880,12 +882,14 @@ public class MainApp extends Application {
             if (savepointSetHere) {
                 try {
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "update transaction failed", SQLExceptionToString(e), e);
+                    showExceptionDialog(mPrimaryStage, "Database Error", "update transaction failed",
+                            SQLExceptionToString(e), e);
                     rollbackDB();
                 } catch (SQLException e1) {
                     mLogger.error("SQLException: " + e1.getSQLState(), e1);
                     // error in rollback
-                    showExceptionDialog("Database Error", "Failed to rollback transaction database update",
+                    showExceptionDialog(mPrimaryStage, "Database Error",
+                            "Failed to rollback transaction database update",
                             SQLExceptionToString(e1), e1);
                 }
             } else {
@@ -897,7 +901,8 @@ public class MainApp extends Application {
                     releaseDBSavepoint();
                 } catch (SQLException e) {
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "set autocommit failed", SQLExceptionToString(e), e);
+                    showExceptionDialog(mPrimaryStage, "Database Error", "set autocommit failed",
+                            SQLExceptionToString(e), e);
                 }
             }
         }
@@ -1012,10 +1017,12 @@ public class MainApp extends Application {
             return true;
         } catch (SQLException e) {
             mLogger.error("SQLException: " + e.getSQLState(), e);
-            showExceptionDialog("Database Error", "Insert/Update Tag Failed", SQLExceptionToString(e), e);
+            showExceptionDialog(mPrimaryStage, "Database Error", "Insert/Update Tag Failed",
+                    SQLExceptionToString(e), e);
         } catch (NullPointerException e) {
             mLogger.error("NullPointerException", e);
-            showExceptionDialog("Database Error", "mConnection is null", "Database not connected", e);
+            showExceptionDialog(mPrimaryStage, "Database Error", "mConnection is null",
+                    "Database not connected", e);
         }
         return false;
     }
@@ -1049,10 +1056,12 @@ public class MainApp extends Application {
             return true;
         } catch (SQLException e) {
             mLogger.error("SQLException: " + e.getSQLState(), e);
-            showExceptionDialog("Database Error", "Insert/Update Category Failed", SQLExceptionToString(e), e);
+            showExceptionDialog(mPrimaryStage, "Database Error", "Insert/Update Category Failed",
+                    SQLExceptionToString(e), e);
         } catch (NullPointerException e) {
             mLogger.error("NullPointerException", e);
-            showExceptionDialog("Database Error", "mConnection is null", "Database not connected", e);
+            showExceptionDialog(mPrimaryStage, "Database Error", "mConnection is null",
+                    "Database not connected", e);
         }
         return false;
     }
@@ -2064,7 +2073,7 @@ public class MainApp extends Application {
             }
         } catch (SQLException e) {
             mLogger.error("SQLException on initFIDataList " + e.getSQLState(), e);
-            showExceptionDialog("Exception", "SQLException", SQLExceptionToString(e), e);
+            showExceptionDialog(mPrimaryStage,"Exception", "SQLException", SQLExceptionToString(e), e);
         }
     }
 
@@ -2085,7 +2094,8 @@ public class MainApp extends Application {
         } catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException
                 | InvalidKeySpecException e) {
             mLogger.error("Vault.setupKeyStore throws exception " + e.getClass().getName(), e);
-            showExceptionDialog("Exception", e.getClass().getName(),"In Vault.setupKeyStore", e);
+            showExceptionDialog(mPrimaryStage,"Exception", e.getClass().getName(),
+                    "In Vault.setupKeyStore", e);
             return; // can't continue, return here.
         }
 
@@ -2097,7 +2107,8 @@ public class MainApp extends Application {
             }
         } catch (SQLException e) {
             mLogger.error("SQLException on select DCINFO table " + e.getSQLState(), e);
-            showExceptionDialog("Database Error", "Select DCInfo Error", SQLExceptionToString(e), e);
+            showExceptionDialog(mPrimaryStage,"Database Error", "Select DCInfo Error",
+                    SQLExceptionToString(e), e);
         }
     }
 
@@ -2423,9 +2434,10 @@ public class MainApp extends Application {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            showExceptionDialog("Exception", "IO Exception", "showTagListDialog IO Exception", e);
+            showExceptionDialog(mPrimaryStage,"Exception", "IO Exception",
+                    "showTagListDialog IO Exception", e);
         } catch (NullPointerException e) {
-            showExceptionDialog("Exception", "Null pointer exception",
+            showExceptionDialog(mPrimaryStage, "Exception", "Null pointer exception",
                     "showTagListDialog null pointer exception", e);
         }
     }
@@ -2445,9 +2457,10 @@ public class MainApp extends Application {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            showExceptionDialog("Exception", "IO Exception", "showCategoryListDialog IO Exception", e);
+            showExceptionDialog(mPrimaryStage,"Exception", "IO Exception",
+                    "showCategoryListDialog IO Exception", e);
         } catch (NullPointerException e) {
-            showExceptionDialog("Exception", "Null pointer exception",
+            showExceptionDialog(mPrimaryStage,"Exception", "Null pointer exception",
                     "showCategoryListDialog null pointer exception", e);
         }
     }
@@ -3058,7 +3071,7 @@ public class MainApp extends Application {
                 insertUpdateTransactionToMasterList(t);
                 cnt++;
             } catch (SQLException e) {
-                showExceptionDialog("FixDB Failed", "Failed updating Transaction",
+                showExceptionDialog(mPrimaryStage,"FixDB Failed", "Failed updating Transaction",
                         t.getTDate() + "\n" + getAccountByID(t.getAccountID()).getName() + "\n"
                                 + t.getAmount() + "\n"+ t.getDescription() + "\n", e);
                 mLogger.error("SQLException " + e.getSQLState(), e);
@@ -3078,7 +3091,8 @@ public class MainApp extends Application {
     // current account has to be non-null
     void importOFXAccountStatement() {
         if (getCurrentAccount() == null) {
-            showExceptionDialog("Exception", "Strange error happened", "Current Account is null", null);
+            showExceptionDialog(mPrimaryStage,"Exception", "Strange error happened",
+                    "Current Account is null", null);
             return;
         }
 
@@ -3146,7 +3160,7 @@ public class MainApp extends Application {
             importAccountStatement(getCurrentAccount(), statement);
         } catch (IOException | OFXParseException | SQLException e) {
             mLogger.error("ImportOFXAccountStatement exception", e);
-            showExceptionDialog("Exception", e.getClass().getName(),
+            showExceptionDialog(mPrimaryStage,"Exception", e.getClass().getName(),
                     "Import OFX Account Statement Exception", e);
         }
     }
@@ -3213,9 +3227,11 @@ public class MainApp extends Application {
                 }
             }
         } catch (FileNotFoundException e) {
-            showExceptionDialog("Exception Dialog", "File Not Found", file.getAbsolutePath() + " not found", e);
+            showExceptionDialog(mPrimaryStage,"Exception Dialog", "File Not Found",
+                    file.getAbsolutePath() + " not found", e);
         } catch (IOException e) {
-            showExceptionDialog("Exception Dialog", "IOException", e.getLocalizedMessage(), e);
+            showExceptionDialog(mPrimaryStage,"Exception Dialog", "IOException",
+                    e.getLocalizedMessage(), e);
         }
 
         // database work
@@ -3252,11 +3268,11 @@ public class MainApp extends Application {
             try {
                 rollbackDB();
                 mLogger.error("SQLException: " + e.getSQLState(), e);
-                showExceptionDialog("Database Error", "Reconcile account failed",
+                showExceptionDialog(mPrimaryStage,"Database Error", "Reconcile account failed",
                         SQLExceptionToString(e), e);
             } catch (SQLException e1) {
                 mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                showExceptionDialog("Database Error", "Unable to rollback",
+                showExceptionDialog(mPrimaryStage,"Database Error", "Unable to rollback",
                         SQLExceptionToString(e1), e1);
             }
         }  finally {
@@ -3265,7 +3281,7 @@ public class MainApp extends Application {
                 releaseDBSavepoint();
             } catch (SQLException e) {
                 mLogger.error("SQLException: " + e.getSQLState(), e);
-                showExceptionDialog("Database Error", "releaseDBSavepint failed",
+                showExceptionDialog(mPrimaryStage, "Database Error", "releaseDBSavepint failed",
                         SQLExceptionToString(e), e);
             }
         }
@@ -3385,7 +3401,8 @@ public class MainApp extends Application {
     // todo need to handle error gracefully
     String doBackup() {
         if (mConnection == null) {
-            showExceptionDialog("Exception Dialog", "Null pointer exception", "mConnection is null", null);
+            showExceptionDialog(mPrimaryStage, "Exception Dialog", "Null pointer exception",
+                    "mConnection is null", null);
             return null;
         }
 
@@ -3398,14 +3415,16 @@ public class MainApp extends Application {
                     "Backup to " + backupFileName + " successful");
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
-            showExceptionDialog("Exception Dialog", "SQLException", "Backup failed", e);
+            showExceptionDialog(mPrimaryStage, "Exception Dialog", "SQLException",
+                    "Backup failed", e);
         }
         return backupFileName;
     }
 
     void changePassword() {
         if (mConnection == null) {
-            showExceptionDialog("Exception Dialog", "Null pointer exception", "mConnection is null", null);
+            showExceptionDialog(mPrimaryStage, "Exception Dialog", "Null pointer exception",
+                    "mConnection is null", null);
             return;
         }
 
@@ -3447,23 +3466,23 @@ public class MainApp extends Application {
             passwordChanged++;
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
-            showExceptionDialog("Exception", "SQLException", e.getMessage(), e);
+            showExceptionDialog(mPrimaryStage,"Exception", "SQLException", e.getMessage(), e);
         } catch (IllegalArgumentException e) {
             mLogger.error("IllegalArgumentException", e);
-            showExceptionDialog("Exception", "IllegalArgumentException", e.getMessage(), e);
+            showExceptionDialog(mPrimaryStage,"Exception", "IllegalArgumentException", e.getMessage(), e);
         } catch (ClassNotFoundException e) {
             mLogger.error("ClassNotFoundException", e);
-            showExceptionDialog("Exception", "ClassNotFoundException", e.getMessage(), e);
+            showExceptionDialog(mPrimaryStage, "Exception", "ClassNotFoundException", e.getMessage(), e);
         } finally {
             try {
                 if (preparedStatement != null)
                     preparedStatement.close();
             } catch (SQLException e) {
                 mLogger.error("SQLException " + e.getSQLState(), e);
-                showExceptionDialog("Exception", "SQLException", e.getMessage(), e);
+                showExceptionDialog(mPrimaryStage, "Exception", "SQLException", e.getMessage(), e);
             }
             if (passwordChanged == 1) {
-                showExceptionDialog("Exception", "Change password failed!",
+                showExceptionDialog(mPrimaryStage, "Exception", "Change password failed!",
                         "Quit now and restore database:\nunzip " + backupFileName, null);
             }
         }
@@ -3604,7 +3623,7 @@ public class MainApp extends Application {
             }
             alert.showAndWait();
         } catch (ClassNotFoundException e){
-            showExceptionDialog("Exception", "ClassNotFoundException", e.getMessage(), e);
+            showExceptionDialog(mPrimaryStage, "Exception", "ClassNotFoundException", e.getMessage(), e);
         }
 
         if (mConnection == null) {
@@ -3647,7 +3666,7 @@ public class MainApp extends Application {
                 // Failed
                 mLogger.error("SQLException " + e.getSQLState(), e);
 
-                showExceptionDialog("Database Version Update Failed",
+                showExceptionDialog(mPrimaryStage, "Database Version Update Failed",
                         "Database Version Update Failed",
                         "Your database failed to update from version " + dbVersion + " to " + DBVERSIONVALUE +
                                 ". The old database was saved in " + backupFileName, e);
@@ -3656,7 +3675,7 @@ public class MainApp extends Application {
             } catch (IllegalArgumentException e) {
                 // version not supported
                 mLogger.error("IllegalArgumentException", e);
-                showExceptionDialog("Database Version Update Failed",
+                showExceptionDialog(mPrimaryStage, "Database Version Update Failed",
                         "Database Version Update not supported",
                         e.getMessage() + " " + "Database version update from " + dbVersion +
                                 " to " + DBVERSIONVALUE + " not supported. " +
@@ -4064,11 +4083,11 @@ public class MainApp extends Application {
                 try {
                     rollbackDB();
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "Reconcile account failed",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "Reconcile account failed",
                             SQLExceptionToString(e), e);
                 } catch (SQLException e1) {
                     mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                    showExceptionDialog("Database Error", "Unable to rollback",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "Unable to rollback",
                             SQLExceptionToString(e1), e1);
                 }
             }
@@ -4078,7 +4097,7 @@ public class MainApp extends Application {
                     releaseDBSavepoint();
                 } catch (SQLException e) {
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "releaseDBSavepint failed",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "releaseDBSavepint failed",
                             SQLExceptionToString(e), e);
                 }
             }
@@ -4101,11 +4120,11 @@ public class MainApp extends Application {
                 try {
                     rollbackDB();
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "Unable update transaction status",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "Unable update transaction status",
                             SQLExceptionToString(e), e);
                 } catch (SQLException e1) {
                     mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                    showExceptionDialog("Database Error", "Unable to rollback",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "Unable to rollback",
                             SQLExceptionToString(e1), e1);
                 }
             }
@@ -4115,7 +4134,7 @@ public class MainApp extends Application {
                     releaseDBSavepoint();
                 } catch (SQLException e) {
                     mLogger.error("SQLException" + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "releaseDBSavepint failed",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "releaseDBSavepint failed",
                             SQLExceptionToString(e), e);
                 }
             }
@@ -4153,7 +4172,7 @@ public class MainApp extends Application {
                     }
                 } catch (SQLException e) {
                     mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog("Database Error", "Unable to check LotMatch",
+                    showExceptionDialog(mPrimaryStage, "Database Error", "Unable to check LotMatch",
                             SQLExceptionToString(e), e);
                     return false;
                 }
@@ -4389,12 +4408,12 @@ public class MainApp extends Application {
         } catch (SQLException e) {
             try {
                 mLogger.error("SQLException: " + e.getSQLState(), e);
-                showExceptionDialog("SQLException", "Datebase error, no changes are made",
+                showExceptionDialog(mPrimaryStage,"SQLException", "Datebase error, no changes are made",
                         SQLExceptionToString(e), e);
                 rollbackDB();
             } catch (SQLException e1) {
                 mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                showExceptionDialog("Database Error", "Unable to rollback to savepoint",
+                showExceptionDialog(mPrimaryStage,"Database Error", "Unable to rollback to savepoint",
                         SQLExceptionToString(e1), e1);
             }
         } finally {
@@ -4402,7 +4421,7 @@ public class MainApp extends Application {
                 releaseDBSavepoint();
             } catch (SQLException e) {
                 mLogger.error("SQLException: " + e.getSQLState(), e);
-                showExceptionDialog("Database Error",
+                showExceptionDialog(mPrimaryStage,"Database Error",
                         "Unable to release savepoint and set DB autocommit",
                         SQLExceptionToString(e), e);
             }
@@ -4427,8 +4446,8 @@ public class MainApp extends Application {
             }
         } catch (SQLException e) {
             mLogger.error("SQLException: " + e.getSQLState(), e);
-            showExceptionDialog("Exception", "Database Exception",
-                    "Failed to create SETTINGS table",e);
+            showExceptionDialog(mPrimaryStage,"Exception", "Database Exception",
+                    "Failed to create SETTINGS table", e);
         }
     }
 
@@ -4662,14 +4681,14 @@ public class MainApp extends Application {
                         String title = "Database Error";
                         String header = "Unable to insert/update SAVEDREPORTS Setting";
                         String content = SQLExceptionToString(e);
-                        showExceptionDialog(title, header, content, e);
+                        showExceptionDialog(mPrimaryStage,title, header, content, e);
                         rollbackDB();
                     } catch (SQLException e1) {
                         mLogger.error("SQLException: " + e1.getSQLState(), e1);
                         String title = "Database Error";
                         String header = "Unable to roll back";
                         String content = SQLExceptionToString(e1);
-                        showExceptionDialog(title, header, content, e1);
+                        showExceptionDialog(mPrimaryStage,title, header, content, e1);
                     }
                 } else {
                     throw e;
@@ -4683,7 +4702,7 @@ public class MainApp extends Application {
                         String title = "Database Error";
                         String header = "Unable to release savepoint and set DB autocommit";
                         String content = SQLExceptionToString(e);
-                        showExceptionDialog(title, header, content, e);
+                        showExceptionDialog(mPrimaryStage,title, header, content, e);
                     }
                 }
             }

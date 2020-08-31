@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -65,28 +65,30 @@
              <DatePicker fx:id="mADatePicker" GridPane.columnIndex="1" GridPane.rowIndex="2" />
              <ComboBox fx:id="mAccountComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
              <Label fx:id="mSecurityNameLabel" text="Security Name:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-             <Label fx:id="mCategoryLabel" text="Category/Transfer from" GridPane.rowIndex="4" />
+            <Label fx:id="mOldSecurityNameLabel" text="Old Security:" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+             <Label fx:id="mCategoryLabel" text="Category/Transfer from:" GridPane.rowIndex="4" />
              <ComboBox fx:id="mCategoryComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
              <TextField fx:id="mMemoTextField" GridPane.columnSpan="2" GridPane.rowIndex="6" />
              <Label fx:id="mReferenceLabel" text="Number" GridPane.columnIndex="2" GridPane.rowIndex="1" />
              <ComboBox fx:id="mSecurityComboBox" prefWidth="150.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+            <ComboBox fx:id="mOldSecurityComboBox" prefWidth="150.0" GridPane.columnIndex="3" GridPane.rowIndex="2" />
              <TextField fx:id="mReferenceTextField" GridPane.columnIndex="3" GridPane.rowIndex="1" />
              <TextField fx:id="mPayeeTextField" GridPane.columnIndex="3" GridPane.rowIndex="2" />
              <Label fx:id="mSharesLabel" text="Number of Shares:" GridPane.columnIndex="2" GridPane.rowIndex="3" />
-             <Label fx:id="mOldSharesLabel" text="Old shares:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
-             <Label fx:id="mPriceLabel" text="Price per Share:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
-             <Label fx:id="mCommissionLabel" text="Commission:" GridPane.columnIndex="2" GridPane.rowIndex="5" />
-             <Label fx:id="mAccruedInterestLabel" text="Accrued Interest" GridPane.columnIndex="2" GridPane.rowIndex="6" />
+             <Label fx:id="mOldSharesLabel" text="Old Shares:" GridPane.columnIndex="2" GridPane.rowIndex="4" />
+             <Label fx:id="mPriceLabel" text="Price per Share:" GridPane.columnIndex="2" GridPane.rowIndex="5" />
+             <Label fx:id="mCommissionLabel" text="Commission:" GridPane.columnIndex="2" GridPane.rowIndex="6" />
+             <Label fx:id="mAccruedInterestLabel" text="Accrued Interest" GridPane.columnIndex="2" GridPane.rowIndex="7" />
              <Label fx:id="mTotalLabel" text="Total Cost:" GridPane.columnIndex="2" GridPane.rowIndex="8" />
              <Label text="Memo:" GridPane.rowIndex="5" />
              <TextField fx:id="mIncomeTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="2" />
              <TextField fx:id="mSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="3" />
              <TextField fx:id="mOldSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
-             <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="5" />
-             <TextField fx:id="mAccruedInterestTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="6" />
+             <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="6" />
+             <TextField fx:id="mAccruedInterestTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="7" />
              <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" editable="false" GridPane.columnIndex="3" GridPane.rowIndex="8" />
-             <TextField fx:id="mPriceTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
-             <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="2" GridPane.rowIndex="7" />
+             <TextField fx:id="mPriceTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="5" />
+             <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="1" GridPane.rowIndex="7" />
              <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
              <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="2" />
             <Button fx:id="mSplitTransactionButton" mnemonicParsing="false" onAction="#handleSplitTransactions" text="Split" GridPane.rowIndex="7" />

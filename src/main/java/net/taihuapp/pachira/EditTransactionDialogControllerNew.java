@@ -39,6 +39,7 @@ import org.controlsfx.control.textfield.TextFields;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -50,12 +51,25 @@ import static net.taihuapp.pachira.Transaction.TradeAction.*;
 public class EditTransactionDialogControllerNew {
     private static final Logger mLogger = Logger.getLogger(EditTransactionDialogControllerNew.class);
 
+    private final StringConverter<Security> SECURITYSTRINGCONVERTER = new StringConverter<>() {
+        @Override
+        public String toString(Security security) {
+            return security == null ? "" : security.getName();
+        }
+
+        @Override
+        public Security fromString(String s) {
+            return mMainApp.getSecurityByName(s);
+        }
+    };
+
     private static final BigDecimalStringConverter BIGDECIMALSTRINGCONVERTER = new BigDecimalStringConverter() {
         public BigDecimal fromString(String s) {
             BigDecimal b = super.fromString(s);
             return b == null ? BigDecimal.ZERO : b;
         }
     };
+
     private static final BigDecimalStringConverter DOLLARCENTSTRINGCONVERTER = new BigDecimalStringConverter() {
         public String toString(BigDecimal b) {
             return b == null ? "" : MainApp.DOLLAR_CENT_FORMAT.format(b);
@@ -174,6 +188,10 @@ public class EditTransactionDialogControllerNew {
     private Label mSecurityNameLabel;
     @FXML
     private ComboBox<Security> mSecurityComboBox;
+    @FXML
+    private Label mOldSecurityNameLabel;
+    @FXML
+    private ComboBox<Security> mOldSecurityComboBox;
     @FXML
     private Label mReferenceLabel;
     @FXML
@@ -413,22 +431,22 @@ public class EditTransactionDialogControllerNew {
         mCategoryComboBox.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta != STKSPLIT && ta != SHRSIN && ta != SHRSOUT && ta != REINVDIV && ta != REINVINT
-                    && ta != REINVLG && ta != REINVMD && ta != REINVSH);
+                    && ta != REINVLG && ta != REINVMD && ta != REINVSH && ta != SHRCLSCVN);
         }, mTradeActionChoiceBox.valueProperty()));
         mCategoryLabel.visibleProperty().bind(mCategoryComboBox.visibleProperty());
         mCategoryLabel.textProperty().bind(Bindings.createStringBinding(() -> {
             switch (mTradeActionChoiceBox.getValue()) {
                 case DEPOSIT:
-                    return "Category/Transfer from";
+                    return "Category/Transfer from:";
                 case WITHDRAW:
-                    return "Category/Transfer to";
+                    return "Category/Transfer to:";
                 case BUY:
                 case MISCEXP:
                 case CVTSHRT:
                 case MARGINT:
-                    return "Use cash from";
+                    return "Use cash from:";
                 default:
-                    return "Put cash to";
+                    return "Put cash to:";
             }
         }, mTradeActionChoiceBox.valueProperty()));
         mCategoryComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
@@ -473,17 +491,7 @@ public class EditTransactionDialogControllerNew {
         mReferenceTextField.textProperty().bindBidirectional(mTransaction.getReferenceProperty());
 
         // security combobox
-        mSecurityComboBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Security security) {
-                return security == null ? "" : security.getName();
-            }
-
-            @Override
-            public Security fromString(String s) {
-                return mainApp.getSecurityByName(s);
-            }
-        });
+        mSecurityComboBox.setConverter(SECURITYSTRINGCONVERTER);
         TreeSet<Security> allSecuritySet = new TreeSet<>(Comparator.comparing(Security::getName));
         allSecuritySet.addAll(mainApp.getSecurityList());
         allSecuritySet.removeAll(defaultAccount.getCurrentSecurityList()); // remove account security list
@@ -493,10 +501,20 @@ public class EditTransactionDialogControllerNew {
         autoCompleteComboBox(mSecurityComboBox);
         mSecurityComboBox.visibleProperty().bind(mReferenceTextField.visibleProperty().not());
         mSecurityNameLabel.visibleProperty().bind(mSecurityComboBox.visibleProperty());
+        mSecurityNameLabel.textProperty().bind(Bindings.createStringBinding(() ->
+                mTradeActionChoiceBox.getValue() == SHRCLSCVN ? "New Security:" : "Security Name:",
+                mTradeActionChoiceBox.valueProperty()));
         Security currentSecurity = mMainApp.getSecurityByName(mTransaction.getSecurityName());
         Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(), mSecurityComboBox.valueProperty(),
                 mSecurityComboBox.getConverter());
         mSecurityComboBox.getSelectionModel().select(currentSecurity);
+
+        // old security stuff for Share class conversion
+        mOldSecurityComboBox.setConverter(SECURITYSTRINGCONVERTER);
+        mOldSecurityComboBox.getItems().addAll(mSecurityComboBox.getItems());
+        autoCompleteComboBox(mOldSecurityComboBox);
+        mOldSecurityComboBox.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(SHRCLSCVN));
+        mOldSecurityNameLabel.visibleProperty().bind(mOldSecurityComboBox.visibleProperty());
 
         // payee, same visibility as reference
         TextFields.bindAutoCompletion(mPayeeTextField, mMainApp.getPayeeSet());
@@ -522,19 +540,22 @@ public class EditTransactionDialogControllerNew {
         mSharesTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == BUY || ta == SELL || ta == REINVDIV || ta == REINVINT || ta == REINVLG
-                    || ta == REINVMD || ta == REINVSH || ta == STKSPLIT || ta == SHRSIN
+                    || ta == REINVMD || ta == REINVSH || ta == STKSPLIT || ta == SHRSIN || ta == SHRCLSCVN
                     || ta == SHRSOUT || ta == SHTSELL || ta == CVTSHRT || ta == XFRSHRS);
         }, mTradeActionChoiceBox.valueProperty()));
         mSharesLabel.visibleProperty().bind(mSharesTextField.visibleProperty());
         mSharesLabel.textProperty().bind(Bindings.createStringBinding(() ->
-                        mTradeActionChoiceBox.getValue() == STKSPLIT ? "New Shares" : "Number of Shares",
+                        ((mTradeActionChoiceBox.getValue() == STKSPLIT)
+                                || (mTradeActionChoiceBox.getValue() == SHRCLSCVN)) ?
+                                "New Shares:" : "Number of Shares:",
                 mTradeActionChoiceBox.valueProperty()));
         mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),
                 BIGDECIMALSTRINGCONVERTER);
 
         // old shares
         addEventFilterNumericInputOnly(mOldSharesTextField);
-        mOldSharesTextField.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(STKSPLIT));
+        mOldSharesTextField.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(STKSPLIT)
+                .or(mTradeActionChoiceBox.valueProperty().isEqualTo(SHRCLSCVN)));
         mOldSharesLabel.visibleProperty().bind(mOldSharesTextField.visibleProperty());
         mOldSharesTextField.textProperty().bindBidirectional(mTransaction.getOldQuantityProperty(),
                 BIGDECIMALSTRINGCONVERTER);
@@ -544,7 +565,8 @@ public class EditTransactionDialogControllerNew {
         mPriceTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == BUY || ta == CVTSHRT || ta == SELL || ta == SHTSELL || ta == SHRSIN
-                    || ta == REINVDIV || ta == REINVINT || ta == REINVLG || ta == REINVMD || ta == REINVSH);
+                    || ta == REINVDIV || ta == REINVINT || ta == REINVLG || ta == REINVMD || ta == REINVSH
+                    || ta == SHRCLSCVN);
         }, mTradeActionChoiceBox.valueProperty()));
         mPriceTextField.textProperty().bindBidirectional(mTransaction.getPriceProperty(), BIGDECIMALSTRINGCONVERTER);
         // todo this logic should be moved to Transaction class
@@ -553,9 +575,12 @@ public class EditTransactionDialogControllerNew {
                         return "";  // no need to do any calculation
 
                     final BigDecimal amount = mTransaction.getAmount();
-                    final BigDecimal quantity = mTransaction.getQuantity();
-                    final BigDecimal commission = mTransaction.getCommission();
-                    final BigDecimal accruedInterest = mTransaction.getAccruedInterest();
+                    final BigDecimal quantity = mTransaction.getQuantity() == null ?
+                            BigDecimal.ZERO : mTransaction.getQuantity();
+                    final BigDecimal commission = mTransaction.getCommission() == null ?
+                            BigDecimal.ZERO : mTransaction.getCommission();
+                    final BigDecimal accruedInterest = mTransaction.getAccruedInterest() == null ?
+                            BigDecimal.ZERO : mTransaction.getAccruedInterest();
                     if (quantity.signum() == 0)
                         return "";
 
@@ -574,7 +599,8 @@ public class EditTransactionDialogControllerNew {
 
         // commission, same visibility as price
         addEventFilterNumericInputOnly(mCommissionTextField);
-        mCommissionTextField.visibleProperty().bind(mPriceTextField.visibleProperty());
+        mCommissionTextField.visibleProperty().bind(mPriceTextField.visibleProperty()
+                .and(mTradeActionChoiceBox.valueProperty().isNotEqualTo(SHRCLSCVN)));
         mCommissionLabel.visibleProperty().bind(mCommissionTextField.visibleProperty());
         mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
                 DOLLARCENTSTRINGCONVERTER);
@@ -597,7 +623,7 @@ public class EditTransactionDialogControllerNew {
         mTotalTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return ta == BUY || ta == SELL || ta == SHRSIN || ta == SHTSELL || ta == CVTSHRT
-                    || ta == DEPOSIT || ta == WITHDRAW;
+                    || ta == DEPOSIT || ta == WITHDRAW || ta == SHRCLSCVN;
         }, mTradeActionChoiceBox.valueProperty()));
         mTotalLabel.visibleProperty().bind(mTotalTextField.visibleProperty());
         mTotalLabel.textProperty().bind(Bindings.createStringBinding(() -> {
@@ -630,9 +656,138 @@ public class EditTransactionDialogControllerNew {
         Platform.runLater(() -> mTradeActionChoiceBox.requestFocus());
     }
 
+    // special code to handle entering Share Conversion transactions
+    // An Share Conversion transaction is break into a Shares out and
+    // a set of share in transactions.
+    private boolean enterShareClassConversionTransaction() {
+        String header;
+        // validate input data
+        Security newSecurity = mSecurityComboBox.getValue();
+        if (newSecurity == null) {
+            header = "Empty new security";
+            mLogger.warn(header);
+            showWarningDialog(header, "Please select a valid New Security.");
+            return false;
+        }
+        Security oldSecurity = mOldSecurityComboBox.getValue();
+        if (oldSecurity == null) {
+            header = "Empty old security";
+            mLogger.warn(header);
+            showWarningDialog(header, "Please select a valid Old Security.");
+            return false;
+        }
+
+        if (oldSecurity.getID() == newSecurity.getID()) {
+            header = "Save Securities";
+            mLogger.warn(header);
+            showWarningDialog(header, "Old security cannot be the same as the new security.");
+            return false;
+        }
+
+        BigDecimal newShares = BIGDECIMALSTRINGCONVERTER.fromString(mSharesTextField.getText());
+        if (newShares.compareTo(BigDecimal.ZERO) <= 0) {
+            header = "Non positive new shares";
+            mLogger.warn(header);
+            showWarningDialog(header, "Please enter a positive number for New Shares");
+            return false;
+        }
+        BigDecimal oldShares = BIGDECIMALSTRINGCONVERTER.fromString(mOldSharesTextField.getText());
+        if (oldShares.compareTo(BigDecimal.ZERO) <= 0) {
+            header = "Non positive old shares";
+            mLogger.warn(header);
+            showWarningDialog(header, "Please enter a positive number for Old Shares");
+            return false;
+        }
+
+        List<Transaction> transactionList = new ArrayList<>();  // this is the list transaction to be entered
+        Account account = mAccountComboBox.getValue();
+        LocalDate tDate = mTransaction.getTDate();
+        BigDecimal newPrice = mTransaction.getPrice();
+        int categoryID = 0;
+        int tagID = 0;
+        int matchID = 0;
+        int matchSplitID = 0;
+
+        final String memo = mTransaction.getMemo().isEmpty() ? "Share class conversion" : mTransaction.getMemo();
+        for (SecurityHolding sh : mMainApp.updateAccountSecurityHoldingList(account, tDate, mTransaction.getID())) {
+            if (sh.getSecurityName().equals(oldSecurity.getName())) {
+                // we have holdings for old security
+                BigDecimal oldQuantity = sh.getQuantity();
+                for (SecurityHolding.LotInfo li : sh.getLotInfoList()) {
+                    BigDecimal costBasis = li.getCostBasis();
+                    BigDecimal oldLotQuantity = li.getQuantity();
+                    BigDecimal newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
+                            MainApp.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
+                    BigDecimal lotPrice = costBasis.divide(newLotQuantity,
+                            MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+                    transactionList.add(new Transaction(-1, account.getID(), tDate, li.getDate(), SHRSIN,
+                            Transaction.Status.UNCLEARED, newSecurity.getName(), "", "",
+                            lotPrice, newLotQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO,
+                            BigDecimal.ZERO, costBasis, categoryID, tagID, matchID, matchSplitID, null, ""));
+                }
+                transactionList.add(new Transaction(-1, account.getID(), tDate, tDate, SHRSOUT,
+                        Transaction.Status.UNCLEARED, oldSecurity.getName(), "", "",
+                        BigDecimal.ZERO, oldQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO, categoryID, tagID, matchID, matchSplitID, null, ""));
+            }
+        }
+
+        // database work here
+        try {
+            if (!mMainApp.setDBSavepoint()) {
+                MainApp.showExceptionDialog(mDialogStage, "Error", "Unable to set DB save point",
+                        "Something is wrong.  Please restart.", null);
+                return false;
+            }
+
+            // insert all transactions to database
+            for (Transaction t : transactionList) {
+                mMainApp.insertUpdateTransactionToDB(t);
+            }
+
+            // delete original transaction from DB and Master list
+            if (!mMainApp.alterTransaction(null, mTransactionOrig, mMatchInfoList)) {
+                throw new SQLException("alterTransaction return false");
+            }
+
+            // save price for the new security
+            mMainApp.insertUpdatePriceToDB(newSecurity.getID(), newSecurity.getTicker(), tDate, newPrice, 0);
+
+            mMainApp.commitDB();
+
+            // insert transactions to master list
+            transactionList.forEach(t -> mMainApp.insertUpdateTransactionToMasterList(t));
+
+            // we are done
+            return true;
+        } catch (SQLException e) {
+            try {
+                MainApp.showExceptionDialog(mDialogStage, "Database Error",
+                        "Failed to insert transactions", MainApp.SQLExceptionToString(e), e);
+                transactionList.forEach(t -> t.setID(-1));  // put back original ID
+                mMainApp.rollbackDB();
+            } catch (SQLException e1) {
+                MainApp.showExceptionDialog(mDialogStage, "Database Error",
+                        "Failed to rollback transaction and/or price update",
+                        MainApp.SQLExceptionToString(e1), e1);
+            }
+        } finally {
+            try {
+                mMainApp.releaseDBSavepoint();
+            } catch (SQLException e) {
+                MainApp.showExceptionDialog(mDialogStage, "Database Error",
+                        "Failed to release save point", MainApp.SQLExceptionToString(e), e);
+            }
+        }
+        return false;
+    }
+
     // enter transaction to database and master list
     // return true of successful, false otherwise
     private boolean enterTransaction() {
+        if (mTradeActionChoiceBox.getValue() == SHRCLSCVN)
+            return enterShareClassConversionTransaction();
+
         // accountID is not automatically updated, update now
         mTransaction.setAccountID(mAccountComboBox.getSelectionModel().getSelectedItem().getID());
 

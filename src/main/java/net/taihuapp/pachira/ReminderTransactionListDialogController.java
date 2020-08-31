@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -88,22 +88,19 @@ public class ReminderTransactionListDialogController {
         Reminder reminder = rt.getReminder();
         try {
             if (!mMainApp.setDBSavepoint()) {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Error");
-                alert.setHeaderText("DB Save Point unexpected set.");
-                alert.setContentText("Something is wrong.  Please restart.");
-                alert.showAndWait();
+                MainApp.showExceptionDialog(mDialogStage, "Error", "Unable to set DB save point",
+                        "Something is wrong. Please restart.", null);
                 return;
             }
             mMainApp.deleteReminderFromDB(reminder.getID());
             mMainApp.commitDB();
         } catch (SQLException e) {
             try {
-                mMainApp.showExceptionDialog("Database Error", "insert or update Reminder failed",
-                        MainApp.SQLExceptionToString(e), e);
+                MainApp.showExceptionDialog(mDialogStage,"Database Error",
+                        "insert or update Reminder failed", MainApp.SQLExceptionToString(e), e);
                 mMainApp.rollbackDB();
             } catch (SQLException e1) {
-                mMainApp.showExceptionDialog("Database Error",
+                MainApp.showExceptionDialog(mDialogStage, "Database Error",
                         "Failed to rollback reminder database update",
                         MainApp.SQLExceptionToString(e), e);
             }
@@ -111,7 +108,7 @@ public class ReminderTransactionListDialogController {
             try {
                 mMainApp.releaseDBSavepoint();
             } catch (SQLException e) {
-                mMainApp.showExceptionDialog("Database Error",
+                MainApp.showExceptionDialog(mDialogStage, "Database Error",
                         "set autocommit failed after insert update reminder",
                         MainApp.SQLExceptionToString(e), e);
             }

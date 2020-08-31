@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -132,7 +132,7 @@ public class SecurityListDialogController {
 
     @FXML
     private void handleDelete() {
-        mMainApp.showExceptionDialog("Exception", "Action Not Implemented",
+        MainApp.showExceptionDialog(mDialogStage,"Exception", "Action Not Implemented",
                 "Delete security action not implemented", null);
     }
 

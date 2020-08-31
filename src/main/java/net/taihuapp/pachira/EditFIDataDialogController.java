@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -74,19 +74,19 @@ public class EditFIDataDialogController {
         } catch (SQLException e) {
             try {
                 mLogger.error(MainApp.SQLExceptionToString(e), e);
-                mMainApp.showExceptionDialog("Database Error", "insertUpdateFIDataToDB failed",
+                MainApp.showExceptionDialog(mStage, "Database Error", "insertUpdateFIDataToDB failed",
                         MainApp.SQLExceptionToString(e), e);
                 mMainApp.rollbackDB();
             } catch (SQLException e1) {
                 mLogger.error(MainApp.SQLExceptionToString(e1), e1);
-                mMainApp.showExceptionDialog("Database Error", "Unable to rollback to savepoint",
+                MainApp.showExceptionDialog(mStage,"Database Error", "Unable to rollback to savepoint",
                         MainApp.SQLExceptionToString(e1), e1);
             }
         } finally {
             try {
                 mMainApp.releaseDBSavepoint();
             } catch (SQLException e) {
-                mMainApp.showExceptionDialog("Database Error",
+                MainApp.showExceptionDialog(mStage,"Database Error",
                         "Unable to release savepoint and set DB autocommit",
                         MainApp.SQLExceptionToString(e), e);
             }

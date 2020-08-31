@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -85,7 +85,7 @@ public class DirectConnectionListDialogController {
                     }
                 } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
                         | UnrecoverableKeyException e) {
-                    mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+                    MainApp.showExceptionDialog(mDialogStage,"Exception", "Vault Exception", e.getMessage(), e);
                     return;
                 }
             }
@@ -104,7 +104,7 @@ public class DirectConnectionListDialogController {
             stage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
-            mMainApp.showExceptionDialog("IOException", "showEditDCInfoDialog failed",
+            MainApp.showExceptionDialog(mDialogStage,"IOException", "showEditDCInfoDialog failed",
                     e.getMessage(), e);
         }
     }

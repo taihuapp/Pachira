@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -60,7 +60,7 @@ public class EditAccountDirectConnectionDialogController {
     private Stage mStage;
     private MainApp mMainApp;
     private AccountDC mADC;
-    private BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
+    private final BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
     private boolean isChanged() { return mChangedProperty.get(); }
 
     @FXML
@@ -101,7 +101,7 @@ public class EditAccountDirectConnectionDialogController {
                                 InvalidAlgorithmParameterException | IllegalBlockSizeException |
                                 BadPaddingException e ) {
             mLogger.error(e.getClass(), e);
-            mMainApp.showExceptionDialog(e.getClass().getName(), "Decryption Error",
+            MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
                     e.getMessage(), e);
         } finally {
             if (clearADCAccountNumber != null)
@@ -154,7 +154,7 @@ public class EditAccountDirectConnectionDialogController {
                             }
                         } catch (MalformedURLException e) {
                             mLogger.error("MalformedURLException", e);
-                            mMainApp.showExceptionDialog("MalformedURLException", "Bad URL",
+                            MainApp.showExceptionDialog(mStage,"MalformedURLException", "Bad URL",
                                     e.getMessage(), e);
 
                         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
@@ -162,11 +162,11 @@ public class EditAccountDirectConnectionDialogController {
                                 InvalidAlgorithmParameterException | IllegalBlockSizeException |
                                 BadPaddingException e) {
                             mLogger.error(e.getClass(), e);
-                            mMainApp.showExceptionDialog(e.getClass().getName(), "Decryption Error",
+                            MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
                                     e.getMessage(), e);
                         } catch (OFXException e) {
                             mLogger.error("OFXException", e);
-                            mMainApp.showExceptionDialog("OFXException", "OFXCeception", e.getMessage(), e);
+                            MainApp.showExceptionDialog(mStage,"OFXException", "OFXException", e.getMessage(), e);
                         }
                     }
 
@@ -221,13 +221,13 @@ public class EditAccountDirectConnectionDialogController {
             mStage.close();
         } catch (SQLException e) {
             mLogger.error("SQLException", e);
-            mMainApp.showExceptionDialog("Exception", "Database Exception",
+            MainApp.showExceptionDialog(mStage, "Exception", "Database Exception",
                     MainApp.SQLExceptionToString(e), e);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
                 | NoSuchPaddingException | InvalidAlgorithmParameterException | InvalidKeyException
                 | IllegalBlockSizeException | BadPaddingException e) {
             mLogger.error("Encrypt throws " + e.getClass().getName(), e);
-            mMainApp.showExceptionDialog("Exception", "Encryption Exception", e.getMessage(), e);
+            MainApp.showExceptionDialog(mStage,"Exception", "Encryption Exception", e.getMessage(), e);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -303,7 +303,8 @@ public class MainController {
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
                 | UnrecoverableKeyException e) {
             mLogger.error("Verify Master Password throws exception " + e.getMessage(), e);
-            mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "Vault Exception",
+                    e.getMessage(), e);
             return;
         }
 
@@ -329,7 +330,8 @@ public class MainController {
             }
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
                 | UnrecoverableKeyException e) {
-            mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "Vault Exception",
+                    e.getMessage(), e);
             return;
         }
 
@@ -360,7 +362,7 @@ public class MainController {
             dialogStage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
-            mMainApp.showExceptionDialog("Exception", "IOException", e.getMessage(), e);
+            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "IOException", e.getMessage(), e);
         }
     }
 
@@ -389,10 +391,11 @@ public class MainController {
                     "Master password successfully deleted");
         } catch (KeyStoreException e) {
             mLogger.error("KeyStore exception", e);
-            mMainApp.showExceptionDialog("Exception", "KeyStore Exception", e.getMessage(), e);
+            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "KeyStore Exception",
+                    e.getMessage(), e);
         } catch (SQLException e) {
             mLogger.error("Database Exception", e);
-            mMainApp.showExceptionDialog("Exception", "Database Exception",
+            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "Database Exception",
                     MainApp.SQLExceptionToString(e), e);
         }
     }
@@ -441,7 +444,7 @@ public class MainController {
                 message = e.getMessage();
             }
             mLogger.error(exceptionType, e);
-            mMainApp.showExceptionDialog("Exception", exceptionType, message, e);
+            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", exceptionType, message, e);
             mMainApp.showInformationDialog("Create/Update Master Password",
                     "Failed to create/update master password",
                     "Master Password not " + (isUpdate ? "updated" : "created"));

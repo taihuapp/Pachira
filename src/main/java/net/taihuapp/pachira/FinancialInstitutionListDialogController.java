@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -104,10 +104,6 @@ public class FinancialInstitutionListDialogController {
 
             sortedOFXFIDataList.comparatorProperty().bind(mOFXFIDataTableView.comparatorProperty());
             mOFXFIDataTableView.setItems(sortedOFXFIDataList);
-            /*for (FinancialInstitutionData fiData : sortedOFXFIDataList) {
-                mLogger.info("Name = " + fiData.getName() + ", FIID = " + fiData.getFinancialInstitutionId()
-                        + ", ID = " + fiData.getId());
-            }*/
         } catch (IOException e) {
             mLogger.error("IOException", e);
         }
@@ -129,7 +125,7 @@ public class FinancialInstitutionListDialogController {
             stage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
-            mMainApp.showExceptionDialog("IOException", "showEditFIDataDialog failed",
+            MainApp.showExceptionDialog(mDialogStage, "IOException", "showEditFIDataDialog failed",
                     e.getMessage(), e);
         }
     }
@@ -166,7 +162,7 @@ public class FinancialInstitutionListDialogController {
             mMainApp.initFIDataList();
         } catch (SQLException e) {
             mLogger.error(MainApp.SQLExceptionToString(e), e);
-            mMainApp.showExceptionDialog("Exception", "Database Exception",
+            MainApp.showExceptionDialog(mDialogStage,"Exception", "Database Exception",
                     MainApp.SQLExceptionToString(e), e);
         }
     }
@@ -192,7 +188,7 @@ public class FinancialInstitutionListDialogController {
             mMainApp.initFIDataList();
         } catch (SQLException e) {
             mLogger.error("SQLException", e);
-            mMainApp.showExceptionDialog("SQLException", "Import Financial Institution Data failed",
+            MainApp.showExceptionDialog(mDialogStage,"SQLException", "Import Financial Institution Data failed",
                     MainApp.SQLExceptionToString(e), e);
         }
     }

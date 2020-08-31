@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -100,7 +100,8 @@ public class Transaction {
         STKSPLIT("Stock Split"), SHRSIN("Shares Transferred In"), SHRSOUT("Shares Transferred Out"),
         MISCEXP("Misc Expense"), MISCINC("Misc Income"), RTRNCAP("Return Capital"),
         SHTSELL("Short Sell"), CVTSHRT("Cover Short Sell"), MARGINT("Margin Interest"),
-        XFRSHRS("Shares Transferred"), // XIN("Cash Transferred In"), XOUT("Cash Transferred Out"),
+        XFRSHRS("Shares Transferred"),
+        SHRCLSCVN("Share Class Conversion"), // composite trade action.
         DEPOSIT("Deposit"), WITHDRAW("Withdraw");
 
         private final String mValue;

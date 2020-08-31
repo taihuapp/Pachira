@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -75,9 +75,9 @@ public class CategoryListDialogController {
             controller.setMainApp(mMainApp, category, dialogStage);
             dialogStage.showAndWait();
         } catch (IOException e) {
-            mMainApp.showExceptionDialog("Exception", "IOException", "Edit Category Dialog IO Exception", e);
+            MainApp.showExceptionDialog(mDialogStage,"Exception", "IOException", "Edit Category Dialog IO Exception", e);
         } catch (NullPointerException e) {
-            mMainApp.showExceptionDialog("Exception", "Null Pointer Exception",
+            MainApp.showExceptionDialog(mDialogStage,"Exception", "Null Pointer Exception",
                     "Edit Category Dialog Null Pointer Exception", e);
         }
     }
@@ -92,7 +92,7 @@ public class CategoryListDialogController {
 
     @FXML
     private void handleDelete() {
-        mMainApp.showExceptionDialog("Exception", "Action Not Implemented",
+        MainApp.showExceptionDialog(mDialogStage,"Exception", "Action Not Implemented",
                 "Delete category action not implemented", null);
     }
 

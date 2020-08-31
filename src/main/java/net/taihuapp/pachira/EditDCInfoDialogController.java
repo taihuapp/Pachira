@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -53,7 +53,7 @@ public class EditDCInfoDialogController {
     private MainApp mMainApp;
     private DirectConnection mDCInfo;
     private Stage mStage;
-    private BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
+    private final BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
     private void setChanged() { mChangedProperty.set(true); }
     private boolean isChanged() { return mChangedProperty.get(); }
 
@@ -107,7 +107,7 @@ public class EditDCInfoDialogController {
                 | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException
                 | InvalidAlgorithmParameterException | BadPaddingException e) {
             mLogger.error("Unable decrypt user name and password for " + dcInfo.getName(), e);
-            mMainApp.showExceptionDialog("Exception", "Decryption Exception",
+            MainApp.showExceptionDialog(mStage, "Exception", "Decryption Exception",
                     "Failed to decrypt DCInfo for " + dcInfo.getName(), e);
         } finally {
             if (clearUserName != null)
@@ -139,10 +139,10 @@ public class EditDCInfoDialogController {
                 | NoSuchPaddingException | InvalidAlgorithmParameterException | InvalidKeyException
                 | IllegalBlockSizeException | BadPaddingException e) {
             mLogger.error("Vault Exception", e);
-            mMainApp.showExceptionDialog("Exception", "Vault Exception", e.getMessage(), e);
+            MainApp.showExceptionDialog(mStage, "Exception", "Vault Exception", e.getMessage(), e);
         } catch (SQLException e) {
             mLogger.error(MainApp.SQLExceptionToString(e), e);
-            mMainApp.showExceptionDialog("Exception","Database Exception",
+            MainApp.showExceptionDialog(mStage,"Exception","Database Exception",
                     MainApp.SQLExceptionToString(e), e);
         }
     }
@@ -151,7 +151,7 @@ public class EditDCInfoDialogController {
     private void handleCancel() {
         if (isChanged() && !MainApp.showConfirmationDialog("Confirmation", "Content has been changed",
                 "Do you want to discard changes?")) {
-            // content changed and not confimed OK to discard, go back
+            // content changed and not confirmed OK to discard, go back
             return;
         }
 

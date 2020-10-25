@@ -29,7 +29,6 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
@@ -42,7 +41,6 @@ import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -319,28 +317,6 @@ public class EditTransactionDialogControllerNew {
         TextFields.bindAutoCompletion(comboBox.getEditor(), strList);
     }
 
-    // The edited date in a DatePicker obj is not captured when the datePicker obj
-    // goes out of focus.
-    private static void captureEditedDate(final DatePicker datePicker) {
-        datePicker.getEditor().focusedProperty().addListener((obj, wasFocused, isFocused) -> {
-            if (!isFocused) // goes out of focus, save the edited date
-                captureEditedDateCore(datePicker);
-        });
-        datePicker.addEventFilter(KeyEvent.KEY_PRESSED, eh -> {
-            if (eh.getCode() == KeyCode.ENTER) // user hit the enter key
-                captureEditedDateCore(datePicker);
-        });
-    }
-
-    // method used by captureEditedDate
-    private static void captureEditedDateCore(final DatePicker datePicker) {
-        try {
-            datePicker.setValue(datePicker.getConverter().fromString(datePicker.getEditor().getText()));
-        } catch (DateTimeParseException e) {
-            datePicker.getEditor().setText(datePicker.getConverter().toString(datePicker.getValue()));
-        }
-    }
-
     private static void showWarningDialog(String header, String content) {
         MainApp.showWarningDialog("Warning", header, content);
     }
@@ -385,11 +361,11 @@ public class EditTransactionDialogControllerNew {
         });
 
         // trade date always visible
-        captureEditedDate(mTDatePicker);
+        DatePickerUtil.captureEditedDate(mTDatePicker);
         mTDatePicker.valueProperty().bindBidirectional(mTransaction.getTDateProperty());
 
         // ADatePicker visible only for shares in.
-        captureEditedDate(mADatePicker);
+        DatePickerUtil.captureEditedDate(mADatePicker);
         mADatePicker.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(SHRSIN));
         mADatePickerLabel.visibleProperty().bind(mADatePicker.visibleProperty());
         mADatePicker.valueProperty().bindBidirectional(mTransaction.getADateProperty());

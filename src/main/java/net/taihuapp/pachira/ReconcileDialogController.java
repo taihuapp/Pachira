@@ -141,11 +141,14 @@ public class ReconcileDialogController {
     private BigDecimal mDownloadedLedgeBalance = null;
 
     private ReconcileTransactionTableView mTransactionTableView;
-    private Map<Integer, Transaction.Status> mOriginalStatusMap = new HashMap<>();
+    private final Map<Integer, Transaction.Status> mOriginalStatusMap = new HashMap<>();
 
     // Mark all unreconciled transaction as cleared
     private void handleMarkAll() {
-        mTransactionTableView.getItems().forEach(t -> t.setStatus(Transaction.Status.CLEARED));
+        mTransactionTableView.getItems().forEach(t -> {
+            if (!t.getTDate().isAfter(mEndDatePicker.getValue()))
+                t.setStatus(Transaction.Status.CLEARED);
+        });
     }
 
     private void handleFinish() {
@@ -200,12 +203,10 @@ public class ReconcileDialogController {
         }
 
         Set<String> securityNameSet = transactionList.stream()
-                .map(Transaction::getSecurityName).filter(s -> (!s.isEmpty()))
-                .distinct().collect(Collectors.toSet());
+                .map(Transaction::getSecurityName).filter(s -> (!s.isEmpty())).collect(Collectors.toSet());
         Set<String> unreconciledSecurityNameSet = transactionList.stream()
                 .filter(t -> !t.getStatus().equals(Transaction.Status.RECONCILED))
-                .map(Transaction::getSecurityName).filter(s -> !s.isEmpty())
-                .distinct().collect(Collectors.toSet());
+                .map(Transaction::getSecurityName).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
 
         SecurityBalance cashBalance = new SecurityBalance("CASH");
         cashBalance.getOpeningBalanceProperty().bind(Bindings.createObjectBinding(()
@@ -311,10 +312,10 @@ public class ReconcileDialogController {
         mEndingBalanceTableColumn.setCellValueFactory(cd -> cd.getValue().getEndingBalanceProperty());
         mBalanceDifferenceTableColumn.setCellValueFactory(cd -> cd.getValue().getBalanceDifferenceProperty());
         Callback<TableColumn<SecurityBalance, BigDecimal>, TableCell<SecurityBalance, BigDecimal>> converter
-                = new Callback<TableColumn<SecurityBalance, BigDecimal>, TableCell<SecurityBalance,BigDecimal>>() {
+                = new Callback<>() {
             @Override
             public TableCell<SecurityBalance, BigDecimal> call(TableColumn<SecurityBalance, BigDecimal> param) {
-                return new TableCell<SecurityBalance, BigDecimal>() {
+                return new TableCell<>() {
                     @Override
                     protected void updateItem(BigDecimal item, boolean empty) {
                         super.updateItem(item, empty);
@@ -330,11 +331,16 @@ public class ReconcileDialogController {
                         setStyle("-fx-alignment: CENTER-RIGHT;");
                     }
                 };
-            }};
+            }
+        };
         mOpeningBalanceTableColumn.setCellFactory(converter);
         mClearedBalanceTableColumn.setCellFactory(converter);
         mBalanceDifferenceTableColumn.setCellFactory(converter);
         mEndingBalanceTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new BigDecimalStringConverter()));
         mEndingBalanceTableColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+
+        // javafx DatePicker is not aware of edited value in its TextField
+        // this is a work around
+        DatePickerUtil.captureEditedDate(mEndDatePicker);
     }
 }

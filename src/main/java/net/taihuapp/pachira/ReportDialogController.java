@@ -1638,5 +1638,10 @@ public class ReportDialogController {
                         -> (mTabPane.getSelectionModel().getSelectedItem() != mDatesTab) &&
                         (mTabPane.getSelectionModel().getSelectedItem() != mTextMatchTab),
                 mTabPane.getSelectionModel().selectedItemProperty()));
+
+        // the javafx DatePicker isn't aware of the edited value of its own text field.
+        // DatePickerUtil.CaptureEditedDate is a work around for it.
+        DatePickerUtil.captureEditedDate(mStartDatePicker);
+        DatePickerUtil.captureEditedDate(mEndDatePicker);
     }
 }

@@ -168,6 +168,7 @@ public class EditSecurityPriceDialogController {
                 break;
         }
         mNewDateDatePicker.setValue(defaultDate);
+        DatePickerUtil.captureEditedDate(mNewDateDatePicker);
     }
 
     @FXML

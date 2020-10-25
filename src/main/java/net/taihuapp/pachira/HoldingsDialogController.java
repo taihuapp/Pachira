@@ -81,6 +81,10 @@ public class HoldingsDialogController {
     void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
 
+        // javafx DatePicker aren't aware of edited the value in its TextField,
+        // this is a work around
+        DatePickerUtil.captureEditedDate(mDatePicker);
+
         mSecurityHoldingTreeTableView.setShowRoot(false);
         mSecurityHoldingTreeTableView.setSortMode(TreeSortMode.ONLY_FIRST_LEVEL);
         mSecurityHoldingTreeTableView.setEditable(true);

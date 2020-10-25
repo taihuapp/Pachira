@@ -132,7 +132,7 @@ public class EditReminderDialogController {
         mAmountTextField.visibleProperty().bindBidirectional(mFixedAmountRadioButton.selectedProperty());
         mEstimateNumOccurrenceTextField.visibleProperty().bindBidirectional(mEstimateAmountRadioButton.selectedProperty());
 
-        // todo need a changelistenser for mCountBeforeEndTextField
+        // todo need a ChangeListener for mCountBeforeEndTextField
 
         mTypeChoiceBox.getItems().setAll(Reminder.Type.values());
     }
@@ -143,7 +143,7 @@ public class EditReminderDialogController {
         mDialogStage = stage;
 
         // bind the properties now
-        // seems no need to do unbindbidirectional
+        // seems no need to do unbindBidirectional
         mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
         TextFields.bindAutoCompletion(mPayeeTextField, mMainApp.getPayeeSet());
@@ -179,6 +179,11 @@ public class EditReminderDialogController {
 
         mMemoTextField.textProperty().bindBidirectional(mReminder.getMemoProperty());
 
+        // javafx DatePicker control doesn't aware of the edited value in its TextField
+        // this is a work around
+        DatePickerUtil.captureEditedDate(mStartDatePicker);
+        DatePickerUtil.captureEditedDate(mEndDatePicker);
+
         // bind properties for DateSchedule fields
         mBaseUnitChoiceBox.valueProperty().bindBidirectional(mReminder.getDateSchedule().getBaseUnitProperty());
         mStartDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getStartDateProperty());
@@ -193,7 +198,7 @@ public class EditReminderDialogController {
                 mBaseUnitChoiceBox.valueProperty()));
 
 
-        // we don't have anything to bind mCountBeforeEndTextField, but we have a textchangelistener for it
+        // we don't have anything to bind mCountBeforeEndTextField, but we have a TextChangeListener for it
         // set in initialization
 
         mDOMToggleButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsDOMBasedProperty());

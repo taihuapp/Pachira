@@ -134,9 +134,9 @@ public class Transaction {
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mAccuedInterestProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private final ObjectProperty<BigDecimal> mSignedQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<BigDecimal> mSignedQuantityProperty = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final StringProperty mDescriptionProperty = new SimpleStringProperty("");
     private final StringProperty mFITIDProperty = new SimpleStringProperty("");

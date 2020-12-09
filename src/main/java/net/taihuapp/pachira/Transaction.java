@@ -21,7 +21,10 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.*;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
@@ -100,7 +103,6 @@ public class Transaction {
         STKSPLIT("Stock Split"), SHRSIN("Shares Transferred In"), SHRSOUT("Shares Transferred Out"),
         MISCEXP("Misc Expense"), MISCINC("Misc Income"), RTRNCAP("Return Capital"),
         SHTSELL("Short Sell"), CVTSHRT("Cover Short Sell"), MARGINT("Margin Interest"),
-        XFRSHRS("Shares Transferred"),
         SHRCLSCVN("Share Class Conversion"), // composite trade action.
         DEPOSIT("Deposit"), WITHDRAW("Withdraw");
 
@@ -225,7 +227,6 @@ public class Transaction {
                     return getMemo();
                 case SHRSOUT:
                     return getQuantity().stripTrailingZeros().toPlainString() + " shares";
-                case XFRSHRS:
                 default:
                     return "description for [" + getTradeAction() + "] Transaction not implemented yet.";
             }
@@ -265,7 +266,6 @@ public class Transaction {
                 case MARGINT:
                 case STKSPLIT:
                     return getQuantity();
-                case XFRSHRS:
                 default:
                     mLogger.error("getSignedQuantity not implemented for " + getTradeAction());
                     return getQuantity();
@@ -311,7 +311,6 @@ public class Transaction {
                 case MISCEXP:
                 case MISCINC:
                 case STKSPLIT:
-                case XFRSHRS:
                 case DEPOSIT:
                 case WITHDRAW:
                     return BigDecimal.ZERO;
@@ -398,7 +397,6 @@ public class Transaction {
             case REINVMD:
             case REINVSH:
             case STKSPLIT:
-            case XFRSHRS:
                 return null;
             default:
                 mLogger.error("Transaction::TransferTradeAction: " + getTradeAction() + " not implemented yet.");
@@ -434,7 +432,6 @@ public class Transaction {
             case STKSPLIT:
             case SHRSIN:
             case SHRSOUT:
-            case XFRSHRS:
             default:
                 return BigDecimal.ZERO;  // no cash transfer
         }
@@ -471,7 +468,6 @@ public class Transaction {
             case STKSPLIT:
             case SHRSIN:
             case SHRSOUT:
-            case XFRSHRS:
                 return BigDecimal.ZERO;
             default:
                 mLogger.error("TradingAction " + getTradeAction() + " not implement yet");
@@ -604,7 +600,6 @@ public class Transaction {
             case SHRSOUT:
             case SHTSELL:
             case CVTSHRT:
-            case XFRSHRS:
                 return true;
             case DIV:
             case INTINC:

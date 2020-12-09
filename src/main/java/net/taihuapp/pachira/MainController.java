@@ -20,7 +20,6 @@
 
 package net.taihuapp.pachira;
 
-import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -170,16 +169,6 @@ public class MainController {
 
         if (mMainApp.getAcknowledgeTimeStamp() == null)
             mMainApp.showSplashScreen(true);
-
-        // updateAccountBalance at midnight
-        mMainApp.getTaskExecutor().scheduleDaily(() -> Platform.runLater(() -> {
-            ReminderTransaction.CURRENTDATEPROPERTY.set(LocalDate.now());
-            mMainApp.updateAccountBalance();
-                }),0, 0);
-
-        // refresh TransactionTableView at midnight
-        mMainApp.getTaskExecutor().scheduleDaily(() -> Platform.runLater(() -> mTransactionTableView.refresh()),
-                0, 0);
     }
 
     private boolean isNonTrivialPermutated(ListChangeListener.Change<?> c) {
@@ -704,6 +693,11 @@ public class MainController {
 
     @FXML
     private void initialize() {
+        MainApp.CURRENTDATEPROPERTY.addListener((obs, ov, nv) -> {
+            mMainApp.updateAccountBalance();
+            mTransactionTableView.refresh();
+        });
+
         mAccountNameTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getNameProperty());
         mAccountNameTreeTableColumn.setCellFactory(column -> new TreeTableCell<>() {
             @Override

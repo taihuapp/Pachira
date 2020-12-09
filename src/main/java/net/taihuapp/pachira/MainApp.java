@@ -82,6 +82,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -101,6 +104,8 @@ public class MainApp extends Application {
     }
 
     private static final Logger mLogger = Logger.getLogger(MainApp.class);
+
+    static final ObjectProperty<LocalDate> CURRENTDATEPROPERTY = new SimpleObjectProperty<>(LocalDate.now());
 
     // minimum 2 decimal places, maximum 4 decimal places
     static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
@@ -176,7 +181,8 @@ public class MainApp extends Application {
             Comparator.comparing(Transaction::getAccountID).thenComparing(Transaction::getTDate)
                     .thenComparing(Transaction::getID));
 
-    // we want to watch the change of hiddenflag and displayOrder
+    // we want to watch the change of hiddenFlag and displayOrder
+    // Todo why do we need observe on current balance?
     private final ObservableList<Account> mAccountList = FXCollections.observableArrayList(
             a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(),
                     a.getCurrentBalanceProperty() });
@@ -201,8 +207,7 @@ public class MainApp extends Application {
 
     private final BooleanProperty mHasMasterPasswordProperty = new SimpleBooleanProperty(false);
 
-    private final TaskExecutor mTaskExecutor = new TaskExecutor(1);
-    TaskExecutor getTaskExecutor() { return mTaskExecutor; }
+    private final ScheduledExecutorService mExecutorService = Executors.newScheduledThreadPool(1);
 
     ObservableList<AccountDC> getAccountDCList() { return mAccountDCList; }
     AccountDC getAccountDC(int accountID) {
@@ -2578,7 +2583,6 @@ public class MainApp extends Application {
             totalHolding.updatePctRet();
 
             // nothing to sort here, but for symmetry...
-            securityHoldingList.sort(Comparator.comparing(SecurityHolding::getSecurityName));
             securityHoldingList.add(cashHolding);
             securityHoldingList.add(totalHolding);
             return securityHoldingList;
@@ -3889,9 +3893,11 @@ public class MainApp extends Application {
         return mHasMasterPasswordProperty;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     boolean hasMasterPasswordInKeyStore() { return getVault().hasMasterPasswordInKeyStore(); }
 
     // verify if the input password matches the master password
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     boolean verifyMasterPassword(final String password) throws NoSuchAlgorithmException, InvalidKeySpecException,
             KeyStoreException, UnrecoverableKeyException {
         char[] mpChars = password.toCharArray();
@@ -5217,7 +5223,7 @@ public class MainApp extends Application {
     @Override
     public void stop() {
         closeConnection();  // close database connection if any.
-        getTaskExecutor().shutdown();
+        mExecutorService.shutdown();
         Platform.exit(); // this shutdown JavaFX
         System.exit(0);  // this is needed to stop any timer tasks not otherwise stopped.
     }
@@ -5233,6 +5239,12 @@ public class MainApp extends Application {
         mPrimaryStage = stage;
         mPrimaryStage.setTitle(MainApp.class.getPackage().getImplementationTitle());
         initMainLayout();
+        mExecutorService.scheduleAtFixedRate(() -> {
+            // check if current date property is still correct.
+            if (CURRENTDATEPROPERTY.get().compareTo(LocalDate.now()) != 0) {
+                Platform.runLater(() -> CURRENTDATEPROPERTY.set(LocalDate.now()));
+            }
+        }, 15, 15, TimeUnit.SECONDS);
     }
 
     public static void main(String[] args) {

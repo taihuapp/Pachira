@@ -740,7 +740,6 @@ public class ReportDialogController {
                     case SHTSELL:
                         break;
                     case MARGINT:
-                    case XFRSHRS:
                     case DEPOSIT:
                     case WITHDRAW:
                     default:

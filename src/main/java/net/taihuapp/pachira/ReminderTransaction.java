@@ -30,7 +30,6 @@ class ReminderTransaction {
     static final String DUESOON = "Due soon";
     static final String COMPLETED = "Completed";
     static final String SKIPPED = "Skipped";
-    static final ObjectProperty<LocalDate> CURRENTDATEPROPERTY = new SimpleObjectProperty<>(LocalDate.now());
 
     private final Reminder mReminder;
     private final ObjectProperty<LocalDate> mDueDateProperty;
@@ -53,7 +52,7 @@ class ReminderTransaction {
                 return SKIPPED;
 
             // id < 0, not executed
-            LocalDate today = CURRENTDATEPROPERTY.get();
+            LocalDate today = MainApp.CURRENTDATEPROPERTY.get();
             LocalDate dueDate = mDueDateProperty.get();
             if (dueDate.isBefore(today))
                 return OVERDUE;
@@ -62,7 +61,7 @@ class ReminderTransaction {
                 return DUESOON;
 
             return "";
-        }, mTransactionIDProperty, mDueDateProperty, CURRENTDATEPROPERTY));
+        }, mTransactionIDProperty, mDueDateProperty, MainApp.CURRENTDATEPROPERTY));
     }
 
     ObjectProperty<LocalDate> getDueDateProperty() { return mDueDateProperty; }

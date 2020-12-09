@@ -517,7 +517,7 @@ public class EditTransactionDialogControllerNew {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == BUY || ta == SELL || ta == REINVDIV || ta == REINVINT || ta == REINVLG
                     || ta == REINVMD || ta == REINVSH || ta == STKSPLIT || ta == SHRSIN || ta == SHRCLSCVN
-                    || ta == SHRSOUT || ta == SHTSELL || ta == CVTSHRT || ta == XFRSHRS);
+                    || ta == SHRSOUT || ta == SHTSELL || ta == CVTSHRT);
         }, mTradeActionChoiceBox.valueProperty()));
         mSharesLabel.visibleProperty().bind(mSharesTextField.visibleProperty());
         mSharesLabel.textProperty().bind(Bindings.createStringBinding(() ->
@@ -855,7 +855,7 @@ public class EditTransactionDialogControllerNew {
         }
 
         // check ADate for SHRSIN and XFRSHRS
-        if (ta == SHRSIN || ta == XFRSHRS) {
+        if (ta == SHRSIN) {
             LocalDate aDate = mTransaction.getADate();
             String header = null;
             String content = "Please select a valid acquisition date";

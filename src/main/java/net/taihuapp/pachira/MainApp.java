@@ -568,7 +568,8 @@ public class MainApp extends Application {
         }
 
         boolean savepointSetHere = false;  // did I set savepoint?
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
 
             preparedStatement.setString(1, setting.getName());
@@ -698,7 +699,8 @@ public class MainApp extends Application {
         }
 
         boolean savepointSetHere = false; // did I set it?
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
 
             preparedStatement.setString(1, reminder.getType().name());
@@ -828,7 +830,8 @@ public class MainApp extends Application {
         }
 
         boolean savepointSetHere = false; // did I set savepoint?
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
 
             preparedStatement.setInt(1, t.getAccountID());
@@ -942,7 +945,8 @@ public class MainApp extends Application {
                 + "TAGID = ?"
                 + "where ID = ?";
         try (Statement statement = mConnection.createStatement();
-             PreparedStatement insertStatement = mConnection.prepareStatement(insertSQL);
+             PreparedStatement insertStatement =
+                     mConnection.prepareStatement(insertSQL, Statement.RETURN_GENERATED_KEYS);
              PreparedStatement updateStatement = mConnection.prepareStatement(updateSQL)) {
             if (!exIDList.isEmpty()) {
                 // delete these split transactions
@@ -1006,7 +1010,8 @@ public class MainApp extends Application {
             sqlCmd = "update TAGS set NAME = ?, DESCRIPTION = ? where ID = ?";
         }
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, tag.getName());
             preparedStatement.setString(2, tag.getDescription());
             if (tag.getID() > 0) {
@@ -1042,7 +1047,8 @@ public class MainApp extends Application {
                     + "where ID = ?";
         }
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, category.getName());
             preparedStatement.setString(2, category.getDescription());
             preparedStatement.setBoolean(3, category.getIsIncome());
@@ -1086,7 +1092,8 @@ public class MainApp extends Application {
         }
 
         boolean savepointSetHere = false;
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
             preparedStatement.setString(1, dc.getName());
             preparedStatement.setInt(2, dc.getFIID());
@@ -1132,7 +1139,8 @@ public class MainApp extends Application {
                     + "where ID = ?";
         }
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, fiData.getFIID());
             preparedStatement.setString(2, fiData.getSubID());
             preparedStatement.setString(3, fiData.getName());
@@ -1169,7 +1177,8 @@ public class MainApp extends Application {
             sqlCmd = "update SECURITIES set TICKER = ?, NAME = ?, TYPE = ? where ID = ?";
         }
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, security.getTicker());
             preparedStatement.setString(2, security.getName());
             preparedStatement.setString(3, security.getType().name());
@@ -1377,7 +1386,8 @@ public class MainApp extends Application {
         }
         sqlCmd.append(")");
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd.toString())) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd.toString(), Statement.RETURN_GENERATED_KEYS)) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, address.get(i));
 
@@ -1411,7 +1421,8 @@ public class MainApp extends Application {
         }
         sqlCmd.append(")");
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd.toString())) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd.toString(), Statement.RETURN_GENERATED_KEYS)) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, amortLines[i]);
 
@@ -1471,7 +1482,8 @@ public class MainApp extends Application {
                     "PAYEE, SPLITFLAG, ADDRESSID, AMORTIZATIONID, TRADEACTION, TAGID, FITID" +
                     ") values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
-            try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+            try (PreparedStatement preparedStatement =
+                         mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
                 String categoryOrTransferStr = bt.getCategoryOrTransfer();
                 int categoryOrTransferID = mapCategoryOrAccountNameToID(categoryOrTransferStr);
                 if (categoryOrTransferID == -account.getID()) {
@@ -1545,7 +1557,8 @@ public class MainApp extends Application {
                 "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                 "STATUS, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY, FITID, REFERENCE, PAYEE) " +
                 "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
+        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd,
+                Statement.RETURN_GENERATED_KEYS)){
             int cid = mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer());
             QIFParser.TradeTransaction.Action action = tt.getAction();
             if (cid == -account.getID()) {
@@ -1601,7 +1614,8 @@ public class MainApp extends Application {
         sqlCmd = "insert into CATEGORIES (NAME, DESCRIPTION, INCOMEFLAG, TAXREFNUM, BUDGETAMOUNT) "
                 + "values (?,?,?, ?, ?)";
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)){
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, category.getName());
             preparedStatement.setString(2, category.getDescription());
             preparedStatement.setBoolean(3, category.getIsIncome());
@@ -1646,7 +1660,8 @@ public class MainApp extends Application {
                     + "where ID = ?";
         }
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement =
+                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, account.getType().name());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
@@ -3230,11 +3245,8 @@ public class MainApp extends Application {
                     }
                 }
             }
-        } catch (FileNotFoundException e) {
-            showExceptionDialog(mPrimaryStage,"Exception Dialog", "File Not Found",
-                    file.getAbsolutePath() + " not found", e);
         } catch (IOException e) {
-            showExceptionDialog(mPrimaryStage,"Exception Dialog", "IOException",
+            showExceptionDialog(mPrimaryStage, "Exception Dialog", e.getClass().getName(),
                     e.getLocalizedMessage(), e);
         }
 

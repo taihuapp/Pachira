@@ -280,7 +280,8 @@ public class MainController {
     private void downloadAccountTransactions() {
         try {
             if (!mMainApp.hasMasterPasswordInKeyStore()) {
-                List<String> passwords = mMainApp.showPasswordDialog(PasswordDialogController.MODE.ENTER);
+                List<String> passwords = mMainApp.showPasswordDialog("Enter Vault Master Password",
+                        PasswordDialogController.MODE.ENTER);
                 if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
                     // either didn't enter master password or failed to enter a correct one
                     MainApp.showWarningDialog("Download Account Transactions",
@@ -308,7 +309,8 @@ public class MainController {
     private void setAccountDirectConnection() {
         try {
             if (!mMainApp.hasMasterPasswordInKeyStore()) {
-                List<String> passwords = mMainApp.showPasswordDialog(PasswordDialogController.MODE.ENTER);
+                List<String> passwords = mMainApp.showPasswordDialog("Enter Vault Master Password",
+                        PasswordDialogController.MODE.ENTER);
                 if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
                     // either didn't enter master password or failed to enter a correct one
                     MainApp.showWarningDialog("Edit Direct Connection",
@@ -391,8 +393,13 @@ public class MainController {
 
     // either create new or update existing master password
     private void setupVaultMasterPassword(boolean isUpdate) {
-        List<String> passwords = mMainApp.showPasswordDialog(isUpdate ?
-                PasswordDialogController.MODE.CHANGE : PasswordDialogController.MODE.NEW);
+        List<String> passwords;
+        if (isUpdate)
+            passwords = mMainApp.showPasswordDialog("Update Vault Master Password",
+                PasswordDialogController.MODE.CHANGE);
+        else
+            passwords = mMainApp.showPasswordDialog("Create New Vault Master Password",
+                    PasswordDialogController.MODE.NEW);
 
         if (passwords.size() == 0) {
             String title = "Warning";
@@ -811,6 +818,8 @@ public class MainController {
 
                 // menuItem for downloaded transaction to merge with manually entered one
                 final MenuItem mergeMI = new MenuItem("Merge...");
+                mergeMI.disableProperty().bind(Bindings.createBooleanBinding(() ->
+                        (getItem() == null || getItem().getFITID().isEmpty()), itemProperty()));
                 mergeMI.setOnAction(e -> {
                     final Transaction downloadedTransaction = getItem();
 
@@ -926,9 +935,8 @@ public class MainController {
                         if (contextMenu != null) {
                             for (MenuItem mi : contextMenu.getItems()) {
                                 final String miText = mi.getText();
-                                if (miText != null) {
-                                    mi.setDisable(miText.endsWith(item.toString())
-                                            || (miText.startsWith("Merge") && row.getItem().getFITID().isEmpty()));
+                                if (miText != null && miText.startsWith("Mark as")) {
+                                    mi.setDisable(miText.endsWith(item.toString()));
                                 }
                             }
                         }

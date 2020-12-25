@@ -75,7 +75,8 @@ public class DirectConnectionListDialogController {
         try {
             if (!mMainApp.hasMasterPasswordInKeyStore()) {
                 try {
-                    List<String> passwords = mMainApp.showPasswordDialog(PasswordDialogController.MODE.ENTER);
+                    List<String> passwords = mMainApp.showPasswordDialog("Enter Vault Master Password",
+                            PasswordDialogController.MODE.ENTER);
                     if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
                         // failed to verify master password
                         MainApp.showWarningDialog("Edit Direct Connection",

@@ -2512,29 +2512,13 @@ public class MainApp extends Application {
     // for creating password, empty string is in [0] and the new password is in [1]
     // for entering password, empty string is in [0] and the password is in [1]
     // for changing password, the old password is in [0] and the new one in [1]
-    List<String> showPasswordDialog(PasswordDialogController.MODE mode) {
-        String title;
-        switch (mode) {
-            case ENTER:
-                title = "Enter Password";
-                break;
-            case NEW:
-                title = "Set New Password";
-                break;
-            case CHANGE:
-                title = "Change Password";
-                break;
-            default:
-                mLogger.error("Unknown MODE" + mode.toString());
-                title = "Unknown";
-        }
-
+    List<String> showPasswordDialog(String prompt, PasswordDialogController.MODE mode) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/PasswordDialog.fxml"));
 
             Stage dialogStage = new Stage();
-            dialogStage.setTitle(title);
+            dialogStage.setTitle(prompt);
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
@@ -3452,7 +3436,7 @@ public class MainApp extends Application {
         if (!(result.isPresent() && (result.get() == ButtonType.OK)))
             return;  // do nothing
 
-        List<String> passwords = showPasswordDialog(PasswordDialogController.MODE.CHANGE);
+        List<String> passwords = showPasswordDialog("Change Password", PasswordDialogController.MODE.CHANGE);
         if (passwords == null || passwords.size() != 2) {
             // action cancelled
             return;
@@ -3584,8 +3568,12 @@ public class MainApp extends Application {
         }
 
         if (password == null) {
-            List<String> passwords = showPasswordDialog(
-                    isNew ? PasswordDialogController.MODE.NEW : PasswordDialogController.MODE.ENTER);
+            List<String> passwords;
+            if (isNew)
+                passwords = showPasswordDialog("Create New Password", PasswordDialogController.MODE.NEW);
+            else
+                passwords = showPasswordDialog("Enter Password", PasswordDialogController.MODE.ENTER);
+
             if (passwords == null || passwords.size() == 0 || passwords.get(1) == null) {
                 if (isNew) {
                     Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -4495,7 +4483,9 @@ public class MainApp extends Application {
         bfid.setOFXURL(new URL(fiData.getURL()));
         bfid.setName(fiData.getName());
         bfid.setOrganization(fiData.getORG());
-        return new FinancialInstitutionImpl(bfid, connection);
+        FinancialInstitution fi = new FinancialInstitutionImpl(bfid, connection);
+        fi.setLanguage(Locale.US.getISO3Language().toUpperCase());
+        return fi;
     }
 
     Collection<AccountProfile> DCDownloadFinancialInstitutionAccountProfiles(DirectConnection directConnection)
@@ -4567,9 +4557,8 @@ public class MainApp extends Application {
                 downloadedIDSet.add(t.getFITID());
         }
 
-        Set<TransactionType> testedTransactionType = new HashSet<>();
-        testedTransactionType.add(TransactionType.OTHER);
-
+        Set<TransactionType> testedTransactionType = new HashSet<>(Arrays.asList(TransactionType.OTHER,
+                TransactionType.CREDIT, TransactionType.DEBIT, TransactionType.CHECK));
         Set<TransactionType> unTestedTransactionType = new HashSet<>();
 
         ArrayList<Transaction> tobeImported = new ArrayList<>();
@@ -4730,7 +4719,7 @@ public class MainApp extends Application {
                 for (TransactionType tt : unTestedTransactionType)
                     context.append(tt.toString()).append("\n");
                 showWarningDialog("Untested Download Transaction Type",
-                        "The following downloaded transaction type are not fully tested, preceed with caution:",
+                        "The following downloaded transaction type are not fully tested, proceed with caution:",
                         context.toString());
             }
         }

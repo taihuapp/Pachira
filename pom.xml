@@ -26,8 +26,7 @@
 
     <groupId>net.taihuapp.pachira</groupId>
     <artifactId>Pachira</artifactId>
-    <version>0.4.2.0</version>
-    <packaging>jar</packaging>
+    <version>0.4.3.0</version>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
@@ -132,6 +131,7 @@
                         </goals>
                         <configuration>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <excludeGroupIds>org.openjfx</excludeGroupIds>
                             <overWriteReleases>false</overWriteReleases>
                             <overWriteSnapshots>false</overWriteSnapshots>
                             <overWriteIfNewer>true</overWriteIfNewer>
@@ -147,22 +147,6 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.6.0</version>
                 <executions>
-                    <execution>
-                        <id>script-chmod</id>
-                        <phase>install</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>chmod</executable>
-                            <arguments>
-                                <argument>755</argument>
-                                <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
-                                <argument>${project.build.directory}/runPachira.sh</argument>
-                                <argument>${project.build.directory}/runPachira.bat</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
                     <execution>
                         <id>script-cp-script</id>
                         <phase>package</phase>

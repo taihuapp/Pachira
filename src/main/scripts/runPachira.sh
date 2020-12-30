@@ -19,4 +19,5 @@ fi
 pDir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 java --module-path="${PATH_TO_FX:-/usr/share/openjfx/lib}" \
  --add-exports javafx.base/com.sun.javafx.event=ALL-UNNAMED \
- --add-modules=javafx.fxml,javafx.controls -jar "${pDir}"/Pachira.jar
+ --add-modules=javafx.fxml,javafx.controls \
+ -jar "${pDir}"/Pachira.jar

@@ -1,6 +1,6 @@
 # Pachira
 
-## Welcome o Pachira, a personal finance application.
+## Welcome to Pachira, a personal finance application.
 
 I have been using Quicken for many years.  I started writing Pachira with the
 intention to replace Quicken.  So far, for my personal need, I can say I have

@@ -26,7 +26,7 @@
 
     <groupId>net.taihuapp.pachira</groupId>
     <artifactId>Pachira</artifactId>
-    <version>0.4.3.0</version>
+    <version>0.5.0.0</version>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
@@ -140,8 +140,6 @@
                 </executions>
             </plugin>
 
-
-            <!-- chmod 755 after build-->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>

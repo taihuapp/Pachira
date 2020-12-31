@@ -59,6 +59,6 @@ For Linux/Mac, locate Pachira installation directory, run the shell script `runP
 
 ## Support
 
-Try [Issue tracker](https://github.com/taihuapp/Pachira/releases/),
+Try [Issue tracker](https://github.com/taihuapp/Pachira/issues/),
 or [Wiki page](https://github.com/taihuapp/Pachira/wiki),
 or [Email](mailto:taihuapp@gmail.com).

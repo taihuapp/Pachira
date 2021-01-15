@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,6 +24,9 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+
+import static net.taihuapp.pachira.QIFUtil.EOL;
+import static net.taihuapp.pachira.QIFUtil.EOR;
 
 public class Security {
     enum Type {
@@ -102,5 +105,13 @@ public class Security {
     public String toString() {
         return "ID = " + getID() + ", Name = '" + getName() + "', Ticker = '" + getTicker()
                 + "', Type = '" + getType() + "'";
+    }
+
+    // Input alternative is not used
+    public String toQIF() {
+        return "N" + getName() + EOL +
+                "S" + getTicker() + EOL +
+                "T" + getType().toString() + EOL +
+                EOR + EOL;
     }
 }

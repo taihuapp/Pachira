@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -26,10 +26,12 @@ import javafx.beans.property.SimpleObjectProperty;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import static net.taihuapp.pachira.QIFUtil.*;
+
 class Price {
 
-    private ObjectProperty<LocalDate> mDateProperty;
-    private ObjectProperty<BigDecimal> mPriceProperty;
+    private final ObjectProperty<LocalDate> mDateProperty;
+    private final ObjectProperty<BigDecimal> mPriceProperty;
 
     Price(LocalDate d, BigDecimal p) {
         mDateProperty = new SimpleObjectProperty<>(d);
@@ -38,9 +40,17 @@ class Price {
 
     ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
     LocalDate getDate() { return getDateProperty().get(); }
-    void setDate(LocalDate d) { getDateProperty().set(d); }
 
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
     BigDecimal getPrice() { return getPriceProperty().get(); }
-    void setPrice(BigDecimal p) { getPriceProperty().set(p); }
+
+    String toQIF(String ticker) {
+        final String quote = "\"";
+        final String comma = ",";
+        return "!Type:Prices" + EOL
+                + quote + ticker + quote + comma
+                + getPrice() + comma
+                + quote + formatDate(getDate()) + quote + EOL
+                + EOR + EOL;
+    }
 }

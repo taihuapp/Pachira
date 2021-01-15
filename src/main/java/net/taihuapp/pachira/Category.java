@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,6 +24,9 @@ import javafx.beans.property.*;
 
 import java.math.BigDecimal;
 import java.util.Objects;
+
+import static net.taihuapp.pachira.QIFUtil.EOL;
+import static net.taihuapp.pachira.QIFUtil.EOR;
 
 public class Category {
     @Override
@@ -102,4 +105,23 @@ public class Category {
     void setBudgetAmount(BigDecimal b) { getBudgetAmountProperty().set(b); }
 
     public String toString() { return "[" + getName() + "," + getDescription() + "]" ;}
+
+    String toQIF() {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("N").append(getName()).append(EOL);
+        if (!getDescription().isEmpty())
+            stringBuilder.append("D").append(getDescription()).append(EOL);
+        if (isTaxRelated()) {
+            stringBuilder.append("T").append(EOL);
+            if (getTaxRefNum() > 0)
+                stringBuilder.append("R").append(getTaxRefNum()).append(EOL);
+        }
+        stringBuilder.append(getIsIncome() ? "I" : "E").append(EOL);
+        if (getBudgetAmount() != null) {
+            stringBuilder.append("B").append(getBudgetAmount()).append(EOL);
+        }
+        stringBuilder.append(EOR).append(EOL);
+
+        return stringBuilder.toString();
+    }
 }

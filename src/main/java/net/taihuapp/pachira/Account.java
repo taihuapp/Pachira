@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -27,6 +27,9 @@ import javafx.collections.ObservableList;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import static net.taihuapp.pachira.QIFUtil.EOL;
+import static net.taihuapp.pachira.QIFUtil.EOR;
+
 public class Account {
 
     /*
@@ -53,7 +56,29 @@ public class Account {
 
     // make sure the name is not longer than 10 characters
     // otherwise database change is needed
-    enum Type { SPENDING, INVESTING, PROPERTY, DEBT }
+    enum Type {
+        SPENDING, INVESTING, PROPERTY, DEBT;
+
+        @Override
+        public String toString() {
+            switch (this) {
+                case SPENDING:
+                    return "Bank";
+                case INVESTING:
+                    return "Port";
+                case PROPERTY:
+                    return "Oth A";
+                case DEBT:
+                    return "Oth L";
+                default:
+                    return null;
+            }
+        }
+
+        public String toString2() {
+            return this.equals(INVESTING) ? "Invst" : toString();
+        }
+    }
 
     private final Type mType;
 
@@ -80,6 +105,15 @@ public class Account {
         mLastReconcileDateProperty.set(lrDate);
         // sorted by Name
         mCurrentSecurityList = FXCollections.observableArrayList();
+    }
+
+    public String toQIF() {
+        String qif = "N" + getName() + EOL
+                + "T" + getType() + EOL;
+        if (!getDescription().isEmpty())
+            qif = qif + "D" + getDescription() + EOL;
+
+        return qif + EOR + EOL;
     }
 
     // getters and setters

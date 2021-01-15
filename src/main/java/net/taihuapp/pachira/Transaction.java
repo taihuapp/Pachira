@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -28,13 +28,102 @@ import javafx.beans.property.StringProperty;
 import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 
+import static net.taihuapp.pachira.QIFUtil.*;
+
 public class Transaction {
+
+    String toQIF(MainApp mainApp) {
+
+        final StringBuilder stringBuilder = new StringBuilder();
+
+        final Account account = mainApp.getAccountByID(getAccountID());
+        final boolean isBanking = !account.getType().equals(Account.Type.INVESTING);
+        final String categoryOrTransferAccountName = mainApp.mapCategoryOrAccountIDToName(getCategoryID());
+        final Tag tag = mainApp.getTagByID(getTagID());
+
+
+        // bank transaction
+        stringBuilder.append("D").append(formatDate(getTDate())).append(EOL); // Date
+
+        // amount, U amount and T amount are always the same.
+        BigDecimal tAmount = (isBanking && getTradeAction().equals(TradeAction.WITHDRAW)) ?
+                getAmount().negate() : getAmount();
+        String amountStr = MainApp.DOLLAR_CENT_FORMAT.format(tAmount);
+        stringBuilder.append("U").append(amountStr).append(EOL);
+        stringBuilder.append("T").append(amountStr).append(EOL);
+        if (!getStatus().equals(Status.UNCLEARED))
+            stringBuilder.append("C").append(getStatus().toChar()).append(EOL);
+        if (isBanking) {
+            if (!getReference().isEmpty())
+                stringBuilder.append("N").append(getReference()).append(EOL);
+            if (!getPayee().isEmpty())
+                stringBuilder.append("P").append(getPayee()).append(EOL);
+        } else {
+            String taStr;
+            if (!categoryOrTransferAccountName.isEmpty()) {
+                // this is a transfer
+                if (getTradeAction() == TradeAction.DEPOSIT)
+                    taStr = "XIN";
+                else if (getTradeAction() == TradeAction.WITHDRAW)
+                    taStr = "XOUT";
+                else
+                    taStr = getTradeAction().name()+"X";
+            } else {
+                taStr = getTradeAction().name();
+            }
+
+            stringBuilder.append("N").append(taStr).append(EOL);
+            if (!getSecurityName().isEmpty())
+                stringBuilder.append("Y").append(getSecurityName()).append(EOL);
+            if (getPrice() != null && getPrice().compareTo(BigDecimal.ZERO) > 0)
+                stringBuilder.append("I").append(getPrice()).append(EOL);
+            if (getQuantity() != null && getQuantity().compareTo(BigDecimal.ZERO) != 0) {
+                final BigDecimal q = getTradeAction().equals(TradeAction.STKSPLIT) ?
+                        getQuantity().multiply(BigDecimal.TEN).divide(getOldQuantity(), MainApp.QUANTITY_FRACTION_LEN,
+                                RoundingMode.HALF_UP) : getQuantity();
+                stringBuilder.append("Q").append(q).append(EOL);
+            }
+            if (getCommission() != null && getCommission().compareTo(BigDecimal.ZERO) != 0)
+                stringBuilder.append("O").append(getCommission()).append(EOL);
+        }
+        if (!getMemo().isEmpty())
+            stringBuilder.append("M").append(getMemo()).append(EOL);
+
+        if (!categoryOrTransferAccountName.isEmpty() || tag != null) {
+            stringBuilder.append("L");
+            if (!categoryOrTransferAccountName.isEmpty())
+                stringBuilder.append(categoryOrTransferAccountName);
+            if (tag != null)
+                stringBuilder.append("/").append(tag.getName());
+            stringBuilder.append(EOL);
+        }
+
+        if (!categoryOrTransferAccountName.isEmpty() && !isBanking)
+            stringBuilder.append("$").append(getAmount()).append(EOL);
+
+        if (getSplitTransactionList().size() > 0) {
+            if (account.getType().equals(Account.Type.INVESTING)) {
+                mLogger.error("Split transactions in INVESTING account are not supported");
+            } else {
+                getSplitTransactionList().forEach(s -> {
+                    stringBuilder.append("S").append(mainApp.mapCategoryOrAccountIDToName(s.getCategoryID())).append(EOL);
+                    if (!s.getMemo().isEmpty())
+                        stringBuilder.append("E").append(s.getMemo()).append(EOL);
+                    stringBuilder.append("$").append(s.getAmount()).append(EOL);
+                });
+            }
+        }
+
+        stringBuilder.append(EOR).append(EOL);
+        return stringBuilder.toString();
+    }
 
     // a class object returned by validate() method
     //

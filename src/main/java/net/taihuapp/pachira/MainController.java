@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -91,6 +91,10 @@ public class MainController {
     @FXML
     private MenuItem mImportOFXAccountStatementMenuItem;
     @FXML
+    private Menu mExportMenu;
+    @FXML
+    private MenuItem mExportQIFMenuItem;
+    @FXML
     private MenuItem mFixDBMenuItem;
     @FXML
     private TreeTableView<Account> mAccountTreeTableView;
@@ -152,6 +156,8 @@ public class MainController {
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
 
+        mExportMenu.visibleProperty().bind(mMainApp.getConnectionProperty().isNull().not());
+
         mImportOFXAccountStatementMenuItem.disableProperty().bind(mMainApp.getCurrentAccountProperty().isNull());
 
         mDownloadAccountTransactionMenuItem.disableProperty().bind(
@@ -192,7 +198,7 @@ public class MainController {
         ObservableList<Account> groupAccountList = FXCollections.observableArrayList(account ->
                 new Observable[] {account.getCurrentBalanceProperty()});
         for (Account.Type t : Account.Type.values()) {
-            Account groupAccount = new Account(-1, t, t.toString(),"Placeholder for " + t.toString(),
+            Account groupAccount = new Account(-1, t, t.name(),"Placeholder for " + t.toString(),
                     false, -1, null, BigDecimal.ZERO);
             groupAccountList.add(groupAccount);
             TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
@@ -524,6 +530,28 @@ public class MainController {
     private void handleImportQIF() {
         mMainApp.importQIF();
         mMainApp.initAccountList();
+    }
+
+    @FXML
+    private void handleExportQIF() {
+        // open an export dialog window
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/ExportQIFDialog.fxml"));
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.initOwner(mMainApp.getStage());
+            stage.setTitle("Export to QIF");
+            stage.setScene(new Scene(loader.load()));
+            ExportQIFDialogController controller = loader.getController();
+            controller.setMainApp(mMainApp, stage);
+            stage.showAndWait();
+        } catch (IOException e) {
+            mLogger.error("IOException", e);
+            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "IO Exception",
+                    "Failed to load ExportQIFDialog", e);
+        }
     }
 
     @FXML

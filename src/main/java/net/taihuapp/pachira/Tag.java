@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,6 +24,9 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 import java.util.Objects;
+
+import static net.taihuapp.pachira.QIFUtil.EOL;
+import static net.taihuapp.pachira.QIFUtil.EOR;
 
 class Tag {
     private int mID;
@@ -55,6 +58,15 @@ class Tag {
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
     String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String desc) { getDescriptionProperty().set(desc); }
+
+    String toQIF() {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("N").append(getName()).append(EOL);
+        if (!getDescription().isEmpty())
+            stringBuilder.append("D").append(getDescription()).append(EOL);
+        stringBuilder.append(EOR).append(EOL);
+        return stringBuilder.toString();
+    }
 
     @Override
     public boolean equals(Object o) {

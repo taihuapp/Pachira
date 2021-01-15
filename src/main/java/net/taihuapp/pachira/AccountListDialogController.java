@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -43,7 +43,7 @@ public class AccountListDialogController {
 
     private MainApp mMainApp = null;
     private Stage mDialogStage = null;
-    private ListChangeListener<Account> mAccountListChangeListener = c -> {
+    private final ListChangeListener<Account> mAccountListChangeListener = c -> {
         while (c.next()) {
             if (c.wasUpdated()) {
                 for (int i = c.getFrom(); i < c.getTo(); i++) {
@@ -175,7 +175,7 @@ public class AccountListDialogController {
             public String toString(Account.Type t) {
                 if (t == null)
                     return "All";
-                return t.toString();
+                return t.name();
             }
         }
 
@@ -226,9 +226,9 @@ public class AccountListDialogController {
 
         mAccountNameTableColumn.setCellValueFactory(cellData -> cellData.getValue().getNameProperty());
         mAccountTypeTableColumn.setCellValueFactory(cellData
-                -> new SimpleStringProperty(cellData.getValue().getType().toString()));
+                -> new SimpleStringProperty(cellData.getValue().getType().name()));
         mAccountBalanceTableColumn.setCellValueFactory(cellData -> cellData.getValue().getCurrentBalanceProperty());
-        mAccountBalanceTableColumn.setCellFactory(column -> new TableCell<Account, BigDecimal>() {
+        mAccountBalanceTableColumn.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);

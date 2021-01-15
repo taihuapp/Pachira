@@ -14,7 +14,7 @@ with JavaFX runtime.
 ## Install Java 11
 
 There are many places to find instructions to install Java 11.  You can use
-the links here or google your favour ones.
+the links here or google your favorite one.
 
 [How To Install Java 11 On Windows](https://java.tutorials24x7.com/blog/how-to-install-java-11-on-windows)
 

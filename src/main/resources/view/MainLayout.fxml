@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -126,6 +126,11 @@
                               <MenuItem mnemonicParsing="false" onAction="#handleImportPrices" text="Prices" />
                               <MenuItem fx:id="mImportOFXAccountStatementMenuItem" mnemonicParsing="false" onAction="#handleImportOFXAccountStatement" text="OFX Account Statement" />
                             <MenuItem mnemonicParsing="false" onAction="#handleImportQIF" text="QIF" />
+                          </items>
+                        </Menu>
+                        <Menu fx:id="mExportMenu" mnemonicParsing="false" text="Export...">
+                          <items>
+                            <MenuItem fx:id="mExportQIFMenuItem" mnemonicParsing="false" onAction="#handleExportQIF" text="QIF" />
                           </items>
                         </Menu>
                         <MenuItem fx:id="mFixDBMenuItem" mnemonicParsing="false" onAction="#handleFixDB" text="Fix DB" />

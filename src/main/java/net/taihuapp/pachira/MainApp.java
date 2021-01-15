@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -90,6 +90,8 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
+import static net.taihuapp.pachira.QIFUtil.EOL;
+
 public class MainApp extends Application {
 
     // these characters are not allowed in account names and
@@ -169,7 +171,12 @@ public class MainApp extends Application {
 
     private Preferences mPrefs;
     private Stage mPrimaryStage;
-    private Connection mConnection = null;  // todo replace Connection with a custom db class object
+
+    private final ObjectProperty<Connection> mConnectionProperty = new SimpleObjectProperty<>(null);
+    ObjectProperty<Connection> getConnectionProperty() { return mConnectionProperty; }
+    private Connection getConnection() { return getConnectionProperty().get(); }
+    private void setConnection(Connection c) { getConnectionProperty().set(c); }
+
     private Savepoint mSavepoint = null;
 
     private final Vault mVault = new Vault();
@@ -346,7 +353,7 @@ public class MainApp extends Application {
         mLogger.debug("deleteTransactionFromDB(" + tid + ")");
         String sqlCmd0 = "delete from TRANSACTIONS where ID = " + tid;
         String sqlCmd1 = "delete from SPLITTRANSACTIONS where TRANSACTIONID = " + tid;
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             statement.executeUpdate(sqlCmd0);
             statement.executeUpdate(sqlCmd1);
         } catch (SQLException e) {
@@ -455,11 +462,58 @@ public class MainApp extends Application {
 
     Stage getStage() { return mPrimaryStage; }
 
+    String exportToQIF(boolean exportAccount, boolean exportCategory, boolean exportSecurity,
+                       boolean exportTransaction, LocalDate fromDate, LocalDate toDate, List<Account> accountList) {
+        final StringBuilder stringBuilder = new StringBuilder();
+
+        if (exportCategory) {
+            // export Tags first
+            stringBuilder.append("!Type:Tag").append(EOL);
+            getTagList().forEach(t -> stringBuilder.append(t.toQIF()));
+
+            stringBuilder.append("!Type:Cat").append(EOL);
+            getCategoryList().forEach(c -> stringBuilder.append(c.toQIF()));
+        }
+
+        if (exportAccount || accountList.size() > 1) {
+            // need to export account information
+            stringBuilder.append("!Option:AutoSwitch").append(EOL);
+            stringBuilder.append("!Account").append(EOL);
+            getAccountList(null, null, true).forEach(a -> stringBuilder.append(a.toQIF()));
+            stringBuilder.append("!Clear:AutoSwitch").append(EOL);
+        }
+
+        if (exportSecurity) {
+            stringBuilder.append("!Type:Security").append(EOL);
+            getSecurityList().forEach(s -> stringBuilder.append(s.toQIF()));
+        }
+
+        if (exportTransaction) {
+            stringBuilder.append("!Option:AutoSwitch").append(EOL);
+            accountList.forEach(account -> {
+                stringBuilder.append("!Account").append(EOL);
+                stringBuilder.append(account.toQIF());
+                stringBuilder.append("!Type:").append(account.getType().toString2()).append(EOL);
+                account.getTransactionList().filtered(t ->
+                        ((!t.getTDate().isBefore(fromDate)) && (!t.getTDate().isAfter(toDate))))
+                        .forEach(transaction -> stringBuilder.append(transaction.toQIF(this)));
+            });
+        }
+
+        if (exportSecurity) {
+            // need to export prices if securities are exported.
+            getSecurityList().stream().filter(s-> !s.getTicker().isEmpty()).forEach(s ->
+                getSecurityPrice(s.getID(), s.getTicker()).forEach(p -> stringBuilder.append(p.toQIF(s.getTicker()))));
+        }
+
+        return stringBuilder.toString();
+    }
+
     // given a transaction ID, return a ID list of transactions covering it
     List<Integer> lotMatchedBy(int tid) throws SQLException {
         List<Integer> lotMatchList = new ArrayList<>();
         String sqlCmd = "select TRANSID from LOTMATCH where MATCHID = " + tid;
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 lotMatchList.add(resultSet.getInt("TRANSID"));
@@ -479,7 +533,7 @@ public class MainApp extends Application {
         else
             sqlCmd += " order by s.ID";
 
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet rs = statement.executeQuery(sqlCmd)) {
             ReportDialogController.Setting setting = null;
             while (rs.next()) {
@@ -534,21 +588,21 @@ public class MainApp extends Application {
     boolean setDBSavepoint() throws SQLException {
         if (mSavepoint != null)
             return false;  // was set at some place else.
-        mSavepoint = mConnection.setSavepoint();
-        mConnection.setAutoCommit(false);
+        mSavepoint = getConnection().setSavepoint();
+        getConnection().setAutoCommit(false);
         return true;
     }
     void releaseDBSavepoint() throws SQLException {
-        mConnection.setAutoCommit(true);
-        mConnection.releaseSavepoint(mSavepoint);
+        getConnection().setAutoCommit(true);
+        getConnection().releaseSavepoint(mSavepoint);
         mSavepoint = null;
     }
     void rollbackDB() throws SQLException {
             //mConnection.rollback(mSavepoint);
-        mConnection.rollback();
+        getConnection().rollback();
     }
     void commitDB() throws SQLException {
-        mConnection.commit();
+        getConnection().commit();
     }
 
     void insertUpdateReportSettingToDB(ReportDialogController.Setting setting) throws SQLException {
@@ -568,8 +622,9 @@ public class MainApp extends Application {
         }
 
         boolean savepointSetHere = false;  // did I set savepoint?
+        Connection connection = getConnection();
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     connection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
 
             preparedStatement.setString(1, setting.getName());
@@ -598,8 +653,8 @@ public class MainApp extends Application {
             // now deal with setting details
             String sqlCmd1 = "insert into SAVEDREPORTDETAILS (REPORTID, ITEMNAME, ITEMVALUE) "
                     + "values (?, ?, ?)";
-            try (Statement statement = mConnection.createStatement();
-                 PreparedStatement preparedStatement1 = mConnection.prepareStatement(sqlCmd1)) {
+            try (Statement statement = connection.createStatement();
+                 PreparedStatement preparedStatement1 = connection.prepareStatement(sqlCmd1)) {
                 statement.execute("delete from SAVEDREPORTDETAILS where REPORTID = " + id);
                 // loop through account list
                 for (Account account : setting.getSelectedAccountSet()) {
@@ -676,7 +731,7 @@ public class MainApp extends Application {
     // delete reminder
     void deleteReminderFromDB(int reminderID) throws SQLException {
         String sqlCmd = "delete from REMINDERS where ID = ?";
-        PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd);
+        PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd);
         preparedStatement.setInt(1, reminderID);
         preparedStatement.executeUpdate();
     }
@@ -700,7 +755,7 @@ public class MainApp extends Application {
 
         boolean savepointSetHere = false; // did I set it?
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
 
             preparedStatement.setString(1, reminder.getType().name());
@@ -771,7 +826,7 @@ public class MainApp extends Application {
         rt.setTransactionID(tid);
         String sqlCmd = "insert into REMINDERTRANSACTIONS (REMINDERID, DUEDATE, TRANSACTIONID) "
                 + "values (?, ?, ?)";
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd)) {
             preparedStatement.setInt(1, rt.getReminder().getID());
             preparedStatement.setDate(2, Date.valueOf(rt.getDueDate()));
             preparedStatement.setInt(3, tid);
@@ -831,7 +886,7 @@ public class MainApp extends Application {
 
         boolean savepointSetHere = false; // did I set savepoint?
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
 
             preparedStatement.setInt(1, t.getAccountID());
@@ -944,10 +999,11 @@ public class MainApp extends Application {
                 + "TRANSACTIONID = ?, CATEGORYID = ?, PAYEE = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ?, "
                 + "TAGID = ?"
                 + "where ID = ?";
-        try (Statement statement = mConnection.createStatement();
+        Connection connection = getConnection();
+        try (Statement statement = connection.createStatement();
              PreparedStatement insertStatement =
-                     mConnection.prepareStatement(insertSQL, Statement.RETURN_GENERATED_KEYS);
-             PreparedStatement updateStatement = mConnection.prepareStatement(updateSQL)) {
+                     connection.prepareStatement(insertSQL, Statement.RETURN_GENERATED_KEYS);
+             PreparedStatement updateStatement = connection.prepareStatement(updateSQL)) {
             if (!exIDList.isEmpty()) {
                 // delete these split transactions
                 String sqlCmd = "delete from SPLITTRANSACTIONS where ID in ("
@@ -1011,7 +1067,7 @@ public class MainApp extends Application {
         }
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, tag.getName());
             preparedStatement.setString(2, tag.getDescription());
             if (tag.getID() > 0) {
@@ -1048,7 +1104,7 @@ public class MainApp extends Application {
         }
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, category.getName());
             preparedStatement.setString(2, category.getDescription());
             preparedStatement.setBoolean(3, category.getIsIncome());
@@ -1093,7 +1149,7 @@ public class MainApp extends Application {
 
         boolean savepointSetHere = false;
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             savepointSetHere = setDBSavepoint();
             preparedStatement.setString(1, dc.getName());
             preparedStatement.setInt(2, dc.getFIID());
@@ -1140,7 +1196,7 @@ public class MainApp extends Application {
         }
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, fiData.getFIID());
             preparedStatement.setString(2, fiData.getSubID());
             preparedStatement.setString(3, fiData.getName());
@@ -1178,7 +1234,7 @@ public class MainApp extends Application {
         }
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, security.getTicker());
             preparedStatement.setString(2, security.getName());
             preparedStatement.setString(3, security.getType().name());
@@ -1224,7 +1280,7 @@ public class MainApp extends Application {
             sqlCmd = "delete from PRICES where SECURITYID = ? and DATE = ?";
         else
             sqlCmd = "delete from PRICES where TICKER = ? and DATE = ?";
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd)) {
             if (ticker.isEmpty())
                 preparedStatement.setInt(1, securityID);
             else
@@ -1274,7 +1330,7 @@ public class MainApp extends Application {
                 throw new IllegalArgumentException("insertUpdatePriceToDB called with bad mode = " + mode);
         }
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd)) {
             preparedStatement.setBigDecimal(1, p);
             preparedStatement.setString(2, ticker);
             preparedStatement.setDate(3, Date.valueOf(date));
@@ -1351,7 +1407,7 @@ public class MainApp extends Application {
         String sqlCmd = "insert into SPLITTRANSACTIONS (TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, PERCENTAGE, TAGID) "
                 + "values (?, ?, ?, ?, ?, ?)";
 
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd)) {
             for (QIFParser.BankTransaction.SplitBT sbt : splitBTList) {
                 preparedStatement.setInt(1, btID);
                 preparedStatement.setInt(2, mapCategoryOrAccountNameToID(sbt.getCategory()));
@@ -1387,7 +1443,7 @@ public class MainApp extends Application {
         sqlCmd.append(")");
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd.toString(), Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd.toString(), Statement.RETURN_GENERATED_KEYS)) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, address.get(i));
 
@@ -1422,7 +1478,7 @@ public class MainApp extends Application {
         sqlCmd.append(")");
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd.toString(), Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd.toString(), Statement.RETURN_GENERATED_KEYS)) {
             for (int i = 0; i < nLines; i++)
                 preparedStatement.setString(i+1, amortLines[i]);
 
@@ -1483,7 +1539,7 @@ public class MainApp extends Application {
                     ") values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
             try (PreparedStatement preparedStatement =
-                         mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                         getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
                 String categoryOrTransferStr = bt.getCategoryOrTransfer();
                 int categoryOrTransferID = mapCategoryOrAccountNameToID(categoryOrTransferStr);
                 if (categoryOrTransferID == -account.getID()) {
@@ -1551,13 +1607,14 @@ public class MainApp extends Application {
         }
 
         // temporarily unset autocommit
-        mConnection.setAutoCommit(false);
+        Connection connection = getConnection();
+        connection.setAutoCommit(false);
 
         String sqlCmd = "insert into TRANSACTIONS " +
                 "(ACCOUNTID, DATE, AMOUNT, TRADEACTION, SECURITYID, " +
                 "STATUS, CATEGORYID, MEMO, PRICE, QUANTITY, COMMISSION, OLDQUANTITY, FITID, REFERENCE, PAYEE) " +
                 "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd,
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd,
                 Statement.RETURN_GENERATED_KEYS)){
             int cid = mapCategoryOrAccountNameToID(tt.getCategoryOrTransfer());
             QIFParser.TradeTransaction.Action action = tt.getAction();
@@ -1600,12 +1657,12 @@ public class MainApp extends Application {
         }
 
         if (rowID < 0)
-            mConnection.rollback();
+            connection.rollback();
         else
-            mConnection.commit();
+            connection.commit();
 
         // we are done here
-        mConnection.setAutoCommit(true);
+        connection.setAutoCommit(true);
         return rowID;
     }
 
@@ -1615,7 +1672,7 @@ public class MainApp extends Application {
                 + "values (?,?,?, ?, ?)";
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, category.getName());
             preparedStatement.setString(2, category.getDescription());
             preparedStatement.setBoolean(3, category.getIsIncome());
@@ -1661,7 +1718,7 @@ public class MainApp extends Application {
         }
 
         try (PreparedStatement preparedStatement =
-                     mConnection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
+                     getConnection().prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, account.getType().name());
             preparedStatement.setString(2, account.getName());
             preparedStatement.setString(3, account.getDescription());
@@ -1720,11 +1777,11 @@ public class MainApp extends Application {
     }
 
     void initReminderMap() {
-        if (mConnection == null) return;
+        if (getConnection() == null) return;
 
         mReminderMap.clear();
         String sqlCmd = "select * from REMINDERS";
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
@@ -1756,14 +1813,14 @@ public class MainApp extends Application {
     }
 
     void initReminderTransactionList() {
-        if (mConnection == null) return;
+        if (getConnection() == null) return;
 
         mReminderTransactionList.clear();
         String sqlCmd = "select * from REMINDERTRANSACTIONS order by REMINDERID, DUEDATE";
         int ridPrev = -1;
         Reminder reminder = null;
         Map<Integer, LocalDate> lastDueDateMap = new HashMap<>();
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int rid = resultSet.getInt("REMINDERID");
@@ -1829,11 +1886,11 @@ public class MainApp extends Application {
     }
 
     void initTagList() {
-        if (mConnection == null) return;
+        if (getConnection() == null) return;
 
         mTagList.clear();
         String sqlCmd = "select * from TAGS";
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)){
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
@@ -1847,14 +1904,14 @@ public class MainApp extends Application {
     }
 
     void initCategoryList() {
-        if (mConnection == null) return;
+        if (getConnection() == null) return;
 
         mCategoryList.clear();
         Statement statement = null;
         ResultSet resultSet = null;
         String sqlCmd = "select * from CATEGORIES order by INCOMEFLAG DESC, NAME";
         try {
-            statement = mConnection.createStatement();
+            statement = getConnection().createStatement();
             resultSet = statement.executeQuery(sqlCmd);
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
@@ -1943,11 +2000,11 @@ public class MainApp extends Application {
     // reload from AccountDC table
     void initAccountDCList() {
         mAccountDCList.clear();
-        if (mConnection == null)
+        if (getConnection() == null)
             return;
         String sqlCmd = "select ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
                 + "LASTDOWNLOADDATE, LASTDOWNLOADTIME, LASTDOWNLOADLEDGEBAL from ACCOUNTDCS order by ACCOUNTID";
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int accountID = resultSet.getInt("ACCOUNTID");
@@ -1970,9 +2027,9 @@ public class MainApp extends Application {
     // should be called after mTransactionList being properly initialized
     void initAccountList() {
         mAccountList.clear();
-        if (mConnection == null) return;
+        if (getConnection() == null) return;
 
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             String sqlCmd = "select ID, TYPE, NAME, DESCRIPTION, HIDDENFLAG, DISPLAYORDER, LASTRECONCILEDATE "
                     + "from ACCOUNTS"; // order by TYPE, ID";
             ResultSet rs = statement.executeQuery(sqlCmd);
@@ -2003,9 +2060,9 @@ public class MainApp extends Application {
 
     private void initSecurityList() {
         mSecurityList.clear();
-        if (mConnection == null) return;
+        if (getConnection() == null) return;
 
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             String sqlCmd = "select ID, TICKER, NAME, TYPE from SECURITIES order by NAME";
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
@@ -2025,7 +2082,7 @@ public class MainApp extends Application {
     // save hashed and encoded master password into database.
     private void mergeMasterPasswordToDB(String encodedHashedMasterPassword) throws SQLException {
         boolean savepointSetHere = false;
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             savepointSetHere = setDBSavepoint();
             statement.executeUpdate("merge into DCINFO (NAME, FIID, PASSWORD) key(NAME) values('"
                     + HASHEDMASTERPASSWORDNAME + "', 0, '" + encodedHashedMasterPassword + "')");
@@ -2046,12 +2103,12 @@ public class MainApp extends Application {
     // return encoded hashed master password or null if not exist
     String initDCInfoList() throws SQLException {
         getDCInfoList().clear();
-        if (mConnection == null)
+        if (getConnection() == null)
             return null;
 
         String ehmp = null;
         String sqlCmd = "select * from DCINFO order by ID;";
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
@@ -2071,13 +2128,13 @@ public class MainApp extends Application {
 
     void initFIDataList() {
 
-        if (mConnection == null)
+        if (getConnection() == null)
             return;
 
         String sqlCmd;
         mFIDataList.clear();
         sqlCmd = "select * from FIData order by ID;";
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd) ) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
@@ -2098,14 +2155,14 @@ public class MainApp extends Application {
     }
 
     void deleteFIDataFromDB(int fiDataID) throws SQLException {
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             statement.executeUpdate("delete from FIDATA where ID = " + fiDataID);
         }
     }
 
     private void initVault() {
 
-        if (mConnection == null)
+        if (getConnection() == null)
             return;
 
         hasMasterPasswordProperty().set(false);
@@ -2155,7 +2212,7 @@ public class MainApp extends Application {
         else
             sqlCmd = "select * from SPLITTRANSACTIONS where TRANSACTIONID = " + tidIn + " order by ID";
 
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int tid = resultSet.getInt("TRANSACTIONID");
@@ -2194,7 +2251,7 @@ public class MainApp extends Application {
     // mSecurityList should be loaded prior this call.
     private void initTransactionList() {
         mTransactionList.clear();
-        if (mConnection == null)
+        if (getConnection() == null)
             return;
 
         // load ALL split transactions
@@ -2202,7 +2259,7 @@ public class MainApp extends Application {
 
         List<Transaction> tList = new ArrayList<>();  // a simple list to temporarily hold all transactions
         String sqlCmd = "select * from TRANSACTIONS order by ID";
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             while (resultSet.next()) {
                 int id = resultSet.getInt("ID");
@@ -2731,12 +2788,12 @@ public class MainApp extends Application {
     List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) {
         List<SecurityHolding.MatchInfo> matchInfoList = new ArrayList<>();
 
-        if (mConnection == null) {
+        if (getConnection() == null) {
             mLogger.error("DB connection down?! ");
             return matchInfoList;
         }
 
-        try (Statement statement = mConnection.createStatement()){
+        try (Statement statement = getConnection().createStatement()){
             String sqlCmd = "select TRANSID, MATCHID, MATCHQUANTITY from LOTMATCH " +
                     "where TRANSID = " + tid + " order by MATCHID";
             ResultSet rs = statement.executeQuery(sqlCmd);
@@ -2761,7 +2818,7 @@ public class MainApp extends Application {
         else
             sqlCmd = "select DATE, PRICE from PRICES where TICKER = '" + ticker + "'";
 
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             ResultSet resultSet = statement.executeQuery(sqlCmd);
             while (resultSet.next()) {
                 priceList.add(new Price(resultSet.getDate(1).toLocalDate(), resultSet.getBigDecimal(2)));
@@ -2786,7 +2843,7 @@ public class MainApp extends Application {
         else
             sqlCmd = "select top 1 PRICE, DATE from PRICES where TICKER = '" + security.getTicker() + "' " +
                     "and DATE <= '" + date.toString() + "' order by DATE desc";
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             if (resultSet.next()) {
                 price = new Price(resultSet.getDate(2).toLocalDate(), resultSet.getBigDecimal(1));
@@ -2802,13 +2859,13 @@ public class MainApp extends Application {
     // save new MatchInfo.
     // Note: The TransactionID field of input matchInfoList is not used.
     void putMatchInfoList(int tid, List<SecurityHolding.MatchInfo> matchInfoList) {
-        if (mConnection == null) {
+        if (getConnection() == null) {
             mLogger.error("DB connection down?!");
             return;
         }
 
         // delete any existing
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             statement.execute("delete from LOTMATCH where TRANSID = " + tid);
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -2819,7 +2876,7 @@ public class MainApp extends Application {
 
         // insert list
         String sqlCmd = "insert into LOTMATCH (TRANSID, MATCHID, MATCHQUANTITY) values (?, ?, ?)";
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(sqlCmd)) {
+        try (PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd)) {
             for (SecurityHolding.MatchInfo matchInfo : matchInfoList) {
                 preparedStatement.setInt(1, tid);
                 preparedStatement.setInt(2, matchInfo.getMatchTransactionID());
@@ -2936,17 +2993,17 @@ public class MainApp extends Application {
     }
 
     private void closeConnection() {
-        if (mConnection != null) {
+        if (getConnection() != null) {
             try {
-                mConnection.close();
+                getConnection().close();
             } catch (SQLException e) {
                 mLogger.error("SQLException " + e.getSQLState(), e);
             }
-            mConnection = null;
+            getConnectionProperty().set(null);
         }
     }
 
-    boolean isConnected() { return mConnection != null; }
+    boolean isConnected() { return getConnection() != null; }
 
     // given a date, an originating accountID, and receiving accountid, and the amount of cashflow
     // find a matching transaction in a sorted list
@@ -3293,7 +3350,7 @@ public class MainApp extends Application {
     // merge prices to database
     private void mergePricesToDB(List<Pair<String, Price>> pList) throws SQLException {
         String mergeSQL = "merge into PRICES (SECURITYID, TICKER, DATE, PRICE) values (0, ?, ?, ?)";
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement(mergeSQL)) {
+        try (PreparedStatement preparedStatement = getConnection().prepareStatement(mergeSQL)) {
             Iterator<Pair<String, Price>> iterator = pList.iterator();
             Pair<String, Price> p;
             while (iterator.hasNext()) {
@@ -3400,14 +3457,14 @@ public class MainApp extends Application {
 
     // todo need to handle error gracefully
     String doBackup() {
-        if (mConnection == null) {
+        if (getConnection() == null) {
             showExceptionDialog(mPrimaryStage, "Exception Dialog", "Null pointer exception",
                     "mConnection is null", null);
             return null;
         }
 
         String backupFileName = null;
-        try (PreparedStatement preparedStatement = mConnection.prepareStatement("Backup to ?")) {
+        try (PreparedStatement preparedStatement = getConnection().prepareStatement("Backup to ?")) {
             backupFileName = getBackupDBFileName();
             preparedStatement.setString(1, backupFileName);
             preparedStatement.execute();
@@ -3422,7 +3479,8 @@ public class MainApp extends Application {
     }
 
     void changePassword() {
-        if (mConnection == null) {
+        Connection connection = getConnection();
+        if (connection == null) {
             showExceptionDialog(mPrimaryStage, "Exception Dialog", "Null pointer exception",
                     "mConnection is null", null);
             return;
@@ -3447,20 +3505,21 @@ public class MainApp extends Application {
         PreparedStatement preparedStatement = null;
         try {
             Class.forName("org.h2.Driver");
-            String url = mConnection.getMetaData().getURL();
+            String url = connection.getMetaData().getURL();
             File dbFile = new File(getDBFileNameFromURL(url));
             // backup database first
             backupFileName = doBackup();
-            mConnection.close();
-            mConnection = null;
+            connection.close();
+            getConnectionProperty().set(null);
             // change encryption password first
             ChangeFileEncryption.execute(dbFile.getParent(), dbFile.getName(), "AES", passwords.get(0).toCharArray(),
                     passwords.get(1).toCharArray(), true);
             passwordChanged++;  // changed 1
             // DBOWNER password has not changed yet.
             url += ";"+CIPHERCLAUSE+IFEXISTCLAUSE;
-            mConnection = DriverManager.getConnection(url, DBOWNER, passwords.get(1) + " " + passwords.get(0));
-            preparedStatement = mConnection.prepareStatement("Alter User " + DBOWNER + " set password ?");
+            connection = DriverManager.getConnection(url, DBOWNER, passwords.get(1) + " " + passwords.get(0));
+            getConnectionProperty().set(connection);
+            preparedStatement = connection.prepareStatement("Alter User " + DBOWNER + " set password ?");
             preparedStatement.setString(1, passwords.get(1));
             preparedStatement.execute();
             passwordChanged++;
@@ -3494,8 +3553,12 @@ public class MainApp extends Application {
     //   backup location
     //   filename pattern
     private String getBackupDBFileName() throws SQLException {
-        return getDBFileNameFromURL(mConnection.getMetaData().getURL()) + "Backup"
+        return getDBFileNameFromURL(getConnection().getMetaData().getURL()) + "Backup"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm")) + ".zip";
+    }
+
+    String getDBFileName() throws SQLException {
+        return getDBFileNameFromURL(getConnection().getMetaData().getURL());
     }
 
     // return the file path of current open connection (without .h2.db postfix)
@@ -3595,7 +3658,7 @@ public class MainApp extends Application {
             }
             // we use same password for file encryption and admin user
             Class.forName("org.h2.Driver");
-            mConnection = DriverManager.getConnection(url, DBOWNER, password + ' ' + password);
+            getConnectionProperty().set(DriverManager.getConnection(url, DBOWNER, password + ' ' + password));
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
 
@@ -3630,7 +3693,7 @@ public class MainApp extends Application {
             showExceptionDialog(mPrimaryStage, "Exception", "ClassNotFoundException", e.getMessage(), e);
         }
 
-        if (mConnection == null) {
+        if (getConnection() == null) {
             return;
         }
 
@@ -3725,7 +3788,7 @@ public class MainApp extends Application {
                     + "alter table PRICES alter column TICKER varchar(16) not null;"
                     + "alter table PRICES alter column DATE date not null;"
                     + "alter table PRICES add primary key (securityid, ticker, date);";
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 statement.executeUpdate(alterPRICESTableSQL);
                 statement.executeUpdate(mergeSQL);
             }
@@ -3749,7 +3812,7 @@ public class MainApp extends Application {
                     + "drop table TEMP;";
             final String alterTable = "alter table REMINDERS drop TRANSFERACCOUNTID";
 
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 statement.executeUpdate(updateXIN);
                 statement.executeUpdate(updateXOUT);
                 statement.executeUpdate(updateReminder);
@@ -3758,13 +3821,13 @@ public class MainApp extends Application {
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 7) {
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 alterAccountDCSTable();
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 6) {
             createDirectConnectTables();
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
 
                 statement.executeUpdate("update TRANSACTIONS set MEMO = '' where MEMO is null");
                 statement.executeUpdate("alter table TRANSACTIONS alter column MEMO varchar("
@@ -3785,13 +3848,13 @@ public class MainApp extends Application {
             }
         } else if (newV == 5) {
             final String updateSQL = "alter table TRANSACTIONS add (ACCRUEDINTEREST decimal(20, 4) default 0);";
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 statement.executeUpdate(updateSQL);
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 4) {
             final String updateSQL = "alter table ACCOUNTS add (LASTRECONCILEDATE Date)";
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 statement.executeUpdate(updateSQL);
                 statement.executeUpdate(mergeSQL);
             }
@@ -3811,7 +3874,7 @@ public class MainApp extends Application {
                     + "end";
             final String updateSQL2 = "alter table TRANSACTIONS drop CLEARED";
             final String updateSQL3 = "alter table SPLITTRANSACTIONS add (TAGID int)";
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 statement.executeUpdate(updateSQL0);
                 statement.executeUpdate(updateSQL1);
                 statement.executeUpdate(updateSQL2);
@@ -3824,7 +3887,7 @@ public class MainApp extends Application {
                     "PAYEEREGEX boolean NOT NULL default FALSE, " +
                     "MEMOCONTAINS varchar(80) NOT NULL default '', " +
                     "MEMOREGEX boolean NOT NULL default FALSE)";
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 statement.executeUpdate(alterSQL);
                 statement.executeUpdate(mergeSQL);
             }
@@ -3838,7 +3901,7 @@ public class MainApp extends Application {
                     "set TRADEACTION = casewhen(TRADEACTION = 'WITHDRAW', 'XOUT', 'XIN') " +
                     "where categoryid < 0 and categoryid <> - accountid and  " +
                     "(tradeaction = 'DEPOSIT' OR TRADEACTION = 'WITHDRAW')";
-            try (Statement statement = mConnection.createStatement()) {
+            try (Statement statement = getConnection().createStatement()) {
                 statement.executeUpdate(updateSQL0);
                 statement.executeUpdate(updateSQL1);
                 statement.executeUpdate(mergeSQL);
@@ -3925,7 +3988,7 @@ public class MainApp extends Application {
     // delete everything in DCInfo Table
     private void emptyDCTableAndAccountDCSTable() throws SQLException {
         boolean savepointSetHere = false;
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             savepointSetHere = setDBSavepoint();
             statement.execute("delete from DCINFO");
             statement.execute("delete from ACCOUNTDCS");
@@ -4042,7 +4105,7 @@ public class MainApp extends Application {
     private void sqlCreateTable(String createSQL) {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = mConnection.prepareStatement(createSQL);
+            preparedStatement = getConnection().prepareStatement(createSQL);
             preparedStatement.executeUpdate();
             preparedStatement.close();
         } catch (NullPointerException e) {
@@ -4070,7 +4133,7 @@ public class MainApp extends Application {
         List<Transaction> tList = new ArrayList<>(a.getTransactionList()
                 .filtered(t -> t.getStatus().equals(Transaction.Status.CLEARED)));
         boolean savepointSetHere = false;
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             savepointSetHere = setDBSavepoint();
             //
             for (Transaction t : tList) {
@@ -4115,7 +4178,7 @@ public class MainApp extends Application {
     // return true for success and false for failure.
     boolean setTransactionStatusInDB(int tid, Transaction.Status s) {
         boolean savepointSetHere = false;
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             savepointSetHere = setDBSavepoint();
             statement.executeUpdate("update TRANSACTIONS set STATUS = '" + s.name() + "' where ID = " + tid);
             if (savepointSetHere)
@@ -4438,9 +4501,9 @@ public class MainApp extends Application {
 
     // create SETTINGS table and populate DBVERSION
     private void createSettingsTable(int dbVersion) {
-        try (ResultSet resultSet = mConnection.getMetaData().getTables(null, null,
+        try (ResultSet resultSet = getConnection().getMetaData().getTables(null, null,
                 "SETTINGS", new String[]{"TABLE"});
-             Statement statement = mConnection.createStatement()) {
+             Statement statement = getConnection().createStatement()) {
             if (!resultSet.next()) {
                 // Settings table is not created yet, create it now
                 sqlCreateTable("create table SETTINGS (" +
@@ -4460,7 +4523,7 @@ public class MainApp extends Application {
     private int getDBVersion() {
         String sqlCmd = "select VALUE from SETTINGS where NAME = '" + DBVERSIONNAME + "'";
         int dbVersion = 0;
-        try (Statement statement = mConnection.createStatement();
+        try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
             if (resultSet.next())
                 dbVersion = resultSet.getInt(1);
@@ -4726,7 +4789,7 @@ public class MainApp extends Application {
     }
 
     private void alterAccountDCSTable() {
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             statement.executeUpdate("alter table ACCOUNTDCS add (LASTDOWNLOADLEDGEBAL decimal(20, 4))");
         } catch (SQLException e) {
             mLogger.error("SQLException", e);
@@ -4770,7 +4833,7 @@ public class MainApp extends Application {
 
     // initialize database structure
     private void initDBStructure() {
-        if (mConnection == null)
+        if (getConnection() == null)
             return;
 
         // create Settings Table first.ACCOUNTDC
@@ -5147,13 +5210,13 @@ public class MainApp extends Application {
     private Vault getVault() { return mVault; }
 
     void deleteAccountDCFromDB(int accountID) throws SQLException {
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             statement.executeUpdate("delete from ACCOUNTDCS where ACCOUNTID = " + accountID);
         }
     }
 
     void mergeAccountDCToDB(AccountDC adc) throws SQLException {
-        try (Statement statement = mConnection.createStatement()) {
+        try (Statement statement = getConnection().createStatement()) {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
             TimeZone tzUTC = TimeZone.getTimeZone("UTC");

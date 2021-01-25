@@ -433,7 +433,8 @@ public class EditTransactionDialogControllerNew {
         // split transaction button, visible for X*, Deposit and Withdraw
         mSplitTransactionButton.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-            return ta == DEPOSIT || ta == WITHDRAW;
+            // split is only allowed for cash transaction and if it is not linked to a split transaction
+            return (ta == DEPOSIT || ta == WITHDRAW) && (mTransactionOrig == null || !mTransactionOrig.isSplit());
         }, mTradeActionChoiceBox.valueProperty()));
 
         // tag
@@ -538,39 +539,10 @@ public class EditTransactionDialogControllerNew {
 
 
         // price is always calculated
-        mPriceTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
-            final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-            return (ta == BUY || ta == CVTSHRT || ta == SELL || ta == SHTSELL || ta == SHRSIN
-                    || ta == REINVDIV || ta == REINVINT || ta == REINVLG || ta == REINVMD || ta == REINVSH
-                    || ta == SHRCLSCVN);
-        }, mTradeActionChoiceBox.valueProperty()));
-        mPriceTextField.textProperty().bindBidirectional(mTransaction.getPriceProperty(), BIGDECIMALSTRINGCONVERTER);
-        // todo this logic should be moved to Transaction class
-        mPriceTextField.textProperty().bind(Bindings.createStringBinding(() -> {
-                    if (!mPriceTextField.isVisible())
-                        return "";  // no need to do any calculation
-
-                    final BigDecimal amount = mTransaction.getAmount();
-                    final BigDecimal quantity = mTransaction.getQuantity() == null ?
-                            BigDecimal.ZERO : mTransaction.getQuantity();
-                    final BigDecimal commission = mTransaction.getCommission() == null ?
-                            BigDecimal.ZERO : mTransaction.getCommission();
-                    final BigDecimal accruedInterest = mTransaction.getAccruedInterest() == null ?
-                            BigDecimal.ZERO : mTransaction.getAccruedInterest();
-                    if (quantity.signum() == 0)
-                        return "";
-
-                    final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-                    final BigDecimal subTotal;
-                    if (ta == SELL || ta == SHTSELL)
-                        subTotal = amount.add(commission).add(accruedInterest);
-                    else
-                        subTotal = amount.subtract(commission).subtract(accruedInterest);
-                    final BigDecimal price = subTotal.divide(quantity, MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
-                    return BIGDECIMALSTRINGCONVERTER.toString(price);
-                }, mTransaction.getTradeActionProperty(), mTransaction.getAmountProperty(),
-                mTransaction.getQuantityProperty(), mTransaction.getCommissionProperty(),
-                mTransaction.getAccruedInterestProperty()));
+        mPriceTextField.visibleProperty().bind(Bindings.createBooleanBinding(()
+                -> Transaction.hasQuantity(mTradeActionChoiceBox.getValue()), mTradeActionChoiceBox.valueProperty()));
+        mPriceTextField.textProperty().bind(Bindings.createStringBinding(()
+                -> BIGDECIMALSTRINGCONVERTER.toString(mTransaction.getPrice()), mTransaction.getPriceProperty()));
         mPriceLabel.visibleProperty().bind(mPriceTextField.visibleProperty());
 
         // commission, same visibility as price

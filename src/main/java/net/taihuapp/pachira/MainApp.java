@@ -2942,7 +2942,7 @@ public class MainApp extends Application {
     // return transaction id or -1 for failure
     // The input transaction is not changed.
     int showEditTransactionDialog(Stage parent, Transaction transaction, List<Account> accountList,
-                                          Account defaultAccount, List<Transaction.TradeAction> taList) {
+                                  Account defaultAccount, List<Transaction.TradeAction> taList) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation((MainApp.class.getResource("/view/EditTransactionDialog.fxml")));
@@ -4211,6 +4211,307 @@ public class MainApp extends Application {
         return false;
     }
 
+    // Alter, including insert, delete, and modify a transaction, both in DB and in MasterList.
+    // It performs all the necessary consistency checks.
+    // If oldT is null, newT is inserted
+    // If newT is null, oldT is deleted
+    // If oldT and newT both are not null, oldT is modified to newT.
+    // return true for success and false for failure
+    // this is the new one
+    boolean alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList) {
+        if (oldT == null && newT == null)
+            return true; // both null, no-op.
+
+        final Set<Transaction> updateTSet = new HashSet<>(); // transactions need updated in MasterList
+        final Set<Integer> deleteTIDSet = new HashSet<>(); // transactions need to be deleted
+        final Set<Integer> accountIDSet = new HashSet<>(); // accounts need to update balance
+
+        try {
+            // set save point, in case something wrong so we can rollback
+            if (!setDBSavepoint()) {
+                showWarningDialog("Unexpected situation", "Database savepoint already set?",
+                        "Please restart application");
+                return false;
+            }
+
+            if (newT != null) {
+                // we need to save newT and newMatchInfoList to DB
+                final int newTID = insertUpdateTransactionToDB(newT);
+                putMatchInfoList(newTID, newMatchInfoList);
+
+                // check transfer in split transactions
+                boolean hasSplitTransfer = false;
+                for (SplitTransaction st : newT.getSplitTransactionList()) {
+                    if (st.isTransfer(newT.getAccountID())) {
+                        hasSplitTransfer = true;
+
+                        // this split transaction is a transfer transaction
+                        Transaction stXferT = null;
+                        if (st.getMatchID() > 0) {
+                            // it is modify exist transfer transaction
+                            stXferT = getTransactionByID(st.getMatchID());
+                            if (stXferT == null) {
+                                mLogger.warn("Split Transaction (" + newT.getID() + ", " + st.getID()
+                                        + ") linked to null");
+                                showWarningDialog("Split transaction linked to null",
+                                        "Split transaction cannot be linked to null",
+                                        "Something is wrong.  Help is needed");
+                                rollbackDB();
+                                return false;
+                            }
+                            if (!stXferT.isCash()) {
+                                // transfer transaction is an invest transaction, check trade action compatibility
+                                if (stXferT.TransferTradeAction() != (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
+                                        Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW)) {
+                                    mLogger.warn("Split transaction cash flow not compatible with "
+                                            + "transfer transaction trade action");
+                                    showWarningDialog("Trade Action MisMatch",
+                                            "Transfer transaction trade action not compatible",
+                                            "Transfer transaction " + stXferT.getTradeAction()
+                                                    + ", split transaction cash flow " + st.getAmount()
+                                                    + ", not compatible");
+                                    rollbackDB();
+                                    return false;
+                                }
+                                // for existing transfer transactions, we only update the minimum information
+                                stXferT.setAccountID(-newT.getCategoryID());
+                                stXferT.setCategoryID(-newT.getAccountID());
+                                stXferT.setTDate(newT.getTDate());
+                                stXferT.setAmount(st.getAmount().abs());
+                            }
+                        }
+
+                        if (stXferT == null || stXferT.isCash()) {
+                            // we need to create new xfer transaction
+                            stXferT = new Transaction(-st.getCategoryID(), newT.getTDate(),
+                                    (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
+                                        Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT),
+                                    -newT.getAccountID());
+                            stXferT.setPayee(st.getPayee());
+                            stXferT.setMemo(st.getMemo());
+                            stXferT.setMatchID(newTID, st.getID());
+                            stXferT.setAmount(st.getAmount().abs());
+                        }
+
+                        // insert stXferT to database and update st match id
+                        st.setMatchID(insertUpdateTransactionToDB(stXferT));
+
+                        // we need to update stXferT later in MasterList
+                        updateTSet.add(stXferT);
+
+                        // we need to update the transfer account
+                        accountIDSet.add(-st.getCategoryID());
+                    }
+                }
+
+                if (hasSplitTransfer) {
+                    // matchID was modified in some split transactions, need to update db
+                    insertUpdateSplitTransactionsToDB(newTID, newT.getSplitTransactionList());
+                }
+
+                if (!newT.isSplit() && newT.isTransfer()) {
+                    // non split, transfer
+                    Transaction xferT = null;
+                    if (newT.getMatchID() > 0) {
+                        xferT = getTransactionByID(newT.getMatchID());
+                        if (xferT == null) {
+                            mLogger.warn("Transaction " + newT.getID() + " is linked to null");
+                            showWarningDialog("Transaction linked to null",
+                                    "Transaction cannot be linked to null",
+                                    "Something is wrong.  Help is needed");
+                            rollbackDB();
+                            return false;
+                        }
+                        if (xferT.isSplit()) {
+                            if (newT.getMatchSplitID() <= 0) {
+                                mLogger.warn("Transaction (" + newT.getMatchID() + ") missing match split id");
+                                showWarningDialog("Transaction (" + newT.getMatchID() + ") missing match split id",
+                                        "Transaction linked to a split transaction, need match split id",
+                                        "Something is wrong.  Help is needed");
+                                rollbackDB();
+                                return false;
+                            }
+                            SplitTransaction xferSt = xferT.getSplitTransactionList().stream()
+                                    .filter(st -> st.getID() == newT.getMatchSplitID()).findFirst().orElse(null);
+                            if (xferSt == null) {
+                                // didn't find matching split transaction
+                                mLogger.warn("Transaction (" + newT.getID() + ") linked to null split transaction");
+                                showWarningDialog("Transaction linked to null split transaction",
+                                        "Transaction cannot be linked to null split transaction",
+                                        "Something is wrong.  Help is needed");
+                                rollbackDB();
+                                return false;
+                            }
+                            xferSt.setAmount(newT.TransferTradeAction() == Transaction.TradeAction.DEPOSIT ?
+                                    newT.getAmount() : newT.getAmount().negate());
+                            BigDecimal amount = xferT.getSplitTransactionList().stream()
+                                    .map(SplitTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                            if (amount.compareTo(BigDecimal.ZERO) >= 0) {
+                                xferT.setTradeAction(Transaction.TradeAction.DEPOSIT);
+                                xferT.setAmount(amount);
+                            } else {
+                                xferT.setTradeAction(Transaction.TradeAction.WITHDRAW);
+                                xferT.setAmount(amount.negate());
+                            }
+                        } else if (!xferT.isCash()) {
+                            // non cash, check trade action compatibility
+                            if (xferT.TransferTradeAction() != newT.getTradeAction()) {
+                                mLogger.warn("Transfer transaction has an investment trade action not compatible with "
+                                        + newT.getTradeAction());
+                                showWarningDialog("Non compatible trade action",
+                                        "Linked transaction trade action is not compatible",
+                                        "Please adjust linked transaction first");
+                                rollbackDB();
+                                return false;
+                            }
+                            xferT.setAccountID(-newT.getCategoryID());
+                            xferT.setCategoryID(-newT.getAccountID());
+                            xferT.setTDate(newT.getTDate());
+                            xferT.setAmount(newT.getAmount());
+                        }
+                    }
+
+                    if (xferT == null || xferT.isCash()) {
+                        xferT = new Transaction(-newT.getCategoryID(), newT.getTDate(), newT.TransferTradeAction(),
+                                -newT.getAccountID());
+                        xferT.setPayee(newT.getPayee());
+                        xferT.setMemo(newT.getMemo());
+                        xferT.setMatchID(newT.getID(), 0);
+                        xferT.setAmount(newT.getAmount());
+                    }
+
+                    // we might need to set matchID if xferT is newly created
+                    // but we never create a new match split transaction
+                    // so we keep the matchSplitID the same as before
+                    newT.setMatchID(insertUpdateTransactionToDB(xferT), newT.getMatchSplitID());
+
+                    // update newT MatchID in DB
+                    insertUpdateTransactionToDB(newT);
+
+                    // we need to insert/update xferT in master list
+                    updateTSet.add(xferT);
+
+                    // we need to update xfer account
+                    accountIDSet.add(-newT.getCategoryID());
+                }
+
+
+                final Security security;
+                final BigDecimal price;
+                if (!newT.isCash()) {
+                    security = getSecurityByName(newT.getSecurityName());
+                    price = newT.getPrice();
+                } else {
+                    security = null;
+                    price = null;
+                }
+
+                if (security != null && price != null && price.compareTo(BigDecimal.ZERO) > 0) {
+                    insertUpdatePriceToDB(security.getID(), security.getTicker(), newT.getTDate(), price, 0);
+
+                    getAccountList(Account.Type.INVESTING, false, true).stream()
+                            .filter(a -> a.hasSecurity(security)).forEach(a -> accountIDSet.add(a.getID()));
+                }
+
+                // we need to update a copy of newT in the master list
+                updateTSet.add(new Transaction(newT));
+
+                accountIDSet.add(newT.getAccountID());
+            }
+
+            if (oldT != null) {
+                // we have an oldT, need to delete the related transactions, if those are not updated
+
+                // first make sure it is not covered by SELL or CVTSHT
+                final List<Integer> matchList = lotMatchedBy(oldT.getID());
+                if (!matchList.isEmpty()) {
+                    mLogger.warn("Cannot delete transaction (" + oldT.getID() + ") which is lot matched");
+                    showWarningDialog("Transaction is lot matched",
+                            "Transaction is lot matched by " + matchList.size() + " transaction(s)",
+                            "Cannot delete/modify lot matched transaction");
+                    rollbackDB();
+                    return false;
+                }
+
+                if (oldT.isSplit()) {
+                    // this is a split transaction
+                    oldT.getSplitTransactionList().forEach(st -> {
+                        if (st.isTransfer(oldT.getID())) {
+                            // check if the transfer transaction is updated
+                            if (updateTSet.stream().noneMatch(t -> t.getID() == st.getMatchID())) {
+                                // not being updated
+                                deleteTransactionFromDB(st.getMatchID());
+                                deleteTIDSet.add(st.getMatchID());
+                            }
+
+                            // need to update the account later
+                            accountIDSet.add(-st.getCategoryID());
+                        }
+                    });
+                } else if (oldT.isTransfer()) {
+                    // oldT is a transfer.  Check if the xferT is updated
+                    // it doesn't matter if oldT is linked to either a split or a non split
+                    if (updateTSet.stream().noneMatch(t -> t.getID() == oldT.getMatchID())) {
+                        deleteTransactionFromDB(oldT.getMatchID());
+                        deleteTIDSet.add(oldT.getMatchID());
+
+                        accountIDSet.add(-oldT.getCategoryID());
+                    }
+                }
+
+                // now ready to delete oldT
+                accountIDSet.add(oldT.getAccountID());
+                if (updateTSet.stream().noneMatch(t -> t.getID() == oldT.getID())) {
+                    deleteTransactionFromDB(oldT.getID());
+                    deleteTIDSet.add(oldT.getID());
+                }
+
+                // need to update account
+                accountIDSet.add(oldT.getAccountID());
+            }
+
+            // commit to database
+            commitDB();
+
+            // done with database work, update MasterList now
+
+            // delete these transactions from master list
+            deleteTIDSet.forEach(this::deleteTransactionFromMasterList);
+
+            // insert/update transactions to master list
+            updateTSet.forEach(this::insertUpdateTransactionToMasterList);
+
+            // update account balances
+            accountIDSet.forEach(this::updateAccountBalance);
+
+            // we are done
+            return true;
+        }  catch (SQLException e) {
+            try {
+                mLogger.error("SQLException: " + e.getSQLState(), e);
+                showExceptionDialog(mPrimaryStage,"SQLException", "Database error, no changes are made",
+                        SQLExceptionToString(e), e);
+                rollbackDB();
+            } catch (SQLException e1) {
+                mLogger.error("SQLException: " + e1.getSQLState(), e1);
+                showExceptionDialog(mPrimaryStage,"Database Error", "Unable to rollback to savepoint",
+                        SQLExceptionToString(e1), e1);
+            }
+        } finally {
+            try {
+                releaseDBSavepoint();
+            } catch (SQLException e) {
+                mLogger.error("SQLException: " + e.getSQLState(), e);
+                showExceptionDialog(mPrimaryStage,"Database Error",
+                        "Unable to release savepoint and set DB autocommit",
+                        SQLExceptionToString(e), e);
+            }
+        }
+
+        // something happened that the try block didn't complete successfully.
+        return false;
+    }
+
     // Alter, including insert and delete a transaction, both in DB and in MasterList.
     // It also perform various consistency tasks.
     // if oldT is null, the newT is inserted
@@ -4219,7 +4520,7 @@ public class MainApp extends Application {
     //   newT.getID() should be return the same value as oldT.getID()
     //   newT should be a valid transaction (Transaction::validate().isValid() == true)
     // returns true for success, false for failure
-    boolean alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList) {
+    boolean alterTransactionOld(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList) {
         // there are five possibilities each for oldT and newT:
         // null, simple transaction, a transfer transaction, a split transaction (non-transferring),
         // and splittransaction with at least one transferring splittransaction.

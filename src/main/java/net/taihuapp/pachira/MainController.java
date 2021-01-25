@@ -907,31 +907,6 @@ public class MainController {
                             return;
                         final Transaction transaction = getItem();
                         int selectedTransactionID = transaction.getID();
-                        if (transaction.getMatchID() > 0) {
-                            // this is a linked transaction
-                            if (transaction.getMatchSplitID() > 0) {
-                                showWarningDialog("Linked to A Split Transaction",
-                                        "Linked to a split transaction",
-                                        "Please edit the linked split transaction.");
-                                return;
-                            }
-
-                            if (transaction.isCash()) {
-                                Transaction linkedTransaction = mMainApp.getTransactionByID(transaction.getMatchID());
-                                if (linkedTransaction == null) {
-                                    showWarningDialog("Linked to An Investing Transaction",
-                                            "Unable to find the linked transaction",
-                                            "Call help!");
-                                    return;
-                                }
-                                if (!linkedTransaction.isCash()) {
-                                    showWarningDialog("Linked to An Investing Transaction",
-                                            "Linked to an investing transaction",
-                                            "Please edit the linked investing transaction.");
-                                    return;
-                                }
-                            }
-                        }
                         mMainApp.showEditTransactionDialog(mMainApp.getStage(), new Transaction(getItem()));
                         for (int i = 0; i < mTransactionTableView.getItems().size(); i++) {
                             if (mTransactionTableView.getItems().get(i).getID() == selectedTransactionID)

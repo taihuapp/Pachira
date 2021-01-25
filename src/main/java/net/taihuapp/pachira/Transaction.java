@@ -261,7 +261,7 @@ public class Transaction {
 
     ObjectProperty<LocalDate> getTDateProperty() { return mTDateProperty; }
     LocalDate getTDate() { return getTDateProperty().get(); }
-    private void setTDate(LocalDate td) { getTDateProperty().set(td); }
+    void setTDate(LocalDate td) { getTDateProperty().set(td); }
 
     StringProperty getReferenceProperty() { return mReferenceProperty; }
     String getReference() { return getReferenceProperty().get(); }
@@ -276,7 +276,9 @@ public class Transaction {
     void setFIDID(String fitid) { getFITIDProperty().set(fitid); }
 
     ObjectProperty<TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
-    TradeAction getTradeAction() { return getTradeActionProperty().get();}
+    TradeAction getTradeAction() { return getTradeActionProperty().get(); }
+    void setTradeAction(TradeAction ta) { getTradeActionProperty().set(ta); }
+
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
 
     private void bindDescriptionProperty() {
@@ -408,6 +410,27 @@ public class Transaction {
                     return BigDecimal.ZERO;
             }
         }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
+
+        // calculate prices
+        mPriceProperty.bind(Bindings.createObjectBinding(() -> {
+            if (!hasQuantity(getTradeAction()))
+                return BigDecimal.ZERO;
+
+            final BigDecimal amount = getAmount();
+            final BigDecimal quantity = getQuantity() == null ? BigDecimal.ZERO : getQuantity();
+            final BigDecimal commission = getCommission() == null ? BigDecimal.ZERO : getCommission();
+            final BigDecimal accruedInterest = getAccruedInterest() == null ? BigDecimal.ZERO : getAccruedInterest();
+            if (quantity.signum() == 0)
+                return BigDecimal.ZERO;
+
+            final BigDecimal subTotal;
+            if (getTradeAction() == TradeAction.SELL || getTradeAction() == TradeAction.SHTSELL)
+                subTotal = amount.add(commission).add(accruedInterest);
+            else
+                subTotal = amount.subtract(commission).subtract(accruedInterest);
+            return subTotal.divide(quantity, MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+        }, getTradeActionProperty(), getAmountProperty(), getQuantityProperty(), getCommissionProperty(),
+                getAccruedInterestProperty()));
     }
 
     ValidationStatus validate() {
@@ -661,7 +684,7 @@ public class Transaction {
 
     // return false if this is NOT a transfer
     // also return false if this is a transfer to exAccountID
-    // return true if this transaction is a transfer transaction to aother account
+    // return true if this transaction is a transfer transaction to another account
     boolean isTransfer() {
         int cid = getCategoryID();
 
@@ -689,6 +712,7 @@ public class Transaction {
             case SHRSOUT:
             case SHTSELL:
             case CVTSHRT:
+            case SHRCLSCVN:
                 return true;
             case DIV:
             case INTINC:

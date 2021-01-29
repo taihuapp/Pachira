@@ -91,6 +91,7 @@ import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 import static net.taihuapp.pachira.QIFUtil.EOL;
+import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class MainApp extends Application {
 
@@ -786,9 +787,7 @@ public class MainApp extends Application {
                 }
             }
 
-            if (!reminder.getSplitTransactionList().isEmpty()) {
-                insertUpdateSplitTransactionsToDB(-reminder.getID(), reminder.getSplitTransactionList());
-            }
+            insertUpdateSplitTransactionsToDB(-reminder.getID(), reminder.getSplitTransactionList());
 
             if (savepointSetHere) {
                 commitDB();
@@ -932,8 +931,7 @@ public class MainApp extends Application {
                 }
             }
 
-            if (!t.getSplitTransactionList().isEmpty())
-                insertUpdateSplitTransactionsToDB(t.getID(), t.getSplitTransactionList());
+            insertUpdateSplitTransactionsToDB(t.getID(), t.getSplitTransactionList());
 
             if (savepointSetHere) {
                 commitDB();
@@ -2680,11 +2678,11 @@ public class MainApp extends Application {
 
             // compare TradeAction if dates are the same
             // we want to have SELL and CVTSHRT at the end
-            if (o1.getTradeAction() == Transaction.TradeAction.SELL
+            if (o1.getTradeAction() == SELL
                     || o1.getTradeAction() == Transaction.TradeAction.CVTSHRT)
-                return (o2.getTradeAction() == Transaction.TradeAction.SELL
+                return (o2.getTradeAction() == SELL
                         || o2.getTradeAction() == Transaction.TradeAction.CVTSHRT) ? 0 : 1;
-            if (o2.getTradeAction() == Transaction.TradeAction.SELL
+            if (o2.getTradeAction() == SELL
                     || o2.getTradeAction() == Transaction.TradeAction.CVTSHRT)
                 return -1;
             return o1.getTradeAction().compareTo(o2.getTradeAction());
@@ -4235,81 +4233,133 @@ public class MainApp extends Application {
             }
 
             if (newT != null) {
+                final Transaction.TradeAction newTTA = newT.getTradeAction();
+
+                // check quantity
+                if (newTTA == SELL || newTTA == SHRSOUT || newTTA == CVTSHRT) {
+                    final BigDecimal quantity = updateAccountSecurityHoldingList(getAccountByID(newT.getAccountID()),
+                            newT.getTDate(), newT.getID()).stream()
+                            .filter(sh -> sh.getSecurityName().equals(newT.getSecurityName()))
+                            .map(SecurityHolding::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+                    if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newT.getQuantity()) <= 0)
+                        || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newT.getQuantity()) <= 0)) {
+                        // existing quantity not enough for the new trade
+                        mLogger.warn("New " + newTTA + " transaction quantity exceeds existing quantity");
+                        showWarningDialog("New " + newTTA + " transaction quantity exceeds existing quantity",
+                                newTTA + " quantity can not exceeds existing quantity",
+                                "Please check transaction quantity");
+                        rollbackDB();
+                        return false;
+                    }
+                }
+
+                // check ADate for SHRSIN
+                if (newTTA == SHRSIN) {
+                    final LocalDate aDate = newT.getADate();
+                    if (aDate == null || aDate.isAfter(newT.getTDate())) {
+                        mLogger.warn("Acquisition date has to be on or before trade date");
+                        showWarningDialog("Invalid acquisition date",
+                                "Acquisition date is " + (aDate == null ? "null" : aDate),
+                                "Please enter a valid acquisition date");
+                        rollbackDB();
+                        return false;
+                    }
+                }
+
                 // we need to save newT and newMatchInfoList to DB
                 final int newTID = insertUpdateTransactionToDB(newT);
                 putMatchInfoList(newTID, newMatchInfoList);
 
-                // check transfer in split transactions
-                boolean hasSplitTransfer = false;
-                for (SplitTransaction st : newT.getSplitTransactionList()) {
-                    if (st.isTransfer(newT.getAccountID())) {
-                        hasSplitTransfer = true;
-
-                        // this split transaction is a transfer transaction
-                        Transaction stXferT = null;
-                        if (st.getMatchID() > 0) {
-                            // it is modify exist transfer transaction
-                            stXferT = getTransactionByID(st.getMatchID());
-                            if (stXferT == null) {
-                                mLogger.warn("Split Transaction (" + newT.getID() + ", " + st.getID()
-                                        + ") linked to null");
-                                showWarningDialog("Split transaction linked to null",
-                                        "Split transaction cannot be linked to null",
-                                        "Something is wrong.  Help is needed");
+                if (newT.isSplit()) {
+                    // split transaction shouldn't have any match id and match split id.
+                    newT.setMatchID(-1, -1);
+                    // check transfer in split transactions
+                    for (SplitTransaction st : newT.getSplitTransactionList()) {
+                        if (st.isTransfer(newT.getAccountID())) {
+                            if (st.getCategoryID() == -newT.getAccountID()) {
+                                mLogger.warn("Split transaction is transferring back to the same account");
+                                showWarningDialog("Split transaction linked back to the same account",
+                                        "Same account transferring is not allowed",
+                                        "Please change the transferring account");
                                 rollbackDB();
                                 return false;
                             }
-                            if (!stXferT.isCash()) {
-                                // transfer transaction is an invest transaction, check trade action compatibility
-                                if (stXferT.TransferTradeAction() != (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
-                                        Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW)) {
-                                    mLogger.warn("Split transaction cash flow not compatible with "
-                                            + "transfer transaction trade action");
-                                    showWarningDialog("Trade Action MisMatch",
-                                            "Transfer transaction trade action not compatible",
-                                            "Transfer transaction " + stXferT.getTradeAction()
-                                                    + ", split transaction cash flow " + st.getAmount()
-                                                    + ", not compatible");
+                            // this split transaction is a transfer transaction
+                            Transaction stXferT = null;
+                            if (st.getMatchID() > 0) {
+                                // it is modify exist transfer transaction
+                                stXferT = getTransactionByID(st.getMatchID());
+                                if (stXferT == null) {
+                                    mLogger.warn("Split Transaction (" + newT.getID() + ", " + st.getID()
+                                            + ") linked to null");
+                                    showWarningDialog("Split transaction linked to null",
+                                            "Split transaction cannot be linked to null",
+                                            "Something is wrong.  Help is needed");
                                     rollbackDB();
                                     return false;
                                 }
-                                // for existing transfer transactions, we only update the minimum information
-                                stXferT.setAccountID(-newT.getCategoryID());
-                                stXferT.setCategoryID(-newT.getAccountID());
-                                stXferT.setTDate(newT.getTDate());
+                                if (!stXferT.isCash()) {
+                                    // transfer transaction is an invest transaction, check trade action compatibility
+                                    if (stXferT.TransferTradeAction() != (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
+                                            Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW)) {
+                                        mLogger.warn("Split transaction cash flow not compatible with "
+                                                + "transfer transaction trade action");
+                                        showWarningDialog("Trade Action MisMatch",
+                                                "Transfer transaction trade action not compatible",
+                                                "Transfer transaction " + stXferT.getTradeAction()
+                                                        + ", split transaction cash flow " + st.getAmount()
+                                                        + ", not compatible");
+                                        rollbackDB();
+                                        return false;
+                                    }
+                                    // for existing transfer transactions, we only update the minimum information
+                                    stXferT.setAccountID(-newT.getCategoryID());
+                                    stXferT.setCategoryID(-newT.getAccountID());
+                                    stXferT.setTDate(newT.getTDate());
+                                    stXferT.setAmount(st.getAmount().abs());
+                                }
+                            }
+
+                            if (stXferT == null || stXferT.isCash()) {
+                                // we need to create new xfer transaction
+                                stXferT = new Transaction(-st.getCategoryID(), newT.getTDate(),
+                                        (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
+                                                Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT),
+                                        -newT.getAccountID());
+                                stXferT.setPayee(st.getPayee());
+                                stXferT.setMemo(st.getMemo());
+                                stXferT.setMatchID(newTID, st.getID());
                                 stXferT.setAmount(st.getAmount().abs());
                             }
+
+                            // insert stXferT to database and update st match id
+                            st.setMatchID(insertUpdateTransactionToDB(stXferT));
+
+                            // we need to update stXferT later in MasterList
+                            updateTSet.add(stXferT);
+
+                            // we need to update the transfer account
+                            accountIDSet.add(-st.getCategoryID());
+                        } else {
+                            // st is not a transfer, set match id to 0
+                            st.setMatchID(0);
                         }
-
-                        if (stXferT == null || stXferT.isCash()) {
-                            // we need to create new xfer transaction
-                            stXferT = new Transaction(-st.getCategoryID(), newT.getTDate(),
-                                    (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
-                                        Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT),
-                                    -newT.getAccountID());
-                            stXferT.setPayee(st.getPayee());
-                            stXferT.setMemo(st.getMemo());
-                            stXferT.setMatchID(newTID, st.getID());
-                            stXferT.setAmount(st.getAmount().abs());
-                        }
-
-                        // insert stXferT to database and update st match id
-                        st.setMatchID(insertUpdateTransactionToDB(stXferT));
-
-                        // we need to update stXferT later in MasterList
-                        updateTSet.add(stXferT);
-
-                        // we need to update the transfer account
-                        accountIDSet.add(-st.getCategoryID());
                     }
-                }
 
-                if (hasSplitTransfer) {
-                    // matchID was modified in some split transactions, need to update db
-                    insertUpdateSplitTransactionsToDB(newTID, newT.getSplitTransactionList());
-                }
+                    // match id and/or match split id in newT might have changed
+                    // match id in split transactions might have changed
+                    insertUpdateTransactionToDB(newT);
 
-                if (!newT.isSplit() && newT.isTransfer()) {
+                } else if (!newT.isSplit() && newT.isTransfer()) {
+                    if (newT.getCategoryID() == -newT.getAccountID()) {
+                        mLogger.warn("Transaction is transferring back to the same account");
+                        showWarningDialog("Transaction linked back to the same account",
+                                "Same account transferring is not allowed",
+                                "Please change the transferring account");
+                        rollbackDB();
+                        return false;
+                    }
+
                     // non split, transfer
                     Transaction xferT = null;
                     if (newT.getMatchID() > 0) {
@@ -4376,7 +4426,7 @@ public class MainApp extends Application {
                                 -newT.getAccountID());
                         xferT.setPayee(newT.getPayee());
                         xferT.setMemo(newT.getMemo());
-                        xferT.setMatchID(newT.getID(), 0);
+                        xferT.setMatchID(newT.getID(), -1);
                         xferT.setAmount(newT.getAmount());
                     }
 
@@ -4393,6 +4443,10 @@ public class MainApp extends Application {
 
                     // we need to update xfer account
                     accountIDSet.add(-newT.getCategoryID());
+                } else {
+                    // non-split, non transfer, make sure set match id properly
+                    newT.setMatchID(-1,-1);
+                    insertUpdateTransactionToDB(newT);
                 }
 
 
@@ -5358,7 +5412,7 @@ public class MainApp extends Application {
 
     List<CapitalGainItem> getCapitalGainItemList(Transaction transaction) {
         Transaction.TradeAction ta = transaction.getTradeAction();
-        if (!ta.equals(Transaction.TradeAction.SELL) && ta.equals(Transaction.TradeAction.CVTSHRT))
+        if (!ta.equals(SELL) && ta.equals(Transaction.TradeAction.CVTSHRT))
             return null;
 
         Account account = getAccountByID(transaction.getAccountID());
@@ -5396,7 +5450,7 @@ public class MainApp extends Application {
                 proceeds = remainCash.multiply(liMatchQuantity).divide(remainQuantity, RoundingMode.HALF_UP);
                 remainCash = remainCash.subtract(proceeds);
                 remainQuantity = remainQuantity.subtract(liMatchQuantity);
-                if (ta.equals(Transaction.TradeAction.SELL))
+                if (ta.equals(SELL))
                     capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, liMatchQuantity,
                             costBasis, proceeds));
                 else

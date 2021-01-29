@@ -170,7 +170,7 @@ public class SplitTransactionsDialogController {
         }, mAmountTextField.textProperty());
 
         mAddButton.disableProperty().bind(remaining.not());
-        mOKButton.disableProperty().bind(remaining);
+        mOKButton.disableProperty().bind(remaining.and(Bindings.isEmpty(mSplitTransactionsTableView.getItems()).not()));
 
         mDeleteButton.disableProperty().bind(Bindings.createBooleanBinding(()
                         -> (mSplitTransactionsTableView.getSelectionModel().getSelectedItem() == null),

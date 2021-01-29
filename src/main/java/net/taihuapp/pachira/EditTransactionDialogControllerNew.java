@@ -434,7 +434,8 @@ public class EditTransactionDialogControllerNew {
         mSplitTransactionButton.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             // split is only allowed for cash transaction and if it is not linked to a split transaction
-            return (ta == DEPOSIT || ta == WITHDRAW) && (mTransactionOrig == null || !mTransactionOrig.isSplit());
+            return (ta == DEPOSIT || ta == WITHDRAW)
+                    && (mTransactionOrig == null || mTransactionOrig.getMatchSplitID() <= 0);
         }, mTradeActionChoiceBox.valueProperty()));
 
         // tag

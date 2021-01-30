@@ -4350,7 +4350,7 @@ public class MainApp extends Application {
                     // match id in split transactions might have changed
                     insertUpdateTransactionToDB(newT);
 
-                } else if (!newT.isSplit() && newT.isTransfer()) {
+                } else if (newT.isTransfer()) {
                     if (newT.getCategoryID() == -newT.getAccountID()) {
                         mLogger.warn("Transaction is transferring back to the same account");
                         showWarningDialog("Transaction linked back to the same account",
@@ -4363,6 +4363,7 @@ public class MainApp extends Application {
                     // non split, transfer
                     Transaction xferT = null;
                     if (newT.getMatchID() > 0) {
+                        // newT linked to a split transaction
                         xferT = getTransactionByID(newT.getMatchID());
                         if (xferT == null) {
                             mLogger.warn("Transaction " + newT.getID() + " is linked to null");
@@ -4381,8 +4382,21 @@ public class MainApp extends Application {
                                 rollbackDB();
                                 return false;
                             }
-                            SplitTransaction xferSt = xferT.getSplitTransactionList().stream()
-                                    .filter(st -> st.getID() == newT.getMatchSplitID()).findFirst().orElse(null);
+                            if (!newT.getTDate().equals(xferT.getTDate())
+                                    || (-newT.getCategoryID() != xferT.getAccountID())) {
+                                mLogger.warn("Can't change date and/or transfer account to a transaction linked to a split transaction.");
+                                showWarningDialog("Date or transfer account mismatch",
+                                        "Cannot change date and/or transfer account "
+                                        + "on transaction linked to a split transaction",
+                                        "Please change linked split transaction");
+                                rollbackDB();
+                                return false;
+                            }
+                            final List<SplitTransaction> stList = xferT.getSplitTransactionList();
+                            final SplitTransaction xferSt = stList.stream()
+                                    .filter(st -> st.getID() == newT.getMatchSplitID())
+                                    .findFirst()
+                                    .orElse(null);
                             if (xferSt == null) {
                                 // didn't find matching split transaction
                                 mLogger.warn("Transaction (" + newT.getID() + ") linked to null split transaction");
@@ -4392,17 +4406,28 @@ public class MainApp extends Application {
                                 rollbackDB();
                                 return false;
                             }
-                            xferSt.setAmount(newT.TransferTradeAction() == Transaction.TradeAction.DEPOSIT ?
+                            xferSt.setAmount(newT.TransferTradeAction() == DEPOSIT ?
                                     newT.getAmount() : newT.getAmount().negate());
-                            BigDecimal amount = xferT.getSplitTransactionList().stream()
+                            xferSt.getCategoryIDProperty().set(-newT.getAccountID());
+                            if (xferSt.getMemo().isEmpty())
+                                xferSt.setMemo(newT.getMemo());
+                            if (xferSt.getPayee().isEmpty())
+                                xferSt.setPayee(newT.getPayee());
+                            final BigDecimal amount = xferT.getSplitTransactionList().stream()
                                     .map(SplitTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-                            if (amount.compareTo(BigDecimal.ZERO) >= 0) {
-                                xferT.setTradeAction(Transaction.TradeAction.DEPOSIT);
-                                xferT.setAmount(amount);
-                            } else {
-                                xferT.setTradeAction(Transaction.TradeAction.WITHDRAW);
-                                xferT.setAmount(amount.negate());
+                            if (((xferT.TransferTradeAction() == WITHDRAW)
+                                    && (amount.compareTo(BigDecimal.ZERO) < 0))
+                                    || ((xferT.TransferTradeAction() == DEPOSIT)
+                                    && (amount.compareTo(BigDecimal.ZERO) > 0))) {
+                                mLogger.warn("Modify transaction linked to a split transaction "
+                                        + "resulting inconsistency in linked transaction");
+                                showWarningDialog("Resulting inconsistency in linked split transaction",
+                                        "Transaction linked to a split transaction",
+                                        "Please edit linked split transaction first");
+                                rollbackDB();
+                                return false;
                             }
+                            xferT.setAmount(amount.abs());
                         } else if (!xferT.isCash()) {
                             // non cash, check trade action compatibility
                             if (xferT.TransferTradeAction() != newT.getTradeAction()) {
@@ -4421,7 +4446,7 @@ public class MainApp extends Application {
                         }
                     }
 
-                    if (xferT == null || xferT.isCash()) {
+                    if ((xferT == null) || (!xferT.isSplit() && xferT.isCash())) {
                         xferT = new Transaction(-newT.getCategoryID(), newT.getTDate(), newT.TransferTradeAction(),
                                 -newT.getAccountID());
                         xferT.setPayee(newT.getPayee());
@@ -4504,10 +4529,80 @@ public class MainApp extends Application {
                     });
                 } else if (oldT.isTransfer()) {
                     // oldT is a transfer.  Check if the xferT is updated
-                    // it doesn't matter if oldT is linked to either a split or a non split
                     if (updateTSet.stream().noneMatch(t -> t.getID() == oldT.getMatchID())) {
-                        deleteTransactionFromDB(oldT.getMatchID());
-                        deleteTIDSet.add(oldT.getMatchID());
+                        // linked transaction is not being updated
+                        if (oldT.getMatchSplitID() > 0) {
+                            // oldT is a transfer from a split transaction,
+                            // we will delete the corresponding split, adjust amount of
+                            // the main transferring transaction, and update it
+                            final Transaction xferT = getTransactionByID(oldT.getMatchID());
+                            if (xferT == null) {
+                                // didn't find the transfer transaction
+                                mLogger.warn("Transaction (" + oldT.getID() + ") linked to null transaction");
+                                showWarningDialog("Transaction linked to null split transaction",
+                                        "Transaction cannot be linked to null split transaction",
+                                        "Something is wrong.  Help is needed");
+                                rollbackDB();
+                                return false;
+                            }
+                            // delete the split transaction matching split id.
+                            final List<SplitTransaction> stList = xferT.getSplitTransactionList().stream()
+                                    .filter(st -> st.getID() != oldT.getMatchSplitID()).collect(Collectors.toList());
+                            // check consistency of resulting amount with xferT trade action
+                            final BigDecimal amount = stList.stream().map(SplitTransaction::getAmount)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                            if (((xferT.TransferTradeAction() == WITHDRAW)
+                                    && (amount.compareTo(BigDecimal.ZERO) > 0))
+                                    || ((xferT.TransferTradeAction() == DEPOSIT)
+                                    && (amount.compareTo(BigDecimal.ZERO) < 0))) {
+                                mLogger.warn("Modify/delete transaction linked to a split transaction, "
+                                        + "resulting inconsistency in linked transaction");
+                                showWarningDialog("Resulting inconsistency in linked transaction",
+                                        "Transaction linked to split transaction",
+                                        "Please edit linked split transaction.");
+                                rollbackDB();
+                                return false;
+                            }
+                            xferT.setAmount(amount.abs());
+                            if (stList.size() == 1) {
+                                // only one split transaction in the list, no need to split
+                                // make it a simple transfer
+                                // todo, maybe this should be wrapped into setSplitTransactionList
+                                final SplitTransaction st = stList.get(0);
+                                xferT.getCategoryIDProperty().set(st.getCategoryID());
+                                if (xferT.getMemo().isEmpty())
+                                    xferT.setMemo(st.getMemo());
+                                if (xferT.getPayee().isEmpty())
+                                    xferT.setPayee(st.getPayee());
+                                xferT.setMatchID(st.getMatchID(),-1);
+
+                                final Transaction xferXferT = getTransactionByID(st.getMatchID());
+                                if (xferXferT == null) {
+                                    final String message = "(" + oldT.getID() + ", " + st.getID()
+                                            + ") is linked to missing transaction " + st.getMatchID();
+                                    mLogger.warn(message);
+                                    showWarningDialog("Missing transaction", message, "Help is needed");
+                                    rollbackDB();
+                                    return false;
+                                }
+                                stList.clear();
+
+                                // xferXferT was linked to (xferT, st), now is only linked to xferT
+                                xferXferT.setMatchID(xferXferT.getMatchID(), -1);
+                                insertUpdateTransactionToDB(xferXferT);
+
+                                updateTSet.add(xferXferT);
+                                accountIDSet.add(xferXferT.getAccountID());
+                            }
+                            xferT.setSplitTransactionList(stList);
+                            insertUpdateTransactionToDB(xferT);
+
+                            updateTSet.add(xferT);
+                        } else {
+                            // oldT linked to non-split transaction
+                            deleteTransactionFromDB(oldT.getMatchID());
+                            deleteTIDSet.add(oldT.getMatchID());
+                        }
 
                         accountIDSet.add(-oldT.getCategoryID());
                     }

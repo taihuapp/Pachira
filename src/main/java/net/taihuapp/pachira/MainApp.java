@@ -554,24 +554,28 @@ public class MainApp extends Application {
                     setting.setMemoContains(rs.getString("MEMOCONTAINS"));
                     setting.setMemoRegEx(rs.getBoolean("MEMOREGEX"));
                 }
-                String itemName = rs.getString("ITEMNAME");
+                final String itemName = rs.getString("ITEMNAME");
+                final String itemValue = rs.getString("ITEMVALUE");
                 if (itemName != null)
                 switch (ReportDialogController.ItemName.valueOf(itemName)) {
                     case ACCOUNTID:
-                        int accountID = Integer.parseInt(rs.getString("ITEMVALUE"));
+                        int accountID = Integer.parseInt(itemValue);
                         Account account = getAccountByID(accountID);
                         if (account != null)
                             setting.getSelectedAccountSet().add(account);
                         break;
                     case CATEGORYID:
-                        setting.getSelectedCategoryIDSet().add(Integer.parseInt(rs.getString("ITEMVALUE")));
+                        setting.getSelectedCategoryIDSet().add(Integer.parseInt(itemValue));
                         break;
                     case SECURITYID:
-                        setting.getSelectedSecurityIDSet().add(Integer.parseInt(rs.getString("ITEMVALUE")));
+                        setting.getSelectedSecurityIDSet().add(Integer.parseInt(itemValue));
                         break;
                     case TRADEACTION:
-                        setting.getSelectedTradeActionSet().add(
-                                Transaction.TradeAction.valueOf(rs.getString("ITEMVALUE")));
+                        try {
+                            setting.getSelectedTradeActionSet().add(Transaction.TradeAction.valueOf(itemValue));
+                        } catch (IllegalArgumentException e) {
+                            mLogger.error("Invalid TradeAction " + itemValue, e);
+                        }
                         break;
                     default:
                         mLogger.error("loadReportSetting: ItemName " + itemName + " not implemented yet");
@@ -4323,8 +4327,7 @@ public class MainApp extends Application {
                             if (stXferT == null || stXferT.isCash()) {
                                 // we need to create new xfer transaction
                                 stXferT = new Transaction(-st.getCategoryID(), newT.getTDate(),
-                                        (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
-                                                Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT),
+                                        (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ? WITHDRAW : DEPOSIT),
                                         -newT.getAccountID());
                                 stXferT.setPayee(st.getPayee());
                                 stXferT.setMemo(st.getMemo());
@@ -4415,19 +4418,13 @@ public class MainApp extends Application {
                                 xferSt.setPayee(newT.getPayee());
                             final BigDecimal amount = xferT.getSplitTransactionList().stream()
                                     .map(SplitTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-                            if (((xferT.TransferTradeAction() == WITHDRAW)
-                                    && (amount.compareTo(BigDecimal.ZERO) < 0))
-                                    || ((xferT.TransferTradeAction() == DEPOSIT)
-                                    && (amount.compareTo(BigDecimal.ZERO) > 0))) {
-                                mLogger.warn("Modify transaction linked to a split transaction "
-                                        + "resulting inconsistency in linked transaction");
-                                showWarningDialog("Resulting inconsistency in linked split transaction",
-                                        "Transaction linked to a split transaction",
-                                        "Please edit linked split transaction first");
-                                rollbackDB();
-                                return false;
+                            if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                                xferT.setTradeAction(DEPOSIT);
+                                xferT.setAmount(amount);
+                            } else {
+                                xferT.setTradeAction(WITHDRAW);
+                                xferT.setAmount(amount.negate());
                             }
-                            xferT.setAmount(amount.abs());
                         } else if (!xferT.isCash()) {
                             // non cash, check trade action compatibility
                             if (xferT.TransferTradeAction() != newT.getTradeAction()) {

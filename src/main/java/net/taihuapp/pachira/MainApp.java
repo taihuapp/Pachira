@@ -4317,7 +4317,7 @@ public class MainApp extends Application {
                                         return false;
                                     }
                                     // for existing transfer transactions, we only update the minimum information
-                                    stXferT.setAccountID(-newT.getCategoryID());
+                                    stXferT.setAccountID(-st.getCategoryID());
                                     stXferT.setCategoryID(-newT.getAccountID());
                                     stXferT.setTDate(newT.getTDate());
                                     stXferT.setAmount(st.getAmount().abs());
@@ -4448,9 +4448,11 @@ public class MainApp extends Application {
                                 -newT.getAccountID());
                         xferT.setPayee(newT.getPayee());
                         xferT.setMemo(newT.getMemo());
-                        xferT.setMatchID(newT.getID(), -1);
                         xferT.setAmount(newT.getAmount());
                     }
+
+                    // setMatchID for xferT
+                    xferT.setMatchID(newT.getID(), -1);
 
                     // we might need to set matchID if xferT is newly created
                     // but we never create a new match split transaction

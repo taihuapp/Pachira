@@ -4316,6 +4316,20 @@ public class MainApp extends Application {
                                         rollbackDB();
                                         return false;
                                     }
+                                    if (stXferT.getTradeAction() == SHRSIN) {
+                                        // shares transferred in, need to check acquisition date
+                                        final LocalDate aDate = stXferT.getADate();
+                                        if (aDate == null || newT.getTDate().isBefore(aDate)) {
+                                            mLogger.warn("Invalid acquisition date for shares transferred in");
+                                            showWarningDialog("Invalid Acquisition Date",
+                                                    "Transfer transaction acquisition date is not valid",
+                                                    "Please check linked transfer transaction");
+                                            rollbackDB();
+                                            return false;
+                                        }
+                                    } else {
+                                        stXferT.setADate(null);
+                                    }
                                     // for existing transfer transactions, we only update the minimum information
                                     stXferT.setAccountID(-st.getCategoryID());
                                     stXferT.setCategoryID(-newT.getAccountID());
@@ -4409,6 +4423,7 @@ public class MainApp extends Application {
                                 rollbackDB();
                                 return false;
                             }
+                            xferSt.setMatchID(newT.getID());
                             xferSt.setAmount(newT.TransferTradeAction() == DEPOSIT ?
                                     newT.getAmount() : newT.getAmount().negate());
                             xferSt.getCategoryIDProperty().set(-newT.getAccountID());
@@ -4436,6 +4451,20 @@ public class MainApp extends Application {
                                 rollbackDB();
                                 return false;
                             }
+                            if (xferT.getTradeAction() == SHRSIN) {
+                                // shares transferred in, need to check acquisition date
+                                final LocalDate aDate = xferT.getADate();
+                                if (aDate == null || newT.getTDate().isBefore(aDate)) {
+                                    mLogger.warn("Invalid acquisition date for shares transferred in");
+                                    showWarningDialog("Invalid Acquisition Date",
+                                            "Transfer transaction acquisition date is not valid",
+                                            "Please check linked transfer transaction");
+                                    rollbackDB();
+                                    return false;
+                                }
+                            } else {
+                                xferT.setADate(null);
+                            }
                             xferT.setAccountID(-newT.getCategoryID());
                             xferT.setCategoryID(-newT.getAccountID());
                             xferT.setTDate(newT.getTDate());
@@ -4452,7 +4481,8 @@ public class MainApp extends Application {
                     }
 
                     // setMatchID for xferT
-                    xferT.setMatchID(newT.getID(), -1);
+                    if (!xferT.isSplit())
+                        xferT.setMatchID(newT.getID(), -1);
 
                     // we might need to set matchID if xferT is newly created
                     // but we never create a new match split transaction
@@ -4500,7 +4530,7 @@ public class MainApp extends Application {
             if (oldT != null) {
                 // we have an oldT, need to delete the related transactions, if those are not updated
 
-                // first make sure it is not covered by SELL or CVTSHT
+                // first make sure it is not covered by SELL or CVTSHRT
                 final List<Integer> matchList = lotMatchedBy(oldT.getID());
                 if (!matchList.isEmpty()) {
                     mLogger.warn("Cannot delete transaction (" + oldT.getID() + ") which is lot matched");
@@ -4568,6 +4598,8 @@ public class MainApp extends Application {
                                 // make it a simple transfer
                                 // todo, maybe this should be wrapped into setSplitTransactionList
                                 final SplitTransaction st = stList.get(0);
+                                stList.clear();
+
                                 xferT.getCategoryIDProperty().set(st.getCategoryID());
                                 if (xferT.getMemo().isEmpty())
                                     xferT.setMemo(st.getMemo());
@@ -4575,23 +4607,24 @@ public class MainApp extends Application {
                                     xferT.setPayee(st.getPayee());
                                 xferT.setMatchID(st.getMatchID(),-1);
 
-                                final Transaction xferXferT = getTransactionByID(st.getMatchID());
-                                if (xferXferT == null) {
-                                    final String message = "(" + oldT.getID() + ", " + st.getID()
-                                            + ") is linked to missing transaction " + st.getMatchID();
-                                    mLogger.warn(message);
-                                    showWarningDialog("Missing transaction", message, "Help is needed");
-                                    rollbackDB();
-                                    return false;
+                                if (st.getMatchID() > 0) {
+                                    final Transaction xferXferT = getTransactionByID(st.getMatchID());
+                                    if (xferXferT == null) {
+                                        final String message = "(" + oldT.getID() + ", " + st.getID()
+                                                + ") is linked to missing transaction " + st.getMatchID();
+                                        mLogger.warn(message);
+                                        showWarningDialog("Missing transaction", message, "Help is needed");
+                                        rollbackDB();
+                                        return false;
+                                    }
+
+                                    // xferXferT was linked to (xferT, st), now is only linked to xferT
+                                    xferXferT.setMatchID(xferXferT.getMatchID(), -1);
+                                    insertUpdateTransactionToDB(xferXferT);
+
+                                    updateTSet.add(xferXferT);
+                                    accountIDSet.add(xferXferT.getAccountID());
                                 }
-                                stList.clear();
-
-                                // xferXferT was linked to (xferT, st), now is only linked to xferT
-                                xferXferT.setMatchID(xferXferT.getMatchID(), -1);
-                                insertUpdateTransactionToDB(xferXferT);
-
-                                updateTSet.add(xferXferT);
-                                accountIDSet.add(xferXferT.getAccountID());
                             }
                             xferT.setSplitTransactionList(stList);
                             insertUpdateTransactionToDB(xferT);

@@ -255,7 +255,7 @@ public class EditTransactionDialogControllerNew {
     // clean data contained on invisible controls
     private void cleanInvisibleControlData() {
         if (!mADatePicker.isVisible())
-            mTransaction.setADate(mTransaction.getTDate());
+            mTransaction.setADate(null);
 
         if ((!mCategoryComboBox.isVisible()))
             mTransaction.setCategoryID(0);

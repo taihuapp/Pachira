@@ -133,7 +133,6 @@
                             <MenuItem fx:id="mExportQIFMenuItem" mnemonicParsing="false" onAction="#handleExportQIF" text="QIF" />
                           </items>
                         </Menu>
-                        <MenuItem fx:id="mFixDBMenuItem" mnemonicParsing="false" onAction="#handleFixDB" text="Fix DB" />
                     <MenuItem mnemonicParsing="false" onAction="#handleClose" text="Close" />
                   </items>
                 </Menu>

@@ -95,8 +95,6 @@ public class MainController {
     @FXML
     private MenuItem mExportQIFMenuItem;
     @FXML
-    private MenuItem mFixDBMenuItem;
-    @FXML
     private TreeTableView<Account> mAccountTreeTableView;
     @FXML
     private TreeTableColumn<Account, String> mAccountNameTreeTableColumn;
@@ -555,12 +553,6 @@ public class MainController {
     }
 
     @FXML
-    private void handleFixDB() {
-        mMainApp.fixDB();
-        mMainApp.initAccountList();
-    }
-
-    @FXML
     private void handleBackup() { mMainApp.doBackup(); }
 
     @FXML
@@ -641,7 +633,6 @@ public class MainController {
         mChangePasswordMenuItem.setVisible(isConnected);
         mBackupMenuItem.setVisible(isConnected);
         mImportMenu.setVisible(isConnected);
-        mFixDBMenuItem.setVisible(isConnected);
         mAccountTreeTableView.setVisible(isConnected);
         mSearchButton.setVisible(isConnected);
         mSearchTextField.setVisible(isConnected);

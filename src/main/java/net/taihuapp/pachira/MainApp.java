@@ -3068,10 +3068,10 @@ public class MainApp extends Application {
                     int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
                             st.getAmount(), transactionList.subList(i+1, nTrans));
                     if (matchIdx < 0) {
-                        // didn't find match, it's possible more than one split transaction transfering
+                        // didn't find match, it's possible more than one split transaction transferring
                         // to the same account, the receiving account aggregates all into one transaction.
                         modeAgg = true; // try aggregate mode
-                        mLogger.info("Aggregate mode");
+                        mLogger.debug("Aggregate mode");
                         BigDecimal cf = BigDecimal.ZERO;
                         for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
                             SplitTransaction st1 = t0.getSplitTransactionList().get(s1);
@@ -3455,6 +3455,9 @@ public class MainApp extends Application {
 
         initTransactionList();
         mLogger.info("Imported " + file);
+
+        // linkup transferring transactions
+        fixDB();
     }
 
     // todo need to handle error gracefully

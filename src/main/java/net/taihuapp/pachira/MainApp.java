@@ -60,6 +60,7 @@ import net.taihuapp.pachira.dc.AccountDC;
 import net.taihuapp.pachira.dc.Vault;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
+import org.h2.tools.RunScript;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -69,6 +70,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
@@ -2589,7 +2593,7 @@ public class MainApp extends Application {
             return controller.getPasswords();
         } catch (IOException e) {
             mLogger.error("IOException", e);
-            return null;
+            return new ArrayList<>();
         }
     }
 
@@ -3500,7 +3504,7 @@ public class MainApp extends Application {
             return;  // do nothing
 
         List<String> passwords = showPasswordDialog("Change Password", PasswordDialogController.MODE.CHANGE);
-        if (passwords == null || passwords.size() != 2) {
+        if (passwords.size() != 2) {
             // action cancelled
             return;
         }
@@ -3580,6 +3584,139 @@ public class MainApp extends Application {
         return url.substring(URLPREFIX.length());
     }
 
+    void DBToSQL() {
+        // first let user select input DB file
+        final File dbFile = getUserFile("Select DB File...",
+                new FileChooser.ExtensionFilter("DB", "*" + DBPOSTFIX),
+                null, null, false);
+        if (dbFile == null)
+            return;
+
+        if (!dbFile.exists() || !dbFile.canRead()) {
+            final String reason = !dbFile.exists() ? "not exist" : "not readable";
+            showWarningDialog("File " + reason + "!", dbFile.getAbsolutePath() + " " + reason,
+                    "Cannot continue");
+            return;
+        }
+
+        // now let user select output sql file
+        final File sqlFile = getUserFile("Select output sql script...",
+                null, null, null, true);
+        if (sqlFile == null)
+            return;
+
+        String dbName = dbFile.getAbsolutePath();
+        if (dbName.endsWith(DBPOSTFIX))
+            dbName = dbName.substring(0, dbName.length()-DBPOSTFIX.length());
+        final List<String> passwords = showPasswordDialog("Please enter password for " + dbName,
+                PasswordDialogController.MODE.ENTER);
+        if (passwords.size() != 2)
+            return;
+
+        try {
+            Path scriptFile = Files.createTempFile("dumpScript", ".sql");
+            Files.write(scriptFile, ("SCRIPT TO '" + sqlFile.getAbsolutePath() + "'")
+                    .getBytes(StandardCharsets.UTF_8));
+            RunScript.execute(URLPREFIX + dbName + ";" + CIPHERCLAUSE,
+                    DBOWNER, passwords.get(1) + " " + passwords.get(1) , scriptFile.toString(),
+                    null, false);
+            showInformationDialog("Success!","DB to SQL conversion succeed.",
+                    dbName + DBPOSTFIX + " successfully converted to " + sqlFile.getAbsolutePath());
+            Files.deleteIfExists(scriptFile);
+        } catch (Exception e) {
+            // catch Exception for runtime exception
+            showExceptionDialog(getStage(), "Exception", "Converting DB to SQL failed", "", e);
+            mLogger.error(e);
+        }
+    }
+
+    // show a FileChooser dialog box to let user select file
+    // if ef is null, then ExtensionFilter is not set
+    // if initDir is null, then initial directory is not set
+    // if initFile is null, then initial file is not set.
+    File getUserFile(final String title, final FileChooser.ExtensionFilter ef,
+                     final File initDir, final String initFileName, final boolean isSave) {
+        final FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(title);
+
+        if (ef != null)
+            fileChooser.getExtensionFilters().add(ef);
+        if (initDir != null)
+            fileChooser.setInitialDirectory(initDir);
+        if (initFileName != null)
+            fileChooser.setInitialFileName(initFileName);
+
+        if (isSave)
+            return fileChooser.showSaveDialog(getStage());
+
+        return fileChooser.showOpenDialog(getStage());
+    }
+
+    // create a new db from a sql file (previously converted from DBToSQL)
+    void SQLToDB() {
+        // first let user select input SQL file
+        final File sqlFile = getUserFile("Select SQL script file...",
+                null, null, null, false);
+        if (sqlFile == null)
+            return;
+
+        if (!sqlFile.exists() || !sqlFile.canRead()) {
+            final String reason = !sqlFile.exists() ? "not exist" : "not readable";
+            showWarningDialog("File " + reason, sqlFile.getAbsolutePath() +  " " + reason,
+                    "Cannot continue");
+            return;
+        }
+
+        // now let user select output DB file
+        File dbFile = getUserFile("Select database file...",
+                new FileChooser.ExtensionFilter("DB", "*" + DBPOSTFIX), null, null, true);
+        if (dbFile == null)
+            return;
+
+        String dbName = dbFile.getAbsolutePath();
+        if (!dbName.endsWith(DBPOSTFIX)) {
+            // user didn't enter the postfix, add it and check existence again
+            dbName = dbName + DBPOSTFIX;
+            dbFile = new File(dbName);
+
+            if (dbFile.exists()) {
+                final Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText("File " + dbFile.getAbsolutePath() + " exists. "
+                        + "All information in the file will be overwritten. "
+                        + "Click OK to continue, click Cancel otherwise.");
+                final Optional<ButtonType> result = alert.showAndWait();
+                if (result.orElse(ButtonType.CANCEL) != ButtonType.OK)
+                    return;
+            }
+        }
+
+        // strip the postfix
+        dbName = dbName.substring(0, dbName.length()-DBPOSTFIX.length());
+
+        final List<String> passwords = showPasswordDialog("Please create new password for " + dbName,
+                PasswordDialogController.MODE.NEW);
+        if (passwords.size() != 2) {
+            return;
+        }
+
+        try {
+            // make sure dbFile does not exist before we run.
+            Files.deleteIfExists(dbFile.toPath());
+
+            RunScript.execute(URLPREFIX + dbName + ";" + CIPHERCLAUSE,
+                    DBOWNER, passwords.get(1) + " " + passwords.get(1), sqlFile.getAbsolutePath(),
+                    null, false);
+            showInformationDialog("Success!","SQL to DB conversion succeed.",
+                    sqlFile.getAbsolutePath() + " is successfully converted to " + dbName + DBPOSTFIX);
+        } catch (Exception e) {
+            // in addition to SQLException, RunScript.execute also converting IOException to a runtime exception
+            // We need to catch Exception to catch it.
+            showExceptionDialog(getStage(), "Exception", "Converting SQL to DB failed", "", e);
+            mLogger.error(e);
+        }
+    }
+
     // create a new database
     void openDatabase(boolean isNew, String dbName, String password) {
         File file;
@@ -3642,7 +3779,7 @@ public class MainApp extends Application {
             else
                 passwords = showPasswordDialog("Enter Password", PasswordDialogController.MODE.ENTER);
 
-            if (passwords == null || passwords.size() == 0 || passwords.get(1) == null) {
+            if (passwords.isEmpty() || passwords.get(1) == null) {
                 if (isNew) {
                     Alert alert = new Alert(Alert.AlertType.WARNING);
                     alert.initOwner(mPrimaryStage);
@@ -3666,35 +3803,34 @@ public class MainApp extends Application {
             getConnectionProperty().set(DriverManager.getConnection(url, DBOWNER, password + ' ' + password));
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
-
+            final String title;
+            final String header;
             int errorCode = e.getErrorCode();
             // 90049 -- bad encryption password
             // 28000 -- wrong user name or password
             // 90020 -- Database may be already in use: locked by another process
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.initOwner(mPrimaryStage);
             switch (errorCode) {
                 case 90049:
                 case 28000:
-                    alert.setTitle("Bad password");
-                    alert.setHeaderText("Wrong password for " + dbName);
+                    title = "Bad password";
+                    header = "Wrong password for " + dbName;
                     break;
                 case 90020:
-                    alert.setTitle("Filed locked");
-                    alert.setHeaderText("File may be already in use, locked by another process.");
+                    title = "File locked";
+                    header = "File may be already in use, locked by another process.";
                     break;
                 case 90013:
-                    alert.setTitle("File does not exist.");
-                    alert.setHeaderText("File may be moved or deleted.");
+                    title = "File not exist";
+                    header = "File may be moved or deleted.";
                     break;
                 default:
-                    alert.setTitle("SQL Error");
-                    alert.setHeaderText("Error Code: " + errorCode);
-                    alert.setContentText(SQLExceptionToString(e));
+                    title = "SQL Error";
+                    header = "Error Code: " + errorCode;
                     break;
             }
-            alert.showAndWait();
+            showExceptionDialog(getStage(), title, header, SQLExceptionToString(e), e);
         } catch (ClassNotFoundException e){
+            mLogger.error("ClassNotFoundException", e);
             showExceptionDialog(mPrimaryStage, "Exception", "ClassNotFoundException", e.getMessage(), e);
         }
 

@@ -405,7 +405,7 @@ public class MainController {
             passwords = mMainApp.showPasswordDialog("Create New Vault Master Password",
                     PasswordDialogController.MODE.NEW);
 
-        if (passwords.size() == 0) {
+        if (passwords.isEmpty()) {
             String title = "Warning";
             String header = "Password not entered";
             String content = "Master Password not " + (isUpdate ? "updated" : "created");
@@ -550,6 +550,16 @@ public class MainController {
             MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "IO Exception",
                     "Failed to load ExportQIFDialog", e);
         }
+    }
+
+    @FXML
+    private void handleSQLToDB() {
+        mMainApp.SQLToDB();
+    }
+
+    @FXML
+    private void handleDBToSQL() {
+        mMainApp.DBToSQL();
     }
 
     @FXML

@@ -37,7 +37,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="60.0" minWidth="100.0" prefHeight="600.0" prefWidth="1000.0" stylesheets="@../css/Main.css" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.MainController">
+<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="60.0" minWidth="100.0" prefHeight="600.0" prefWidth="1000.0" stylesheets="@../css/Main.css" xmlns="http://javafx.com/javafx/15.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.MainController">
    <center>
       <VBox fx:id="mTransactionVBox" BorderPane.alignment="CENTER">
          <children>
@@ -175,6 +175,12 @@
                   </Menu>
                 <Menu mnemonicParsing="false" text="Help">
                   <items>
+                        <Menu mnemonicParsing="false" text="SQL Conversion">
+                          <items>
+                              <MenuItem mnemonicParsing="false" onAction="#handleDBToSQL" text="DB to SQL" />
+                              <MenuItem mnemonicParsing="false" onAction="#handleSQLToDB" text="SQL to DB" />
+                          </items>
+                        </Menu>
                     <MenuItem mnemonicParsing="false" onAction="#handleAbout" text="About" />
                   </items>
                 </Menu>

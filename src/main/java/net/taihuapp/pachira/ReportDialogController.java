@@ -280,6 +280,15 @@ public class ReportDialogController {
         }
     }
 
+    private Set<String> mapSecurityIDSetToNameSet(Set<Integer> idSet) {
+        Set<String> nameSet = new HashSet<>();
+        for (Integer id : idSet) {
+            Security security = mMainApp.getSecurityByID(id);
+            nameSet.add(security == null ? NOSECURITY : security.getName());
+        }
+        return nameSet;
+    }
+
     private void setupCapitalGainsReport() {
         setupDatesTab(true, false);
         setupAccountsTab(Account.Type.INVESTING);
@@ -900,11 +909,7 @@ public class ReportDialogController {
         }
 
         // Transaction has only security name, not id, so we convert ids to names.
-        Set<String> securityNameSet = new HashSet<>();
-        for (Integer sid : mSetting.getSelectedSecurityIDSet()) {
-            Security security = mMainApp.getSecurityByID(sid);
-            securityNameSet.add(security == null ? NOSECURITY : security.getName());
-        }
+        Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
 
         class Line {
             private String date = "";
@@ -1076,13 +1081,18 @@ public class ReportDialogController {
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
+        // selected security tab has only IDs, transaction contains security name only,
+        // convert ID's to names
+        Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
+
         final LocalDate sDate1 = mSetting.mStartDate.minusDays(1); // one day before start date
         final LocalDate eDate1 = mSetting.mEndDate.plusDays(1); // one day after end date
         for (Account account : mSetting.getSelectedAccountSet()) {
             for (Transaction t : new FilteredList<>(account.getTransactionList(), p ->
-                    ((p.getTradeAction() == Transaction.TradeAction.SELL ||
-                    p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
-                    p.getTDate().isAfter(sDate1) && p.getTDate().isBefore(eDate1)))) {
+                    (securityNameSet.contains(p.getSecurityName()) &&
+                            (p.getTradeAction() == Transaction.TradeAction.SELL ||
+                                    p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
+                            p.getTDate().isAfter(sDate1) && p.getTDate().isBefore(eDate1)))) {
                 BigDecimal matchedQuantity = BigDecimal.ZERO;
                 CapitalGainItem transactionSTG = null; // keep track short term gain for the transaction
                 CapitalGainItem transactionLTG = null; // keep track long term gain for the transaction
@@ -1334,11 +1344,7 @@ public class ReportDialogController {
         }
 
         // Transaction has only security name, not id, so we convert ids to names.
-        Set<String> securityNameSet = new HashSet<>();
-        for (Integer sid : mSetting.getSelectedSecurityIDSet()) {
-            Security security = mMainApp.getSecurityByID(sid);
-            securityNameSet.add(security == null ? "" : security.getName());
-        }
+        Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
 
         class Line {
             private String date = "";

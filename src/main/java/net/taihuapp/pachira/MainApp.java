@@ -4867,7 +4867,7 @@ public class MainApp extends Application {
     }
 
     // todo
-    // These few methods should belong to Direction, but I need to put a FIData object instead of
+    // These few methods should belong to Direct Connection, but I need to put a FIData object instead of
     // a FIID in DirectConnection
     // Later.
     private FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection)

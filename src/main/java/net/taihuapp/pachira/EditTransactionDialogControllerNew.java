@@ -340,7 +340,7 @@ public class EditTransactionDialogControllerNew {
         if (transaction == null) {
             mTransactionOrig = null;
             mTransaction = new Transaction(defaultAccount.getID(), LocalDate.now(),
-                    defaultAccount.getType() == Account.Type.INVESTING ? BUY : WITHDRAW, 0);
+                    defaultAccount.getType().isGroup(Account.NewType.Group.INVESTING) ? BUY : WITHDRAW, 0);
         } else {
             mTransactionOrig = transaction.getID() > 0 ? transaction : null;
             mTransaction = new Transaction(transaction);
@@ -456,8 +456,8 @@ public class EditTransactionDialogControllerNew {
         for  (Tag tag : mainApp.getTagList())
             mTagComboBox.getItems().add(tag.getID());
         autoCompleteComboBox(mTagComboBox);
-        mTagComboBox.setVisible(defaultAccount.getType() != Account.Type.INVESTING);
-        mTagLabel.setVisible(defaultAccount.getType() != Account.Type.INVESTING);
+        mTagComboBox.setVisible(!defaultAccount.getType().isGroup(Account.NewType.Group.INVESTING));
+        mTagLabel.setVisible(defaultAccount.getType().isGroup(Account.NewType.Group.INVESTING));
         mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty());
 
         // reference

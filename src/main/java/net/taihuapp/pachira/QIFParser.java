@@ -127,7 +127,7 @@ class QIFParser {
     }
 
     static Account parseAccountFromQIFLines(List<String> lines) {
-        Account.Type type = null;
+        Account.NewType type = null;
         String name = "";
         String desc = "";
         for (String l : lines) {
@@ -136,7 +136,7 @@ class QIFParser {
                     name = l.substring(1);
                     break;
                 case 'T':
-                    type = qifAccountType2AccountType(l.substring(1));
+                    type = Account.NewType.fromQIF(l.substring(1)).orElse(null);
                     break;
                 case 'R':
                 case 'L':
@@ -154,26 +154,6 @@ class QIFParser {
             return null;
 
         return new Account(0, type, name, desc, false, Integer.MAX_VALUE, null, BigDecimal.ZERO);
-    }
-
-    static Account.Type qifAccountType2AccountType(String qifType) {
-        switch (qifType) {
-            case "Bank":
-            case "Cash":
-            case "CCard":
-                return Account.Type.SPENDING;
-            case "Mutual":
-            case "Port":
-            case "401(k)/403(b)":
-            case "Invst":
-                return Account.Type.INVESTING;
-            case "Oth A":
-                return Account.Type.PROPERTY;
-            case "Oth L":
-                return Account.Type.DEBT;
-            default:
-                return null;
-        }
     }
 
     static class BankTransaction {

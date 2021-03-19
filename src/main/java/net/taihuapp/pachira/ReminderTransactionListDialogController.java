@@ -132,7 +132,7 @@ public class ReminderTransactionListDialogController {
         transaction.setSplitTransactionList(reminder.getSplitTransactionList());
         transaction.setTagID(reminder.getTagID());
         int tid = mMainApp.showEditTransactionDialog(mMainApp.getStage(), transaction,
-                mMainApp.getAccountList(Account.Type.SPENDING, null, false),
+                mMainApp.getAccountList(Account.NewType.Group.SPENDING, null, false),
                 mMainApp.getAccountByID(reminder.getAccountID()), Collections.singletonList(ta));
         if (tid >= 0) {
             mMainApp.insertReminderTransactions(rt, tid);

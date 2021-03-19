@@ -138,7 +138,11 @@ public class EditAccountDirectConnectionDialogController {
         // add change listeners
         mDCComboBox.getSelectionModel().selectedItemProperty().addListener((obs, odc, ndc) -> {
             switch (mMainApp.getCurrentAccount().getType()) {
-                case SPENDING:
+                case CREDIT_CARD:
+                    break;
+                case CHECKING:
+                case SAVINGS:
+                case CASH:
                     ObservableList<BankAccountDetails> bankAccounts = FXCollections.observableArrayList();
                     BankAccountDetails accountToSelect = null;
                     if (ndc.getID() > 0) {
@@ -177,9 +181,24 @@ public class EditAccountDirectConnectionDialogController {
                         mBankAccountTableView.getSelectionModel().select(accountToSelect);
 
                     break;
-                case INVESTING:
-                case DEBT:
-                case PROPERTY:
+                case BROKERAGE:
+                    break;
+                case IRA:
+                    break;
+                case PLAN401K:
+                    break;
+                case PLAN529:
+                    break;
+                case HOUSE:
+                    break;
+                case VEHICLE:
+                    break;
+                case OTHER_ASSET:
+                    break;
+                case LOAN:
+                    break;
+                case OTHER_LIABILITY:
+                    break;
                 default:
                     break;
             }

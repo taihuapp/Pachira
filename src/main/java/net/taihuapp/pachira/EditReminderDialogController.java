@@ -155,7 +155,7 @@ public class EditReminderDialogController {
 
         mAccountIDComboBox.setConverter(new AccountIDConverter());
         mAccountIDComboBox.getItems().clear();
-        for (Account a : mMainApp.getAccountList(Account.Type.SPENDING, false, true))
+        for (Account a : mMainApp.getAccountList(Account.NewType.Group.SPENDING, false, true))
             mAccountIDComboBox.getItems().add(a.getID());
         Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
         if (mAccountIDComboBox.getSelectionModel().isEmpty())

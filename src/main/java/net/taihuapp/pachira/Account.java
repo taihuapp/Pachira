@@ -26,6 +26,8 @@ import javafx.collections.ObservableList;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Optional;
 
 import static net.taihuapp.pachira.QIFUtil.EOL;
 import static net.taihuapp.pachira.QIFUtil.EOR;
@@ -37,9 +39,9 @@ public class Account {
      * types
      *    Banking
      *        Checking
-     *        Saving
-     *        credit card
-     *        cash
+     *        Savings
+     *        Credit Card
+     *        Cash
      *    Investing
      *        Brokerage
      *        IRA or Keogh
@@ -50,37 +52,95 @@ public class Account {
      *        Vehicle
      *        Other
      *    Debt
-     *        loan
+     *        Loan
      *        Other liability (not a credit card)
      */
 
-    // make sure the name is not longer than 10 characters
-    // otherwise database change is needed
-    enum Type {
-        SPENDING, INVESTING, PROPERTY, DEBT;
+    // make sure the names are not longer than 16 characters, the type column in account table is varchar(16)
+    enum NewType {
+        CHECKING(Group.SPENDING), SAVINGS(Group.SPENDING), CREDIT_CARD(Group.SPENDING), CASH(Group.SPENDING),
+        BROKERAGE(Group.INVESTING), IRA(Group.INVESTING), PLAN401K(Group.INVESTING), PLAN529(Group.INVESTING),
+        HOUSE(Group.PROPERTY), VEHICLE(Group.PROPERTY), OTHER_ASSET(Group.PROPERTY),
+        LOAN(Group.DEBT), OTHER_LIABILITY(Group.DEBT);
 
-        @Override
-        public String toString() {
-            switch (this) {
-                case SPENDING:
-                    return "Bank";
-                case INVESTING:
-                    return "Port";
-                case PROPERTY:
-                    return "Oth A";
-                case DEBT:
-                    return "Oth L";
-                default:
-                    return null;
+        enum Group {
+            SPENDING, INVESTING, PROPERTY, DEBT;
+            @Override
+            public String toString() {
+                return name().charAt(0) + name().substring(1).toLowerCase();
             }
         }
 
-        public String toString2() {
-            return this.equals(INVESTING) ? "Invst" : toString();
+        private final Group group;
+
+        NewType(Group g) {
+            group = g;
+        }
+
+        Group getGroup() { return group; }
+        boolean isGroup(Group g) { return group.equals(g); }
+
+        public String toString() {
+            switch (this) {
+                case IRA:
+                    return "IRA/Keogh Plan";
+                case PLAN401K:
+                    return "401(k)/403(b)";
+                case PLAN529:
+                    return "529 Plan";
+                case CHECKING:
+                case SAVINGS:
+                case CREDIT_CARD:
+                case CASH:
+                case BROKERAGE:
+                case HOUSE:
+                case VEHICLE:
+                case OTHER_ASSET:
+                case LOAN:
+                case OTHER_LIABILITY:
+                default:
+                    return name().charAt(0) + name().substring(1).replace("_", " ").toLowerCase();
+            }
+        }
+
+        String toQIF(boolean useAlt) {
+            // when using alternative form, all types in INVESTING group output Invst
+            if (useAlt && isGroup(Group.INVESTING))
+                return "Invst";
+            switch (this) {
+                case CHECKING:
+                case SAVINGS:
+                    return "Bank";
+                case CREDIT_CARD:
+                    return "CCard";
+                case CASH:
+                    return "Cash";
+                case BROKERAGE:
+                case IRA:
+                case PLAN529:
+                    return "Port";
+                case PLAN401K:
+                    return "401(k)/403(b)";
+                case HOUSE:
+                case VEHICLE:
+                case OTHER_ASSET:
+                    return "Oth A";
+                case LOAN:
+                case OTHER_LIABILITY:
+                    return "Oth L";
+                default:
+                    return toString();
+            }
+        }
+
+        static Optional<NewType> fromQIF(String QIFCode) {
+            if (QIFCode.equals("Mutual") || QIFCode.equals("Invst"))
+                return fromQIF("Port");
+            return Arrays.stream(NewType.values()).filter(t -> t.toQIF(false).equals(QIFCode)).findFirst();
         }
     }
 
-    private final Type mType;
+    private final ObjectProperty<NewType> mTypeProperty = new SimpleObjectProperty<>();
 
     private final IntegerProperty mID;
     private final StringProperty mName;
@@ -93,10 +153,10 @@ public class Account {
     private final ObjectProperty<LocalDate> mLastReconcileDateProperty = new SimpleObjectProperty<>(null);
 
     // detailed constructor
-    public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
+    public Account(int id, NewType type, String name, String description, Boolean hidden, Integer displayOrder,
                    LocalDate lrDate, BigDecimal balance) {
         mID = new SimpleIntegerProperty(id);
-        mType = type;
+        mTypeProperty.set(type);
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
         mCurrentBalance = new SimpleObjectProperty<>(balance);
@@ -107,9 +167,9 @@ public class Account {
         mCurrentSecurityList = FXCollections.observableArrayList();
     }
 
-    public String toQIF() {
+    public String toQIF(boolean useAlt) {
         String qif = "N" + getName() + EOL
-                + "T" + getType() + EOL;
+                + "T" + getType().toQIF(useAlt) + EOL;
         if (!getDescription().isEmpty())
             qif = qif + "D" + getDescription() + EOL;
 
@@ -117,7 +177,9 @@ public class Account {
     }
 
     // getters and setters
-    public Type getType() { return mType; }
+    public ObjectProperty<NewType> getTypeProperty() { return mTypeProperty; }
+    public NewType getType() { return mTypeProperty.get(); }
+    public void setType(NewType type) { mTypeProperty.set(type); }
 
     ObservableList<Security> getCurrentSecurityList() { return mCurrentSecurityList; }
     boolean hasSecurity(Security security) {
@@ -167,7 +229,7 @@ public class Account {
         BigDecimal b = new BigDecimal(0);
         boolean accountBalanceIsSet = false;
         for (Transaction t : getTransactionList()) {
-            if ((getType() != Type.INVESTING) && !accountBalanceIsSet
+            if (!getType().isGroup(NewType.Group.INVESTING) && !accountBalanceIsSet
                     && t.getTDateProperty().get().isAfter(LocalDate.now())) {
                 // this is a future transaction.  if account current balance is not set
                 // set it before process this future transaction
@@ -181,13 +243,13 @@ public class Account {
             }
         }
         // at the end of the list, if the account balance still not set, set it now.
-        if (!accountBalanceIsSet && (getType() != Type.INVESTING))
+        if (!accountBalanceIsSet && (!getType().isGroup(NewType.Group.INVESTING)))
             setCurrentBalance(b);
     }
 
     public String toString() {
         return "mID:" + mID.get() + ";mType:" +
-                (mType == null ? "Null Type" : mType.name()) + ";mName:" +
+                (getType() == null ? "Null Type" : getType().name()) + ";mName:" +
                 mName.get() + ";mDescription:" + mDescription.get();
     }
 }

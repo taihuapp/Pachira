@@ -39,7 +39,7 @@
         </TilePane>
     </bottom>
    <top>
-      <ChoiceBox fx:id="mTypeChoiceBox" prefWidth="150.0" BorderPane.alignment="CENTER_LEFT">
+      <ChoiceBox fx:id="mGroupChoiceBox" prefWidth="150.0" BorderPane.alignment="CENTER_LEFT">
          <BorderPane.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </BorderPane.margin>

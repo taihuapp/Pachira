@@ -127,7 +127,7 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 9;  // need DBVERSION to run properly.
+    private static final int DBVERSIONVALUE = 10;  // need DBVERSION to run properly.
 
     private static final int ACCOUNTNAMELEN = 40;
     private static final int ACCOUNTDESCLEN = 256;
@@ -196,7 +196,7 @@ public class MainApp extends Application {
     // we want to watch the change of hiddenFlag and displayOrder
     // Todo why do we need observe on current balance?
     private final ObservableList<Account> mAccountList = FXCollections.observableArrayList(
-            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(),
+            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(), a.getTypeProperty(),
                     a.getCurrentBalanceProperty() });
     private final ObservableList<AccountDC> mAccountDCList = FXCollections.observableArrayList();
     private final ObservableList<Tag> mTagList = FXCollections.observableArrayList();
@@ -265,9 +265,9 @@ public class MainApp extends Application {
     // return accounts for given type t or all account if t is null
     // return either hidden or nonhidden account based on hiddenflag, or all if hiddenflag is null
     // include DELETED_ACCOUNT if exDeleted is false.
-    SortedList<Account> getAccountList(Account.Type t, Boolean hidden, Boolean exDeleted) {
+    SortedList<Account> getAccountList(Account.NewType.Group g, Boolean hidden, Boolean exDeleted) {
         FilteredList<Account> fList = new FilteredList<>(mAccountList,
-                a -> (t == null || a.getType() == t) && (hidden == null || a.getHiddenFlag() == hidden)
+                a -> (g == null || a.getType().isGroup(g)) && (hidden == null || a.getHiddenFlag() == hidden)
                         && !(exDeleted && a.getName().equals(DELETED_ACCOUNT_NAME)));
 
         // sort accounts by type first, then displayOrder, then ID
@@ -484,7 +484,7 @@ public class MainApp extends Application {
             // need to export account information
             stringBuilder.append("!Option:AutoSwitch").append(EOL);
             stringBuilder.append("!Account").append(EOL);
-            getAccountList(null, null, true).forEach(a -> stringBuilder.append(a.toQIF()));
+            getAccountList(null, null, true).forEach(a -> stringBuilder.append(a.toQIF(false)));
             stringBuilder.append("!Clear:AutoSwitch").append(EOL);
         }
 
@@ -497,8 +497,8 @@ public class MainApp extends Application {
             stringBuilder.append("!Option:AutoSwitch").append(EOL);
             accountList.forEach(account -> {
                 stringBuilder.append("!Account").append(EOL);
-                stringBuilder.append(account.toQIF());
-                stringBuilder.append("!Type:").append(account.getType().toString2()).append(EOL);
+                stringBuilder.append(account.toQIF(true));
+                stringBuilder.append("!Type:").append(account.getType().toQIF(true)).append(EOL);
                 account.getTransactionList().filtered(t ->
                         ((!t.getTDate().isBefore(fromDate)) && (!t.getTDate().isAfter(toDate))))
                         .forEach(transaction -> stringBuilder.append(transaction.toQIF(this)));
@@ -1510,8 +1510,8 @@ public class MainApp extends Application {
             mLogger.error("Account [" + accountName + "] not found, nothing inserted");
             return -1;
         }
-        if (account.getType() == Account.Type.INVESTING) {
-            mLogger.error("Account " + account.getName() + " is not an investing account");
+        if (account.getType().isGroup(Account.NewType.Group.INVESTING)) {
+            mLogger.error("Account " + account.getName() + " is an investing account");
             return -1;
         }
 
@@ -1955,7 +1955,7 @@ public class MainApp extends Application {
 
     void updateAccountBalance(Security security) {
         // update account balance for all non-hidden accounts contains security in currentsecuritylist
-        for (Account account : getAccountList(Account.Type.INVESTING, false, true)) {
+        for (Account account : getAccountList(Account.NewType.Group.INVESTING, false, true)) {
             if (account.hasSecurity(security)) {
                 updateAccountBalance(account.getID());
             }
@@ -1974,7 +1974,7 @@ public class MainApp extends Application {
 
     void updateAccountBalance(Account account) {
         // update holdings and balance for INVESTING account
-        if (account.getType() == Account.Type.INVESTING) {
+        if (account.getType().isGroup(Account.NewType.Group.INVESTING)) {
             List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
             SecurityHolding totalHolding = shList.get(shList.size() - 1);
             if (totalHolding.getSecurityName().equals("TOTAL")) {
@@ -2041,7 +2041,7 @@ public class MainApp extends Application {
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int id = rs.getInt("ID");
-                Account.Type type = Account.Type.valueOf(rs.getString("TYPE"));
+                Account.NewType type = Account.NewType.valueOf(rs.getString("TYPE"));
                 String name = rs.getString("NAME");
                 String description = rs.getString("DESCRIPTION");
                 Boolean hiddenFlag = rs.getBoolean("HIDDENFLAG");
@@ -2602,7 +2602,7 @@ public class MainApp extends Application {
     List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
         // empty the list first
         List<SecurityHolding> securityHoldingList = new ArrayList<>();
-        if (account.getType() != Account.Type.INVESTING) {
+        if (!account.getType().isGroup(Account.NewType.Group.INVESTING)) {
             // deal with non investing account here
             BigDecimal totalCash = null;
             int n = account.getTransactionList().size();
@@ -2938,7 +2938,7 @@ public class MainApp extends Application {
 
     // The input transaction is not changed.
     void showEditTransactionDialog(Stage parent, Transaction transaction) {
-        List<Transaction.TradeAction> taList = (getCurrentAccount().getType() == Account.Type.INVESTING) ?
+        List<Transaction.TradeAction> taList = getCurrentAccount().getType().isGroup(Account.NewType.Group.INVESTING) ?
                 Arrays.asList(Transaction.TradeAction.values()) :
                 Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
         showEditTransactionDialog(parent, transaction, Collections.singletonList(getCurrentAccount()),
@@ -2974,7 +2974,7 @@ public class MainApp extends Application {
             mLogger.error("Can't show holdings for null account.");
             return;
         }
-        if (getCurrentAccount().getType() != Account.Type.INVESTING) {
+        if (!getCurrentAccount().getType().isGroup(Account.NewType.Group.INVESTING)) {
             mLogger.error("Show holdings only applicable for trading account");
             return;
         }
@@ -3916,7 +3916,18 @@ public class MainApp extends Application {
 
         // need to run this to update DBVERSION
         final String mergeSQL = "merge into SETTINGS (NAME, VALUE) values ('" + DBVERSIONNAME + "', " + newV + ")";
-        if (newV == 9) {
+        if (newV == 10) {
+            try (Statement statement = getConnection().createStatement()) {
+                // change account table type column size
+                statement.executeUpdate("alter table ACCOUNTS alter column TYPE varchar(16) not null");
+                statement.executeUpdate("update ACCOUNTS set TYPE = 'CHECKING' where TYPE = 'SPENDING'");
+                statement.executeUpdate("update ACCOUNTS set TYPE = 'BROKERAGE' where TYPE = 'INVESTING'");
+                statement.executeUpdate("update ACCOUNTS set TYPE = 'HOUSE' where TYPE = 'PROPERTY'");
+                statement.executeUpdate("update ACCOUNTS set TYPE = 'LOAN' where TYPE = 'DEBT'");
+                statement.executeUpdate("alter table SETTINGS alter column VALUE varchar(255) not null");
+                statement.executeUpdate(mergeSQL);
+            }
+        } else if (newV == 9) {
             // change PRICES table structure, remove duplicate, etc.
             final String alterPRICESTableSQL = "alter table PRICES add TICKER varchar(16);"
                     + "update PRICES p set p.TICKER = (select s.TICKER from SECURITIES s where s.ID = p.SECURITYID);"
@@ -4656,7 +4667,7 @@ public class MainApp extends Application {
                 if (security != null && price != null && price.compareTo(BigDecimal.ZERO) > 0) {
                     insertUpdatePriceToDB(security.getID(), security.getTicker(), newT.getTDate(), price, 0);
 
-                    getAccountList(Account.Type.INVESTING, false, true).stream()
+                    getAccountList(Account.NewType.Group.INVESTING, false, true).stream()
                             .filter(a -> a.hasSecurity(security)).forEach(a -> accountIDSet.add(a.getID()));
                 }
 
@@ -4841,7 +4852,7 @@ public class MainApp extends Application {
                 // Settings table is not created yet, create it now
                 sqlCreateTable("create table SETTINGS (" +
                         "NAME varchar(32) UNIQUE NOT NULL," +
-                        "VALUE integer NOT NULL," +
+                        "VALUE varchar(255) NOT NULL," +
                         "primary key (NAME))");
                 statement.executeUpdate("merge into SETTINGS (NAME, VALUE) values (" +
                         "'" + DBVERSIONNAME + "', " + dbVersion + ")");
@@ -4858,8 +4869,14 @@ public class MainApp extends Application {
         int dbVersion = 0;
         try (Statement statement = getConnection().createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
-            if (resultSet.next())
-                dbVersion = resultSet.getInt(1);
+            ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
+            int columnType = resultSetMetaData.getColumnType(1);
+            if (resultSet.next()) {
+                if (columnType == Types.INTEGER)
+                    dbVersion = resultSet.getInt(1);
+                else
+                    dbVersion = Integer.parseInt(resultSet.getString(1));
+            }
         } catch (SQLException e) {
             mLogger.error("SQLException: " + e.getSQLState(), e);
         }
@@ -4902,8 +4919,8 @@ public class MainApp extends Application {
             InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
             NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
             IllegalBlockSizeException, BadPaddingException, SQLException, OFXException {
-        Account.Type accountType = account.getType();
-        if (!accountType.equals(Account.Type.SPENDING)) {
+        Account.NewType accountType = account.getType();
+        if (!accountType.isGroup(Account.NewType.Group.SPENDING)) {
             throw new IllegalArgumentException("DCDownloadAccountStatement currently only supports SPENDING account, "
                     + account.getType() + " is currently not supported.");
         }
@@ -5181,7 +5198,7 @@ public class MainApp extends Application {
         String sqlCmd = "create table ACCOUNTS ("
                 // make sure to start from MIN_ACCOUNT_ID
                 + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_ACCOUNT_ID + "), "
-                + "TYPE varchar (10) NOT NULL, "
+                + "TYPE varchar (16) NOT NULL, "
                 + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
                 + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
                 + "HIDDENFLAG boolean NOT NULL, "
@@ -5191,7 +5208,7 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // insert Deleted account as the first account, so the account number is MIN_ACCOUND_ID
-        insertUpdateAccountToDB(new Account(-1, Account.Type.SPENDING, DELETED_ACCOUNT_NAME,
+        insertUpdateAccountToDB(new Account(-1, Account.NewType.CHECKING, DELETED_ACCOUNT_NAME,
                 "Placeholder for the Deleted Account", true, Integer.MAX_VALUE,
                 null, BigDecimal.ZERO));
 
@@ -5455,7 +5472,7 @@ public class MainApp extends Application {
     ObservableList<Transaction> getMergeCandidateTransactionList(final Transaction transaction)
             throws IllegalArgumentException {
         final Account account = getAccountByID(transaction.getAccountID());
-        if (!account.getType().equals(Account.Type.SPENDING)) {
+        if (!account.getType().isGroup(Account.NewType.Group.SPENDING)) {
             // for account type other than SPENDING,
             throw new IllegalArgumentException("Account type " + account.getType().toString()
                     + " is not supported yet");

@@ -131,18 +131,18 @@ public class ReportDialogController {
 
         Set<Account> getSelectedAccountSet() { return mSelectedAccountSet; }
         List<Account> getSelectedAccountList(MainApp mainApp) {
-            Account.Type t;
+            Account.NewType.Group g;
             switch (getType()) {
                 case INVESTINCOME:
                 case INVESTTRANS:
                 case CAPITALGAINS:
-                    t = Account.Type.INVESTING;
+                    g = Account.NewType.Group.INVESTING;
                     break;
                 default:
-                    t = null;
+                    g = null;
                     break;
             }
-            return new FilteredList<>(mainApp.getAccountList(t, null, true),
+            return new FilteredList<>(mainApp.getAccountList(g, null, true),
                     a->getSelectedAccountSet().contains(a));
         }
         Set<Integer> getSelectedCategoryIDSet() { return mSelectedCategoryIDSet; }
@@ -291,7 +291,7 @@ public class ReportDialogController {
 
     private void setupCapitalGainsReport() {
         setupDatesTab(true, false);
-        setupAccountsTab(Account.Type.INVESTING);
+        setupAccountsTab(Account.NewType.Group.INVESTING);
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         mTradeActionTab.setDisable(true);
@@ -309,7 +309,7 @@ public class ReportDialogController {
 
     private void setupInvestIncomeReport() {
         setupDatesTab(true, false);
-        setupAccountsTab(Account.Type.INVESTING); // show investing accounts only
+        setupAccountsTab(Account.NewType.Group.INVESTING); // show investing accounts only
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         setupTradeActionTab();
@@ -318,7 +318,7 @@ public class ReportDialogController {
 
     private void setupInvestTransactionReport() {
         setupDatesTab(true, false);
-        setupAccountsTab(Account.Type.INVESTING); // show investing accounts only
+        setupAccountsTab(Account.NewType.Group.INVESTING); // show investing accounts only
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         setupTradeActionTab();
@@ -367,11 +367,11 @@ public class ReportDialogController {
         mFrequencyChoiceBox.getSelectionModel().select(mSetting.getFrequency());
     }
 
-    private void setupAccountsTab(Account.Type t) {
+    private void setupAccountsTab(Account.NewType.Group g) {
         // a list of Pair<Pair<account, displayOrder>, selected>
         ObservableList<Pair<Account, BooleanProperty>> abList = FXCollections.observableArrayList();
 
-        for (Account a : mMainApp.getAccountList(t,null, true)) {
+        for (Account a : mMainApp.getAccountList(g,null, true)) {
             abList.add(new Pair<>(a, new SimpleBooleanProperty(mSetting.getSelectedAccountSet().contains(a))));
         }
 
@@ -652,7 +652,7 @@ public class ReportDialogController {
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
         Income fieldUsed = new Income(); // use this to keep track the field being used
         List<Map<String, Income>> accountSecurityIncomeList = new ArrayList<>();
-        for (Account account : mMainApp.getAccountList(Account.Type.INVESTING, null, true)) {
+        for (Account account : mMainApp.getAccountList(Account.NewType.Group.INVESTING, null, true)) {
             if (!mSetting.getSelectedAccountSet().contains(account))
                 continue;
 
@@ -1390,14 +1390,14 @@ public class ReportDialogController {
                     Line line = new Line();
                     line.date = tDate.toString();
                     line.aName = account.getName();
-                    if (account.getType().equals(Account.Type.INVESTING))
+                    if (account.getType().isGroup(Account.NewType.Group.INVESTING))
                         line.num = t.getTradeAction().name();
                     else
                         line.num = t.getReference() == null ? "" : t.getReference();
                     line.memo = t.getMemo() == null ? "" : t.getMemo();
                     line.category = mMainApp.mapCategoryOrAccountIDToName(t.getCategoryID());
                     BigDecimal amount;
-                    if (account.getType().equals(Account.Type.INVESTING)) {
+                    if (account.getType().isGroup(Account.NewType.Group.INVESTING)) {
                         line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
                         amount = t.getCashAmount();
                     } else {

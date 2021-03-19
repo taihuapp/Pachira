@@ -33,7 +33,7 @@ public class EditAccountDialogController {
     private Account mAccount;
 
     @FXML
-    private ChoiceBox<Account.Type> mTypeChoiceBox;
+    private ChoiceBox<Account.NewType> mTypeChoiceBox;
     @FXML
     private TextField mNameTextField;
     @FXML
@@ -41,28 +41,30 @@ public class EditAccountDialogController {
     @FXML
     private CheckBox mHiddenFlagCheckBox;
 
-    void setAccount(MainApp mainApp, Account account, Account.Type t) {
+    void setAccount(MainApp mainApp, Account account, Account.NewType.Group g) {
         mMainApp = mainApp;
         mAccount = account;
 
         // todo more initialization
         if (account != null) {
             // edit an existing account
+            mTypeChoiceBox.getItems().clear();
+            for (Account.NewType t : Account.NewType.values())
+                if (t.isGroup(account.getType().getGroup()))
+                    mTypeChoiceBox.getItems().add(t);
             mTypeChoiceBox.getSelectionModel().select(account.getType());
-        } else if (t != null) {
-            // new account with a given type
-            mTypeChoiceBox.getSelectionModel().select(t);
         } else {
             // new account without a given type, default to first Type
+            mTypeChoiceBox.getItems().clear();
+            for (Account.NewType t : Account.NewType.values())
+                if (g == null || t.isGroup(g))
+                    mTypeChoiceBox.getItems().add(t);
             mTypeChoiceBox.getSelectionModel().select(0);
         }
 
-        // disable if editing an existing account, or an account with given type.
-        mTypeChoiceBox.setDisable(account != null || t != null);
-
         mNameTextField.setText(account == null ? "" : account.getName());
         mDescriptionTextArea.setText(account == null ? "" : account.getDescription());
-        mHiddenFlagCheckBox.setSelected(account == null ? false : account.getHiddenFlag());
+        mHiddenFlagCheckBox.setSelected(account != null && account.getHiddenFlag());
     }
 
     void setDialogStage(Stage stage) { mDialogStage = stage; }
@@ -91,6 +93,7 @@ public class EditAccountDialogController {
                     null, BigDecimal.ZERO);
         } else {
             mAccount.setName(name);
+            mAccount.setType(mTypeChoiceBox.getValue());
             mAccount.setDescription(mDescriptionTextArea.getText());
             mAccount.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
         }
@@ -105,7 +108,4 @@ public class EditAccountDialogController {
     private void handleCancel() {
         mDialogStage.close();
     }
-
-    @FXML
-    private void initialize() { mTypeChoiceBox.getItems().addAll(Account.Type.values()); }
 }

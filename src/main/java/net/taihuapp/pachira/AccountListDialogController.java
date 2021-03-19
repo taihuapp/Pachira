@@ -20,7 +20,6 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -54,13 +53,13 @@ public class AccountListDialogController {
     };
 
     @FXML
-    private ChoiceBox<Account.Type> mTypeChoiceBox;
+    private ChoiceBox<Account.NewType.Group> mGroupChoiceBox;
     @FXML
     private TableView<Account> mAccountTableView;
     @FXML
     private TableColumn<Account, String> mAccountNameTableColumn;
     @FXML
-    private TableColumn<Account, String> mAccountTypeTableColumn;
+    private TableColumn<Account, Account.NewType> mAccountTypeTableColumn;
     @FXML
     private TableColumn<Account, BigDecimal> mAccountBalanceTableColumn;
     @FXML
@@ -74,7 +73,7 @@ public class AccountListDialogController {
 
     @FXML
     private void handleNew() {
-        showEditAccountDialog(null, mTypeChoiceBox.getValue());
+        showEditAccountDialog(null, mGroupChoiceBox.getValue());
     }
 
     @FXML
@@ -134,7 +133,7 @@ public class AccountListDialogController {
     @FXML
     private void handleClose() { close(); }
 
-    private void showEditAccountDialog(Account account, Account.Type t) {
+    private void showEditAccountDialog(Account account, Account.NewType.Group g) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditAccountDialog.fxml"));
@@ -151,7 +150,7 @@ public class AccountListDialogController {
             }
 
             controller.setDialogStage(dialogStage);
-            controller.setAccount(mMainApp, account, t);
+            controller.setAccount(mMainApp, account, g);
             dialogStage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
@@ -162,26 +161,24 @@ public class AccountListDialogController {
         mMainApp = mainApp;
         mDialogStage = stage;
 
-        class AccountTypeConverter extends StringConverter<Account.Type> {
-            public Account.Type fromString(String s) {
-                Account.Type t;
+        class AccountGroupConverter extends StringConverter<Account.NewType.Group> {
+            public Account.NewType.Group fromString(String s) {
                 try {
-                    t = Account.Type.valueOf(s);
+                    return Account.NewType.Group.valueOf(s.toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    t = null;
+                    return null;
                 }
-                return t;
             }
-            public String toString(Account.Type t) {
-                if (t == null)
+            public String toString(Account.NewType.Group g) {
+                if (g == null)
                     return "All";
-                return t.name();
+                return g.toString();
             }
         }
 
         // first make sure all account display order is set properly
-        for (Account.Type t : Account.Type.values()) {
-            final List<Account> accountList = new ArrayList<>(mMainApp.getAccountList(t, null, true));
+        for (Account.NewType.Group g : Account.NewType.Group.values()) {
+            final List<Account> accountList = new ArrayList<>(mMainApp.getAccountList(g, null, true));
             for (int i = 0; i < accountList.size(); i++) {
                 Account a = accountList.get(i);
                 if (a.getDisplayOrder() != i) {
@@ -225,8 +222,7 @@ public class AccountListDialogController {
         });
 
         mAccountNameTableColumn.setCellValueFactory(cellData -> cellData.getValue().getNameProperty());
-        mAccountTypeTableColumn.setCellValueFactory(cellData
-                -> new SimpleStringProperty(cellData.getValue().getType().name()));
+        mAccountTypeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getTypeProperty());
         mAccountBalanceTableColumn.setCellValueFactory(cellData -> cellData.getValue().getCurrentBalanceProperty());
         mAccountBalanceTableColumn.setCellFactory(column -> new TableCell<>() {
             @Override
@@ -246,10 +242,10 @@ public class AccountListDialogController {
         mAccountHiddenFlagTableColumn.setCellFactory(c -> new CheckBoxTableCell<>());
 
 
-        mTypeChoiceBox.setConverter(new AccountTypeConverter());
-        mTypeChoiceBox.getItems().setAll(Account.Type.values());
-        mTypeChoiceBox.getItems().add(null);
-        mTypeChoiceBox.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
+        mGroupChoiceBox.setConverter(new AccountGroupConverter());
+        mGroupChoiceBox.getItems().setAll(Account.NewType.Group.values());
+        mGroupChoiceBox.getItems().add(null);
+        mGroupChoiceBox.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
             // remove old listener if there is any
             mAccountTableView.getItems().removeListener(mAccountListChangeListener);
             // get all account for the given type, exclude deleted account.
@@ -259,7 +255,7 @@ public class AccountListDialogController {
             mMoveUpButton.setDisable(true);
             mMoveDownButton.setDisable(true);
         });
-        mTypeChoiceBox.getSelectionModel().selectFirst();
+        mGroupChoiceBox.getSelectionModel().selectFirst();
     }
 
     void close() {

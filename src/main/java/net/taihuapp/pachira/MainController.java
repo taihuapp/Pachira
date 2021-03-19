@@ -52,6 +52,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainController {
@@ -195,13 +196,16 @@ public class MainController {
 
         ObservableList<Account> groupAccountList = FXCollections.observableArrayList(account ->
                 new Observable[] {account.getCurrentBalanceProperty()});
-        for (Account.Type t : Account.Type.values()) {
-            Account groupAccount = new Account(-1, t, t.name(),"Placeholder for " + t.toString(),
+        for (Account.NewType.Group g : Account.NewType.Group.values()) {
+            Account.NewType groupAccountType = Arrays.stream(Account.NewType.values()).filter(t -> t.isGroup(g))
+                    .findFirst().orElse(null);
+            Account groupAccount = new Account(-1, groupAccountType, g.toString(),
+                    "Placeholder for " + g.toString(),
                     false, -1, null, BigDecimal.ZERO);
             groupAccountList.add(groupAccount);
             TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
             typeNode.setExpanded(true);
-            final ObservableList<Account> accountList = mMainApp.getAccountList(t, false, true);
+            final ObservableList<Account> accountList = mMainApp.getAccountList(g, false, true);
             for (Account a : accountList) {
                 typeNode.getChildren().add(new TreeItem<>(a));
             }
@@ -230,7 +234,7 @@ public class MainController {
                             // not empty, add to the right spot under root
                             boolean added = false;
                             for (int i = 0; i < root.getChildren().size(); i++) {
-                                Account.Type type = root.getChildren().get(i).getValue().getType();
+                                Account.NewType type = root.getChildren().get(i).getValue().getType();
                                 if (type == typeNode.getValue().getType()) {
                                     // already added
                                     added = true;
@@ -691,7 +695,7 @@ public class MainController {
             return;
         }
 
-        boolean isTradingAccount = account.getType() == Account.Type.INVESTING;
+        boolean isTradingAccount = account.getType().isGroup(Account.NewType.Group.INVESTING);
 
         mTransactionAccountNameLabel.setVisible(true);
         mTransactionAccountNameLabel.setText(account.getName());
@@ -785,12 +789,12 @@ public class MainController {
                         mMainApp.alterTransaction(getItem(), null, new ArrayList<>());
                 });
                 final Menu moveToMenu = new Menu("Move to...");
-                for (Account.Type at : Account.Type.values()) {
-                    final Menu atMenu = new Menu(at.name());
-                    atMenu.getItems().add(new MenuItem(at.name())); // need this placeholder for setOnShowing to work
-                    atMenu.setOnShowing(e -> {
-                        atMenu.getItems().clear();
-                        final ObservableList<Account> accountList = mMainApp.getAccountList(at, false, true);
+                for (Account.NewType.Group ag : Account.NewType.Group.values()) {
+                    final Menu agMenu = new Menu(ag.toString());
+                    agMenu.getItems().add(new MenuItem(ag.toString())); // need this placeholder for setOnShowing to work
+                    agMenu.setOnShowing(e -> {
+                        agMenu.getItems().clear();
+                        final ObservableList<Account> accountList = mMainApp.getAccountList(ag, false, true);
                         for (Account a : accountList) {
                             if (a.getID() != getItem().getAccountID()) {
                                 MenuItem accountMI = new MenuItem(a.getName());
@@ -832,16 +836,16 @@ public class MainController {
                                         }
                                     }
                                 });
-                                atMenu.getItems().add(accountMI);
+                                agMenu.getItems().add(accountMI);
                             }
                         }
                     });
-                    moveToMenu.getItems().add(atMenu);
+                    moveToMenu.getItems().add(agMenu);
                 }
                 moveToMenu.setOnShowing(e -> {
                     boolean isCash = getItem().isCash();
                     for (MenuItem mi : moveToMenu.getItems()) {
-                        mi.setVisible(isCash || mi.getText().equals(Account.Type.INVESTING.name()));
+                        mi.setVisible(isCash || mi.getText().equals(Account.NewType.Group.INVESTING.toString()));
                     }
                 });
 

@@ -57,7 +57,7 @@ public class Account {
      */
 
     // make sure the names are not longer than 16 characters, the type column in account table is varchar(16)
-    enum NewType {
+    enum Type {
         CHECKING(Group.SPENDING), SAVINGS(Group.SPENDING), CREDIT_CARD(Group.SPENDING), CASH(Group.SPENDING),
         BROKERAGE(Group.INVESTING), IRA(Group.INVESTING), PLAN401K(Group.INVESTING), PLAN529(Group.INVESTING),
         HOUSE(Group.PROPERTY), VEHICLE(Group.PROPERTY), OTHER_ASSET(Group.PROPERTY),
@@ -73,7 +73,7 @@ public class Account {
 
         private final Group group;
 
-        NewType(Group g) {
+        Type(Group g) {
             group = g;
         }
 
@@ -133,14 +133,14 @@ public class Account {
             }
         }
 
-        static Optional<NewType> fromQIF(String QIFCode) {
+        static Optional<Type> fromQIF(String QIFCode) {
             if (QIFCode.equals("Mutual") || QIFCode.equals("Invst"))
                 return fromQIF("Port");
-            return Arrays.stream(NewType.values()).filter(t -> t.toQIF(false).equals(QIFCode)).findFirst();
+            return Arrays.stream(Type.values()).filter(t -> t.toQIF(false).equals(QIFCode)).findFirst();
         }
     }
 
-    private final ObjectProperty<NewType> mTypeProperty = new SimpleObjectProperty<>();
+    private final ObjectProperty<Type> mTypeProperty = new SimpleObjectProperty<>();
 
     private final IntegerProperty mID;
     private final StringProperty mName;
@@ -153,7 +153,7 @@ public class Account {
     private final ObjectProperty<LocalDate> mLastReconcileDateProperty = new SimpleObjectProperty<>(null);
 
     // detailed constructor
-    public Account(int id, NewType type, String name, String description, Boolean hidden, Integer displayOrder,
+    public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
                    LocalDate lrDate, BigDecimal balance) {
         mID = new SimpleIntegerProperty(id);
         mTypeProperty.set(type);
@@ -177,9 +177,9 @@ public class Account {
     }
 
     // getters and setters
-    public ObjectProperty<NewType> getTypeProperty() { return mTypeProperty; }
-    public NewType getType() { return mTypeProperty.get(); }
-    public void setType(NewType type) { mTypeProperty.set(type); }
+    public ObjectProperty<Type> getTypeProperty() { return mTypeProperty; }
+    public Type getType() { return mTypeProperty.get(); }
+    public void setType(Type type) { mTypeProperty.set(type); }
 
     ObservableList<Security> getCurrentSecurityList() { return mCurrentSecurityList; }
     boolean hasSecurity(Security security) {
@@ -229,7 +229,7 @@ public class Account {
         BigDecimal b = new BigDecimal(0);
         boolean accountBalanceIsSet = false;
         for (Transaction t : getTransactionList()) {
-            if (!getType().isGroup(NewType.Group.INVESTING) && !accountBalanceIsSet
+            if (!getType().isGroup(Type.Group.INVESTING) && !accountBalanceIsSet
                     && t.getTDateProperty().get().isAfter(LocalDate.now())) {
                 // this is a future transaction.  if account current balance is not set
                 // set it before process this future transaction
@@ -243,7 +243,7 @@ public class Account {
             }
         }
         // at the end of the list, if the account balance still not set, set it now.
-        if (!accountBalanceIsSet && (!getType().isGroup(NewType.Group.INVESTING)))
+        if (!accountBalanceIsSet && (!getType().isGroup(Type.Group.INVESTING)))
             setCurrentBalance(b);
     }
 

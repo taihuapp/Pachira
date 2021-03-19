@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -127,7 +127,7 @@ class QIFParser {
     }
 
     static Account parseAccountFromQIFLines(List<String> lines) {
-        Account.NewType type = null;
+        Account.Type type = null;
         String name = "";
         String desc = "";
         for (String l : lines) {
@@ -136,7 +136,7 @@ class QIFParser {
                     name = l.substring(1);
                     break;
                 case 'T':
-                    type = Account.NewType.fromQIF(l.substring(1)).orElse(null);
+                    type = Account.Type.fromQIF(l.substring(1)).orElse(null);
                     break;
                 case 'R':
                 case 'L':
@@ -869,12 +869,7 @@ class QIFParser {
                             break;
                         case MEMORIZED:
                             MemorizedTransaction mt = MemorizedTransaction.fromQIFLines(allLines.subList(i,j));
-                            if (mt != null) {
-                                mMemorizedTransactionList.add(mt);
-                            } else {
-                                mLogger.error("Bad formatted MemorizedTransaction: "
-                                        + allLines.subList(i,j));
-                            }
+                            mMemorizedTransactionList.add(mt);
                             i = j;
                             break;
                         case PRICES:

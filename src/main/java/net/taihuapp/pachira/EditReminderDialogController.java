@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -155,7 +155,7 @@ public class EditReminderDialogController {
 
         mAccountIDComboBox.setConverter(new AccountIDConverter());
         mAccountIDComboBox.getItems().clear();
-        for (Account a : mMainApp.getAccountList(Account.NewType.Group.SPENDING, false, true))
+        for (Account a : mMainApp.getAccountList(Account.Type.Group.SPENDING, false, true))
             mAccountIDComboBox.getItems().add(a.getID());
         Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
         if (mAccountIDComboBox.getSelectionModel().isEmpty())

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -340,7 +340,7 @@ public class EditTransactionDialogControllerNew {
         if (transaction == null) {
             mTransactionOrig = null;
             mTransaction = new Transaction(defaultAccount.getID(), LocalDate.now(),
-                    defaultAccount.getType().isGroup(Account.NewType.Group.INVESTING) ? BUY : WITHDRAW, 0);
+                    defaultAccount.getType().isGroup(Account.Type.Group.INVESTING) ? BUY : WITHDRAW, 0);
         } else {
             mTransactionOrig = transaction.getID() > 0 ? transaction : null;
             mTransaction = new Transaction(transaction);
@@ -456,8 +456,8 @@ public class EditTransactionDialogControllerNew {
         for  (Tag tag : mainApp.getTagList())
             mTagComboBox.getItems().add(tag.getID());
         autoCompleteComboBox(mTagComboBox);
-        mTagComboBox.setVisible(!defaultAccount.getType().isGroup(Account.NewType.Group.INVESTING));
-        mTagLabel.setVisible(defaultAccount.getType().isGroup(Account.NewType.Group.INVESTING));
+        mTagComboBox.setVisible(!defaultAccount.getType().isGroup(Account.Type.Group.INVESTING));
+        mTagLabel.setVisible(defaultAccount.getType().isGroup(Account.Type.Group.INVESTING));
         mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty());
 
         // reference

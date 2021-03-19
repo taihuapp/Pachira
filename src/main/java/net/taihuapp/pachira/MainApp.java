@@ -265,7 +265,7 @@ public class MainApp extends Application {
     // return accounts for given type t or all account if t is null
     // return either hidden or nonhidden account based on hiddenflag, or all if hiddenflag is null
     // include DELETED_ACCOUNT if exDeleted is false.
-    SortedList<Account> getAccountList(Account.NewType.Group g, Boolean hidden, Boolean exDeleted) {
+    SortedList<Account> getAccountList(Account.Type.Group g, Boolean hidden, Boolean exDeleted) {
         FilteredList<Account> fList = new FilteredList<>(mAccountList,
                 a -> (g == null || a.getType().isGroup(g)) && (hidden == null || a.getHiddenFlag() == hidden)
                         && !(exDeleted && a.getName().equals(DELETED_ACCOUNT_NAME)));
@@ -1510,7 +1510,7 @@ public class MainApp extends Application {
             mLogger.error("Account [" + accountName + "] not found, nothing inserted");
             return -1;
         }
-        if (account.getType().isGroup(Account.NewType.Group.INVESTING)) {
+        if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
             mLogger.error("Account " + account.getName() + " is an investing account");
             return -1;
         }
@@ -1955,7 +1955,7 @@ public class MainApp extends Application {
 
     void updateAccountBalance(Security security) {
         // update account balance for all non-hidden accounts contains security in currentsecuritylist
-        for (Account account : getAccountList(Account.NewType.Group.INVESTING, false, true)) {
+        for (Account account : getAccountList(Account.Type.Group.INVESTING, false, true)) {
             if (account.hasSecurity(security)) {
                 updateAccountBalance(account.getID());
             }
@@ -1974,7 +1974,7 @@ public class MainApp extends Application {
 
     void updateAccountBalance(Account account) {
         // update holdings and balance for INVESTING account
-        if (account.getType().isGroup(Account.NewType.Group.INVESTING)) {
+        if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
             List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
             SecurityHolding totalHolding = shList.get(shList.size() - 1);
             if (totalHolding.getSecurityName().equals("TOTAL")) {
@@ -2041,7 +2041,7 @@ public class MainApp extends Application {
             ResultSet rs = statement.executeQuery(sqlCmd);
             while (rs.next()) {
                 int id = rs.getInt("ID");
-                Account.NewType type = Account.NewType.valueOf(rs.getString("TYPE"));
+                Account.Type type = Account.Type.valueOf(rs.getString("TYPE"));
                 String name = rs.getString("NAME");
                 String description = rs.getString("DESCRIPTION");
                 Boolean hiddenFlag = rs.getBoolean("HIDDENFLAG");
@@ -2602,7 +2602,7 @@ public class MainApp extends Application {
     List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
         // empty the list first
         List<SecurityHolding> securityHoldingList = new ArrayList<>();
-        if (!account.getType().isGroup(Account.NewType.Group.INVESTING)) {
+        if (!account.getType().isGroup(Account.Type.Group.INVESTING)) {
             // deal with non investing account here
             BigDecimal totalCash = null;
             int n = account.getTransactionList().size();
@@ -2938,7 +2938,7 @@ public class MainApp extends Application {
 
     // The input transaction is not changed.
     void showEditTransactionDialog(Stage parent, Transaction transaction) {
-        List<Transaction.TradeAction> taList = getCurrentAccount().getType().isGroup(Account.NewType.Group.INVESTING) ?
+        List<Transaction.TradeAction> taList = getCurrentAccount().getType().isGroup(Account.Type.Group.INVESTING) ?
                 Arrays.asList(Transaction.TradeAction.values()) :
                 Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
         showEditTransactionDialog(parent, transaction, Collections.singletonList(getCurrentAccount()),
@@ -2974,7 +2974,7 @@ public class MainApp extends Application {
             mLogger.error("Can't show holdings for null account.");
             return;
         }
-        if (!getCurrentAccount().getType().isGroup(Account.NewType.Group.INVESTING)) {
+        if (!getCurrentAccount().getType().isGroup(Account.Type.Group.INVESTING)) {
             mLogger.error("Show holdings only applicable for trading account");
             return;
         }
@@ -4667,7 +4667,7 @@ public class MainApp extends Application {
                 if (security != null && price != null && price.compareTo(BigDecimal.ZERO) > 0) {
                     insertUpdatePriceToDB(security.getID(), security.getTicker(), newT.getTDate(), price, 0);
 
-                    getAccountList(Account.NewType.Group.INVESTING, false, true).stream()
+                    getAccountList(Account.Type.Group.INVESTING, false, true).stream()
                             .filter(a -> a.hasSecurity(security)).forEach(a -> accountIDSet.add(a.getID()));
                 }
 
@@ -4919,8 +4919,8 @@ public class MainApp extends Application {
             InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
             NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
             IllegalBlockSizeException, BadPaddingException, SQLException, OFXException {
-        Account.NewType accountType = account.getType();
-        if (!accountType.isGroup(Account.NewType.Group.SPENDING)) {
+        Account.Type accountType = account.getType();
+        if (!accountType.isGroup(Account.Type.Group.SPENDING)) {
             throw new IllegalArgumentException("DCDownloadAccountStatement currently only supports SPENDING account, "
                     + account.getType() + " is currently not supported.");
         }
@@ -5208,7 +5208,7 @@ public class MainApp extends Application {
         sqlCreateTable(sqlCmd);
 
         // insert Deleted account as the first account, so the account number is MIN_ACCOUND_ID
-        insertUpdateAccountToDB(new Account(-1, Account.NewType.CHECKING, DELETED_ACCOUNT_NAME,
+        insertUpdateAccountToDB(new Account(-1, Account.Type.CHECKING, DELETED_ACCOUNT_NAME,
                 "Placeholder for the Deleted Account", true, Integer.MAX_VALUE,
                 null, BigDecimal.ZERO));
 
@@ -5472,7 +5472,7 @@ public class MainApp extends Application {
     ObservableList<Transaction> getMergeCandidateTransactionList(final Transaction transaction)
             throws IllegalArgumentException {
         final Account account = getAccountByID(transaction.getAccountID());
-        if (!account.getType().isGroup(Account.NewType.Group.SPENDING)) {
+        if (!account.getType().isGroup(Account.Type.Group.SPENDING)) {
             // for account type other than SPENDING,
             throw new IllegalArgumentException("Account type " + account.getType().toString()
                     + " is not supported yet");

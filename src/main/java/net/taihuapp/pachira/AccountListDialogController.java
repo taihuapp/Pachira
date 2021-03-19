@@ -53,13 +53,13 @@ public class AccountListDialogController {
     };
 
     @FXML
-    private ChoiceBox<Account.NewType.Group> mGroupChoiceBox;
+    private ChoiceBox<Account.Type.Group> mGroupChoiceBox;
     @FXML
     private TableView<Account> mAccountTableView;
     @FXML
     private TableColumn<Account, String> mAccountNameTableColumn;
     @FXML
-    private TableColumn<Account, Account.NewType> mAccountTypeTableColumn;
+    private TableColumn<Account, Account.Type> mAccountTypeTableColumn;
     @FXML
     private TableColumn<Account, BigDecimal> mAccountBalanceTableColumn;
     @FXML
@@ -133,7 +133,7 @@ public class AccountListDialogController {
     @FXML
     private void handleClose() { close(); }
 
-    private void showEditAccountDialog(Account account, Account.NewType.Group g) {
+    private void showEditAccountDialog(Account account, Account.Type.Group g) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditAccountDialog.fxml"));
@@ -161,15 +161,15 @@ public class AccountListDialogController {
         mMainApp = mainApp;
         mDialogStage = stage;
 
-        class AccountGroupConverter extends StringConverter<Account.NewType.Group> {
-            public Account.NewType.Group fromString(String s) {
+        class AccountGroupConverter extends StringConverter<Account.Type.Group> {
+            public Account.Type.Group fromString(String s) {
                 try {
-                    return Account.NewType.Group.valueOf(s.toUpperCase());
+                    return Account.Type.Group.valueOf(s.toUpperCase());
                 } catch (IllegalArgumentException e) {
                     return null;
                 }
             }
-            public String toString(Account.NewType.Group g) {
+            public String toString(Account.Type.Group g) {
                 if (g == null)
                     return "All";
                 return g.toString();
@@ -177,7 +177,7 @@ public class AccountListDialogController {
         }
 
         // first make sure all account display order is set properly
-        for (Account.NewType.Group g : Account.NewType.Group.values()) {
+        for (Account.Type.Group g : Account.Type.Group.values()) {
             final List<Account> accountList = new ArrayList<>(mMainApp.getAccountList(g, null, true));
             for (int i = 0; i < accountList.size(); i++) {
                 Account a = accountList.get(i);
@@ -243,7 +243,7 @@ public class AccountListDialogController {
 
 
         mGroupChoiceBox.setConverter(new AccountGroupConverter());
-        mGroupChoiceBox.getItems().setAll(Account.NewType.Group.values());
+        mGroupChoiceBox.getItems().setAll(Account.Type.Group.values());
         mGroupChoiceBox.getItems().add(null);
         mGroupChoiceBox.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
             // remove old listener if there is any

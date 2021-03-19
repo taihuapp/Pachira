@@ -196,8 +196,8 @@ public class MainController {
 
         ObservableList<Account> groupAccountList = FXCollections.observableArrayList(account ->
                 new Observable[] {account.getCurrentBalanceProperty()});
-        for (Account.NewType.Group g : Account.NewType.Group.values()) {
-            Account.NewType groupAccountType = Arrays.stream(Account.NewType.values()).filter(t -> t.isGroup(g))
+        for (Account.Type.Group g : Account.Type.Group.values()) {
+            Account.Type groupAccountType = Arrays.stream(Account.Type.values()).filter(t -> t.isGroup(g))
                     .findFirst().orElse(null);
             Account groupAccount = new Account(-1, groupAccountType, g.toString(),
                     "Placeholder for " + g.toString(),
@@ -234,7 +234,7 @@ public class MainController {
                             // not empty, add to the right spot under root
                             boolean added = false;
                             for (int i = 0; i < root.getChildren().size(); i++) {
-                                Account.NewType type = root.getChildren().get(i).getValue().getType();
+                                Account.Type type = root.getChildren().get(i).getValue().getType();
                                 if (type == typeNode.getValue().getType()) {
                                     // already added
                                     added = true;
@@ -695,7 +695,7 @@ public class MainController {
             return;
         }
 
-        boolean isTradingAccount = account.getType().isGroup(Account.NewType.Group.INVESTING);
+        boolean isTradingAccount = account.getType().isGroup(Account.Type.Group.INVESTING);
 
         mTransactionAccountNameLabel.setVisible(true);
         mTransactionAccountNameLabel.setText(account.getName());
@@ -789,7 +789,7 @@ public class MainController {
                         mMainApp.alterTransaction(getItem(), null, new ArrayList<>());
                 });
                 final Menu moveToMenu = new Menu("Move to...");
-                for (Account.NewType.Group ag : Account.NewType.Group.values()) {
+                for (Account.Type.Group ag : Account.Type.Group.values()) {
                     final Menu agMenu = new Menu(ag.toString());
                     agMenu.getItems().add(new MenuItem(ag.toString())); // need this placeholder for setOnShowing to work
                     agMenu.setOnShowing(e -> {
@@ -845,7 +845,7 @@ public class MainController {
                 moveToMenu.setOnShowing(e -> {
                     boolean isCash = getItem().isCash();
                     for (MenuItem mi : moveToMenu.getItems()) {
-                        mi.setVisible(isCash || mi.getText().equals(Account.NewType.Group.INVESTING.toString()));
+                        mi.setVisible(isCash || mi.getText().equals(Account.Type.Group.INVESTING.toString()));
                     }
                 });
 

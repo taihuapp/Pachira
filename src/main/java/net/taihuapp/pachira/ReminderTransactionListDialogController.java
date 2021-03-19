@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -132,7 +132,7 @@ public class ReminderTransactionListDialogController {
         transaction.setSplitTransactionList(reminder.getSplitTransactionList());
         transaction.setTagID(reminder.getTagID());
         int tid = mMainApp.showEditTransactionDialog(mMainApp.getStage(), transaction,
-                mMainApp.getAccountList(Account.NewType.Group.SPENDING, null, false),
+                mMainApp.getAccountList(Account.Type.Group.SPENDING, null, false),
                 mMainApp.getAccountByID(reminder.getAccountID()), Collections.singletonList(ta));
         if (tid >= 0) {
             mMainApp.insertReminderTransactions(rt, tid);

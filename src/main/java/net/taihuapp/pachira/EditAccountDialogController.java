@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -33,7 +33,7 @@ public class EditAccountDialogController {
     private Account mAccount;
 
     @FXML
-    private ChoiceBox<Account.NewType> mTypeChoiceBox;
+    private ChoiceBox<Account.Type> mTypeChoiceBox;
     @FXML
     private TextField mNameTextField;
     @FXML
@@ -41,7 +41,7 @@ public class EditAccountDialogController {
     @FXML
     private CheckBox mHiddenFlagCheckBox;
 
-    void setAccount(MainApp mainApp, Account account, Account.NewType.Group g) {
+    void setAccount(MainApp mainApp, Account account, Account.Type.Group g) {
         mMainApp = mainApp;
         mAccount = account;
 
@@ -49,14 +49,14 @@ public class EditAccountDialogController {
         if (account != null) {
             // edit an existing account
             mTypeChoiceBox.getItems().clear();
-            for (Account.NewType t : Account.NewType.values())
+            for (Account.Type t : Account.Type.values())
                 if (t.isGroup(account.getType().getGroup()))
                     mTypeChoiceBox.getItems().add(t);
             mTypeChoiceBox.getSelectionModel().select(account.getType());
         } else {
             // new account without a given type, default to first Type
             mTypeChoiceBox.getItems().clear();
-            for (Account.NewType t : Account.NewType.values())
+            for (Account.Type t : Account.Type.values())
                 if (g == null || t.isGroup(g))
                     mTypeChoiceBox.getItems().add(t);
             mTypeChoiceBox.getSelectionModel().select(0);

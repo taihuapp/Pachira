@@ -44,7 +44,7 @@ public class Transaction {
         final StringBuilder stringBuilder = new StringBuilder();
 
         final Account account = mainApp.getAccountByID(getAccountID());
-        final boolean isBanking = !account.getType().isGroup(Account.NewType.Group.INVESTING);
+        final boolean isBanking = !account.getType().isGroup(Account.Type.Group.INVESTING);
         final String categoryOrTransferAccountName = mainApp.mapCategoryOrAccountIDToName(getCategoryID());
         final Tag tag = mainApp.getTagByID(getTagID());
 
@@ -109,7 +109,7 @@ public class Transaction {
             stringBuilder.append("$").append(getAmount()).append(EOL);
 
         if (getSplitTransactionList().size() > 0) {
-            if (account.getType().isGroup(Account.NewType.Group.INVESTING)) {
+            if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
                 mLogger.error("Split transactions in INVESTING account are not supported");
             } else {
                 getSplitTransactionList().forEach(s -> {

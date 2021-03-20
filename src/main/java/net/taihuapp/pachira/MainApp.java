@@ -163,6 +163,7 @@ public class MainApp extends Application {
     static final int SAVEDREPORTSNAMELEN = 32;
 
     private static final String HASHEDMASTERPASSWORDNAME = "HASHEDMASTERPASSWORD";
+    private static final String CLIENTUIDNAME = "ClientUID";
 
     // Category And Transfer Account are often shared as the following:
     // String     #    Meaning
@@ -2062,6 +2063,34 @@ public class MainApp extends Application {
             account.setTransactionList(getTransactionListByAccountID(account.getID()));
             updateAccountBalance(account);
         }
+    }
+
+    // return the corresponding value for name in settings table
+    Optional<String> getSetting(String name) throws SQLException {
+        final String query = "select VALUE from SETTINGS where NAME = '" + name + "'";
+        String value = null;
+        try (Statement statement = getConnection().createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            if (resultSet.next())
+                value = resultSet.getString(1);
+        }
+        return Optional.ofNullable(value);
+    }
+
+    void putSetting(String name, String value) throws SQLException {
+        final String merge = "merge into SETTINGS (NAME, VALUE) values ('" + name + "', '" + value + "')";
+        try (Statement statement = getConnection().createStatement()) {
+            statement.executeUpdate(merge);
+        }
+    }
+
+    // get clientUID from Settings table
+    Optional<UUID> getClientUID() throws SQLException {
+        return getSetting(CLIENTUIDNAME).map(UUID::fromString);
+    }
+
+    void putClientUID(UUID uuid) throws SQLException {
+        putSetting(CLIENTUIDNAME, uuid.toString());
     }
 
     private void initSecurityList() {

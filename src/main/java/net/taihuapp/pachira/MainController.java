@@ -34,6 +34,8 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -54,6 +56,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 public class MainController {
 
@@ -729,6 +732,103 @@ public class MainController {
     private boolean showChangeReconciledConfirmation() {
         return MainApp.showConfirmationDialog("Confirmation","Reconciled transaction?",
                 "Do you really want to change it?");
+    }
+
+    // warn user about changing Clint UID.
+    // and return true of user OK's it
+    // do nothing and return true if current UID is not set.
+    private boolean warnChangingClientUID() throws SQLException {
+        return mMainApp.getClientUID().map(uuid -> MainApp.showConfirmationDialog("Changing ClientUID",
+                "Current ClientUID is " + uuid.toString(),
+                "May have to reestablish existing Direct Connections after reset ClientUID"))
+                .orElse(true);
+    }
+
+    @FXML
+    private void handleClientUID() {
+        final TextArea textArea = new TextArea();
+        textArea.setPrefWidth(1); // make sure it's not too wide
+        textArea.setEditable(false);
+        textArea.setVisible(false);
+        textArea.setWrapText(true);
+
+        final TextField currentTF = new TextField();
+        currentTF.setEditable(false);
+        try {
+            currentTF.setText(mMainApp.getClientUID().map(UUID::toString).orElse(""));
+        } catch (SQLException e) {
+            mLogger.error("SQLException on getClientUID", e);
+            textArea.setVisible(true);
+            textArea.setText(MainApp.SQLExceptionToString(e));
+        }
+        final TextField newTF = new TextField();
+        final Button randomButton = new Button("Random");
+        final Button updateButton = new Button("Update");
+        final Button closeButton = new Button("Close");
+        final ButtonBar buttonBar = new ButtonBar();
+        buttonBar.getButtons().addAll(randomButton, updateButton, closeButton);
+        final GridPane gridPane = new GridPane();
+        gridPane.setHgap(5);
+        gridPane.setVgap(5);
+        final ColumnConstraints cc0 = new ColumnConstraints();
+        final ColumnConstraints cc1 = new ColumnConstraints();
+        final ColumnConstraints cc2 = new ColumnConstraints();
+        cc0.setPercentWidth(30);
+        cc1.setPercentWidth(35);
+        cc2.setPercentWidth(35);
+        gridPane.getColumnConstraints().addAll(cc0, cc1, cc2);
+
+        gridPane.add(textArea, 0, 0, 3, 1);
+        gridPane.add(new Label("Current"), 0, 1, 1, 1);
+        gridPane.add(currentTF, 1, 1, 2, 1);
+        gridPane.add(new Label("New"), 0, 2, 1, 1);
+        gridPane.add(newTF, 1, 2, 2, 1);
+        gridPane.add(buttonBar, 0, 3, 3, 1);
+
+        final Alert alert = new Alert(Alert.AlertType.NONE, "", ButtonType.CLOSE);
+        // hide the default close button
+        alert.getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
+
+        alert.setTitle("ClientUID");
+        alert.initOwner(mMainApp.getStage());
+        alert.getDialogPane().setContent(gridPane);
+
+        randomButton.setOnAction(actionEvent -> {
+            textArea.setVisible(false);
+            newTF.setText(UUID.randomUUID().toString());
+        });
+        updateButton.setOnAction(actionEvent -> {
+            try {
+                if (warnChangingClientUID()) {
+                    mMainApp.putClientUID(UUID.fromString(newTF.getText()));
+                    currentTF.setText(newTF.getText());
+                    newTF.setText("");
+                }
+            } catch (SQLException e) {
+                mLogger.error("SQLException on Update ClientUID", e);
+                textArea.setText(MainApp.SQLExceptionToString(e));
+                textArea.setVisible(true);
+            }
+        });
+        updateButton.disableProperty().bind(Bindings.createBooleanBinding(() -> {
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                UUID.fromString(newTF.getText());
+                textArea.setVisible(false);
+                return false;
+            } catch (IllegalArgumentException e) {
+                if (!newTF.getText().trim().isEmpty()) {
+                    textArea.setText("Input string is not a valid UUID");
+                    textArea.setVisible(true);
+                } else {
+                    textArea.setVisible(false);
+                }
+                return true;
+            }
+        }, newTF.textProperty()));
+        closeButton.setOnAction(actionEvent -> alert.close());
+
+        alert.showAndWait();
     }
 
     @FXML

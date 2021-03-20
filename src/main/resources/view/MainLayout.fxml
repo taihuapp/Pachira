@@ -20,23 +20,9 @@
   ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   -->
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Menu?>
-<?import javafx.scene.control.MenuBar?>
-<?import javafx.scene.control.MenuItem?>
-<?import javafx.scene.control.SeparatorMenuItem?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.TreeTableColumn?>
-<?import javafx.scene.control.TreeTableView?>
-<?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="60.0" minWidth="100.0" prefHeight="600.0" prefWidth="1000.0" stylesheets="@../css/Main.css" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.MainController">
    <center>
       <VBox fx:id="mTransactionVBox" BorderPane.alignment="CENTER">
@@ -171,6 +157,8 @@
                         <MenuItem fx:id="mCreateMasterPasswordMenuItem" mnemonicParsing="false" onAction="#createVaultMasterPassword" text="Create Master Password" />
                         <MenuItem fx:id="mUpdateMasterPasswordMenuItem" mnemonicParsing="false" onAction="#updateVaultMasterPassword" text="Update Master Password" />
                         <MenuItem fx:id="mDeleteMasterPasswordMenuItem" mnemonicParsing="false" onAction="#deleteVaultMasterPassword" text="Delete Master Password" />
+                        <SeparatorMenuItem mnemonicParsing="false" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleClientUID" text="ClientUID" />
                     </items>
                   </Menu>
                 <Menu mnemonicParsing="false" text="Help">

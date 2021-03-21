@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -23,6 +23,9 @@ package net.taihuapp.pachira;
 import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.domain.data.banking.AccountType;
 import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
+import com.webcohesion.ofx4j.domain.data.common.AccountDetails;
+import com.webcohesion.ofx4j.domain.data.creditcard.CreditCardAccountDetails;
+import com.webcohesion.ofx4j.domain.data.investment.accounts.InvestmentAccountDetails;
 import com.webcohesion.ofx4j.domain.data.signup.AccountProfile;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -72,16 +75,50 @@ public class EditAccountDirectConnectionDialogController {
     @FXML
     private Button mSaveButton;
 
+    // mAccountTableView for non bank account
+    @FXML
+    private TableView<AccountDetails> mAccountTableView;
+    @FXML
+    private TableColumn<AccountDetails, String> mAccountNumberLast4TableColumn;
+    @FXML
+    private TableColumn<AccountDetails, String> mAccountNumberTableColumn;
+
+    // mBankAccountTableView for bank account
     @FXML
     private TableView<BankAccountDetails> mBankAccountTableView;
     @FXML
-    private TableColumn<BankAccountDetails, AccountType> mAccountTypeTableColumn;
+    private TableColumn<BankAccountDetails, AccountType> mBankAccountTypeTableColumn;
     @FXML
     private TableColumn<BankAccountDetails, String> mRoutineNumberTableColumn;
     @FXML
-    private TableColumn<BankAccountDetails, String> mLast4AccountNumberTableColumn;
+    private TableColumn<BankAccountDetails, String> mBankAccountNumberLast4TableColumn;
     @FXML
-    private TableColumn<BankAccountDetails, String> mAccountNumberTableColumn;
+    private TableColumn<BankAccountDetails, String> mBankAccountNumberTableColumn;
+
+    // compare if information in accountDetails matches what is stored in accountDC
+    private boolean compareAccountDetailsWithADC(AccountDetails accountDetails, AccountDC accountDC) {
+        if (accountDetails == null)
+            return accountDC.getDCID() == 0;
+
+        char[] clearADCAccountNumber = null;
+        try {
+            if (mADC.getEncryptedAccountNumber().isEmpty())
+                return false;
+            clearADCAccountNumber = mMainApp.decrypt(mADC.getEncryptedAccountNumber());
+            return compareStringWithChars(accountDetails.getAccountNumber(), clearADCAccountNumber);
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
+                UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
+                InvalidAlgorithmParameterException | IllegalBlockSizeException |
+                BadPaddingException | IllegalArgumentException e ) {
+            mLogger.error(e.getClass(), e);
+            MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
+                    e.getMessage(), e);
+        } finally {
+            if (clearADCAccountNumber != null)
+                Arrays.fill(clearADCAccountNumber, ' ');
+        }
+        return false;
+    }
 
     private boolean compareBankAccountDetailsWithADC(BankAccountDetails bad, AccountDC adc) {
         if (bad == null)
@@ -92,22 +129,7 @@ public class EditAccountDirectConnectionDialogController {
         if (!bad.getRoutingNumber().equals(adc.getRoutingNumber()))
             return false;
 
-        char[] clearADCAccountNumber = null;
-        try {
-            clearADCAccountNumber = mMainApp.decrypt(adc.getEncryptedAccountNumber());
-            return compareStringWithChars(bad.getAccountNumber(), clearADCAccountNumber);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
-                                UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
-                                InvalidAlgorithmParameterException | IllegalBlockSizeException |
-                                BadPaddingException e ) {
-            mLogger.error(e.getClass(), e);
-            MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
-                    e.getMessage(), e);
-        } finally {
-            if (clearADCAccountNumber != null)
-                Arrays.fill(clearADCAccountNumber, ' ');
-        }
-        return false;
+        return compareAccountDetailsWithADC(bad, adc);
     }
 
     private boolean compareStringWithChars(String s, char[] cs) {
@@ -137,70 +159,76 @@ public class EditAccountDirectConnectionDialogController {
 
         // add change listeners
         mDCComboBox.getSelectionModel().selectedItemProperty().addListener((obs, odc, ndc) -> {
-            switch (mMainApp.getCurrentAccount().getType()) {
-                case CREDIT_CARD:
-                    break;
-                case CHECKING:
-                case SAVINGS:
-                case CASH:
-                    ObservableList<BankAccountDetails> bankAccounts = FXCollections.observableArrayList();
-                    BankAccountDetails accountToSelect = null;
-                    if (ndc.getID() > 0) {
-                        try {
-                            for (AccountProfile ap : mMainApp.DCDownloadFinancialInstitutionAccountProfiles(ndc)) {
-                                if (ap != null && ap.getBankSpecifics() != null) {
-                                    BankAccountDetails bad = ap.getBankSpecifics().getBankAccount();
-                                    bankAccounts.add(bad);
-                                    if (compareBankAccountDetailsWithADC(bad, mADC)) {
-                                        accountToSelect = bad;
-                                    }
-                                }
-                            }
-                        } catch (MalformedURLException e) {
-                            mLogger.error("MalformedURLException", e);
-                            MainApp.showExceptionDialog(mStage,"MalformedURLException", "Bad URL",
-                                    e.getMessage(), e);
+            if (ndc.getID() < 0)
+                return;  // why are we here?
 
-                        } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
-                                UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
-                                InvalidAlgorithmParameterException | IllegalBlockSizeException |
-                                BadPaddingException e) {
-                            mLogger.error(e.getClass(), e);
-                            MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
-                                    e.getMessage(), e);
-                        } catch (OFXException e) {
-                            mLogger.error("OFXException", e);
-                            MainApp.showExceptionDialog(mStage,"OFXException", "OFXException", e.getMessage(), e);
+            Account.Type currentAccountType = mMainApp.getCurrentAccount().getType();
+            ObservableList<BankAccountDetails> bankAccounts = FXCollections.observableArrayList();
+            ObservableList<CreditCardAccountDetails> creditCardAccounts = FXCollections.observableArrayList();
+            ObservableList<InvestmentAccountDetails> investmentAccounts = FXCollections.observableArrayList();
+
+            try {
+                for (AccountProfile ap : mMainApp.DCDownloadFinancialInstitutionAccountProfiles(ndc)) {
+                    if (ap == null)
+                        continue;
+                    if (currentAccountType == Account.Type.CREDIT_CARD) {
+                        // credit card account
+                        if (ap.getCreditCardSpecifics() != null)
+                            creditCardAccounts.add(ap.getCreditCardSpecifics().getCreditCardAccount());
+                    } else if (currentAccountType.isGroup(Account.Type.Group.INVESTING)) {
+                        // investment account
+                        if (ap.getInvestmentSpecifics() != null)
+                            investmentAccounts.add(ap.getInvestmentSpecifics().getInvestmentAccount());
+                    } else {
+                        // all other accounts
+                        if (ap.getBankSpecifics() != null)
+                            bankAccounts.add(ap.getBankSpecifics().getBankAccount());
+                    }
+                }
+
+                if (currentAccountType == Account.Type.CREDIT_CARD) {
+                    mAccountTableView.getItems().setAll(creditCardAccounts);
+                    for (CreditCardAccountDetails creditCardAccountDetails : creditCardAccounts) {
+                        if (compareAccountDetailsWithADC(creditCardAccountDetails, mADC)) {
+                            mAccountTableView.getSelectionModel().select(creditCardAccountDetails);
+                            break;
                         }
                     }
-
+                    mAccountTableView.setVisible(true);
+                    mBankAccountTableView.setVisible(false);
+                } else if (currentAccountType.isGroup(Account.Type.Group.INVESTING)) {
+                    System.out.println("Investment account not implemented");
+                    mAccountTableView.setVisible(true);
+                    mBankAccountTableView.setVisible(false);
+                } else {
                     mBankAccountTableView.getItems().setAll(bankAccounts);
-                    if (accountToSelect == null)
-                        mBankAccountTableView.getSelectionModel().clearSelection();
-                    else
-                        mBankAccountTableView.getSelectionModel().select(accountToSelect);
-
-                    break;
-                case BROKERAGE:
-                    break;
-                case IRA:
-                    break;
-                case PLAN401K:
-                    break;
-                case PLAN529:
-                    break;
-                case HOUSE:
-                    break;
-                case VEHICLE:
-                    break;
-                case OTHER_ASSET:
-                    break;
-                case LOAN:
-                    break;
-                case OTHER_LIABILITY:
-                    break;
-                default:
-                    break;
+                    for (BankAccountDetails bankAccountDetails : bankAccounts) {
+                        if (compareBankAccountDetailsWithADC(bankAccountDetails, mADC)) {
+                            mBankAccountTableView.getSelectionModel().select(bankAccountDetails);
+                            break;
+                        }
+                    }
+                    mAccountTableView.setVisible(false);
+                    mBankAccountTableView.setVisible(true);
+                }
+            } catch (MalformedURLException e) {
+                mLogger.error("MalformedURLException", e);
+                MainApp.showExceptionDialog(mStage,"MalformedURLException", "Bad URL",
+                        e.getMessage(), e);
+            } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
+                    UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
+                    InvalidAlgorithmParameterException | IllegalBlockSizeException |
+                    BadPaddingException e) {
+                mLogger.error(e.getClass(), e);
+                MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
+                        e.getMessage(), e);
+            } catch (OFXException e) {
+                mLogger.error("OFXException", e);
+                MainApp.showExceptionDialog(mStage,"OFXException", "OFXException", e.getMessage(), e);
+            }  catch (SQLException e) {
+                mLogger.error("SQLException", e);
+                MainApp.showExceptionDialog(mStage, "Exception", "Database Exception",
+                        MainApp.SQLExceptionToString(e), e);
             }
         });
         mDCComboBox.getSelectionModel().select(mMainApp.getDCInfoByID(adc.getDCID()));
@@ -213,19 +241,29 @@ public class EditAccountDirectConnectionDialogController {
         int aid = account.getID();
 
         try {
-            BankAccountDetails bad = mBankAccountTableView.getSelectionModel().getSelectedItem();
+            AccountDetails accountDetails = mBankAccountTableView.isVisible() ?
+                    mBankAccountTableView.getSelectionModel().getSelectedItem()
+                    : mAccountTableView.getSelectionModel().getSelectedItem();
             if (dcID <= 0) {
                 if (MainApp.showConfirmationDialog("Confirmation", "Direct connection is empty",
                         "entry will be deleted"))
                     mMainApp.deleteAccountDCFromDB(aid);
-            } else if (bad == null) {
+            } else if (accountDetails == null) {
                 if (MainApp.showConfirmationDialog("Confirmation", "No account selected",
                         "Account Direct Connection entry will be deleted"))
                     mMainApp.deleteAccountDCFromDB(aid);
             } else {
-                String at = bad.getAccountType().name();
-                String rn = bad.getRoutingNumber();
-                String ean = mMainApp.encrypt(bad.getAccountNumber().toCharArray());
+                // leave account type and routing empty except for bank accounts
+                final String at;
+                final String rn;
+                if (mBankAccountTableView.isVisible()) {
+                    at = ((BankAccountDetails) accountDetails).getAccountType().name();
+                    rn = ((BankAccountDetails) accountDetails).getRoutingNumber();
+                } else {
+                    at = "";
+                    rn = "";
+                }
+                String ean = mMainApp.encrypt(accountDetails.getAccountNumber().toCharArray());
                 // note, every time an AccountDC is changed, the last download date time is reset
                 java.util.Date lastDownloadDate;
                 LocalDate lastReconcileDate = account.getLastReconcileDate();
@@ -261,24 +299,36 @@ public class EditAccountDirectConnectionDialogController {
 
     @FXML
     private void initialize() {
-        mShowAccountNumberCheckBox.selectedProperty().addListener((obs, ov, nv) -> {
-            mLast4AccountNumberTableColumn.setVisible(!nv);
-            mAccountNumberTableColumn.setVisible(nv);
-        });
-
         mShowAccountNumberCheckBox.setSelected(false);
-
         mSaveButton.disableProperty().bind(mChangedProperty.not());
 
-        mAccountTypeTableColumn.setCellValueFactory(cd ->
-                new ReadOnlyObjectWrapper<>(cd.getValue().getAccountType()));
-        mRoutineNumberTableColumn.setCellValueFactory(cd ->
-                new ReadOnlyStringWrapper(cd.getValue().getRoutingNumber()));
-        mLast4AccountNumberTableColumn.setCellValueFactory(cd ->
+        // setup mAccountTableView
+        mAccountNumberTableColumn.visibleProperty().bind(mShowAccountNumberCheckBox.selectedProperty());
+        mAccountNumberLast4TableColumn.visibleProperty().bind(mShowAccountNumberCheckBox.selectedProperty().not());
+
+        mAccountNumberLast4TableColumn.setCellValueFactory(cd ->
                 new ReadOnlyStringWrapper("x-" + (cd.getValue().getAccountNumber().length() > 4 ?
                         cd.getValue().getAccountNumber().substring(cd.getValue().getAccountNumber().length()-4) :
                         cd.getValue().getAccountNumber())));
         mAccountNumberTableColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper(cd.getValue().getAccountNumber()));
+
+        mAccountTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) ->
+            mChangedProperty.set(!compareAccountDetailsWithADC(nv, mADC)));
+
+        // setup mBankAccountTableView
+        mBankAccountNumberTableColumn.visibleProperty().bind(mShowAccountNumberCheckBox.selectedProperty());
+        mBankAccountNumberLast4TableColumn.visibleProperty().bind(mShowAccountNumberCheckBox.selectedProperty().not());
+
+        mBankAccountTypeTableColumn.setCellValueFactory(cd ->
+                new ReadOnlyObjectWrapper<>(cd.getValue().getAccountType()));
+        mRoutineNumberTableColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper(cd.getValue().getRoutingNumber()));
+        mBankAccountNumberLast4TableColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper("x-" + (cd.getValue().getAccountNumber().length() > 4 ?
+                        cd.getValue().getAccountNumber().substring(cd.getValue().getAccountNumber().length()-4) :
+                        cd.getValue().getAccountNumber())));
+        mBankAccountNumberTableColumn.setCellValueFactory(cd ->
                 new ReadOnlyStringWrapper(cd.getValue().getAccountNumber()));
 
         mBankAccountTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) ->

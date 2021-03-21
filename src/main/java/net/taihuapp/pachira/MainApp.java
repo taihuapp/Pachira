@@ -4933,8 +4933,9 @@ public class MainApp extends Application {
     Collection<AccountProfile> DCDownloadFinancialInstitutionAccountProfiles(DirectConnection directConnection)
             throws MalformedURLException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException,
             UnrecoverableKeyException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
-            IllegalBlockSizeException, BadPaddingException, OFXException {
+            IllegalBlockSizeException, BadPaddingException, OFXException, SQLException {
         FinancialInstitution financialInstitution = DCGetFinancialInstitution(directConnection);
+        getClientUID().ifPresent(uuid -> financialInstitution.setClientUID(uuid.toString()));
         String username = new String(decrypt(directConnection.getEncryptedUserName()));
         String password = new String(decrypt(directConnection.getEncryptedPassword()));
 
@@ -4957,6 +4958,7 @@ public class MainApp extends Application {
         AccountDC adc = getAccountDC(account.getID());
         DirectConnection directConnection = getDCInfoByID(adc.getDCID());
         FinancialInstitution financialInstitution = DCGetFinancialInstitution(directConnection);
+        getClientUID().ifPresent(uuid -> financialInstitution.setClientUID(uuid.toString()));
 
         BankAccountDetails bankAccountDetails = new BankAccountDetails();
         bankAccountDetails.setAccountNumber(new String(decrypt(adc.getEncryptedAccountNumber())));

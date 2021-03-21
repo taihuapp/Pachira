@@ -3,7 +3,27 @@
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditAccountDirectConnectionDialogController">
+<!--
+  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+  ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  ~
+  ~ This file is part of Pachira.
+  ~
+  ~ Pachira is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or any
+  ~ later version.
+  ~
+  ~ Pachira is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditAccountDirectConnectionDialogController">
   <columnConstraints>
       <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" maxWidth="194.0" minWidth="10.0" />
     <ColumnConstraints hgrow="SOMETIMES" maxWidth="335.0" minWidth="10.0" prefWidth="300.0" />
@@ -63,14 +83,20 @@
       </Label>
       <TableView fx:id="mBankAccountTableView" prefHeight="200.0" prefWidth="200.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" GridPane.rowSpan="4">
         <columns>
-          <TableColumn fx:id="mAccountTypeTableColumn" editable="false" prefWidth="150.0" sortable="false" text="Account Type" />
+          <TableColumn fx:id="mBankAccountTypeTableColumn" editable="false" prefWidth="150.0" sortable="false" text="Account Type" />
           <TableColumn fx:id="mRoutineNumberTableColumn" editable="false" prefWidth="175.0" sortable="false" text="Routing Number" />
-            <TableColumn fx:id="mLast4AccountNumberTableColumn" editable="false" prefWidth="225.0" sortable="false" text="Account Number" />
-            <TableColumn fx:id="mAccountNumberTableColumn" editable="false" prefWidth="225.0" sortable="false" text="Account Number" visible="false" />
+            <TableColumn fx:id="mBankAccountNumberLast4TableColumn" editable="false" prefWidth="225.0" sortable="false" text="Account Number" />
+            <TableColumn fx:id="mBankAccountNumberTableColumn" editable="false" prefWidth="225.0" sortable="false" text="Account Number" visible="false" />
         </columns>
          <GridPane.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </GridPane.margin>
+      </TableView>
+      <TableView fx:id="mAccountTableView" prefHeight="200.0" prefWidth="200.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" GridPane.rowSpan="4">
+        <columns>
+            <TableColumn fx:id="mAccountNumberLast4TableColumn" editable="false" prefWidth="225.0" sortable="false" text="Account Number" />
+            <TableColumn fx:id="mAccountNumberTableColumn" editable="false" prefWidth="225.0" sortable="false" text="Account Number" visible="false" />
+        </columns>
       </TableView>
    </children>
    <padding>

@@ -32,6 +32,8 @@ import com.webcohesion.ofx4j.domain.data.banking.AccountType;
 import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
 import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
 import com.webcohesion.ofx4j.domain.data.common.TransactionType;
+import com.webcohesion.ofx4j.domain.data.creditcard.CreditCardAccountDetails;
+import com.webcohesion.ofx4j.domain.data.investment.accounts.InvestmentAccountDetails;
 import com.webcohesion.ofx4j.domain.data.signup.AccountProfile;
 import com.webcohesion.ofx4j.io.OFXParseException;
 import javafx.application.Application;
@@ -4949,25 +4951,34 @@ public class MainApp extends Application {
             InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
             NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
             IllegalBlockSizeException, BadPaddingException, SQLException, OFXException {
-        Account.Type accountType = account.getType();
-        if (!accountType.isGroup(Account.Type.Group.SPENDING)) {
-            throw new IllegalArgumentException("DCDownloadAccountStatement currently only supports SPENDING account, "
-                    + account.getType() + " is currently not supported.");
-        }
 
+        Account.Type accountType = account.getType();
         AccountDC adc = getAccountDC(account.getID());
         DirectConnection directConnection = getDCInfoByID(adc.getDCID());
         FinancialInstitution financialInstitution = DCGetFinancialInstitution(directConnection);
         getClientUID().ifPresent(uuid -> financialInstitution.setClientUID(uuid.toString()));
 
-        BankAccountDetails bankAccountDetails = new BankAccountDetails();
-        bankAccountDetails.setAccountNumber(new String(decrypt(adc.getEncryptedAccountNumber())));
-        bankAccountDetails.setAccountType(AccountType.valueOf(adc.getAccountType()));
-        bankAccountDetails.setBankId(adc.getRoutingNumber());
-        String username = new String(decrypt(directConnection.getEncryptedUserName()));
-        String password = new String(decrypt(directConnection.getEncryptedPassword()));
-        FinancialInstitutionAccount fiAccount = financialInstitution.loadBankAccount(bankAccountDetails,
-                username, password);
+        final String username = new String(decrypt(directConnection.getEncryptedUserName()));
+        final String password = new String(decrypt(directConnection.getEncryptedPassword()));
+        final String clearAccountNumber = new String(decrypt(adc.getEncryptedAccountNumber()));
+
+        final FinancialInstitutionAccount fiAccount;
+        if (accountType.equals(Account.Type.CREDIT_CARD)) {
+            CreditCardAccountDetails creditCardAccountDetails = new CreditCardAccountDetails();
+            creditCardAccountDetails.setAccountNumber(clearAccountNumber);
+            fiAccount = financialInstitution.loadCreditCardAccount(creditCardAccountDetails, username, password);
+        } else if (accountType.isGroup(Account.Type.Group.INVESTING)) {
+            InvestmentAccountDetails investmentAccountDetails = new InvestmentAccountDetails();
+            investmentAccountDetails.setAccountNumber(clearAccountNumber);
+            fiAccount = financialInstitution.loadInvestmentAccount(investmentAccountDetails, username, password);
+        } else {
+            BankAccountDetails bankAccountDetails = new BankAccountDetails();
+            bankAccountDetails.setAccountType(AccountType.valueOf(adc.getAccountType()));
+            bankAccountDetails.setBankId(adc.getRoutingNumber());
+            bankAccountDetails.setAccountNumber(clearAccountNumber);
+            fiAccount = financialInstitution.loadBankAccount(bankAccountDetails,  username, password);
+        }
+
         java.util.Date endDate = new java.util.Date();
         java.util.Date startDate = adc.getLastDownloadDateTime();
 
@@ -5002,7 +5013,7 @@ public class MainApp extends Application {
         }
 
         Set<TransactionType> testedTransactionType = new HashSet<>(Arrays.asList(TransactionType.OTHER,
-                TransactionType.CREDIT, TransactionType.DEBIT, TransactionType.CHECK));
+                TransactionType.CREDIT, TransactionType.DEBIT, TransactionType.CHECK, TransactionType.INT));
         Set<TransactionType> unTestedTransactionType = new HashSet<>();
 
         ArrayList<Transaction> tobeImported = new ArrayList<>();

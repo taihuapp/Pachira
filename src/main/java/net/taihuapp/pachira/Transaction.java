@@ -61,9 +61,9 @@ public class Transaction {
         if (!getStatus().equals(Status.UNCLEARED))
             stringBuilder.append("C").append(getStatus().toChar()).append(EOL);
         if (isBanking) {
-            if (!getReference().isEmpty())
+            if ((getReference() != null) && (!getReference().isEmpty()))
                 stringBuilder.append("N").append(getReference()).append(EOL);
-            if (!getPayee().isEmpty())
+            if ((getPayee() != null) && !getPayee().isEmpty())
                 stringBuilder.append("P").append(getPayee()).append(EOL);
         } else {
             String taStr;
@@ -730,6 +730,19 @@ public class Transaction {
         }
     }
 
+    private static String combineStrings(String A, String B, int maxLen) {
+        final String combined;
+        if (A.toLowerCase().contains(B.toLowerCase()))
+            combined = A;
+        else if (B.toLowerCase().contains(A.toLowerCase()))
+            combined = B;
+        else
+            combined = A + " " + B;
+        if (combined.length() < maxLen)
+            return combined;
+        return combined.substring(0, maxLen);
+    }
+
     // Merge a downloaded transaction into a manually entered transaction
     // transactionA is a manually entered transaction (getFITID().isEmpty() == true)
     // transactionB is a downloaded transaction (getFITID().isEmpty() == false)
@@ -740,15 +753,18 @@ public class Transaction {
     // all other fields of the result transaction will have merged information
     static Transaction mergeDownloadedTransaction(final Transaction transactionA, final Transaction transactionB) {
 
-        String fitIDA = transactionA.getFITID();
-        String fitIDB = transactionB.getFITID();
-        if (!fitIDA.isEmpty() || fitIDB.isEmpty())
+        final String fitIDA = transactionA.getFITID();
+        final String fitIDB = transactionB.getFITID();
+        if (fitIDA.isEmpty() == fitIDB.isEmpty())
             throw new IllegalArgumentException("mergeDownloadedTransaction expected "
                             + "a manually entered transaction and "
                             + "a downloaded transaction, but got a "
                             + (fitIDA.isEmpty() ? "manually entered" : "downloaded") + " transaction "
                             + "and a "
                             + (fitIDB.isEmpty() ? "manually entered" : "downloaded") + " transaction ");
+
+        if (!fitIDA.isEmpty()) // transactionA is downloaded one, switch around
+            return mergeDownloadedTransaction(transactionB, transactionA);
 
         TradeAction taA = transactionA.getTradeAction();
         TradeAction taB = transactionB.getTradeAction();
@@ -759,19 +775,24 @@ public class Transaction {
                 tradeActionCompatible = taB == taA;
                 break;
             default:
+                System.err.println("Investment Transactions not implemented yet");
                 break;
         }
         if (!tradeActionCompatible)
             throw new IllegalArgumentException("Incompatible TradeActions: "
                     + taA.toString() + "/" + taB.toString());
 
-        // copy over everything from transactionA first
-        Transaction mergedTransaction = new Transaction(transactionA);
+        // transactionB is downloaded one.
+        // copy over everything from A
+        final Transaction mergedTransaction = new Transaction(transactionA);
 
-        // set Date
+        // set status from B
+        mergedTransaction.setStatus(transactionB.getStatus());
+
+        // set Date from B
         mergedTransaction.setTDate(transactionB.getTDate());
 
-        // set fitid
+        // set fitId from B
         mergedTransaction.setFIDID(transactionB.getFITID());
 
         // set category
@@ -781,27 +802,17 @@ public class Transaction {
             mergedTransaction.setCategoryID(transactionB.getCategoryID());
         }
 
-        // set Reference field
-        // take Reference from transactionB if it is not empty
-        String refStringB = transactionB.getReference();
-        if (!refStringB.isEmpty())
-            mergedTransaction.setReference(refStringB);
+        // set Reference field, take Reference from transactionB if it is not empty
+        if (mergedTransaction.getReference().isEmpty())
+            mergedTransaction.setReference(transactionB.getReference());
 
         // set Payee field, combine A + B
-        String payeeA = transactionA.getPayee();
-        String payeeB = transactionB.getPayee();
-        if (payeeA.isEmpty())
-            mergedTransaction.setPayee(payeeB);
-        else if (!payeeB.isEmpty())
-            mergedTransaction.setPayee(payeeA + " " + payeeB);
+        mergedTransaction.setPayee(combineStrings(transactionA.getPayee(), transactionB.getPayee(),
+                MainApp.TRANSACTIONPAYEELEN));
 
         // set Memo field
-        String memoA = transactionA.getMemo();
-        String memoB = transactionB.getMemo();
-        if (memoA.isEmpty())
-            mergedTransaction.setMemo(memoB);
-        else if (!memoB.isEmpty())
-            mergedTransaction.setMemo(memoA + " " + memoB);
+        mergedTransaction.setMemo(combineStrings(transactionA.getMemo(), transactionB.getMemo(),
+                MainApp.TRANSACTIONMEMOLEN));
 
         return mergedTransaction;
     }

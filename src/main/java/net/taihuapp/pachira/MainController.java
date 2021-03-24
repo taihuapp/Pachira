@@ -966,17 +966,12 @@ public class MainController {
                         Transaction mergedTransaction = Transaction.mergeDownloadedTransaction(
                                 selected, downloadedTransaction);
 
-                        if (!mMainApp.alterTransaction(selected, mergedTransaction, new ArrayList<>())) {
+                        // delete downloaded transaction, save mergedTransaction
+                        if (!mMainApp.alterTransaction(downloadedTransaction, mergedTransaction,
+                                mMainApp.getMatchInfoList(mergedTransaction.getID()))) {
                             showWarningDialog("Merge Transaction Failed",
                                     "Failed to merge a downloaded transaction with an existing one",
                                     "Transactions remained un-merged");
-                            return;
-                        }
-
-                        if (!mMainApp.alterTransaction(downloadedTransaction, null, new ArrayList<>())) {
-                            showWarningDialog("Delete Transaction Failed",
-                                    "Failed to delete downloaded transaction after merge.",
-                                    "Duplicating downloaded transaction remains in DB.");
                         }
                     }
                 });

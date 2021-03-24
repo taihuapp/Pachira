@@ -142,9 +142,9 @@ public class MainApp extends Application {
     private static final int AMOUNT_TOTAL_LEN = 20;
     private static final int AMOUNT_FRACTION_LEN = 4;
 
-    private static final int TRANSACTIONMEMOLEN = 255;
+    static final int TRANSACTIONMEMOLEN = 255;
     private static final int TRANSACTIONREFLEN = 16;
-    private static final int TRANSACTIONPAYEELEN = 64;
+    static final int TRANSACTIONPAYEELEN = 64;
     private static final int TRANSACTIONTRADEACTIONLEN = 16;
     private static final int TRANSACTIONSTATUSLEN = 16;
     private static final int TRANSACTIONTRANSFERREMINDERLEN = 40;
@@ -911,13 +911,13 @@ public class MainApp extends Application {
             preparedStatement.setString(6, t.getStatus().name());
             preparedStatement.setInt(7, t.getCategoryID());
             preparedStatement.setInt(8, t.getTagID());
-            preparedStatement.setString(9, t.getMemoProperty().get());
+            preparedStatement.setString(9, t.getMemo());
             preparedStatement.setBigDecimal(10, t.getPrice());
             preparedStatement.setBigDecimal(11, t.getQuantity());
             preparedStatement.setBigDecimal(12, t.getCommission());
             preparedStatement.setInt(13, t.getMatchID()); // matchTransactionID, ignore for now
             preparedStatement.setInt(14, t.getMatchSplitID()); // matchSplitTransactionID, ignore for now
-            preparedStatement.setString(15, t.getPayeeProperty().get());
+            preparedStatement.setString(15, t.getPayee());
             if (t.getADate() == null)
                 preparedStatement.setNull(16, java.sql.Types.DATE);
             else
@@ -4524,7 +4524,11 @@ public class MainApp extends Application {
                                 stXferT = new Transaction(-st.getCategoryID(), newT.getTDate(),
                                         (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ? WITHDRAW : DEPOSIT),
                                         -newT.getAccountID());
-                                stXferT.setPayee(st.getPayee());
+                                stXferT.setID(st.getMatchID());
+                                if ((st.getPayee() != null) && (!st.getPayee().isEmpty()))
+                                    stXferT.setPayee(st.getPayee());
+                                else if (newT.getPayee() != null)
+                                    stXferT.setPayee(newT.getPayee());
                                 stXferT.setMemo(st.getMemo());
                                 stXferT.setMatchID(newTID, st.getID());
                                 stXferT.setAmount(st.getAmount().abs());
@@ -4610,7 +4614,7 @@ public class MainApp extends Application {
                             xferSt.getCategoryIDProperty().set(-newT.getAccountID());
                             if (xferSt.getMemo().isEmpty())
                                 xferSt.setMemo(newT.getMemo());
-                            if (xferSt.getPayee().isEmpty())
+                            if (xferSt.getPayee() == null || xferSt.getPayee().isEmpty())
                                 xferSt.setPayee(newT.getPayee());
                             final BigDecimal amount = xferT.getSplitTransactionList().stream()
                                     .map(SplitTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -4656,6 +4660,7 @@ public class MainApp extends Application {
                     if ((xferT == null) || (!xferT.isSplit() && xferT.isCash())) {
                         xferT = new Transaction(-newT.getCategoryID(), newT.getTDate(), newT.TransferTradeAction(),
                                 -newT.getAccountID());
+                        xferT.setID(newT.getMatchID());
                         xferT.setPayee(newT.getPayee());
                         xferT.setMemo(newT.getMemo());
                         xferT.setAmount(newT.getAmount());

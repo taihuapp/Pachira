@@ -5087,7 +5087,7 @@ public class MainApp extends Application {
                     category == null ? 0 : category.getID());
 
             transaction.setAmount(amount);
-            transaction.setFIDID(ofx4jT.getId());
+            transaction.setFITID(ofx4jT.getId());
 
             String refString;
             if (ofx4jT.getCheckNumber() != null) {

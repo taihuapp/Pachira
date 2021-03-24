@@ -1111,7 +1111,7 @@ public class MainController {
         mTransactionPaymentColumn.setCellValueFactory(cellData->cellData.getValue().getPaymentProperty());
         mTransactionPaymentColumn.setCellFactory(dollarCentsCF);
 
-        mTransactionDepositColumn.setCellValueFactory(cellData->cellData.getValue().getDepositeProperty());
+        mTransactionDepositColumn.setCellValueFactory(cellData->cellData.getValue().getDepositProperty());
         mTransactionDepositColumn.setCellFactory(dollarCentsCF);
 
         mTransactionInvestAmountColumn.setCellValueFactory(cellData->cellData.getValue().getInvestAmountProperty());

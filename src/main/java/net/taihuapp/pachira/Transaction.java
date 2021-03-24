@@ -224,7 +224,7 @@ public class Transaction {
     // investment amount, derived from total amount
     private final ObjectProperty<BigDecimal> mInvestAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mCommissionProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private final ObjectProperty<BigDecimal> mAccuedInterestProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mAccruedInterestProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<BigDecimal> mSignedQuantityProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<BigDecimal> mOldQuantityProperty = new SimpleObjectProperty<>(null);
@@ -250,9 +250,9 @@ public class Transaction {
     ObjectProperty<BigDecimal> getInvestAmountProperty() { return mInvestAmountProperty; }
     ObjectProperty<BigDecimal> getCashAmountProperty() { return mCashAmountProperty; }
     ObjectProperty<BigDecimal> getPaymentProperty() { return mPaymentProperty; }
-    ObjectProperty<BigDecimal> getDepositeProperty() { return mDepositProperty; }
+    ObjectProperty<BigDecimal> getDepositProperty() { return mDepositProperty; }
     ObjectProperty<BigDecimal> getCommissionProperty() { return mCommissionProperty; }
-    ObjectProperty<BigDecimal> getAccruedInterestProperty() { return mAccuedInterestProperty; }
+    ObjectProperty<BigDecimal> getAccruedInterestProperty() { return mAccruedInterestProperty; }
     ObjectProperty<BigDecimal> getBalanceProperty() { return mBalanceProperty; }
     ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
     ObjectProperty<BigDecimal> getSignedQuantityProperty() { return mSignedQuantityProperty; }
@@ -273,7 +273,7 @@ public class Transaction {
 
     private StringProperty getFITIDProperty() { return mFITIDProperty; }
     String getFITID() { return getFITIDProperty().get(); }
-    void setFIDID(String fitid) { getFITIDProperty().set(fitid); }
+    void setFITID(String fitid) { getFITIDProperty().set(fitid); }
 
     ObjectProperty<TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
     TradeAction getTradeAction() { return getTradeActionProperty().get(); }
@@ -374,7 +374,7 @@ public class Transaction {
         // mCashAmountProperty depends on TradeAction, Deposit, Payment
         mCashAmountProperty.bind(Bindings.createObjectBinding(() -> isTransfer() ?
                 getDeposit().subtract(getPayment()) : cashFlow(),
-                getTradeActionProperty(), getDepositeProperty(), getPaymentProperty()));
+                getTradeActionProperty(), getDepositProperty(), getPaymentProperty()));
 
         // mInvestAmountProperty depends on mTradeActionProperty and mAmountProperty
         mInvestAmountProperty.bind(Bindings.createObjectBinding(() -> {
@@ -604,7 +604,7 @@ public class Transaction {
     void setPayee(String payee) { getPayeeProperty().set(payee); }
     void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
     void setOldQuantity(BigDecimal q) { mOldQuantityProperty.set(q); }
-    void setAccruedInterest(BigDecimal ai) { mAccuedInterestProperty.set(ai); }
+    void setAccruedInterest(BigDecimal ai) { mAccruedInterestProperty.set(ai); }
     void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
     void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
     void setMemo(String memo) { mMemoProperty.set(memo); }
@@ -651,7 +651,7 @@ public class Transaction {
         mReferenceProperty.set(reference);
         mPriceProperty.set(price);
         mCommissionProperty.set(commission);
-        mAccuedInterestProperty.set(accruedInterest);
+        mAccruedInterestProperty.set(accruedInterest);
         mMemoProperty.set(memo);
         mCategoryIDProperty.set(categoryID);
         mTagIDProperty.set(tagID);
@@ -793,7 +793,7 @@ public class Transaction {
         mergedTransaction.setTDate(transactionB.getTDate());
 
         // set fitId from B
-        mergedTransaction.setFIDID(transactionB.getFITID());
+        mergedTransaction.setFITID(transactionB.getFITID());
 
         // set category
         if (mergedTransaction.getCategoryID() > -MainApp.MIN_ACCOUNT_ID &&

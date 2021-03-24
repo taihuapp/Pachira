@@ -1402,7 +1402,7 @@ public class ReportDialogController {
                         amount = t.getCashAmount();
                     } else {
                         line.desc = t.getPayee() == null ? "" : t.getPayee();
-                        amount = t.getDepositeProperty().get().subtract(t.getPaymentProperty().get());
+                        amount = t.getDepositProperty().get().subtract(t.getPaymentProperty().get());
                     }
                     line.amount = dcFormat.format(amount);
                     totalAmount = totalAmount.add(amount);

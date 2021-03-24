@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -153,7 +153,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionInvestAmountColumn.setCellValueFactory(cd -> cd.getValue().getInvestAmountProperty());
         mTransactionCashAmountColumn.setCellValueFactory(cd -> cd.getValue().getCashAmountProperty());
         mTransactionPaymentColumn.setCellValueFactory(cd -> cd.getValue().getPaymentProperty());
-        mTransactionDepositColumn.setCellValueFactory(cd -> cd.getValue().getDepositeProperty());
+        mTransactionDepositColumn.setCellValueFactory(cd -> cd.getValue().getDepositProperty());
         mTransactionBalanceColumn.setCellValueFactory(cd -> cd.getValue().getBalanceProperty());
         mTransactionAmountColumn.setCellValueFactory(cd -> cd.getValue().getAmountProperty());
 

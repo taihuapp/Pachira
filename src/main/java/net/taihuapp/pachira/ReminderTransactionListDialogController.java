@@ -251,7 +251,7 @@ public class ReminderTransactionListDialogController {
                         case ReminderTransaction.OVERDUE:
                             setStyle("-fx-background-color:red");
                             break;
-                        case ReminderTransaction.DUESOON:
+                        case ReminderTransaction.DUE_SOON:
                             setStyle("-fx-background-color:yellow");
                             break;
                         default:

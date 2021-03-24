@@ -114,7 +114,7 @@ public class MainApp extends Application {
 
     private static final Logger mLogger = Logger.getLogger(MainApp.class);
 
-    static final ObjectProperty<LocalDate> CURRENTDATEPROPERTY = new SimpleObjectProperty<>(LocalDate.now());
+    static final ObjectProperty<LocalDate> CURRENT_DATE_PROPERTY = new SimpleObjectProperty<>(LocalDate.now());
 
     // minimum 2 decimal places, maximum 4 decimal places
     static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
@@ -1002,10 +1002,10 @@ public class MainApp extends Application {
 
         final int[] idArray = new int[stList.size()];
         String insertSQL = "insert into SPLITTRANSACTIONS "
-                + "(TRANSACTIONID, CATEGORYID, PAYEE, MEMO, AMOUNT, MATCHTRANSACTIONID, TAGID) "
-                + "values (?, ?, ?, ?, ?, ?, ?)";
+                + "(TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, MATCHTRANSACTIONID, TAGID) "
+                + "values (?, ?, ?, ?, ?, ?)";
         String updateSQL = "update SPLITTRANSACTIONS set "
-                + "TRANSACTIONID = ?, CATEGORYID = ?, PAYEE = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ?, "
+                + "TRANSACTIONID = ?, CATEGORYID = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ?, "
                 + "TAGID = ?"
                 + "where ID = ?";
         Connection connection = getConnection();
@@ -1023,39 +1023,34 @@ public class MainApp extends Application {
             // insert or update stList
             for (int i = 0; i < stList.size(); i++) {
                 SplitTransaction st = stList.get(i);
-                String payee = st.getPayee();
-                if (payee != null && payee.length() > TRANSACTIONPAYEELEN)
-                    payee = payee.substring(0, TRANSACTIONPAYEELEN);
                 String memo = st.getMemo();
                 if (memo != null && memo.length() > TRANSACTIONMEMOLEN)
                     memo = memo.substring(0, TRANSACTIONMEMOLEN);
                 if (st.getID() <= 0) {
                     insertStatement.setInt(1, tid);
                     insertStatement.setInt(2, st.getCategoryID());
-                    insertStatement.setString(3, payee);
-                    insertStatement.setString(4, memo);
-                    insertStatement.setBigDecimal(5, st.getAmount());
-                    insertStatement.setInt(6, st.getMatchID());
-                    insertStatement.setInt(7, st.getTagID());
+                    insertStatement.setString(3, memo);
+                    insertStatement.setBigDecimal(4, st.getAmount());
+                    insertStatement.setInt(5, st.getMatchID());
+                    insertStatement.setInt(6, st.getTagID());
 
                     if (insertStatement.executeUpdate() == 0) {
-                        throw new SQLException("Insert to splittransactions failed");
+                        throw new SQLException("Insert to splitTransactions failed");
                     }
                     try (ResultSet resultSet = insertStatement.getGeneratedKeys()) {
                         resultSet.next();
-                        idArray[i] = resultSet.getInt(1); // retrieve id from resultset
+                        idArray[i] = resultSet.getInt(1); // retrieve id from resultSet
                     }
                 } else {
                     idArray[i] = st.getID();
 
                     updateStatement.setInt(1, tid);
                     updateStatement.setInt(2, st.getCategoryID());
-                    updateStatement.setString(3, payee);
-                    updateStatement.setString(4, memo);
-                    updateStatement.setBigDecimal(5, st.getAmount());
-                    updateStatement.setInt(6, st.getMatchID());
-                    updateStatement.setInt(7, st.getTagID());
-                    updateStatement.setInt(8, st.getID());
+                    updateStatement.setString(3, memo);
+                    updateStatement.setBigDecimal(4, st.getAmount());
+                    updateStatement.setInt(5, st.getMatchID());
+                    updateStatement.setInt(6, st.getTagID());
+                    updateStatement.setInt(7, st.getID());
 
                     updateStatement.executeUpdate();
                 }
@@ -2255,8 +2250,7 @@ public class MainApp extends Application {
                 int tid = resultSet.getInt("TRANSACTIONID");
                 int id = resultSet.getInt("ID");
                 int cid = resultSet.getInt("CATEGORYID");
-                int tagid = resultSet.getInt("TAGID");
-                String payee = resultSet.getString("PAYEE");
+                int tagId = resultSet.getInt("TAGID");
                 String memo = resultSet.getString("MEMO");
                 BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
                 if (amount == null) {
@@ -2275,7 +2269,7 @@ public class MainApp extends Application {
                     value = new ArrayList<>();
                     stListMap.put(key, value);
                 }
-                value.add(new SplitTransaction(id, cid, tagid, payee, memo, amount, matchID));
+                value.add(new SplitTransaction(id, cid, tagId, memo, amount, matchID));
             }
         }  catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -3956,6 +3950,7 @@ public class MainApp extends Application {
                 statement.executeUpdate("update ACCOUNTS set TYPE = 'HOUSE' where TYPE = 'PROPERTY'");
                 statement.executeUpdate("update ACCOUNTS set TYPE = 'LOAN' where TYPE = 'DEBT'");
                 statement.executeUpdate("alter table SETTINGS alter column VALUE varchar(255) not null");
+                statement.executeUpdate("alter table SPLITTRANSACTIONS drop column PAYEE");
                 statement.executeUpdate(mergeSQL);
             }
         } else if (newV == 9) {
@@ -4525,10 +4520,7 @@ public class MainApp extends Application {
                                         (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ? WITHDRAW : DEPOSIT),
                                         -newT.getAccountID());
                                 stXferT.setID(st.getMatchID());
-                                if ((st.getPayee() != null) && (!st.getPayee().isEmpty()))
-                                    stXferT.setPayee(st.getPayee());
-                                else if (newT.getPayee() != null)
-                                    stXferT.setPayee(newT.getPayee());
+                                stXferT.setPayee(newT.getPayee());
                                 stXferT.setMemo(st.getMemo());
                                 stXferT.setMatchID(newTID, st.getID());
                                 stXferT.setAmount(st.getAmount().abs());
@@ -4614,8 +4606,6 @@ public class MainApp extends Application {
                             xferSt.getCategoryIDProperty().set(-newT.getAccountID());
                             if (xferSt.getMemo().isEmpty())
                                 xferSt.setMemo(newT.getMemo());
-                            if (xferSt.getPayee() == null || xferSt.getPayee().isEmpty())
-                                xferSt.setPayee(newT.getPayee());
                             final BigDecimal amount = xferT.getSplitTransactionList().stream()
                                     .map(SplitTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
                             if (amount.compareTo(BigDecimal.ZERO) > 0) {
@@ -4789,8 +4779,6 @@ public class MainApp extends Application {
                                 xferT.getCategoryIDProperty().set(st.getCategoryID());
                                 if (xferT.getMemo().isEmpty())
                                     xferT.setMemo(st.getMemo());
-                                if (xferT.getPayee().isEmpty())
-                                    xferT.setPayee(st.getPayee());
                                 xferT.setMatchID(st.getMatchID(),-1);
 
                                 if (st.getMatchID() > 0) {
@@ -5301,7 +5289,6 @@ public class MainApp extends Application {
                 + "TRANSACTIONID integer NOT NULL, "
                 + "CATEGORYID integer, "
                 + "TAGID integer, "
-                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
                 + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
                 + "AMOUNT decimal(" + AMOUNT_TOTAL_LEN + "," + AMOUNT_FRACTION_LEN + "), "
                 + "PERCENTAGE decimal(20,4), "
@@ -5702,8 +5689,8 @@ public class MainApp extends Application {
         initMainLayout();
         mExecutorService.scheduleAtFixedRate(() -> {
             // check if current date property is still correct.
-            if (CURRENTDATEPROPERTY.get().compareTo(LocalDate.now()) != 0) {
-                Platform.runLater(() -> CURRENTDATEPROPERTY.set(LocalDate.now()));
+            if (CURRENT_DATE_PROPERTY.get().compareTo(LocalDate.now()) != 0) {
+                Platform.runLater(() -> CURRENT_DATE_PROPERTY.set(LocalDate.now()));
             }
         }, 15, 15, TimeUnit.SECONDS);
     }

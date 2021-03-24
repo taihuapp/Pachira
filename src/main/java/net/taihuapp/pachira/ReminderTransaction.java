@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -27,7 +27,7 @@ import java.time.LocalDate;
 
 class ReminderTransaction {
     static final String OVERDUE = "Over due";
-    static final String DUESOON = "Due soon";
+    static final String DUE_SOON = "Due soon";
     static final String COMPLETED = "Completed";
     static final String SKIPPED = "Skipped";
 
@@ -52,16 +52,16 @@ class ReminderTransaction {
                 return SKIPPED;
 
             // id < 0, not executed
-            LocalDate today = MainApp.CURRENTDATEPROPERTY.get();
+            LocalDate today = MainApp.CURRENT_DATE_PROPERTY.get();
             LocalDate dueDate = mDueDateProperty.get();
             if (dueDate.isBefore(today))
                 return OVERDUE;
 
             if (!dueDate.isAfter(today.plusDays(mReminder.getDateSchedule().getAlertDay())))
-                return DUESOON;
+                return DUE_SOON;
 
             return "";
-        }, mTransactionIDProperty, mDueDateProperty, MainApp.CURRENTDATEPROPERTY));
+        }, mTransactionIDProperty, mDueDateProperty, MainApp.CURRENT_DATE_PROPERTY));
     }
 
     ObjectProperty<LocalDate> getDueDateProperty() { return mDueDateProperty; }

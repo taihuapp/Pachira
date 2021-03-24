@@ -833,7 +833,7 @@ public class MainController {
 
     @FXML
     private void initialize() {
-        MainApp.CURRENTDATEPROPERTY.addListener((obs, ov, nv) -> {
+        MainApp.CURRENT_DATE_PROPERTY.addListener((obs, ov, nv) -> {
             mMainApp.updateAccountBalance();
             mTransactionTableView.refresh();
         });

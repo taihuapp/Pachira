@@ -9,12 +9,14 @@
       <w>permutated</w>
       <w>reinvdiv</w>
       <w>securitystringconverter</w>
+      <w>shrsin</w>
       <w>sortability</w>
       <w>splittransaction</w>
       <w>splittransactionlist</w>
       <w>uncheck</w>
       <w>unhide</w>
       <w>xfer</w>
+      <w>xout</w>
     </words>
   </dictionary>
 </component>

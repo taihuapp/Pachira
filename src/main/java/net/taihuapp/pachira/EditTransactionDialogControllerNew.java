@@ -68,7 +68,7 @@ public class EditTransactionDialogControllerNew {
         }
     };
 
-    private static final BigDecimalStringConverter DOLLARCENTSTRINGCONVERTER = new BigDecimalStringConverter() {
+    private static final BigDecimalStringConverter DOLLAR_CENT_STRING_CONVERTER = new BigDecimalStringConverter() {
         public String toString(BigDecimal b) {
             return b == null ? "" : MainApp.DOLLAR_CENT_FORMAT.format(b);
         }
@@ -511,7 +511,7 @@ public class EditTransactionDialogControllerNew {
         mIncomeLabel.visibleProperty().bind(mIncomeTextField.visibleProperty());
         mIncomeLabel.textProperty().bind(mTradeActionChoiceBox.valueProperty().asString());
         mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
-                DOLLARCENTSTRINGCONVERTER);
+                DOLLAR_CENT_STRING_CONVERTER);
 
         // shares
         addEventFilterNumericInputOnly(mSharesTextField);
@@ -552,14 +552,14 @@ public class EditTransactionDialogControllerNew {
                 .and(mTradeActionChoiceBox.valueProperty().isNotEqualTo(SHRCLSCVN)));
         mCommissionLabel.visibleProperty().bind(mCommissionTextField.visibleProperty());
         mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
-                DOLLARCENTSTRINGCONVERTER);
+                DOLLAR_CENT_STRING_CONVERTER);
 
         // accrued interest, same visibility as commission
         addEventFilterNumericInputOnly(mAccruedInterestTextField);
         mAccruedInterestTextField.visibleProperty().bind(mCommissionTextField.visibleProperty());
         mAccruedInterestLabel.visibleProperty().bind(mAccruedInterestTextField.visibleProperty());
         mAccruedInterestTextField.textProperty().bindBidirectional(mTransaction.getAccruedInterestProperty(),
-                DOLLARCENTSTRINGCONVERTER);
+                DOLLAR_CENT_STRING_CONVERTER);
 
         // specify lots button
         mSpecifyLotButton.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
@@ -589,7 +589,7 @@ public class EditTransactionDialogControllerNew {
             }
         }, mTradeActionChoiceBox.valueProperty()));
         mTotalTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
-                DOLLARCENTSTRINGCONVERTER);
+                DOLLAR_CENT_STRING_CONVERTER);
 
         // set default button
         // if transaction != null, it is editing an existing transaction
@@ -827,7 +827,7 @@ public class EditTransactionDialogControllerNew {
             }
         }
 
-        // check ADate for SHRSIN and XFRSHRS
+        // check ADate for SHRSIN
         if (ta == SHRSIN) {
             LocalDate aDate = mTransaction.getADate();
             String header = null;
@@ -891,7 +891,6 @@ public class EditTransactionDialogControllerNew {
             SplitTransaction st = outSplitTransactionList.get(0);
             mTransaction.getCategoryIDProperty().set(st.getCategoryID());
             mTransaction.setMemo(st.getMemo());
-            mTransaction.setPayee(st.getPayee());
             mTransaction.setMatchID(st.getMatchID(),-1);
 
             if (st.getAmount().compareTo(BigDecimal.ZERO) >= 0)

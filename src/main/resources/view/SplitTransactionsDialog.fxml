@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -20,23 +20,15 @@
   ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   -->
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.SplitTransactionsDialogController">
    <center>
       <TableView fx:id="mSplitTransactionsTableView" editable="true" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
         <columns>
           <TableColumn fx:id="mCategoryTableColumn" prefWidth="75.0" sortable="false" text="Category/Transfer" />
             <TableColumn fx:id="mTagTableColumn" prefWidth="75.0" text="Tag" />
-            <TableColumn fx:id="mPayeeTableColumn" prefWidth="75.0" text="Payee" />
           <TableColumn fx:id="mMemoTableColumn" prefWidth="75.0" sortable="false" text="Memo" />
             <TableColumn fx:id="mAmountTableColumn" prefWidth="75.0" sortable="false" text="Amount" />
         </columns>
@@ -59,7 +51,6 @@
                      </HBox.margin>
                   </ComboBox>
                   <ComboBox fx:id="mTagIDComboBox" />
-                  <TextField fx:id="mPayeeTextField" />
                   <TextField fx:id="mMemoTextField" />
                   <TextField fx:id="mAmountTextField" alignment="CENTER_RIGHT">
                      <HBox.margin>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,7 +20,10 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.*;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 
 import java.math.BigDecimal;
 
@@ -40,7 +43,6 @@ class SplitTransaction {
     // negative for negative of Transfer Account ID
     private final ObjectProperty<Integer> mCategoryIDProperty = new SimpleObjectProperty<>(0);
     private final ObjectProperty<Integer> mTagIDProperty = new SimpleObjectProperty<>(0);
-    private final StringProperty mPayeeProperty = new SimpleStringProperty();
     private final StringProperty mMemoProperty = new SimpleStringProperty();
 
     // amount can be positive or negative
@@ -51,14 +53,13 @@ class SplitTransaction {
     private int mMatchID;  // the id of the transaction is matched up to this split transaction
 
     SplitTransaction(SplitTransaction st) {
-        this(st.getID(), st.getCategoryID(), st.getTagID(), st.getPayee(), st.getMemo(), st.getAmount(), st.getMatchID());
+        this(st.getID(), st.getCategoryID(), st.getTagID(), st.getMemo(), st.getAmount(), st.getMatchID());
     }
 
-    SplitTransaction(int id, int cid, int tid, String payee, String memo, BigDecimal amount, int matchTid) {
+    SplitTransaction(int id, int cid, int tid, String memo, BigDecimal amount, int matchTid) {
         mID = id;
         mCategoryIDProperty.set(cid);
         mTagIDProperty.set(tid);
-        mPayeeProperty.set(payee);
         mMemoProperty.set(memo);
         mAmountProperty.set(amount);
         mMatchID = matchTid;
@@ -69,8 +70,6 @@ class SplitTransaction {
     ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
     Integer getCategoryID() { return getCategoryIDProperty().get(); }
     Integer getTagID() { return getTagIDProperty().get(); }
-    StringProperty getPayeeProperty() { return mPayeeProperty; }
-    String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
     String getMemo() { return getMemoProperty().get(); }
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
@@ -79,7 +78,6 @@ class SplitTransaction {
 
     void setID(int id) { mID = id; }
     void setMatchID(int mid) { mMatchID = mid; }
-    void setPayee(String payee) { getPayeeProperty().set(payee); }
     void setMemo(String memo) { getMemoProperty().set(memo); }
     void setAmount(BigDecimal amount) { getAmountProperty().set(amount); }
 

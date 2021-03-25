@@ -481,7 +481,7 @@ public class MainController {
             }
 
             for (TreeItem<Account> tia : mAccountTreeTableView.getRoot().getChildren()) {
-                if (tia.getValue().getType() == a.getType()) {
+                if (tia.getValue().getType().isGroup(a.getType().getGroup())) {
                     for (TreeItem<Account> tia1 : tia.getChildren()) {
                         if (tia1.getValue().getID() == a.getID()) {
                             mAccountTreeTableView.getSelectionModel().select(tia1);

@@ -952,7 +952,7 @@ public class ReportDialogController {
                 if(tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                String sName = t.getSecurityName() == null ? NOSECURITY : t.getSecurityName();
+                String sName = t.getSecurityName().isEmpty() ? NOSECURITY : t.getSecurityName();
                 if (securityNameSet.contains(sName)
                         && mSetting.getSelectedTradeActionSet().contains(t.getTradeAction())) {
                     Line line = new Line();
@@ -1088,11 +1088,13 @@ public class ReportDialogController {
         final LocalDate sDate1 = mSetting.mStartDate.minusDays(1); // one day before start date
         final LocalDate eDate1 = mSetting.mEndDate.plusDays(1); // one day after end date
         for (Account account : mSetting.getSelectedAccountSet()) {
-            for (Transaction t : new FilteredList<>(account.getTransactionList(), p ->
-                    (securityNameSet.contains(p.getSecurityName()) &&
-                            (p.getTradeAction() == Transaction.TradeAction.SELL ||
-                                    p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
-                            p.getTDate().isAfter(sDate1) && p.getTDate().isBefore(eDate1)))) {
+            for (Transaction t : new FilteredList<>(account.getTransactionList(), p -> {
+                final String sName = p.getSecurityName().isEmpty() ? NOSECURITY : p.getSecurityName();
+                return (securityNameSet.contains(sName) &&
+                        (p.getTradeAction() == Transaction.TradeAction.SELL ||
+                                p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
+                        p.getTDate().isAfter(sDate1) && p.getTDate().isBefore(eDate1));
+            })) {
                 BigDecimal matchedQuantity = BigDecimal.ZERO;
                 CapitalGainItem transactionSTG = null; // keep track short term gain for the transaction
                 CapitalGainItem transactionLTG = null; // keep track long term gain for the transaction
@@ -1383,8 +1385,9 @@ public class ReportDialogController {
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
+                final String sName = t.getSecurityName().isEmpty() ? NOSECURITY : t.getSecurityName();
                 if (mSetting.getSelectedCategoryIDSet().contains(t.getCategoryID())
-                        && securityNameSet.contains(t.getSecurityName())
+                        && securityNameSet.contains(sName)
                         && ((payeePattern == null) || payeePattern.matcher(t.getPayee()).find())
                         && ((memoPattern == null) || memoPattern.matcher(t.getMemo()).find())) {
                     Line line = new Line();

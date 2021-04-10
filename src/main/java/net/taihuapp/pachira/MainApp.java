@@ -4421,8 +4421,8 @@ public class MainApp extends Application {
                             newT.getTDate(), newT.getID()).stream()
                             .filter(sh -> sh.getSecurityName().equals(newT.getSecurityName()))
                             .map(SecurityHolding::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
-                    if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newT.getQuantity()) <= 0)
-                        || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newT.getQuantity()) <= 0)) {
+                    if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newT.getQuantity()) < 0)
+                        || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newT.getQuantity()) < 0)) {
                         // existing quantity not enough for the new trade
                         mLogger.warn("New " + newTTA + " transaction quantity exceeds existing quantity");
                         showWarningDialog("New " + newTTA + " transaction quantity exceeds existing quantity",

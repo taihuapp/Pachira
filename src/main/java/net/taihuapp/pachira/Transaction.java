@@ -157,7 +157,7 @@ public class Transaction {
         return Objects.hash(mID);
     }
 
-    enum Status {
+    public enum Status {
         UNCLEARED, CLEARED, RECONCILED;
 
         public char toChar() {
@@ -184,7 +184,7 @@ public class Transaction {
         }
     }
 
-    enum TradeAction {
+    public enum TradeAction {
         BUY("Buy Shares"), SELL("Sell Shares"), DIV("Dividend"), REINVDIV("Reinvest Dividend"),
         INTINC("Interest"), REINVINT("Reinvest Interest"),
         CGLONG("Long-term Cap Gain"), CGMID("Mid-term Cap Gain"), CGSHORT("Short-term Cap Gain"),
@@ -237,13 +237,13 @@ public class Transaction {
     private final List<SplitTransaction> mSplitTransactionList = new ArrayList<>();
 
     // getters
-    int getID() { return mID; }
-    int getAccountID() { return mAccountID; }
+    public int getID() { return mID; }
+    public int getAccountID() { return mAccountID; }
     ObjectProperty<LocalDate> getADateProperty() { return mADateProperty; }
     StringProperty getPayeeProperty() { return mPayeeProperty; }
-    String getPayee() { return getPayeeProperty().get(); }
+    public String getPayee() { return getPayeeProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
-    String getMemo() { return getMemoProperty().get(); }
+    public String getMemo() { return getMemoProperty().get(); }
     ObjectProperty<Integer> getCategoryIDProperty() { return mCategoryIDProperty; }
     ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
@@ -260,23 +260,23 @@ public class Transaction {
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
 
     ObjectProperty<LocalDate> getTDateProperty() { return mTDateProperty; }
-    LocalDate getTDate() { return getTDateProperty().get(); }
+    public LocalDate getTDate() { return getTDateProperty().get(); }
     void setTDate(LocalDate td) { getTDateProperty().set(td); }
 
     StringProperty getReferenceProperty() { return mReferenceProperty; }
-    String getReference() { return getReferenceProperty().get(); }
+    public String getReference() { return getReferenceProperty().get(); }
     void setReference(String r) { getReferenceProperty().set(r); }
 
     ObjectProperty<Status> getStatusProperty() { return mStatusProperty; }
-    Status getStatus() { return getStatusProperty().get(); }
+    public Status getStatus() { return getStatusProperty().get(); }
     void setStatus(Status s) { getStatusProperty().set(s); }
 
     private StringProperty getFITIDProperty() { return mFITIDProperty; }
-    String getFITID() { return getFITIDProperty().get(); }
+    public String getFITID() { return getFITIDProperty().get(); }
     void setFITID(String fitid) { getFITIDProperty().set(fitid); }
 
     ObjectProperty<TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
-    TradeAction getTradeAction() { return getTradeActionProperty().get(); }
+    public TradeAction getTradeAction() { return getTradeActionProperty().get(); }
     void setTradeAction(TradeAction ta) { getTradeActionProperty().set(ta); }
 
     StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
@@ -454,25 +454,25 @@ public class Transaction {
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
     String getDescription() { return getDescriptionProperty().get(); }
 
-    LocalDate getADate() { return mADateProperty.get(); }
-    BigDecimal getPrice() { return mPriceProperty.get(); }
-    BigDecimal getQuantity() { return mQuantityProperty.get(); }
-    BigDecimal getOldQuantity() { return getOldQuantityProperty().get(); }
-    BigDecimal getCommission() { return getCommissionProperty().get(); }
-    BigDecimal getAccruedInterest() { return getAccruedInterestProperty().get(); }
-    BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
-    String getSecurityName() { return mSecurityNameProperty.get();}
-    BigDecimal getCashAmount() { return getCashAmountProperty().get(); }
-    BigDecimal getInvestAmount() { return getInvestAmountProperty().get(); }
+    public LocalDate getADate() { return mADateProperty.get(); }
+    public BigDecimal getPrice() { return mPriceProperty.get(); }
+    public BigDecimal getQuantity() { return mQuantityProperty.get(); }
+    public BigDecimal getOldQuantity() { return getOldQuantityProperty().get(); }
+    public BigDecimal getCommission() { return getCommissionProperty().get(); }
+    public BigDecimal getAccruedInterest() { return getAccruedInterestProperty().get(); }
+    public BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
+    public String getSecurityName() { return mSecurityNameProperty.get();}
+    public BigDecimal getCashAmount() { return getCashAmountProperty().get(); }
+    public BigDecimal getInvestAmount() { return getInvestAmountProperty().get(); }
     List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
-    boolean isSplit() { return getSplitTransactionList().size() > 0; }
-    BigDecimal getAmount() { return mAmountProperty.get(); }
+    public boolean isSplit() { return !getSplitTransactionList().isEmpty(); }
+    public BigDecimal getAmount() { return mAmountProperty.get(); }
     BigDecimal getPayment() { return mPaymentProperty.get(); }
     BigDecimal getDeposit() { return mDepositProperty.get(); }
-    Integer getCategoryID() { return getCategoryIDProperty().get(); }
-    Integer getTagID() { return getTagIDProperty().get(); }
-    int getMatchID() { return mMatchID; }  // this is for linked transactions
-    int getMatchSplitID() { return mMatchSplitID; }
+    public Integer getCategoryID() { return getCategoryIDProperty().get(); }
+    public Integer getTagID() { return getTagIDProperty().get(); }
+    public int getMatchID() { return mMatchID; }  // this is for linked transactions
+    public int getMatchSplitID() { return mMatchSplitID; }
 
     // for a transferring transaction, return the trade action of the matching transaction
     final TradeAction TransferTradeAction() {
@@ -553,7 +553,7 @@ public class Transaction {
     // return -1 if a tradeAction decrease the cash balance in the account
     // return 0 if a tradeAction has zero impact on cash balance
 
-    BigDecimal cashFlow() {
+    public BigDecimal cashFlow() {
         switch (getTradeAction()) {
             case BUY:
             case CVTSHRT:
@@ -587,10 +587,10 @@ public class Transaction {
         }
     }
 
-    BigDecimal getSignedQuantity() { return getSignedQuantityProperty().get(); }
+    public BigDecimal getSignedQuantity() { return getSignedQuantityProperty().get(); }
 
     // setters
-    void setID(int id) { mID = id; }
+    public void setID(int id) { mID = id; }
     void setAccountID(int aid) { mAccountID = aid; }
     void setADate(LocalDate aDate) { getADateProperty().set(aDate); }
     void setMatchID(int mid, int mSplitID) {
@@ -608,7 +608,7 @@ public class Transaction {
     void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
     void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
     void setMemo(String memo) { mMemoProperty.set(memo); }
-    void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
+    public void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
     void setTagID(int tid) { mTagIDProperty.set(tid); }
     void setSplitTransactionList(List<SplitTransaction> stList) {
@@ -698,7 +698,7 @@ public class Transaction {
     }
 
     // return true if the transaction may change quantity, false otherwise
-    static boolean hasQuantity(TradeAction ta) {
+    public static boolean hasQuantity(TradeAction ta) {
         switch (ta) {
             case BUY:
             case SELL:

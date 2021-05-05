@@ -28,21 +28,21 @@ import java.time.LocalDate;
 
 import static net.taihuapp.pachira.QIFUtil.*;
 
-class Price {
+public class Price {
 
     private final ObjectProperty<LocalDate> mDateProperty;
     private final ObjectProperty<BigDecimal> mPriceProperty;
 
-    Price(LocalDate d, BigDecimal p) {
+    public Price(LocalDate d, BigDecimal p) {
         mDateProperty = new SimpleObjectProperty<>(d);
         mPriceProperty = new SimpleObjectProperty<>(p);
     }
 
     ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
-    LocalDate getDate() { return getDateProperty().get(); }
+    public LocalDate getDate() { return getDateProperty().get(); }
 
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
-    BigDecimal getPrice() { return getPriceProperty().get(); }
+    public BigDecimal getPrice() { return getPriceProperty().get(); }
 
     String toQIF(String ticker) {
         final String quote = "\"";

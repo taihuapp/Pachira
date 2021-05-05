@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -39,13 +39,13 @@ public class SecurityHolding extends LotHolding {
 
     private static final Logger mLogger = Logger.getLogger(SecurityHolding.class);
 
-    final static int CURRENCYDECIMALLEN = 2;  // two place for cents
+    public final static int CURRENCYDECIMALLEN = 2;  // two place for cents
 
-    static class LotInfo extends LotHolding implements Comparable<LotInfo> {
+    public static class LotInfo extends LotHolding implements Comparable<LotInfo> {
 
-        private int mTransactionID;
-        private ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
-        private ObjectProperty<Transaction.TradeAction> mTradeActionProperty = new SimpleObjectProperty<>();
+        private final int mTransactionID;
+        private final ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
+        private final ObjectProperty<Transaction.TradeAction> mTradeActionProperty = new SimpleObjectProperty<>();
 
         // copy constructor
         // how to chain constructor???
@@ -105,21 +105,21 @@ public class SecurityHolding extends LotHolding {
         }
     }
 
-    static class MatchInfo {
+    public static class MatchInfo {
         private final int mMatchTransactionID;
         private final BigDecimal mMatchQuantity;  // always positive
 
-        MatchInfo(int mid, BigDecimal q) {
+        public MatchInfo(int mid, BigDecimal q) {
             mMatchTransactionID = mid;
             mMatchQuantity = q;
         }
 
         // getters
-        int getMatchTransactionID() { return mMatchTransactionID; }
-        BigDecimal getMatchQuantity() { return mMatchQuantity; }
+        public int getMatchTransactionID() { return mMatchTransactionID; }
+        public BigDecimal getMatchQuantity() { return mMatchQuantity; }
     }
 
-    private ObservableList<LotInfo> mLotInfoList = FXCollections.observableArrayList();
+    private final ObservableList<LotInfo> mLotInfoList = FXCollections.observableArrayList();
 
     public SecurityHolding(String n) {
         super(n);
@@ -146,7 +146,7 @@ public class SecurityHolding extends LotHolding {
 
     // update market value and PNL
     @Override
-    protected void updateMarketValue(BigDecimal p) {
+    public void updateMarketValue(BigDecimal p) {
         setPrice(p);
         BigDecimal q = BigDecimal.ZERO;
         for (LotInfo li : getLotInfoList()) {
@@ -159,7 +159,7 @@ public class SecurityHolding extends LotHolding {
     }
 
     @Override
-    protected void updatePctRet() {
+    public void updatePctRet() {
         super.updatePctRet();
         getLotInfoList().forEach(LotInfo::updatePctRet);
     }
@@ -167,7 +167,7 @@ public class SecurityHolding extends LotHolding {
     // add the lot and match off if necessary
     // if the lots are added with wrong order, the cost basis
     // calculation will be wrong
-    void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
+    public void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
         BigDecimal oldQuantity = getQuantity();
 
         // update total quantity here
@@ -227,9 +227,9 @@ public class SecurityHolding extends LotHolding {
 
         if (matchInfoList.size() == 0) {
             // offset with fifo rule
-            Iterator<LotInfo> iter = getLotInfoList().iterator();
-            while (iter.hasNext()) {
-                LotInfo li = iter.next();
+            Iterator<LotInfo> iterator = getLotInfoList().iterator();
+            while (iterator.hasNext()) {
+                LotInfo li = iterator.next();
                 if (li.getQuantity().abs().compareTo(lotInfo.getQuantity().abs()) > 0) {
                     // this lot in the list has more to offset the lotInfo
                     BigDecimal oldQ = li.getQuantity();
@@ -253,7 +253,7 @@ public class SecurityHolding extends LotHolding {
 
                 setCostBasis(getCostBasis().subtract(li.getCostBasis()));
 
-                iter.remove();  // li has been offset, remove
+                iterator.remove();  // li has been offset, remove
 
                 if (lotInfo.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
                     // nothing left to offset
@@ -262,7 +262,7 @@ public class SecurityHolding extends LotHolding {
             }
         }
 
-        // offset against matchinfo
+        // offset against matchInfo
         for (MatchInfo matchInfo : matchInfoList) {
             int matchTID = matchInfo.getMatchTransactionID();
             int matchIndex =  getLotIndex(matchTID);
@@ -305,7 +305,7 @@ public class SecurityHolding extends LotHolding {
         }
     }
 
-    void adjustStockSplit(BigDecimal newQuantity, BigDecimal oldQuantity) {
+    public void adjustStockSplit(BigDecimal newQuantity, BigDecimal oldQuantity) {
         BigDecimal oldQTotal = BigDecimal.ZERO;
         for (LotInfo li : getLotInfoList()) {
             BigDecimal oldQ = li.getQuantity();

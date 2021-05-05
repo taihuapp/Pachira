@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -27,44 +27,43 @@ import javafx.beans.property.StringProperty;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 
 abstract class LotHolding {
 
-    private StringProperty mSecurityNameProperty = new SimpleStringProperty("");
-    private ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private ObjectProperty<BigDecimal> mMarketValueProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private ObjectProperty<BigDecimal> mCostBasisProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-    private ObjectProperty<BigDecimal> mPNLProperty = new SimpleObjectProperty<>();
-    private ObjectProperty<BigDecimal> mPctRetProperty = new SimpleObjectProperty<>();
+    private final StringProperty mSecurityNameProperty = new SimpleStringProperty("");
+    private final ObjectProperty<BigDecimal> mPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mQuantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mMarketValueProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mCostBasisProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> mPNLProperty = new SimpleObjectProperty<>();
+    private final ObjectProperty<BigDecimal> mPctRetProperty = new SimpleObjectProperty<>();
 
     // getters
     abstract String getLabel();
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
     ObjectProperty<BigDecimal> getQuantityProperty() { return mQuantityProperty; }
     ObjectProperty<BigDecimal> getMarketValueProperty() { return mMarketValueProperty; }
-    ObjectProperty<BigDecimal> getCostBasisProperty() { return mCostBasisProperty; }
     ObjectProperty<BigDecimal> getPNLProperty() { return mPNLProperty; }
     private ObjectProperty<BigDecimal> getPctRetProperty() { return mPctRetProperty; }
-    String getSecurityName() { return mSecurityNameProperty.get(); }
-    BigDecimal getPrice() { return mPriceProperty.get(); }
-    BigDecimal getQuantity() { return mQuantityProperty.get(); }
-    BigDecimal getCostBasis() { return mCostBasisProperty.get(); }
-    BigDecimal getMarketValue() { return mMarketValueProperty.get(); }
-    BigDecimal getPNL() { return mPNLProperty.get(); }
-    BigDecimal getPctRet() { return mPctRetProperty.get(); }
+    public String getSecurityName() { return mSecurityNameProperty.get(); }
+    public BigDecimal getPrice() { return mPriceProperty.get(); }
+    public BigDecimal getQuantity() { return mQuantityProperty.get(); }
+    public BigDecimal getCostBasis() { return mCostBasisProperty.get(); }
+    public BigDecimal getMarketValue() { return mMarketValueProperty.get(); }
+    public BigDecimal getPNL() { return mPNLProperty.get(); }
+    public BigDecimal getPctRet() { return mPctRetProperty.get(); }
 
     // constructor
     LotHolding(String n) { mSecurityNameProperty.set(n); }
 
     // setters
-    void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
-    void setCostBasis(BigDecimal c) { mCostBasisProperty.set(c); }
-    void setPrice(BigDecimal p) {
-        if (p == null)
-            mPriceProperty.set(BigDecimal.ZERO);
-        else
-            mPriceProperty.set(p);
+    public void setPNL(BigDecimal pnl) { mPNLProperty.set(pnl); } // shouldn't PNL = market value - cost basis???
+    public void setMarketValue(BigDecimal m) { mMarketValueProperty.set(m); }
+    public void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
+    public void setCostBasis(BigDecimal c) { mCostBasisProperty.set(c); }
+    public void setPrice(BigDecimal p) {
+        mPriceProperty.set(Objects.requireNonNullElse(p, BigDecimal.ZERO));
     }
 
     protected abstract void updateMarketValue(BigDecimal p); // update market value for price p

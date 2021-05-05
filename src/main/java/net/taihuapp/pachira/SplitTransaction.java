@@ -36,7 +36,7 @@ import java.math.BigDecimal;
  * using a separate class for it.
  */
 
-class SplitTransaction {
+public class SplitTransaction {
     private int mID;
 
     // positive for Category ID
@@ -52,11 +52,11 @@ class SplitTransaction {
 
     private int mMatchID;  // the id of the transaction is matched up to this split transaction
 
-    SplitTransaction(SplitTransaction st) {
+    public SplitTransaction(SplitTransaction st) {
         this(st.getID(), st.getCategoryID(), st.getTagID(), st.getMemo(), st.getAmount(), st.getMatchID());
     }
 
-    SplitTransaction(int id, int cid, int tid, String memo, BigDecimal amount, int matchTid) {
+    public SplitTransaction(int id, int cid, int tid, String memo, BigDecimal amount, int matchTid) {
         mID = id;
         mCategoryIDProperty.set(cid);
         mTagIDProperty.set(tid);
@@ -68,13 +68,13 @@ class SplitTransaction {
     int getID() { return mID; }
     ObjectProperty<Integer> getCategoryIDProperty() { return mCategoryIDProperty; }
     ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
-    Integer getCategoryID() { return getCategoryIDProperty().get(); }
-    Integer getTagID() { return getTagIDProperty().get(); }
+    public Integer getCategoryID() { return getCategoryIDProperty().get(); }
+    public Integer getTagID() { return getTagIDProperty().get(); }
     StringProperty getMemoProperty() { return mMemoProperty; }
-    String getMemo() { return getMemoProperty().get(); }
+    public String getMemo() { return getMemoProperty().get(); }
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
-    BigDecimal getAmount() { return getAmountProperty().get(); }
-    int getMatchID() { return mMatchID; }
+    public BigDecimal getAmount() { return getAmountProperty().get(); }
+    public int getMatchID() { return mMatchID; }
 
     void setID(int id) { mID = id; }
     void setMatchID(int mid) { mMatchID = mid; }

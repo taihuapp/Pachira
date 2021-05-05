@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -40,7 +40,8 @@ public class SplashScreenDialogController {
     private static final Logger mLogger = Logger.getLogger(SplashScreenDialogController.class);
 
     private Stage mStage;
-    private MainApp mMainApp;
+//    private MainApp mMainApp;
+    private LocalDateTime acknowledgeDateTime;
 
     @FXML
     private Label mApplicationNameLabel;
@@ -58,7 +59,7 @@ public class SplashScreenDialogController {
     private Button mStopButton;
 
     void setMainApp(MainApp mainApp, Stage stage, boolean firstTime) {
-        mMainApp = mainApp;
+//        mMainApp = mainApp;
         mStage = stage;
 
         mAgreeCheckBox.setSelected(!firstTime);
@@ -76,6 +77,8 @@ public class SplashScreenDialogController {
         showContactInfo();
     }
 
+    LocalDateTime getAcknowledgeDateTime() { return acknowledgeDateTime; }
+
     private void delayedStop() {
         mAgreeCheckBox.setVisible(false);  // don't let user change the checkbox
         mAgreeCheckBox.setSelected(false);  // this will force stop the app when window close
@@ -85,7 +88,8 @@ public class SplashScreenDialogController {
 
     @FXML
     private void handleContinue() {
-        mMainApp.putAcknowledgeTimeStamp(LocalDateTime.now());
+        acknowledgeDateTime = LocalDateTime.now();
+//        mMainApp.putAcknowledgeTimeStamp(LocalDateTime.now());
         mStage.close();
     }
 
@@ -134,8 +138,8 @@ public class SplashScreenDialogController {
         mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
         mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
 
-        mApplicationNameLabel.setText(MainApp.class.getPackage().getImplementationTitle());
-        mApplicationVersionLabel.setText(MainApp.class.getPackage().getImplementationVersion());
+        mApplicationNameLabel.setText(getClass().getPackage().getImplementationTitle());
+        mApplicationVersionLabel.setText(getClass().getPackage().getImplementationVersion());
     }
 
     private String readResourceTextFile2String(String fileName) {

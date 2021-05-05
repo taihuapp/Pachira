@@ -20,10 +20,13 @@
 
 package net.taihuapp.pachira;
 
+import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -32,37 +35,55 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import net.taihuapp.pachira.dao.DaoException;
+import net.taihuapp.pachira.dao.DaoManager;
 import net.taihuapp.pachira.dc.AccountDC;
+import net.taihuapp.pachira.model.MainModel;
 import org.apache.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.Preferences;
 
 public class MainController {
 
     private static final Logger mLogger = Logger.getLogger(MainController.class);
 
+    private static final String ACKNOWLEDGE_TIMESTAMP = "ACKDT";
+    private static final int MAX_OPENED_DB_HIST = 5; // keep max 5 opened files
+    private static final String KEY_OPENED_DB_PREFIX = "OPENEDDB#";
+
     private MainApp mMainApp;
+    private final ObjectProperty<MainModel> mainModelProperty = new SimpleObjectProperty<>(null);
+    private MainModel getMainModel() { return mainModelProperty.get(); }
+    private void setMainModel(MainModel m) { mainModelProperty.set(m); }
 
     @FXML
     private Menu mRecentDBMenu;
@@ -197,6 +218,10 @@ public class MainController {
         root.setExpanded(true);
         mAccountTreeTableView.setRoot(root);
 
+        MainModel mainModel = getMainModel();
+        if (mainModel == null)
+            return;
+
         ObservableList<Account> groupAccountList = FXCollections.observableArrayList(account ->
                 new Observable[] {account.getCurrentBalanceProperty()});
         for (Account.Type.Group g : Account.Type.Group.values()) {
@@ -208,7 +233,7 @@ public class MainController {
             groupAccountList.add(groupAccount);
             TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
             typeNode.setExpanded(true);
-            final ObservableList<Account> accountList = mMainApp.getAccountList(g, false, true);
+            final ObservableList<Account> accountList = mainModel.getAccountList(g, false, true);
             for (Account a : accountList) {
                 typeNode.getChildren().add(new TreeItem<>(a));
             }
@@ -460,7 +485,7 @@ public class MainController {
 
     @FXML
     private void handleAbout() {
-        mMainApp.showSplashScreen(false);
+        showSplashScreen(false);
     }
 
     @FXML
@@ -474,7 +499,7 @@ public class MainController {
         if (t != null) {
             Account a = mMainApp.getAccountByID(t.getAccountID());
             if (a.getHiddenFlag()) {
-                showWarningDialog("Hidden Account Transaction",
+                DialogUtil.showWarningDialog(null,"Hidden Account Transaction",
                         "Selected Transaction Belongs to a Hidden Account",
                         "Please unhide " + a.getName() + " to view/edit the transaction");
                 return;
@@ -504,18 +529,137 @@ public class MainController {
         mMainApp.stop();
     }
 
+    /**
+     * return a file object of database file
+     * @param isNew - prompt for a new file if isNew is true, otherwise, prompt a existing file
+     * @return a File object with name ending dbPostfix.  Null is returned if the user cancelled it.
+     */
+    private File getDBFileFromUser(boolean isNew) {
+        final String dbPostfix = DaoManager.getDBPostfix();
+        final FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DB", "*" + dbPostfix));
+        
+        final String implementationTitle = getClass().getPackage().getImplementationTitle();
+        final File file;
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        if (isNew) {
+            fileChooser.setTitle("Create a new " + implementationTitle + " database...");
+            file = fileChooser.showSaveDialog(stage);
+        } else {
+            fileChooser.setTitle("Open an existing " + implementationTitle + " database");
+            file = fileChooser.showOpenDialog(stage);
+        }
+        
+        if (file == null)
+            return null;  // user cancelled
+
+        final String fileName = file.getAbsolutePath();
+        if (fileName.endsWith(dbPostfix))
+            return file;
+
+        return new File(fileName + dbPostfix);
+    }
+
+    /**
+     * create or open an existing database
+     * @param file - a file object of database, contains database postfix
+     * @param isNew - if true, create a new database, otherwise, open an existing one
+     */
+    private void openDB(final File file, boolean isNew) {
+        final String dbPostfix = DaoManager.getDBPostfix();
+        final String dbName = file.getAbsolutePath().substring(0, file.getAbsolutePath().length()-dbPostfix.length());
+        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+
+        if (isNew && file.exists() && !file.delete()) {
+            // can't delete an existing file
+            mLogger.warn("unable to delete " + dbName + dbPostfix);
+            DialogUtil.showWarningDialog(stage,"Unable to delete",
+                    "Unable to delete existing " + dbName + dbPostfix,"");
+            return; // we are done
+        }
+
+        if (!isNew && !file.exists()) {
+            // if the file doesn't exist, remove it from OpenedDBNames
+            putOpenedDBNames(removeFromOpenedDBNames(getOpenedDBNames(), dbName));
+            updateRecentMenu();
+            DialogUtil.showWarningDialog(stage, "Warning", file.getAbsolutePath() + " doesn't exist.",
+                    file.getAbsolutePath() + " doesn't exist.  Can't continue.");
+            return;
+        }
+
+        // get user password now
+        final List<String> passwords;
+        try {
+            if (isNew)
+                passwords = DialogUtil.showPasswordDialog(stage, "Create New Password",
+                        PasswordDialogController.MODE.NEW);
+            else
+                passwords = DialogUtil.showPasswordDialog(stage, "Enter Password",
+                        PasswordDialogController.MODE.ENTER);
+            if (passwords.isEmpty())
+                return; // user cancelled
+        } catch (IOException e) {
+            mLogger.error("IOException", e);
+            DialogUtil.showExceptionDialog(stage, "Exception", "IO Exception",
+                    "Failed to load fxml", e);
+            return;
+        }
+
+        // it might take some time to open and load db
+        stage.getScene().setCursor(Cursor.WAIT);
+        CompletableFuture.supplyAsync(() -> {
+            MainModel model = null;
+            try {
+                DaoManager.getInstance().openConnection(dbName, passwords.get(1), isNew);
+                model = new MainModel();
+            } catch (DaoException e) {
+                mLogger.error("Failed open connection or init MainModel", e);
+                Platform.runLater(() -> DialogUtil.showExceptionDialog(stage, "Error", e.getMessage(),
+                        e.toString(), e));
+            }
+            return model;
+        }).thenAccept(m -> Platform.runLater(() -> {
+            stage.getScene().setCursor(Cursor.DEFAULT);
+            if (m == null)
+                return;  // open db failed, don't change the current model
+
+            // db opened and got a new model
+            setMainModel(m);
+            stage.setTitle(getClass().getPackage().getImplementationTitle() + " " + dbName);
+            putOpenedDBNames(addToOpenedDBNames(getOpenedDBNames(), dbName));
+            updateRecentMenu();
+        }));
+    }
+
     @FXML
     private void handleOpen() {
+        final File dbFile = getDBFileFromUser(false);
+        if (dbFile == null)
+            return; // user cancelled
+
+        openDB(dbFile, false);
+/*
         mMainApp.openDatabase(false, null, null);
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
+ */
     }
 
     @FXML
     private void handleNew() {
+        System.err.println(LocalDateTime.now());
+        final File dbFile = getDBFileFromUser(true);
+        if (dbFile == null)
+            return;
+
+        openDB(dbFile, true);
+        System.err.println(LocalDateTime.now());
+/*
         mMainApp.openDatabase(true, null, null);
         updateRecentMenu();
         updateUI(mMainApp.isConnected());
+
+ */
     }
 
     @FXML
@@ -574,7 +718,7 @@ public class MainController {
 
     @FXML
     private void handleClearList() {
-        mMainApp.putOpenedDBNames(new ArrayList<>());
+        putOpenedDBNames(new ArrayList<>());
         updateRecentMenu();
     }
 
@@ -654,7 +798,8 @@ public class MainController {
         mSearchButton.setVisible(isConnected);
         mSearchTextField.setVisible(isConnected);
         if (isConnected) {
-            updateSavedReportsMenu();
+            System.err.println("need to update update ui");
+            //updateSavedReportsMenu();
             populateTreeTable();
         }
     }
@@ -662,17 +807,20 @@ public class MainController {
     private void updateRecentMenu() {
         EventHandler<ActionEvent> menuAction = t -> {
             MenuItem mi = (MenuItem) t.getTarget();
-            mMainApp.openDatabase(false, mi.getText(), null);
-            updateUI(mMainApp.isConnected());
+            final File dbFile = new File(mi.getText() + DaoManager.getDBPostfix());
+            openDB(dbFile, false);
+            updateUI(mainModelProperty.get() != null);
         };
+
         ObservableList<MenuItem> recentList = mRecentDBMenu.getItems();
-        recentList.remove(0, recentList.size() - 2);
-        List<String> newList = mMainApp.getOpenedDBNames();
+        // the recentList has n + 2 items, the last two are a separator and a menuItem for clear list.
+        recentList.remove(0, recentList.size() - 2); // remove everything except the last two
+        List<String> newList = getOpenedDBNames();
         int n = newList.size();
         for (int i = 0; i < n; i++) {
-            MenuItem mi = new MenuItem(newList.get(n-i-1));
+            MenuItem mi = new MenuItem(newList.get(i));
             mi.setOnAction(menuAction);
-            recentList.add(0, mi);
+            recentList.add(i, mi);
         }
     }
 
@@ -831,8 +979,22 @@ public class MainController {
         alert.showAndWait();
     }
 
+    LocalDateTime getAcknowledgeTimeStamp() {
+        String ldtStr = Preferences.userNodeForPackage(getClass()).get(ACKNOWLEDGE_TIMESTAMP, null);
+        if (ldtStr == null)
+            return null;
+        try {
+            return LocalDateTime.parse(ldtStr);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
     @FXML
     private void initialize() {
+        if (getAcknowledgeTimeStamp() == null)
+            showSplashScreen(true);
+
         MainApp.CURRENT_DATE_PROPERTY.addListener((obs, ov, nv) -> {
             mMainApp.updateAccountBalance();
             mTransactionTableView.refresh();
@@ -969,7 +1131,7 @@ public class MainController {
                         // delete downloaded transaction, save mergedTransaction
                         if (!mMainApp.alterTransaction(downloadedTransaction, mergedTransaction,
                                 mMainApp.getMatchInfoList(mergedTransaction.getID()))) {
-                            showWarningDialog("Merge Transaction Failed",
+                            DialogUtil.showWarningDialog(null, "Merge Transaction Failed",
                                     "Failed to merge a downloaded transaction with an existing one",
                                     "Transactions remained un-merged");
                         }
@@ -985,7 +1147,7 @@ public class MainController {
                         if (mMainApp.setTransactionStatusInDB(getItem().getID(), status))
                             getItem().setStatus(status);
                         else
-                            showWarningDialog("Database problem",
+                            DialogUtil.showWarningDialog(null, "Database problem",
                                     "Unable to change transaction status in DB",
                                     "Transaction status unchanged.");
                     });
@@ -1148,9 +1310,99 @@ public class MainController {
         mSearchButton.disableProperty().bind(Bindings.createBooleanBinding(() ->
                 mSearchTextField.getText() == null || mSearchTextField.getText().trim().isEmpty(),
                 mSearchTextField.textProperty()));
+
+        mainModelProperty.addListener((obs, ov, nv) -> updateUI(nv != null));
     }
 
-    private void showWarningDialog(String title, String header, String content) {
-        MainApp.showWarningDialog(title, header, content);
+    /**
+     * save the list of opened db names to user preference
+     * @param openedDBNames the list of opened db names
+     */
+    private void putOpenedDBNames(List<String> openedDBNames) {
+        final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
+                "SNAPSHOT-" : "";
+        final int n = Math.min(openedDBNames.size(), MAX_OPENED_DB_HIST);
+        for (int i = 0; i < n; i++) {
+            Preferences.userNodeForPackage(getClass()).put(prefix + KEY_OPENED_DB_PREFIX + i, openedDBNames.get(i));
+        }
+        for (int i = n; i < MAX_OPENED_DB_HIST; i++)
+            Preferences.userNodeForPackage(getClass()).remove(prefix + KEY_OPENED_DB_PREFIX + i);
+    }
+
+    /**
+     * remove fileName from openedDBNames
+     * @param openedDBNames - the list before update
+     * @param fileName - the file name (without postfix) to be added
+     * @return - updated list
+     */
+    private List<String> removeFromOpenedDBNames(List<String> openedDBNames, String fileName) {
+        openedDBNames.remove(fileName);
+        return openedDBNames;
+    }
+
+    /**
+     * add file name to openedDBNames
+     * @param openedDBNames - the list before update
+     * @param fileName - the file name (without postfix) to be added
+     * @return - updated list
+     */
+    private List<String> addToOpenedDBNames(List<String> openedDBNames, String fileName) {
+        // remove first, if it is in the list
+        openedDBNames.remove(fileName);
+
+        // add to the top
+        openedDBNames.add(0, fileName);
+
+        // trim to the max
+        if (openedDBNames.size() > MAX_OPENED_DB_HIST)
+            return openedDBNames.subList(0, MAX_OPENED_DB_HIST);
+
+        return openedDBNames;
+    }
+
+    /**
+     * get a list of opened db files from user preference
+     * @return list of file names
+     */
+    private List<String> getOpenedDBNames() {
+        List<String> fileNameList = new ArrayList<>();
+        final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
+                "SNAPSHOT-" : "";
+
+        for (int i = 0; i < MAX_OPENED_DB_HIST; i++) {
+            String fileName = Preferences.userNodeForPackage(getClass()).get(prefix + KEY_OPENED_DB_PREFIX + i, "");
+            if (!fileName.isEmpty()) {
+                fileNameList.add(fileName);
+            }
+        }
+        return fileNameList;
+    }
+
+    private void showSplashScreen(boolean firstTime) {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/SplashScreenDialog.fxml"));
+            Stage dialogStage = new Stage();
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.setScene(new Scene(loader.load()));
+            SplashScreenDialogController controller = loader.getController();
+            if (controller == null) {
+                mLogger.error("Null SplashScreenDialogController?");
+                Platform.exit();
+                System.exit(0);
+            }
+            controller.setMainApp(null, dialogStage, firstTime);
+            dialogStage.setOnCloseRequest(e -> controller.handleClose());
+            dialogStage.showAndWait();
+            LocalDateTime ackDT = controller.getAcknowledgeDateTime();
+            if (ackDT != null) {
+                Preferences.userNodeForPackage(getClass()).put(ACKNOWLEDGE_TIMESTAMP, ackDT.toString());
+                Preferences.userNodeForPackage(getClass()).flush();
+            }
+        } catch (IOException e) {
+            mLogger.error("IOException when loading SplashScreenDialog.fxml", e);
+        } catch (BackingStoreException e) {
+            mLogger.error("BackingStoreException when storing Acknowledge date time", e);
+        }
     }
 }

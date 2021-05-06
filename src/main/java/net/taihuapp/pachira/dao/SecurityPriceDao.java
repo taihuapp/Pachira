@@ -58,18 +58,8 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
     }
 
     @Override
-    void setPreparedStatement(PreparedStatement preparedStatement, Pair<Security, LocalDate> key) {
-        throw new IllegalArgumentException("setPreparedStatement() should not be called for " + getClass().getName());
-    }
-
-    @Override
     void setPreparedStatement(PreparedStatement preparedStatement, Pair<Security, Price> pricePair, boolean withKey) {
         throw new IllegalArgumentException("setPreparedStatement() should not be called for " + getClass().getName());
-    }
-
-    @Override
-    protected Pair<Security, LocalDate> getKeyValue(ResultSet resultSet) {
-        throw new IllegalArgumentException("getKeyValue() should not be called for " + getClass().getName());
     }
 
     @Override

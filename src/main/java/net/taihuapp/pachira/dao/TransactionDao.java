@@ -107,11 +107,6 @@ public class TransactionDao extends Dao<Transaction, Integer> {
     }
 
     @Override
-    void setPreparedStatement(PreparedStatement preparedStatement, Integer integer) throws SQLException {
-        preparedStatement.setInt(1, integer);
-    }
-
-    @Override
     void setPreparedStatement(PreparedStatement preparedStatement, Transaction transaction, boolean withKey)
             throws SQLException {
         try {
@@ -144,11 +139,6 @@ public class TransactionDao extends Dao<Transaction, Integer> {
                 throw (SQLException) e.getCause();
             throw new IllegalStateException("unexpected throwable: ", e);
         }
-    }
-
-    @Override
-    protected Integer getKeyValue(ResultSet resultSet) throws SQLException {
-        return resultSet.getInt(1);
     }
 
     @Override

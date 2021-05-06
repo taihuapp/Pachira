@@ -48,22 +48,12 @@ public class SecurityDao extends Dao<Security, Integer> {
     }
 
     @Override
-    void setPreparedStatement(PreparedStatement preparedStatement, Integer integer) throws SQLException {
-        preparedStatement.setInt(1, integer);
-    }
-
-    @Override
     void setPreparedStatement(PreparedStatement preparedStatement, Security security, boolean withKey) throws SQLException {
         preparedStatement.setString(1, security.getTicker());
         preparedStatement.setString(2, security.getName());
         preparedStatement.setString(3, security.getType().name());
         if (withKey)
             preparedStatement.setInt(4, security.getID());
-    }
-
-    @Override
-    protected Integer getKeyValue(ResultSet resultSet) throws SQLException {
-        return resultSet.getInt(1);
     }
 
     public Optional<Security> get(String name) throws DaoException {

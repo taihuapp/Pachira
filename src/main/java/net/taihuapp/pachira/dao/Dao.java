@@ -60,7 +60,9 @@ abstract class Dao<T, K> {
      * @param k value of the key
      * @throws SQLException from preparedStatement operations
      */
-    abstract void setPreparedStatement(PreparedStatement preparedStatement, K k) throws SQLException;
+    void setPreparedStatement(PreparedStatement preparedStatement, K k) throws SQLException {
+        preparedStatement.setObject(1, k);
+    }
 
     /**
      * properly set the preparedStatement for insert/update.  The order of columns should match
@@ -163,20 +165,12 @@ abstract class Dao<T, K> {
     }
 
     /**
-     * return the key value in the resultSet.  The resultSet is from
-     * preparedStatement.getGeneratedKeys()
-     * @param resultSet - the resultSet from preparedStatement.getGeneratedKeys() which contains the key value
-     * @return value of the key
-     * @throws SQLException from jdbc statements
-     */
-    protected abstract K getKeyValue(ResultSet resultSet) throws SQLException;
-
-    /**
      *
      * @param t - the object to be inserted
      * @return - the generated key
      * @throws DaoException from Dao operations
      */
+    @SuppressWarnings("unchecked")
     public K insert(T t) throws DaoException {
         try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.INSERT),
                 Statement.RETURN_GENERATED_KEYS)) {
@@ -186,7 +180,7 @@ abstract class Dao<T, K> {
 
             try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
                 resultSet.next();
-                return getKeyValue(resultSet);
+                return (K) resultSet.getObject(1);
             }
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "", e);

@@ -57,11 +57,6 @@ public class AccountDao extends Dao<Account, Integer> {
     }
 
     @Override
-    void setPreparedStatement(PreparedStatement preparedStatement, Integer integer) throws SQLException {
-        preparedStatement.setInt(1, integer);
-    }
-
-    @Override
     void setPreparedStatement(PreparedStatement preparedStatement, Account account, boolean withKey) throws SQLException {
         preparedStatement.setString(1, account.getType().name());
         preparedStatement.setString(2, account.getName());
@@ -71,10 +66,5 @@ public class AccountDao extends Dao<Account, Integer> {
         preparedStatement.setObject(6, account.getLastReconcileDate());
         if (withKey)
             preparedStatement.setInt(7, account.getID());
-    }
-
-    @Override
-    protected Integer getKeyValue(ResultSet resultSet) throws SQLException {
-        return resultSet.getInt(1);
     }
 }

@@ -78,19 +78,9 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHold
     }
 
     @Override
-    void setPreparedStatement(PreparedStatement preparedStatement, Integer integer) throws SQLException {
-        preparedStatement.setInt(1, integer);
-    }
-
-    @Override
     void setPreparedStatement(PreparedStatement preparedStatement,
                               Pair<Integer, List<SecurityHolding.MatchInfo>> integerListPair, boolean withKey) {
         throw new IllegalStateException("setPreparedStatement should not be called for " + getClass().getName());
-    }
-
-    @Override
-    protected Integer getKeyValue(ResultSet resultSet) {
-        throw new IllegalStateException("getKeyValue should not be called for " + getClass().getName());
     }
 
     @Override

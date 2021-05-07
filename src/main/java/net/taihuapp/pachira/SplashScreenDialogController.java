@@ -33,15 +33,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class SplashScreenDialogController {
 
     private static final Logger mLogger = Logger.getLogger(SplashScreenDialogController.class);
 
-    private Stage mStage;
-//    private MainApp mMainApp;
-    private LocalDateTime acknowledgeDateTime;
+    private Instant acknowledgeInstant;
 
     @FXML
     private Label mApplicationNameLabel;
@@ -58,10 +56,7 @@ public class SplashScreenDialogController {
     @FXML
     private Button mStopButton;
 
-    void setMainApp(MainApp mainApp, Stage stage, boolean firstTime) {
-//        mMainApp = mainApp;
-        mStage = stage;
-
+    void setFirstTime(boolean firstTime) {
         mAgreeCheckBox.setSelected(!firstTime);
         mAgreeCheckBox.setVisible(firstTime);
         mStopButton.setVisible(firstTime);
@@ -77,7 +72,7 @@ public class SplashScreenDialogController {
         showContactInfo();
     }
 
-    LocalDateTime getAcknowledgeDateTime() { return acknowledgeDateTime; }
+    Instant getAcknowledgeDateTime() { return acknowledgeInstant; }
 
     private void delayedStop() {
         mAgreeCheckBox.setVisible(false);  // don't let user change the checkbox
@@ -88,16 +83,18 @@ public class SplashScreenDialogController {
 
     @FXML
     private void handleContinue() {
-        acknowledgeDateTime = LocalDateTime.now();
-//        mMainApp.putAcknowledgeTimeStamp(LocalDateTime.now());
-        mStage.close();
+        acknowledgeInstant = Instant.now();
+        ((Stage) mContinueButton.getScene().getWindow()).close();
     }
 
     void handleClose() {
-        if (!mAgreeCheckBox.selectedProperty().get())
+        if (!mAgreeCheckBox.selectedProperty().get()) {
+            // did not agree, stop now.
             handleStop();
-        else
-            mStage.close();
+        } else {
+            // agreed, continue
+            handleContinue();
+        }
     }
 
     @FXML
@@ -156,7 +153,7 @@ public class SplashScreenDialogController {
         try {
             String line;
             while ((line = bufferedReader.readLine()) != null)
-                stringBuilder.append(line).append("\n");
+                stringBuilder.append(line).append(System.lineSeparator());
             return stringBuilder.toString();
         } catch (IOException e) {
             mLogger.error("IOException", e);

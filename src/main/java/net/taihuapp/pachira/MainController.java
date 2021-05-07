@@ -60,8 +60,8 @@ import java.math.BigDecimal;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -195,9 +195,6 @@ public class MainController {
         mUpdateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
         mDeleteMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
         mDirectConnectionMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
-
-        if (mMainApp.getAcknowledgeTimeStamp() == null)
-            mMainApp.showSplashScreen(true);
     }
 
     private boolean isNonTrivialPermutated(ListChangeListener.Change<?> c) {
@@ -647,13 +644,11 @@ public class MainController {
 
     @FXML
     private void handleNew() {
-        System.err.println(LocalDateTime.now());
         final File dbFile = getDBFileFromUser(true);
         if (dbFile == null)
             return;
 
         openDB(dbFile, true);
-        System.err.println(LocalDateTime.now());
 /*
         mMainApp.openDatabase(true, null, null);
         updateRecentMenu();
@@ -979,15 +974,33 @@ public class MainController {
         alert.showAndWait();
     }
 
-    LocalDateTime getAcknowledgeTimeStamp() {
-        String ldtStr = Preferences.userNodeForPackage(getClass()).get(ACKNOWLEDGE_TIMESTAMP, null);
+    /**
+     * read Acknowledge time stamp from user pref.
+     * @return the instance of acknowledge or null
+     */
+    private Instant getAcknowledgeTimeStamp() {
+        String ldtStr = getUserPreferences().get(ACKNOWLEDGE_TIMESTAMP, null);
         if (ldtStr == null)
             return null;
         try {
-            return LocalDateTime.parse(ldtStr);
+            return Instant.parse(ldtStr);
         } catch (DateTimeParseException e) {
             return null;
         }
+    }
+
+    private void putAcknowledgeTimeStamp(Instant instant) {
+        final Preferences userPref = getUserPreferences();
+        userPref.put(ACKNOWLEDGE_TIMESTAMP, instant.toString());
+        try {
+            userPref.flush();
+        } catch (BackingStoreException e) {
+            mLogger.error("BackingStoreException encountered when storing Acknowledge TimeStamp.", e);
+        }
+    }
+
+    private Preferences getUserPreferences() {
+        return Preferences.userNodeForPackage(getClass());
     }
 
     @FXML
@@ -1322,11 +1335,17 @@ public class MainController {
         final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
                 "SNAPSHOT-" : "";
         final int n = Math.min(openedDBNames.size(), MAX_OPENED_DB_HIST);
+        Preferences userPreferences = getUserPreferences();
         for (int i = 0; i < n; i++) {
-            Preferences.userNodeForPackage(getClass()).put(prefix + KEY_OPENED_DB_PREFIX + i, openedDBNames.get(i));
+            userPreferences.put(prefix + KEY_OPENED_DB_PREFIX + i, openedDBNames.get(i));
         }
         for (int i = n; i < MAX_OPENED_DB_HIST; i++)
-            Preferences.userNodeForPackage(getClass()).remove(prefix + KEY_OPENED_DB_PREFIX + i);
+            userPreferences.remove(prefix + KEY_OPENED_DB_PREFIX + i);
+        try {
+            userPreferences.flush();
+        } catch (BackingStoreException e) {
+            mLogger.error("BackingStoreException when storing Opened DB names", e);
+        }
     }
 
     /**
@@ -1369,8 +1388,9 @@ public class MainController {
         final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
                 "SNAPSHOT-" : "";
 
+        Preferences userPreferences = getUserPreferences();
         for (int i = 0; i < MAX_OPENED_DB_HIST; i++) {
-            String fileName = Preferences.userNodeForPackage(getClass()).get(prefix + KEY_OPENED_DB_PREFIX + i, "");
+            String fileName = userPreferences.get(prefix + KEY_OPENED_DB_PREFIX + i, "");
             if (!fileName.isEmpty()) {
                 fileNameList.add(fileName);
             }
@@ -1391,18 +1411,19 @@ public class MainController {
                 Platform.exit();
                 System.exit(0);
             }
-            controller.setMainApp(null, dialogStage, firstTime);
+            controller.setFirstTime(firstTime);
             dialogStage.setOnCloseRequest(e -> controller.handleClose());
             dialogStage.showAndWait();
-            LocalDateTime ackDT = controller.getAcknowledgeDateTime();
-            if (ackDT != null) {
-                Preferences.userNodeForPackage(getClass()).put(ACKNOWLEDGE_TIMESTAMP, ackDT.toString());
-                Preferences.userNodeForPackage(getClass()).flush();
+            if (firstTime) {
+                Instant ackDT = controller.getAcknowledgeDateTime();
+                if (ackDT != null) {
+                    putAcknowledgeTimeStamp(ackDT);
+                }
             }
         } catch (IOException e) {
-            mLogger.error("IOException when loading SplashScreenDialog.fxml", e);
-        } catch (BackingStoreException e) {
-            mLogger.error("BackingStoreException when storing Acknowledge date time", e);
+            final String msg = "IOException when loading SplashScreenDialog.fxml";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(null, "Exception", msg, e.getMessage(), e);
         }
     }
 }

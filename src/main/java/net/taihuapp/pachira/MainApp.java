@@ -58,6 +58,8 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import net.taihuapp.pachira.dao.DaoException;
+import net.taihuapp.pachira.dao.DaoManager;
 import net.taihuapp.pachira.dc.AccountDC;
 import net.taihuapp.pachira.dc.Vault;
 import org.apache.log4j.Logger;
@@ -92,7 +94,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
@@ -119,7 +120,6 @@ public class MainApp extends Application {
     // minimum 2 decimal places, maximum 4 decimal places
     static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
 
-    private static final String ACKNOWLEDGETIMESTAMP = "ACKDT";
     private static final int MAXOPENEDDBHIST = 5; // keep max 5 opened files
     private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     private static final String DBOWNER = "ADMPACHIRA";
@@ -183,7 +183,6 @@ public class MainApp extends Application {
     private final ObjectProperty<Connection> mConnectionProperty = new SimpleObjectProperty<>(null);
     ObjectProperty<Connection> getConnectionProperty() { return mConnectionProperty; }
     private Connection getConnection() { return getConnectionProperty().get(); }
-    private void setConnection(Connection c) { getConnectionProperty().set(c); }
 
     private Savepoint mSavepoint = null;
 
@@ -243,26 +242,6 @@ public class MainApp extends Application {
             }
         }
         return fileNameList;
-    }
-
-    LocalDateTime getAcknowledgeTimeStamp() {
-        String ldtStr = mPrefs.get(ACKNOWLEDGETIMESTAMP, null);
-        if (ldtStr == null)
-            return null;
-        try {
-            return LocalDateTime.parse(ldtStr);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    void putAcknowledgeTimeStamp(LocalDateTime ldt) {
-        mPrefs.put(ACKNOWLEDGETIMESTAMP, ldt.toString());
-        try {
-            mPrefs.flush();
-        } catch (BackingStoreException be) {
-            mLogger.error("BackingStoreException encountered when storing Acknowledge date time.", be);
-        }
     }
 
     // return accounts for given type t or all account if t is null
@@ -2377,28 +2356,6 @@ public class MainApp extends Application {
         }
 
         return openedDBNames;
-    }
-
-    void showSplashScreen(boolean firstTime) {
-        try {
-            FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("/view/SplashScreenDialog.fxml"));
-            Stage dialogStage = new Stage();
-            dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mPrimaryStage);
-            dialogStage.setScene(new Scene(loader.load()));
-            SplashScreenDialogController controller = loader.getController();
-            if (controller == null) {
-                mLogger.error("Null SpashScreenDialogController?");
-                Platform.exit();
-                System.exit(0);
-            }
-            controller.setMainApp(this, dialogStage, firstTime);
-            dialogStage.setOnCloseRequest(e -> controller.handleClose());
-            dialogStage.showAndWait();
-        } catch (IOException e) {
-            mLogger.error("IOException", e);
-        }
     }
 
     void showReconcileDialog() {
@@ -5670,7 +5627,11 @@ public class MainApp extends Application {
 
     @Override
     public void stop() {
-        closeConnection();  // close database connection if any.
+        try {
+            DaoManager.getInstance().closeConnection();
+        } catch (DaoException e) {
+            mLogger.error("Failed to close connection", e);
+        }
         mExecutorService.shutdown();
         Platform.exit(); // this shutdown JavaFX
         System.exit(0);  // this is needed to stop any timer tasks not otherwise stopped.

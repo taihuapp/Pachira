@@ -21,6 +21,8 @@
 package net.taihuapp.pachira.model;
 
 import javafx.beans.Observable;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -43,6 +45,7 @@ public class MainModel {
     private final ObservableList<Account> accountList = FXCollections.observableArrayList(
             a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(), a.getTypeProperty(),
                     a.getCurrentBalanceProperty() });
+    private final ObjectProperty<Account> currentAccountProperty = new SimpleObjectProperty<>(null);
 
     private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
 
@@ -81,13 +84,35 @@ public class MainModel {
     }
 
     /**
+     * update account balances for the account fit the criteria
+     * @param predicate - selecting criteria
+     * @throws DaoException - from computeSecurityHoldings
+     */
+    public void updateAccountBalance(Predicate<Account> predicate) throws DaoException {
+        FilteredList<Account> filteredList = new FilteredList<>(accountList, predicate);
+        for (Account account : filteredList) {
+            ObservableList<Transaction> transactionList = account.getTransactionList();
+            List<SecurityHolding> shList = computeSecurityHoldings(transactionList, LocalDate.now(), -1);
+            account.setCurrentBalance(shList.get(shList.size() - 1).getMarketValue());
+        }
+    }
+
+    /**
+     * get accounts fit the selecting criteria in default sorting order
+     * @param predicate - selecting criteria
+     * @return - list of accounts
+     */
+    public FilteredList<Account> getAccountList(Predicate<Account> predicate) {
+        return new FilteredList<>(accountList, predicate);
+    }
+
+    /**
      * @param predicate - selecting criteria
      * @param comparator - sorting order
      * @return - accounts in a SortedList
      */
     public SortedList<Account> getAccountList(Predicate<Account> predicate, Comparator<Account> comparator) {
-        FilteredList<Account> filteredList = new FilteredList<>(accountList, predicate);
-        return new SortedList<>(filteredList, comparator);
+        return new SortedList<>(getAccountList(predicate), comparator);
     }
 
     /**
@@ -224,4 +249,8 @@ public class MainModel {
         return ((PairTidMatchInfoListDao) DaoManager.getInstance().getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO))
                 .get(tid).map(Pair::getValue).orElse(new ArrayList<>());
     }
+
+    public ObjectProperty<Account> getCurrentAccountProperty() { return currentAccountProperty; }
+
+    public void setCurrentAccount(Account account) { getCurrentAccountProperty().set(account); }
 }

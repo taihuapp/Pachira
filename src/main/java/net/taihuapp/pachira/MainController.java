@@ -176,12 +176,6 @@ public class MainController {
 
     void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
-        updateRecentMenu();
-        updateUI(mMainApp.isConnected());
-
-        mExportMenu.visibleProperty().bind(mMainApp.getConnectionProperty().isNull().not());
-
-        mImportOFXAccountStatementMenuItem.disableProperty().bind(mMainApp.getCurrentAccountProperty().isNull());
 
         mDownloadAccountTransactionMenuItem.disableProperty().bind(
                 Bindings.createBooleanBinding(() -> {
@@ -588,10 +582,10 @@ public class MainController {
         final List<String> passwords;
         try {
             if (isNew)
-                passwords = DialogUtil.showPasswordDialog(stage, "Create New Password",
+                passwords = DialogUtil.showPasswordDialog(stage, "Create New Password for " + dbName,
                         PasswordDialogController.MODE.NEW);
             else
-                passwords = DialogUtil.showPasswordDialog(stage, "Enter Password",
+                passwords = DialogUtil.showPasswordDialog(stage, "Enter Password for " + dbName,
                         PasswordDialogController.MODE.ENTER);
             if (passwords.isEmpty())
                 return; // user cancelled
@@ -622,9 +616,12 @@ public class MainController {
 
             // db opened and got a new model
             setMainModel(m);
-            stage.setTitle(getClass().getPackage().getImplementationTitle() + " " + dbName);
             putOpenedDBNames(addToOpenedDBNames(getOpenedDBNames(), dbName));
             updateRecentMenu();
+            stage.setTitle(getClass().getPackage().getImplementationTitle() + " " + dbName);
+            mImportOFXAccountStatementMenuItem.setDisable(true);
+            mTransactionVBox.setVisible(false);
+            populateTreeTable();
         }));
     }
 
@@ -635,11 +632,6 @@ public class MainController {
             return; // user cancelled
 
         openDB(dbFile, false);
-/*
-        mMainApp.openDatabase(false, null, null);
-        updateRecentMenu();
-        updateUI(mMainApp.isConnected());
- */
     }
 
     @FXML
@@ -649,12 +641,6 @@ public class MainController {
             return;
 
         openDB(dbFile, true);
-/*
-        mMainApp.openDatabase(true, null, null);
-        updateRecentMenu();
-        updateUI(mMainApp.isConnected());
-
- */
     }
 
     @FXML
@@ -782,29 +768,11 @@ public class MainController {
         mSavedReportsMenu.getItems().setAll(menuItemList);
     }
 
-    private void updateUI(boolean isConnected) {
-        mEditMenu.setVisible(isConnected);
-        mOFXMenu.setVisible(isConnected);
-        mReportsMenu.setVisible(isConnected);
-        mChangePasswordMenuItem.setVisible(isConnected);
-        mBackupMenuItem.setVisible(isConnected);
-        mImportMenu.setVisible(isConnected);
-        mAccountTreeTableView.setVisible(isConnected);
-        mSearchButton.setVisible(isConnected);
-        mSearchTextField.setVisible(isConnected);
-        if (isConnected) {
-            System.err.println("need to update update ui");
-            //updateSavedReportsMenu();
-            populateTreeTable();
-        }
-    }
-
     private void updateRecentMenu() {
         EventHandler<ActionEvent> menuAction = t -> {
             MenuItem mi = (MenuItem) t.getTarget();
             final File dbFile = new File(mi.getText() + DaoManager.getDBPostfix());
             openDB(dbFile, false);
-            updateUI(mainModelProperty.get() != null);
         };
 
         ObservableList<MenuItem> recentList = mRecentDBMenu.getItems();
@@ -842,7 +810,6 @@ public class MainController {
         }
 
         boolean isTradingAccount = account.getType().isGroup(Account.Type.Group.INVESTING);
-
         mTransactionAccountNameLabel.setVisible(true);
         mTransactionAccountNameLabel.setText(account.getName());
         mEnterTransactionButton.setVisible(true);
@@ -1009,7 +976,11 @@ public class MainController {
             showSplashScreen(true);
 
         MainApp.CURRENT_DATE_PROPERTY.addListener((obs, ov, nv) -> {
-            mMainApp.updateAccountBalance();
+            try {
+                getMainModel().updateAccountBalance((account) -> true);
+            } catch (DaoException e){
+                mLogger.error("UpdateAccountBalance Error", e);
+            }
             mTransactionTableView.refresh();
         });
 
@@ -1046,7 +1017,10 @@ public class MainController {
 
         mAccountTreeTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
             if (nv != null && nv.getValue().getID() >= MainApp.MIN_ACCOUNT_ID) {
+                getMainModel().setCurrentAccount(nv.getValue());
                 showAccountTransactions(nv.getValue());
+                mImportOFXAccountStatementMenuItem.setDisable(false);
+                mTransactionVBox.setVisible(true);
             }
         });
 
@@ -1317,14 +1291,23 @@ public class MainController {
                     }
                 }
         );
-        mTransactionVBox.visibleProperty().bind(mAccountTreeTableView.getSelectionModel()
-                .selectedItemProperty().isNotNull());
 
         mSearchButton.disableProperty().bind(Bindings.createBooleanBinding(() ->
                 mSearchTextField.getText() == null || mSearchTextField.getText().trim().isEmpty(),
                 mSearchTextField.textProperty()));
 
-        mainModelProperty.addListener((obs, ov, nv) -> updateUI(nv != null));
+        mEditMenu.visibleProperty().bind(mainModelProperty.isNotNull());
+        mOFXMenu.visibleProperty().bind(mainModelProperty.isNotNull());
+        mReportsMenu.visibleProperty().bind(mainModelProperty.isNotNull());
+        mChangePasswordMenuItem.visibleProperty().bind(mainModelProperty.isNotNull());
+        mBackupMenuItem.visibleProperty().bind(mainModelProperty.isNotNull());
+        mExportMenu.visibleProperty().bind(mainModelProperty.isNotNull());
+        mImportMenu.visibleProperty().bind(mainModelProperty.isNotNull());
+        mAccountTreeTableView.visibleProperty().bind(mainModelProperty.isNotNull());
+        mSearchButton.visibleProperty().bind(mainModelProperty.isNotNull());
+        mSearchTextField.visibleProperty().bind(mainModelProperty.isNotNull());
+
+        updateRecentMenu();
     }
 
     /**

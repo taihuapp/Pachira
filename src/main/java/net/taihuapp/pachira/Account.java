@@ -214,7 +214,7 @@ public class Account {
 
     public void setTransactionList(ObservableList<Transaction> tList) { mTransactionList = tList; }
 
-    ObservableList<Transaction> getTransactionList() { return mTransactionList; }
+    public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
 
     public ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
     BigDecimal getCurrentBalance() { return getCurrentBalanceProperty().get(); }

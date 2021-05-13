@@ -37,12 +37,18 @@ public class AccountDao extends Dao<Account, Integer> {
     String getTableName() { return "ACCOUNTS"; }
 
     @Override
-    String getKeyColumnName() { return "ID"; }
+    String[] getKeyColumnNames() { return new String[]{ "ID" }; }
 
     @Override
     String[] getColumnNames() {
         return new String[]{"TYPE", "NAME", "DESCRIPTION", "HIDDENFLAG", "DISPLAYORDER", "LASTRECONCILEDATE"};
     }
+
+    @Override
+    boolean autoGenKey() { return true; }
+
+    @Override
+    Integer getKeyValue(Account account) { return account.getID(); }
 
     @Override
     Account fromResultSet(ResultSet resultSet) throws SQLException {

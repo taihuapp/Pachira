@@ -693,7 +693,8 @@ public class DaoManager {
 
     // getter for various Dao class objects
     public enum DaoType {
-        ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE
+        ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE,
+        ACCOUNT_DC
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -719,6 +720,9 @@ public class DaoManager {
             case SECURITY_PRICE:
                 return daoMap.computeIfAbsent(DaoType.SECURITY_PRICE,
                         o -> new SecurityPriceDao(connection));
+            case ACCOUNT_DC:
+                return daoMap.computeIfAbsent(DaoType.ACCOUNT_DC,
+                        o -> new AccountDCDao(connection));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

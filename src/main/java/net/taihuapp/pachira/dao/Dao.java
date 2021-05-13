@@ -41,10 +41,22 @@ abstract class Dao<T, K> {
      */
     Connection connection;
 
-    /** the table name, key column name, and other column names for storing T in database     */
+    /** the table name, key column name(s), and other column names for storing T in database     */
     abstract String getTableName();
-    abstract String getKeyColumnName();
+    abstract String[] getKeyColumnNames();
     abstract String[] getColumnNames();
+
+    /**
+     * @return true if key is auto generated, false other wise.
+     */
+    abstract boolean autoGenKey();
+
+    /**
+     * extract key value from the object
+     * @param t the object
+     * @return the key value for the object
+     */
+    abstract K getKeyValue(T t);
 
     /**
      * construct an object of type T using the information in a resultSet (from a select statement)
@@ -85,6 +97,18 @@ abstract class Dao<T, K> {
     }
 
     /**
+     * build the where clause for get, delete, and update
+     * @return string for where clause
+     */
+    private String buildWhereClause() {
+        final String[] keyColumns = getKeyColumnNames();
+        StringBuilder whereClause = new StringBuilder("WHERE " + keyColumns[0] + " = ? ");
+        for (int i = 1; i < keyColumns.length; i++)
+            whereClause.append(" and ").append(keyColumns[i]).append(" = ? ");
+        return whereClause.toString();
+    }
+
+    /**
      * get the proper SQL statement for the SQL command
      * @param sqlCommand one of the enum input
      * @return sql command in String
@@ -92,19 +116,27 @@ abstract class Dao<T, K> {
     String getSQLString(SQLCommands sqlCommand) {
         switch (sqlCommand) {
             case DELETE:
-                return "DELETE FROM " + getTableName() + " WHERE " + getKeyColumnName() + " = ?";
+                return "DELETE FROM " + getTableName() + " " + buildWhereClause();
             case GET:
-                return "SELECT * FROM " + getTableName() + " WHERE " + getKeyColumnName() + " = ?";
+                return "SELECT * FROM " + getTableName() + " " + buildWhereClause();
             case GET_ALL:
                 return "SELECT * FROM " + getTableName();
             case INSERT:
-                return "INSERT INTO " + getTableName()
-                        + " (" + String.join(", ", getColumnNames()) + ") VALUES ("
-                        + String.join(", ", Collections.nCopies(getColumnNames().length, "?"))
-                        + ")";
+                if (autoGenKey())
+                    return "INSERT INTO " + getTableName()
+                            + " (" + String.join(", ", getColumnNames()) + ") VALUES ("
+                            + String.join(", ", Collections.nCopies(getColumnNames().length, "?"))
+                            + ")";
+                else
+                    return "INSERT INTO " + getTableName()
+                            + " (" + String.join(", ", getColumnNames())
+                            + ", " + String.join(", ", getKeyColumnNames()) + ") VALUES ("
+                            + String.join(", ",
+                            Collections.nCopies(getColumnNames().length + getKeyColumnNames().length, "?"))
+                            + ")";
             case UPDATE:
                 return "UPDATE " + getTableName() + " set " + String.join(" = ?, ", getColumnNames())
-                        + " = ? WHERE " + getKeyColumnName() + " = ?";
+                        + " = ? " + buildWhereClause();
             default:
                 throw new IllegalArgumentException(sqlCommand + " not implemented yet");
         }
@@ -178,10 +210,13 @@ abstract class Dao<T, K> {
 
             preparedStatement.executeUpdate();
 
-            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
-                resultSet.next();
-                return (K) resultSet.getObject(1);
-            }
+            if (autoGenKey()) {
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                    resultSet.next();
+                    return (K) resultSet.getObject(1);
+                }
+            } else
+                return getKeyValue(t);
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "", e);
         }

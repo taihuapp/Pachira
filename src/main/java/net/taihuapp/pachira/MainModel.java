@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package net.taihuapp.pachira.model;
+package net.taihuapp.pachira;
 
 import javafx.beans.Observable;
 import javafx.beans.property.ObjectProperty;
@@ -28,7 +28,6 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.util.Pair;
-import net.taihuapp.pachira.*;
 import net.taihuapp.pachira.dao.*;
 
 import java.math.BigDecimal;
@@ -48,6 +47,7 @@ public class MainModel {
     private final ObjectProperty<Account> currentAccountProperty = new SimpleObjectProperty<>(null);
 
     private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
+    private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
 
     /**
      * Constructor - build up the MainModel object and load the accounts and transactions from database
@@ -81,6 +81,9 @@ public class MainModel {
             List<SecurityHolding> shList = computeSecurityHoldings(sortedList, LocalDate.now(), -1);
             account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
         }
+
+        // initialize AccountDCList
+        accountDCList.setAll(((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).getAll());
     }
 
     /**
@@ -95,6 +98,17 @@ public class MainModel {
             List<SecurityHolding> shList = computeSecurityHoldings(transactionList, LocalDate.now(), -1);
             account.setCurrentBalance(shList.get(shList.size() - 1).getMarketValue());
         }
+    }
+
+    /**
+     * return an optional of AccountDC
+     * @param accountID input account id
+     * @return optional of AccountDC
+     * @throws DaoException - from database operations
+     */
+    public Optional<AccountDC> getAccountDC(int accountID) throws DaoException {
+        AccountDCDao accountDCDao = (AccountDCDao) DaoManager.getInstance().getDao(DaoManager.DaoType.ACCOUNT_DC);
+        return accountDCDao.get(accountID);
     }
 
     /**

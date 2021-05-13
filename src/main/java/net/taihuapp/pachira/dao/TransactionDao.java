@@ -55,7 +55,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
     String getTableName() { return "TRANSACTIONS"; }
 
     @Override
-    String getKeyColumnName() { return "ID"; }
+    String[] getKeyColumnNames() { return new String[]{"ID"}; }
 
     @Override
     String[] getColumnNames() {
@@ -63,6 +63,12 @@ public class TransactionDao extends Dao<Transaction, Integer> {
                 "TAGID", "MEMO", "PRICE", "QUANTITY", "COMMISSION", "MATCHTRANSACTIONID", "MATCHSPLITTRANSACTIONID",
                 "PAYEE", "ADATE", "OLDQUANTITY", "REFERENCE", "SPLITFLAG", "ACCRUEDINTEREST", "FITID" };
     }
+
+    @Override
+    boolean autoGenKey() { return true; }
+
+    @Override
+    Integer getKeyValue(Transaction transaction) { return transaction.getID(); }
 
     @Override
     Transaction fromResultSet(ResultSet resultSet) throws SQLException, DaoException {

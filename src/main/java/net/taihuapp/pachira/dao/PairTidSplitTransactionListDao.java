@@ -44,11 +44,19 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
     String getTableName() { return "SPLITTRANSACTIONS"; }
 
     @Override
-    String getKeyColumnName() { return "TRANSACTIONID"; }
+    String[] getKeyColumnNames() { return new String[]{"TRANSACTIONID"}; }
 
     @Override
     String[] getColumnNames() {
         throw new IllegalArgumentException("getColumnNames() should not be called for " + getClass().getName());
+    }
+
+    @Override
+    boolean autoGenKey() { return false; }
+
+    @Override
+    Integer getKeyValue(Pair<Integer, List<SplitTransaction>> integerListPair) {
+        return integerListPair.getKey();
     }
 
     @Override
@@ -144,6 +152,12 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
         return 1;
     }
 
+    /**
+     * first delete all rows with matching tid, then insert.
+     * @param integerListPair - the pair of tid and the list of splitTransaction
+     * @return - tid
+     * @throws DaoException - from database operations
+     */
     @Override
     public Integer insert(Pair<Integer, List<SplitTransaction>> integerListPair) throws DaoException {
         final int tid = integerListPair.getKey();

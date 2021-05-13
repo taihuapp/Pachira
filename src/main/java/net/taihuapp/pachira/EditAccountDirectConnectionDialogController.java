@@ -37,7 +37,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
-import net.taihuapp.pachira.dc.AccountDC;
 import org.apache.log4j.Logger;
 
 import javax.crypto.BadPaddingException;

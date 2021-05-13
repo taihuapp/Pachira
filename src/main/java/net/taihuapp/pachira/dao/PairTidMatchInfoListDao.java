@@ -41,11 +41,19 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHold
     String getTableName() { return "LOTMATCH"; }
 
     @Override
-    String getKeyColumnName() { return "TRANSID"; }
+    String[] getKeyColumnNames() { return new String[]{"TRANSID"}; }
 
     @Override
     String[] getColumnNames() {
         throw new IllegalArgumentException("getColumnNames() should not be called for " + getClass().getName());
+    }
+
+    @Override
+    boolean autoGenKey() { return true; }
+
+    @Override
+    Integer getKeyValue(Pair<Integer, List<SecurityHolding.MatchInfo>> integerListPair) {
+        return integerListPair.getKey();
     }
 
     @Override

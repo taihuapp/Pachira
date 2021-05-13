@@ -23,10 +23,8 @@ package net.taihuapp.pachira;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -47,8 +45,6 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
-import net.taihuapp.pachira.dc.AccountDC;
-import net.taihuapp.pachira.model.MainModel;
 import org.apache.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
@@ -81,9 +77,7 @@ public class MainController {
     private static final String KEY_OPENED_DB_PREFIX = "OPENEDDB#";
 
     private MainApp mMainApp;
-    private final ObjectProperty<MainModel> mainModelProperty = new SimpleObjectProperty<>(null);
-    private MainModel getMainModel() { return mainModelProperty.get(); }
-    private void setMainModel(MainModel m) { mainModelProperty.set(m); }
+    private MainModel mainModel = null;
 
     @FXML
     private Menu mRecentDBMenu;
@@ -189,6 +183,31 @@ public class MainController {
         mUpdateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
         mDeleteMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
         mDirectConnectionMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
+    }
+
+    private MainModel getMainModel() { return mainModel; }
+    private void setMainModel(MainModel m) {
+        mainModel = m;
+
+        mEditMenu.setVisible(m != null);
+        mOFXMenu.setVisible(m != null);
+        mReportsMenu.setVisible(m != null);
+        mChangePasswordMenuItem.setVisible(m != null);
+        mBackupMenuItem.setVisible(m != null);
+        mExportMenu.setVisible(m != null);
+        mImportMenu.setVisible(m != null);
+        mAccountTreeTableView.setVisible(m != null);
+        mSearchButton.setVisible(m != null);
+        mSearchTextField.setVisible(m != null);
+
+        if (m != null) {
+            populateTreeTable();
+            mImportOFXAccountStatementMenuItem.setDisable(true);
+            mTransactionVBox.setVisible(false);
+        } else {
+            System.err.println("m = null, unbind");
+        }
+
     }
 
     private boolean isNonTrivialPermutated(ListChangeListener.Change<?> c) {
@@ -614,14 +633,12 @@ public class MainController {
             if (m == null)
                 return;  // open db failed, don't change the current model
 
-            // db opened and got a new model
-            setMainModel(m);
+            stage.setTitle(getClass().getPackage().getImplementationTitle() + " " + dbName);
             putOpenedDBNames(addToOpenedDBNames(getOpenedDBNames(), dbName));
             updateRecentMenu();
-            stage.setTitle(getClass().getPackage().getImplementationTitle() + " " + dbName);
-            mImportOFXAccountStatementMenuItem.setDisable(true);
-            mTransactionVBox.setVisible(false);
-            populateTreeTable();
+
+            // db opened and got a new model
+            setMainModel(m);
         }));
     }
 
@@ -1296,18 +1313,8 @@ public class MainController {
                 mSearchTextField.getText() == null || mSearchTextField.getText().trim().isEmpty(),
                 mSearchTextField.textProperty()));
 
-        mEditMenu.visibleProperty().bind(mainModelProperty.isNotNull());
-        mOFXMenu.visibleProperty().bind(mainModelProperty.isNotNull());
-        mReportsMenu.visibleProperty().bind(mainModelProperty.isNotNull());
-        mChangePasswordMenuItem.visibleProperty().bind(mainModelProperty.isNotNull());
-        mBackupMenuItem.visibleProperty().bind(mainModelProperty.isNotNull());
-        mExportMenu.visibleProperty().bind(mainModelProperty.isNotNull());
-        mImportMenu.visibleProperty().bind(mainModelProperty.isNotNull());
-        mAccountTreeTableView.visibleProperty().bind(mainModelProperty.isNotNull());
-        mSearchButton.visibleProperty().bind(mainModelProperty.isNotNull());
-        mSearchTextField.visibleProperty().bind(mainModelProperty.isNotNull());
-
         updateRecentMenu();
+        setMainModel(null);
     }
 
     /**

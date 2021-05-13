@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package net.taihuapp.pachira.dc;
+package net.taihuapp.pachira;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
@@ -27,7 +27,7 @@ import javax.crypto.spec.PBEParameterSpec;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
@@ -65,7 +65,7 @@ public class Vault {
     // https://stackoverflow.com/a/9670279/3079849
     private static byte[] toBytes(char[] chars) {
         CharBuffer charBuffer = CharBuffer.wrap(chars);
-        ByteBuffer byteBuffer = Charset.forName("UTF-8").encode(charBuffer);
+        ByteBuffer byteBuffer = StandardCharsets.UTF_8.encode(charBuffer);
         byte[] bytes = Arrays.copyOfRange(byteBuffer.array(),
                 byteBuffer.position(), byteBuffer.limit());
         Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
@@ -277,8 +277,11 @@ public class Vault {
         for (int i = 0; i < hashedPassword.length; i++) {
             if ((mHashedMasterPassword == null)
                     || (i >= mHashedMasterPassword.length)
-                    || (hashedPassword[i] != mHashedMasterPassword[i]))
+                    || (hashedPassword[i] != mHashedMasterPassword[i])) {
                 mismatch = true;
+                // we do not want to terminate the loop here to prevent
+                // the caller to know the location of mismatch happened.
+            }
         }
         return !mismatch;
     }

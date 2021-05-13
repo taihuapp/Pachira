@@ -60,8 +60,6 @@ import javafx.stage.Stage;
 import javafx.util.Pair;
 import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
-import net.taihuapp.pachira.dc.AccountDC;
-import net.taihuapp.pachira.dc.Vault;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.RunScript;

@@ -40,13 +40,21 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
     String getTableName() { return "PRICES"; }
 
     @Override
-    String getKeyColumnName() {
+    String[] getKeyColumnNames() {
         throw new IllegalArgumentException("getKeyColumnNames() should not be called for " + getClass().getName());
     }
 
     @Override
     String[] getColumnNames() {
         throw new IllegalArgumentException("getColumnNames() should not be called for " + getClass().getName());
+    }
+
+    @Override
+    boolean autoGenKey() { return true; }
+
+    @Override
+    Pair<Security, LocalDate> getKeyValue(Pair<Security, Price> securityPricePair) {
+        return new Pair<>(securityPricePair.getKey(), securityPricePair.getValue().getDate());
     }
 
     @Override

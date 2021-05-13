@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -38,7 +38,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.BigDecimalStringConverter;
-import net.taihuapp.pachira.dc.AccountDC;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -87,11 +86,9 @@ public class ReconcileDialogController {
 
         ObjectProperty<BigDecimal> getOpeningBalanceProperty() { return mOpeningBalanceProperty; }
         BigDecimal getOpeningBalance() { return getOpeningBalanceProperty().get(); }
-        void setOpeningBalance(BigDecimal b) { getOpeningBalanceProperty().set(b); }
 
         ObjectProperty<BigDecimal> getClearedBalanceProperty() { return mClearedBalanceProperty; }
         BigDecimal getClearedBalance() { return getClearedBalanceProperty().get(); }
-        void setClearedBalance(BigDecimal b) { getClearedBalanceProperty().set(b); }
 
         ObjectProperty<BigDecimal> getEndingBalanceProperty() { return mEndingBalanceProperty; }
         BigDecimal getEndingBalance() { return getEndingBalanceProperty().get(); }
@@ -156,7 +153,7 @@ public class ReconcileDialogController {
         LocalDate d = mEndDatePicker.getValue();
         if (mMainApp.reconcileAccountToDB(account, d)) {
             // successful update database, now update in memory.
-            // we can't loop through a filteredlist and change status, so we have to
+            // we can't loop through a filteredList and change status, so we have to
             // copy the elements over to a new list and loop through the new list
             new ArrayList<>(account.getTransactionList().filtered(t -> t.getStatus()
                     .equals(Transaction.Status.CLEARED)))

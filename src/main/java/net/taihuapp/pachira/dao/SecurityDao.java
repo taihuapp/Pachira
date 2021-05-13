@@ -36,10 +36,16 @@ public class SecurityDao extends Dao<Security, Integer> {
     String getTableName() { return "SECURITIES"; }
 
     @Override
-    String getKeyColumnName() { return "ID"; }
+    String[] getKeyColumnNames() { return new String[]{"ID"}; }
 
     @Override
     String[] getColumnNames() { return new String[]{"TICKER", "NAME", "TYPE"}; }
+
+    @Override
+    boolean autoGenKey() { return true; }
+
+    @Override
+    Integer getKeyValue(Security security) { return security.getID(); }
 
     @Override
     Security fromResultSet(ResultSet resultSet) throws SQLException {

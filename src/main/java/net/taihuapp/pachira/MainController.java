@@ -170,19 +170,6 @@ public class MainController {
 
     void setMainApp(MainApp mainApp) {
         mMainApp = mainApp;
-
-        mDownloadAccountTransactionMenuItem.disableProperty().bind(
-                Bindings.createBooleanBinding(() -> {
-                            final Account a = mMainApp.getCurrentAccount();
-                            return a == null || mMainApp.getAccountDC(a.getID()) == null;
-                        }, mMainApp.getCurrentAccountProperty(),mMainApp.getAccountDCList()));
-
-        mSetAccountDirectConnectionMenuItem.disableProperty().bind(mMainApp.getCurrentAccountProperty().isNull()
-                .or(mMainApp.hasMasterPasswordProperty().not()));
-        mCreateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty());
-        mUpdateMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
-        mDeleteMasterPasswordMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
-        mDirectConnectionMenuItem.disableProperty().bind(mMainApp.hasMasterPasswordProperty().not());
     }
 
     private MainModel getMainModel() { return mainModel; }
@@ -204,10 +191,27 @@ public class MainController {
             populateTreeTable();
             mImportOFXAccountStatementMenuItem.setDisable(true);
             mTransactionVBox.setVisible(false);
-        } else {
-            System.err.println("m = null, unbind");
         }
 
+        mDownloadAccountTransactionMenuItem.disableProperty().unbind();
+        mSetAccountDirectConnectionMenuItem.disableProperty().unbind();
+        mCreateMasterPasswordMenuItem.disableProperty().unbind();
+        mUpdateMasterPasswordMenuItem.disableProperty().unbind();
+        mDeleteMasterPasswordMenuItem.disableProperty().unbind();
+        mDirectConnectionMenuItem.disableProperty().unbind();
+        if (m != null) {
+            mDownloadAccountTransactionMenuItem.disableProperty().bind(
+                    Bindings.createBooleanBinding(() -> {
+                        final Account account = m.getCurrentAccount();
+                        return account == null || m.getAccountDC(account.getID()).isEmpty();
+                    }, m.getCurrentAccountProperty(), m.getAccountDCList()));
+            mSetAccountDirectConnectionMenuItem.disableProperty().bind(m.getCurrentAccountProperty().isNull()
+                    .or(m.hasMasterPasswordProperty.not()));
+            mCreateMasterPasswordMenuItem.disableProperty().bind(m.hasMasterPasswordProperty);
+            mUpdateMasterPasswordMenuItem.disableProperty().bind(m.hasMasterPasswordProperty.not());
+            mDeleteMasterPasswordMenuItem.disableProperty().bind(m.hasMasterPasswordProperty.not());
+            mDirectConnectionMenuItem.disableProperty().bind(m.hasMasterPasswordProperty.not());
+        }
     }
 
     private boolean isNonTrivialPermutated(ListChangeListener.Change<?> c) {
@@ -622,7 +626,7 @@ public class MainController {
             try {
                 DaoManager.getInstance().openConnection(dbName, passwords.get(1), isNew);
                 model = new MainModel();
-            } catch (DaoException e) {
+            } catch (DaoException | ModelException e) {
                 mLogger.error("Failed open connection or init MainModel", e);
                 Platform.runLater(() -> DialogUtil.showExceptionDialog(stage, "Error", e.getMessage(),
                         e.toString(), e));

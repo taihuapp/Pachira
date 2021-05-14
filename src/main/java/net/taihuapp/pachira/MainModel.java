@@ -21,7 +21,9 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.Observable;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -30,8 +32,13 @@ import javafx.collections.transformation.SortedList;
 import javafx.util.Pair;
 import net.taihuapp.pachira.dao.*;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Predicate;
@@ -49,11 +56,16 @@ public class MainModel {
     private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
     private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
 
+    private final Vault vault = new Vault();
+    public final BooleanProperty hasMasterPasswordProperty = new SimpleBooleanProperty(false);
+    private final ObservableList<DirectConnection> dcInfoList = FXCollections.observableArrayList();
+    ObservableList<DirectConnection> getDCInfoList() { return dcInfoList; }
+
     /**
      * Constructor - build up the MainModel object and load the accounts and transactions from database
      * @throws DaoException - from database operations
      */
-    public MainModel() throws DaoException {
+    public MainModel() throws DaoException, ModelException {
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
         transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
 
@@ -84,8 +96,39 @@ public class MainModel {
 
         // initialize AccountDCList
         accountDCList.setAll(((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).getAll());
+
+        // initialize the Direct connection vault
+        initVault();
     }
 
+    private void initVault() throws ModelException, DaoException {
+        try {
+            vault.setupKeyStore();
+        } catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException
+                | InvalidKeySpecException e) {
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_SETUP_KEYSTORE, e.getClass().getName(), e);
+        }
+
+        String encodedHashedMasterPassword = initDCInfoList();
+        if (encodedHashedMasterPassword != null) {
+            vault.setHashedMasterPassword(encodedHashedMasterPassword);
+            hasMasterPasswordProperty.set(true);
+        }
+    }
+
+    /**
+     * initialized direct connect information list
+     * * @return encoded hashed master password or null if not set
+     * @throws DaoException from database operations
+     */
+    private String initDCInfoList() throws DaoException {
+        dcInfoList.setAll(((DirectConnectionDao) daoManager.getDao(DaoManager.DaoType.DIRECT_CONNECTION)).getAll());
+        for (DirectConnection directConnection : dcInfoList) {
+            if (directConnection.getName().equals(DirectConnection.HAS_MASTER_PASSWORD_NAME))
+                return directConnection.getEncryptedPassword();
+        }
+        return null;
+    }
     /**
      * update account balances for the account fit the criteria
      * @param predicate - selecting criteria
@@ -265,6 +308,8 @@ public class MainModel {
     }
 
     public ObjectProperty<Account> getCurrentAccountProperty() { return currentAccountProperty; }
-
     public void setCurrentAccount(Account account) { getCurrentAccountProperty().set(account); }
+    public Account getCurrentAccount() { return getCurrentAccountProperty().get(); }
+
+    public ObservableList<AccountDC> getAccountDCList() { return accountDCList; }
 }

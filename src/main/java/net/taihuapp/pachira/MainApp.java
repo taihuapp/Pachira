@@ -58,8 +58,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import net.taihuapp.pachira.dao.DaoException;
-import net.taihuapp.pachira.dao.DaoManager;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.RunScript;
@@ -5625,11 +5623,6 @@ public class MainApp extends Application {
 
     @Override
     public void stop() {
-        try {
-            DaoManager.getInstance().closeConnection();
-        } catch (DaoException e) {
-            mLogger.error("Failed to close connection", e);
-        }
         mExecutorService.shutdown();
         Platform.exit(); // this shutdown JavaFX
         System.exit(0);  // this is needed to stop any timer tasks not otherwise stopped.

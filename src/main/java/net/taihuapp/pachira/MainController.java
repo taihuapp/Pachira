@@ -539,8 +539,14 @@ public class MainController {
 
     @FXML
     private void handleClose() {
-        // call MainApp.stop
-        mMainApp.stop();
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            DaoManager.getInstance().closeConnection();
+        } catch (DaoException e) {
+            mLogger.error("Failed to close connection", e);
+            DialogUtil.showExceptionDialog(stage, "Exception", "Failed to close database", e.getMessage(), e);
+        }
+        ((Stage) mAccountTreeTableView.getScene().getWindow()).close();
     }
 
     /**
@@ -634,6 +640,7 @@ public class MainController {
             return model;
         }).thenAccept(m -> Platform.runLater(() -> {
             stage.getScene().setCursor(Cursor.DEFAULT);
+            stage.setOnCloseRequest(e -> handleClose());
             if (m == null)
                 return;  // open db failed, don't change the current model
 
@@ -666,7 +673,36 @@ public class MainController {
 
     @FXML
     private void handleChangePassword() {
-        mMainApp.changePassword();
+        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        DaoManager daoManager = DaoManager.getInstance();
+        String dbName = null;
+        String backupDBFileName = null;
+        try {
+            dbName = daoManager.getDBFileName();
+            final List<String> passwords = DialogUtil.showPasswordDialog(stage, "Change password for " + dbName,
+                    PasswordDialogController.MODE.CHANGE);
+            if (passwords.size() != 2)
+                return; // action cancelled
+
+            backupDBFileName = daoManager.backup();
+            daoManager.changeDBPassword(passwords);
+            DialogUtil.showInformationDialog(stage, "Success", "Password change successful!", "");
+        } catch (DaoException e) {
+            final String msg;
+            if (dbName == null)
+                msg = e.getErrorCode() + " while try to get database metadata ";
+            else if (backupDBFileName == null)
+                msg = e.getErrorCode() + " while try to backup " + dbName;
+            else
+                msg = e.getMessage() + " while try to change password for " + dbName + System.lineSeparator()
+                        + "Old database is saved in " + backupDBFileName;
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, "Exception", e.getErrorCode() + "", msg, e);
+        } catch (IOException e) {
+            final String msg = "failed to load fxml";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, "Exception", "IOException", e.getMessage(), e);
+        }
     }
 
     @FXML
@@ -716,7 +752,17 @@ public class MainController {
     }
 
     @FXML
-    private void handleBackup() { mMainApp.doBackup(); }
+    private void handleBackup() {
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            final String backupDBFileName = DaoManager.getInstance().backup();
+            DialogUtil.showInformationDialog(stage, "Information", "Backup Successful",
+                    "Current database was successfully saved to " + backupDBFileName);
+        } catch (DaoException e) {
+            mLogger.error("Backup Failed", e);
+            DialogUtil.showExceptionDialog(stage, "Exception", "Backup failed", e.getMessage(), e);
+        }
+    }
 
     @FXML
     private void handleClearList() {

@@ -23,10 +23,15 @@ package net.taihuapp.pachira.dao;
 import net.taihuapp.pachira.Account;
 import net.taihuapp.pachira.Transaction;
 import org.h2.api.ErrorCode;
+import org.h2.tools.ChangeFileEncryption;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -154,6 +159,45 @@ public class DaoManager {
     }
 
     /**
+     * @return file name for the connection
+     * @throws DaoException - database operation
+     */
+    public String getDBFileName() throws DaoException {
+        try {
+            String url = connection.getMetaData().getURL();
+            int index = url.indexOf(';');
+            if (index > 0)
+                url = url.substring(0, index); // throw away everything after first ';'
+            if (!url.startsWith(URL_PREFIX))
+                throw new IllegalArgumentException("Bad formatted url: '" + url
+                        + "'. Url should start with '" + URL_PREFIX + "'");
+            return url.substring(URL_PREFIX.length());
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET_CONNECTION_METADATA, "", e);
+        }
+    }
+
+    /**
+     * backup the current connection
+     * @return the backup file name
+     * @throws DaoException from database operations
+     */
+    public String backup() throws DaoException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement("Backup to ?")) {
+            // dbFileName doesn't have postfix
+            final String dbFileName = getDBFileName();
+            final String backupDBFileName = dbFileName + "Backup"
+                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm")) + ".zip";
+            preparedStatement.setString(1, backupDBFileName);
+            preparedStatement.execute();
+            return backupDBFileName;
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_BACKUP, "", e);
+        }
+    }
+
+    /**
+     *
      * open an database connection
      * @param fileName the file name for the database WITHOUT postfix
      * @param password the password to the database
@@ -234,6 +278,10 @@ public class DaoManager {
         }
     }
 
+    /**
+     * close the connection and clear daoMap
+     * @throws DaoException - db operations
+     */
     public void closeConnection() throws DaoException {
         if (connection != null) {
             try {
@@ -688,6 +736,42 @@ public class DaoManager {
     private void executeUpdateQuery(String updateSQL) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(updateSQL);
+        }
+    }
+
+    /**
+     *
+     * @param passwords - a list of String.  The first one is the old password, the second new password
+     * @throws DaoException - database operation
+     */
+    public void changeDBPassword(List<String> passwords) throws DaoException {
+        int numberOfPasswordsChanged = 0;
+        try {
+            String url = connection.getMetaData().getURL();
+            final File dbFile = new File(getDBFileName());
+            closeConnection();
+
+            // first change encryption password
+            ChangeFileEncryption.execute(dbFile.getParent(), dbFile.getName(), "AES", passwords.get(0).toCharArray(),
+                    passwords.get(1).toCharArray(), true);
+            numberOfPasswordsChanged++;
+
+            // now re-open connection
+            url += ";" + CIPHER_CLAUSE + IF_EXIST_CLAUSE;
+            connection = DriverManager.getConnection(url, DB_OWNER, passwords.get(1) + " " + passwords.get(0));
+            try (PreparedStatement preparedStatement = connection.prepareStatement("Alter User "
+                    + DB_OWNER + " set password ?")) {
+                preparedStatement.setString(1, passwords.get(1));
+                preparedStatement.execute();
+                numberOfPasswordsChanged++;
+            }
+        } catch (SQLException e) {
+            final String msg;
+            if (numberOfPasswordsChanged == 1)
+                msg = "Encryption password changed, DB_OWNER password change failed";
+            else
+                msg = "";
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_CHANGE_PASSWORD, msg, e);
         }
     }
 

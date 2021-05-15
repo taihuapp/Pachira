@@ -23,6 +23,7 @@ package net.taihuapp.pachira;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The class for all those dialog methods
@@ -111,5 +113,36 @@ public class DialogUtil {
         }
         alert.setResizable(true);
         alert.showAndWait();
+    }
+
+    static void showInformationDialog(Stage stage, String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.initOwner(stage);
+        alert.initModality(Modality.WINDOW_MODAL);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+
+        // work around for non resizable alert dialog truncates message
+        alert.setResizable(true);
+        alert.getDialogPane().setPrefSize(480, 320);
+
+        alert.showAndWait();
+    }
+
+    /**
+     * display a confirmation dialog
+     * @param title - dialog title
+     * @param header - dialog header
+     * @param content - dialog content
+     * @return true if OK button is clicked, false otherwise
+     */
+    static boolean showConfirmationDialog(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        Optional<ButtonType> result = alert.showAndWait();
+        return result.isPresent() && result.get() == ButtonType.OK;
     }
 }

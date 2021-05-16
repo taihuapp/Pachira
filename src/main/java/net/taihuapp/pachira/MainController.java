@@ -43,6 +43,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import javafx.util.Pair;
 import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
 import org.apache.log4j.Logger;
@@ -707,7 +708,36 @@ public class MainController {
 
     @FXML
     private void handleImportPrices() {
-        mMainApp.importPrices();
+        // get the csv file name from the user
+        final FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
+                Arrays.asList("*.csv", "*.CSV")));
+        fileChooser.setTitle("Import Prices in CSV file...");
+        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        final File file = fileChooser.showOpenDialog(stage);
+        if (file == null)
+            return;  // user cancelled it
+
+        try {
+            Pair<List<Pair<Security, Price>>, List<String[]>> outputPair = mainModel.importPrices(file);
+            List<Pair<Security, Price>> priceList = outputPair.getKey();
+            List<String[]> rejectLines = outputPair.getValue();
+            StringBuilder message = new StringBuilder();
+            if (rejectLines.size() > 0) {
+                message.append("Skipped line(s):").append(System.lineSeparator()).append(System.lineSeparator());
+                rejectLines.forEach(l -> message.append(String.join(",", l)).append(System.lineSeparator()));
+            }
+            DialogUtil.showInformationDialog(stage, "Import Prices", priceList.size() + " prices imported",
+                    message.toString());
+        } catch (IOException e) {
+            final String msg = "Failed to open file " + file.getAbsolutePath() + " for read";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, "IOException", msg, e.getMessage(), e);
+        } catch (DaoException e) {
+            final String msg = "Database exception " + e.getErrorCode();
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, "DaoException", msg, e.getMessage(), e);
+        }
     }
 
     @FXML

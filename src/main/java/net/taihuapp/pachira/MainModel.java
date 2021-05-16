@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import com.opencsv.CSVReader;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -31,7 +32,10 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.util.Pair;
 import net.taihuapp.pachira.dao.*;
+import org.apache.log4j.Logger;
 
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -40,12 +44,16 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Predicate;
 
 import static net.taihuapp.pachira.Transaction.TradeAction.STKSPLIT;
 
 public class MainModel {
+
+    private static final Logger logger = Logger.getLogger(MainModel.class);
 
     private final DaoManager daoManager = DaoManager.getInstance();
     private final ObservableList<Account> accountList = FXCollections.observableArrayList(
@@ -55,6 +63,7 @@ public class MainModel {
 
     private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
     private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
+    private final ObservableList<Security> securityList = FXCollections.observableArrayList();
 
     private final Vault vault = new Vault();
     public final BooleanProperty hasMasterPasswordProperty = new SimpleBooleanProperty(false);
@@ -66,6 +75,7 @@ public class MainModel {
      * @throws DaoException - from database operations
      */
     public MainModel() throws DaoException, ModelException {
+        securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
         transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
 
@@ -91,6 +101,7 @@ public class MainModel {
             // computer security holding list and update account balance for each transaction
             // and set account balance
             List<SecurityHolding> shList = computeSecurityHoldings(sortedList, LocalDate.now(), -1);
+            account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
             account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
         }
 
@@ -99,6 +110,32 @@ public class MainModel {
 
         // initialize the Direct connection vault
         initVault();
+    }
+
+    /**
+     * find the first security matches the predicate
+     * @param predicate - search criteria
+     * @return Optional
+     */
+    public Optional<Security> getSecurity(Predicate<Security> predicate) {
+        return securityList.stream().filter(predicate).findFirst();
+    }
+
+    /**
+     * extract security list from a security holding list
+     * @param shList - a list of SecurityHolding objects
+     * @return - a list of Security objects
+     */
+    private List<Security> fromSecurityHoldingList(List<SecurityHolding> shList) {
+        List<Security> securityList = new ArrayList<>();
+        for (SecurityHolding sh : shList) {
+            String sName = sh.getSecurityName();
+            if (sName.equals("TOTAL") || sName.equals("CASH"))
+                continue; // skip total and cash lines
+
+            getSecurity(security -> security.getName().equals(sName)).ifPresent(securityList::add);
+        }
+        return securityList;
     }
 
     private void initVault() throws ModelException, DaoException {
@@ -139,8 +176,96 @@ public class MainModel {
         for (Account account : filteredList) {
             ObservableList<Transaction> transactionList = account.getTransactionList();
             List<SecurityHolding> shList = computeSecurityHoldings(transactionList, LocalDate.now(), -1);
+            account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
             account.setCurrentBalance(shList.get(shList.size() - 1).getMarketValue());
         }
+    }
+
+    /**
+     * Given a csv file name, scan the file, import the lines of valid Symbol,Date,Price triplets
+     * @param file - a file object of the csv file
+     * @return - a Pair object of a list of accepted security prices and a list of rejected lines
+     */
+    public Pair<List<Pair<Security, Price>>, List<String[]>> importPrices(File file) throws IOException, DaoException {
+        final List<Pair<Security, Price>> priceList = new ArrayList<>();
+        final List<String[]> skippedLines = new ArrayList<>();
+
+        final DaoManager daoManager = DaoManager.getInstance();
+        final Map<String, Security> tickerSecurityMap = new HashMap<>();
+        securityList.forEach(s -> tickerSecurityMap.put(s.getTicker(), s));
+
+        List<String> datePatterns = Arrays.asList("yyyy/M/d", "M/d/yyyy", "M/d/yy");
+        final CSVReader reader = new CSVReader(new FileReader(file));
+        for (String[] line : reader.readAll()) {
+            if (line[0].equals("Symbol")) {
+                // skip the header line
+                skippedLines.add(line);
+                continue;
+            }
+
+            if (line.length < 3) {
+                logger.warn("Bad formatted line: " + String.join(",", line));
+                skippedLines.add(line);
+                continue;
+            }
+
+            BigDecimal p = new BigDecimal(line[1]);
+            if (p.compareTo(BigDecimal.ZERO) < 0) {
+                logger.warn("Negative Price: " + String.join(",", line));
+                skippedLines.add(line);
+                continue;
+            }
+
+            Security security = tickerSecurityMap.get(line[0]);
+            if (security == null) {
+                logger.warn("Unknown ticker: " + line[0]);
+                skippedLines.add(line);
+                continue;
+            }
+
+            boolean added = false;
+            for (String pattern : datePatterns) {
+                try {
+                    LocalDate localDate = LocalDate.parse(line[2], DateTimeFormatter.ofPattern(pattern));
+                    priceList.add(new Pair<>(security, new Price(localDate, p)));
+                    added = true;
+                    break;
+                } catch (DateTimeParseException ignored) {
+                }
+            }
+            if (!added) {
+                logger.warn("Unable to parse date: " + String.join(",", line));
+                skippedLines.add(line);
+            }
+        }
+
+        // now ready to insert to database
+        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).mergePricesToDB(priceList);
+
+        // the set of securities updated prices
+        Set<Security> securitySet = new HashSet<>();
+        priceList.forEach(p -> securitySet.add(p.getKey()));
+
+        Predicate<Account> predicate = account -> {
+            if (!account.getType().isGroup(Account.Type.Group.INVESTING))
+                return false;
+            for (Security security : account.getCurrentSecurityList()) {
+                if (securitySet.contains(security)) {
+                    return true;
+                }
+            }
+            // nothing in account current security list is in security set.
+            return false;
+        };
+        List<Account> accountList = getAccountList(predicate);
+
+        for (Account account : accountList) {
+            List<SecurityHolding> shList = computeSecurityHoldings(account.getTransactionList(), LocalDate.now(), -1);
+            account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
+            account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
+        }
+
+        return new Pair<>(priceList, skippedLines);
     }
 
     /**
@@ -237,7 +362,6 @@ public class MainModel {
 
         BigDecimal totalMarketValue = totalCashNow;
         BigDecimal totalCostBasis = totalCashNow;
-        SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
         SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
         List<SecurityHolding> shList = new ArrayList<>(shMap.values());
         shList.removeIf(sh -> sh.getQuantity().setScale(DaoManager.QUANTITY_FRACTION_DISPLAY_LEN,
@@ -245,7 +369,8 @@ public class MainModel {
         for (SecurityHolding sh : shList) {
             Price price = null;
             BigDecimal p = BigDecimal.ZERO;
-            Optional<Security> securityOptional = securityDao.get(sh.getSecurityName());
+            Optional<Security> securityOptional = getSecurity(security ->
+                    security.getName().equals(sh.getSecurityName()));
             if (securityOptional.isPresent()) {
                 Optional<Pair<Security, Price>> optionalSecurityPricePair =
                         securityPriceDao.getLastPrice(new Pair<>(securityOptional.get(), date));

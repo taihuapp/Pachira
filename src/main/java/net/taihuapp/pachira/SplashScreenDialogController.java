@@ -135,12 +135,12 @@ public class SplashScreenDialogController {
         mContinueButton.disableProperty().bind(mAgreeCheckBox.selectedProperty().not());
         mStopButton.disableProperty().bind(mAgreeCheckBox.selectedProperty());
 
-        mApplicationNameLabel.setText(getClass().getPackage().getImplementationTitle());
-        mApplicationVersionLabel.setText(getClass().getPackage().getImplementationVersion());
+        mApplicationNameLabel.setText(MainApp.class.getPackage().getImplementationTitle());
+        mApplicationVersionLabel.setText(MainApp.class.getPackage().getImplementationVersion());
     }
 
     private String readResourceTextFile2String(String fileName) {
-        final InputStream inputStream = getClass().getResourceAsStream(fileName);
+        final InputStream inputStream = MainApp.class.getResourceAsStream(fileName);
         if (inputStream == null) {
             // failed to open resource file name
             mLogger.error("Failed to open resource " + fileName);

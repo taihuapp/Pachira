@@ -64,6 +64,8 @@ public class MainModel {
     private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
     private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
     private final ObservableList<Security> securityList = FXCollections.observableArrayList();
+    private final ObservableList<Tag> tagList = FXCollections.observableArrayList();
+
 
     private final Vault vault = new Vault();
     public final BooleanProperty hasMasterPasswordProperty = new SimpleBooleanProperty(false);
@@ -75,6 +77,7 @@ public class MainModel {
      * @throws DaoException - from database operations
      */
     public MainModel() throws DaoException, ModelException {
+        tagList.setAll(((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).getAll());
         securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
         transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
@@ -166,6 +169,7 @@ public class MainModel {
         }
         return null;
     }
+
     /**
      * update account balances for the account fit the criteria
      * @param predicate - selecting criteria
@@ -437,4 +441,31 @@ public class MainModel {
     public Account getCurrentAccount() { return getCurrentAccountProperty().get(); }
 
     public ObservableList<AccountDC> getAccountDCList() { return accountDCList; }
+
+    public ObservableList<Tag> getTagList() { return tagList; }
+
+    public Optional<Tag> getTag(Predicate<Tag> predicate) { return tagList.stream().filter(predicate).findFirst(); }
+
+    /**
+     * insert tag to the database and the master tag list
+     * @param tag - input
+     * @throws DaoException database operation
+     */
+    public void insertTag(Tag tag) throws DaoException {
+        int id = ((TagDao) DaoManager.getInstance().getDao(DaoManager.DaoType.TAG)).insert(tag);
+        tag.setID(id);
+        tagList.add(tag);
+    }
+
+    /**
+     * update tag in the database and the master list
+     * @param tag - input
+     * @throws DaoException database operation
+     */
+    public void updateTag(Tag tag) throws DaoException {
+        // update database
+        ((TagDao) DaoManager.getInstance().getDao(DaoManager.DaoType.TAG)).update(tag);
+        // update master list
+        getTag(t -> t.getID() == tag.getID()).ifPresent(t -> t.copy(tag));
+    }
 }

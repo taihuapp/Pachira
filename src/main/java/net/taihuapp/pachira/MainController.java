@@ -61,10 +61,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -560,7 +557,7 @@ public class MainController {
         final FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DB", "*" + dbPostfix));
         
-        final String implementationTitle = getClass().getPackage().getImplementationTitle();
+        final String implementationTitle = MainApp.class.getPackage().getImplementationTitle();
         final File file;
         Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         if (isNew) {
@@ -645,7 +642,7 @@ public class MainController {
             if (m == null)
                 return;  // open db failed, don't change the current model
 
-            stage.setTitle(getClass().getPackage().getImplementationTitle() + " " + dbName);
+            stage.setTitle(MainApp.class.getPackage().getImplementationTitle() + " " + dbName);
             putOpenedDBNames(addToOpenedDBNames(getOpenedDBNames(), dbName));
             updateRecentMenu();
 
@@ -819,7 +816,29 @@ public class MainController {
     }
 
     @FXML
-    private void handleEditTagList() { mMainApp.showTagListDialog(); }
+    private void handleEditTagList() {
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/TagListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Tag List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(stage);
+            dialogStage.setScene(new Scene(loader.load()));
+            TagListDialogController controller = loader.getController();
+            controller.setMainModel(mainModel);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            DialogUtil.showExceptionDialog(stage,"Exception", "IO Exception",
+                    "showTagListDialog IO Exception", e);
+        } catch (NullPointerException e) {
+            DialogUtil.showExceptionDialog(stage, "Exception", "Null pointer exception",
+                    "showTagListDialog null pointer exception", e);
+        }
+    }
 
     @FXML
     private void handleReminderList() { mMainApp.showBillIncomeReminderDialog(); }
@@ -1064,7 +1083,7 @@ public class MainController {
     }
 
     private Preferences getUserPreferences() {
-        return Preferences.userNodeForPackage(getClass());
+        return Preferences.userNodeForPackage(MainApp.class);
     }
 
     @FXML
@@ -1262,7 +1281,8 @@ public class MainController {
                 });
             }
         });
-        mTransactionTableView.getStylesheets().add(getClass().getResource("/css/TransactionTableView.css").toExternalForm());
+        mTransactionTableView.getStylesheets().add(MainApp.class.getResource("/css/TransactionTableView.css")
+                .toExternalForm());
 
         // transaction table
         mTransactionStatusColumn.setCellValueFactory(cd -> cd.getValue().getStatusProperty());
@@ -1329,8 +1349,11 @@ public class MainController {
         });
 
         mTransactionTagColumn.setCellValueFactory(cellData -> {
-            Tag tag = mMainApp.getTagByID(cellData.getValue().getTagID());
-            return new ReadOnlyStringWrapper(tag == null ? "" : tag.getName());
+            Optional<Tag> tagOptional = mainModel.getTag(t -> t.getID() == cellData.getValue().getTagID());
+            if (tagOptional.isPresent())
+                return tagOptional.get().getNameProperty();
+            else
+                return new ReadOnlyStringWrapper("");
         });
 
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
@@ -1402,7 +1425,7 @@ public class MainController {
      * @param openedDBNames the list of opened db names
      */
     private void putOpenedDBNames(List<String> openedDBNames) {
-        final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
+        final String prefix = MainApp.class.getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
                 "SNAPSHOT-" : "";
         final int n = Math.min(openedDBNames.size(), MAX_OPENED_DB_HIST);
         Preferences userPreferences = getUserPreferences();
@@ -1455,7 +1478,7 @@ public class MainController {
      */
     private List<String> getOpenedDBNames() {
         List<String> fileNameList = new ArrayList<>();
-        final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
+        final String prefix = MainApp.class.getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
                 "SNAPSHOT-" : "";
 
         Preferences userPreferences = getUserPreferences();

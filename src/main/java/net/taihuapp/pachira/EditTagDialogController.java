@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -23,34 +23,42 @@ package net.taihuapp.pachira;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
 
 public class EditTagDialogController {
-    private MainApp mMainApp;
-    private Tag mTag;
-    private Stage mDialogStage;
+    private MainModel mainModel;
+    private Tag tag;
 
     @FXML
-    private TextField mNameTextField;
+    private TextField nameTextField;
     @FXML
-    private TextField mDescriptionTextField;
+    private TextField descriptionTextField;
 
-    void setMainApp(MainApp mainApp, Tag tag, Stage stage) {
-        mMainApp = mainApp;
-        mTag = tag;
-        mDialogStage = stage;
-
-        mNameTextField.textProperty().bindBidirectional(mTag.getNameProperty());
-        mDescriptionTextField.textProperty().bindBidirectional(mTag.getDescriptionProperty());
+    void setMainModel(MainModel mainModel, Tag tag) {
+        this.mainModel = mainModel;
+        this.tag = tag;
+        nameTextField.textProperty().bindBidirectional(this.tag.getNameProperty());
+        descriptionTextField.textProperty().bindBidirectional(this.tag.getDescriptionProperty());
     }
 
     @FXML
     private void handleSave() {
-        if (mMainApp.insertUpdateTagToDB(mTag)) {
-            mMainApp.initTagList();
-            mDialogStage.close();
+        try {
+            if (tag.getID() <= 0)
+                mainModel.insertTag(tag);
+            else
+                mainModel.updateTag(tag);
+
+            ((Stage) nameTextField.getScene().getWindow()).close();
+        } catch (DaoException e) {
+            Stage stage = (Stage) nameTextField.getScene().getWindow();
+            DialogUtil.showExceptionDialog(stage, "Database Error", "Saving Tag error: " + e.getErrorCode(),
+                    "", e);
         }
     }
 
     @FXML
-    private void handleCancel() { mDialogStage.close(); }
+    private void handleCancel() {
+        ((Stage) nameTextField.getScene().getWindow()).close();
+    }
 }

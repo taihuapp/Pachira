@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -32,8 +32,8 @@ import javafx.stage.Stage;
 import java.io.IOException;
 
 public class TagListDialogController {
-    private MainApp mMainApp;
-    private Stage mDialogStage;
+
+    private MainModel mainModel;
 
     @FXML
     private TableView<Tag> mTagTableView;
@@ -46,21 +46,17 @@ public class TagListDialogController {
     @FXML
     private Button mDeleteButton;
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
-
-        mTagTableView.setItems(mainApp.getTagList());
-        mTagNameColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
-        mTagDescriptionColumn.setCellValueFactory(cd -> cd.getValue().getDescriptionProperty());
-
-        mEditButton.disableProperty().bind(mTagTableView.getSelectionModel().selectedItemProperty().isNull());
-        mDeleteButton.disableProperty().bind(mTagTableView.getSelectionModel().selectedItemProperty().isNull());
+    void setMainModel(MainModel mainModel) {
+        this.mainModel = mainModel;
+        mTagTableView.setItems(mainModel.getTagList());
     }
 
-    void close() { mDialogStage.close(); }
+    void close() {
+        ((Stage) mTagTableView.getScene().getWindow()).close();
+    }
 
     private void showEditTagDialog(Tag tag) {
+        Stage stage = (Stage) mTagTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditTagDialog.fxml"));
@@ -68,16 +64,16 @@ public class TagListDialogController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Tag");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mDialogStage);
+            dialogStage.initOwner(stage);
             dialogStage.setScene(new Scene(loader.load()));
 
             EditTagDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, tag, dialogStage);
+            controller.setMainModel(mainModel, tag);
             dialogStage.showAndWait();
         } catch (IOException e) {
-            MainApp.showExceptionDialog(mDialogStage, "Exception", "IOException", "Edit Tag Dialog IO Exception", e);
+            MainApp.showExceptionDialog(stage, "Exception", "IOException", "Edit Tag Dialog IO Exception", e);
         } catch (NullPointerException e) {
-            MainApp.showExceptionDialog(mDialogStage, "Exception", "Null Pointer Exception",
+            MainApp.showExceptionDialog(stage, "Exception", "Null Pointer Exception",
                     "Edit Tag Dialog Null Pointer Exception", e);
         }
     }
@@ -87,15 +83,28 @@ public class TagListDialogController {
 
     @FXML
     private void handleEdit() {
+        // edit a copy of selectedItem
         showEditTagDialog(new Tag(mTagTableView.getSelectionModel().getSelectedItem()));
     }
 
     @FXML
     private void handleDelete() {
-        MainApp.showExceptionDialog(mDialogStage, "Exception", "Action Not Implemented",
+        Stage stage = (Stage) mTagTableView.getScene().getWindow();
+        MainApp.showExceptionDialog(stage, "Exception", "Action Not Implemented",
                 "Delete tag action not implemented", null);
     }
 
     @FXML
-    private void handleClose() { mDialogStage.close(); }
+    private void handleClose() {
+        ((Stage) mTagTableView.getScene().getWindow()).close();
+    }
+
+    @FXML
+    private void initialize() {
+        mTagNameColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
+        mTagDescriptionColumn.setCellValueFactory(cd -> cd.getValue().getDescriptionProperty());
+
+        mEditButton.disableProperty().bind(mTagTableView.getSelectionModel().selectedItemProperty().isNull());
+        mDeleteButton.disableProperty().bind(mTagTableView.getSelectionModel().selectedItemProperty().isNull());
+    }
 }

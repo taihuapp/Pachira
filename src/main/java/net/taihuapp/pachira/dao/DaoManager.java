@@ -778,7 +778,7 @@ public class DaoManager {
     // getter for various Dao class objects
     public enum DaoType {
         ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE,
-        ACCOUNT_DC, DIRECT_CONNECTION
+        ACCOUNT_DC, DIRECT_CONNECTION, TAG
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -786,30 +786,27 @@ public class DaoManager {
     public Dao<?,?> getDao(DaoType daoType) {
         switch (daoType) {
             case ACCOUNT:
-                return daoMap.computeIfAbsent(DaoType.ACCOUNT, o -> new AccountDao(connection));
+                return daoMap.computeIfAbsent(daoType, o -> new AccountDao(connection));
             case SECURITY:
-                return daoMap.computeIfAbsent(DaoType.SECURITY, o -> new SecurityDao(connection));
+                return daoMap.computeIfAbsent(daoType, o -> new SecurityDao(connection));
             case TRANSACTION:
                 final SecurityDao securityDao = (SecurityDao) getDao(DaoType.SECURITY);
                 final PairTidSplitTransactionListDao pairTidSplitTransactionListDao =
                         (PairTidSplitTransactionListDao) getDao(DaoType.PAIR_TID_SPLIT_TRANSACTION);
-                return daoMap.computeIfAbsent(DaoType.TRANSACTION,
+                return daoMap.computeIfAbsent(daoType,
                         o -> new TransactionDao(connection, securityDao, pairTidSplitTransactionListDao));
             case PAIR_TID_SPLIT_TRANSACTION:
-                return daoMap.computeIfAbsent(DaoType.PAIR_TID_SPLIT_TRANSACTION,
-                        o -> new PairTidSplitTransactionListDao(connection));
+                return daoMap.computeIfAbsent(daoType, o -> new PairTidSplitTransactionListDao(connection));
             case PAIR_TID_MATCH_INFO:
-                return daoMap.computeIfAbsent(DaoType.PAIR_TID_MATCH_INFO,
-                        o -> new PairTidMatchInfoListDao(connection));
+                return daoMap.computeIfAbsent(daoType, o -> new PairTidMatchInfoListDao(connection));
             case SECURITY_PRICE:
-                return daoMap.computeIfAbsent(DaoType.SECURITY_PRICE,
-                        o -> new SecurityPriceDao(connection));
+                return daoMap.computeIfAbsent(daoType, o -> new SecurityPriceDao(connection));
             case ACCOUNT_DC:
-                return daoMap.computeIfAbsent(DaoType.ACCOUNT_DC,
-                        o -> new AccountDCDao(connection));
+                return daoMap.computeIfAbsent(daoType, o -> new AccountDCDao(connection));
             case DIRECT_CONNECTION:
-                return daoMap.computeIfAbsent(DaoType.DIRECT_CONNECTION,
-                        o -> new DirectConnectionDao(connection));
+                return daoMap.computeIfAbsent(daoType, o -> new DirectConnectionDao(connection));
+            case TAG:
+                return daoMap.computeIfAbsent(daoType, o -> new TagDao(connection));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

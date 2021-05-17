@@ -137,8 +137,9 @@ public class DialogUtil {
      * @param content - dialog content
      * @return true if OK button is clicked, false otherwise
      */
-    static boolean showConfirmationDialog(String title, String header, String content) {
+    static boolean showConfirmationDialog(Stage stage, String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.initOwner(stage);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);

@@ -778,7 +778,7 @@ public class DaoManager {
     // getter for various Dao class objects
     public enum DaoType {
         ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE,
-        ACCOUNT_DC, DIRECT_CONNECTION, TAG
+        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -807,6 +807,8 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new DirectConnectionDao(connection));
             case TAG:
                 return daoMap.computeIfAbsent(daoType, o -> new TagDao(connection));
+            case CATEGORY:
+                return daoMap.computeIfAbsent(daoType, o -> new CategoryDao(connection));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

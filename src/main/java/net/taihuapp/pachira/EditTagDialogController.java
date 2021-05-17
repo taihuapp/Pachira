@@ -43,17 +43,17 @@ public class EditTagDialogController {
 
     @FXML
     private void handleSave() {
+        Stage stage = (Stage) nameTextField.getScene().getWindow();
         try {
             if (tag.getID() <= 0)
                 mainModel.insertTag(tag);
             else
                 mainModel.updateTag(tag);
 
-            ((Stage) nameTextField.getScene().getWindow()).close();
+            stage.close();
         } catch (DaoException e) {
-            Stage stage = (Stage) nameTextField.getScene().getWindow();
-            DialogUtil.showExceptionDialog(stage, "Database Error", "Saving Tag error: " + e.getErrorCode(),
-                    "", e);
+            DialogUtil.showExceptionDialog(stage, "Database Error",
+                    "Saving Tag error: " + e.getErrorCode(),"", e);
         }
     }
 

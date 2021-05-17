@@ -34,7 +34,7 @@ import java.util.Optional;
 
 public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, LocalDate>> {
 
-    public SecurityPriceDao(Connection connection) { this.connection = connection; }
+    SecurityPriceDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "PRICES"; }

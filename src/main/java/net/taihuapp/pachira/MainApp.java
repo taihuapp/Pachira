@@ -2514,7 +2514,7 @@ public class MainApp extends Application {
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
             CategoryListDialogController controller = loader.getController();
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {

@@ -35,7 +35,7 @@ import java.util.Optional;
  */
 public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHolding.MatchInfo>>, Integer> {
 
-    public PairTidMatchInfoListDao(Connection connection) { this.connection = connection; }
+    PairTidMatchInfoListDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "LOTMATCH"; }

@@ -95,9 +95,7 @@ public class TagListDialogController {
     }
 
     @FXML
-    private void handleClose() {
-        ((Stage) mTagTableView.getScene().getWindow()).close();
-    }
+    private void handleClose() { close(); }
 
     @FXML
     private void initialize() {

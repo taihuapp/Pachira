@@ -25,6 +25,8 @@ import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -812,7 +814,24 @@ public class MainController {
 
     @FXML
     private void handleEditCategoryList() {
-        mMainApp.showCategoryListDialog();
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/CategoryListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Category List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(stage);
+            dialogStage.setScene(new Scene(loader.load()));
+            CategoryListDialogController controller = loader.getController();
+            controller.setMainModel(mainModel);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            DialogUtil.showExceptionDialog(stage, "Exception", "IOException",
+                    "showCategoryListDialog IOException", e);
+        }
     }
 
     @FXML
@@ -834,9 +853,6 @@ public class MainController {
         } catch (IOException e) {
             DialogUtil.showExceptionDialog(stage,"Exception", "IO Exception",
                     "showTagListDialog IO Exception", e);
-        } catch (NullPointerException e) {
-            DialogUtil.showExceptionDialog(stage, "Exception", "Null pointer exception",
-                    "showTagListDialog null pointer exception", e);
         }
     }
 
@@ -1343,9 +1359,21 @@ public class MainController {
 
         mTransactionCategoryColumn.setCellValueFactory(cellData -> {
             Transaction t = cellData.getValue();
-            if (t.getSplitTransactionList().size() > 0)
+            if (!t.getSplitTransactionList().isEmpty())
                 return new ReadOnlyStringWrapper("--Split--");
-            return new ReadOnlyStringWrapper(mMainApp.mapCategoryOrAccountIDToName(t.getCategoryID()));
+            int categoryID = t.getCategoryID();
+            Optional<Category> categoryOptional = mainModel.getCategory(c -> c.getID() == categoryID);
+            Optional<Account> accountOptional = mainModel.getAccount(account -> account.getID() == -categoryID);
+            if (categoryOptional.isPresent()) {
+                return categoryOptional.get().getNameProperty();
+            } else if (accountOptional.isPresent()) {
+                StringProperty accountNameProperty = new SimpleStringProperty();
+                accountNameProperty.bind(Bindings.createStringBinding(() -> "[" + accountOptional.get().getName() + "]",
+                        accountOptional.get().getNameProperty()));
+                return accountNameProperty;
+            } else {
+                return new ReadOnlyStringWrapper("");
+            }
         });
 
         mTransactionTagColumn.setCellValueFactory(cellData -> {

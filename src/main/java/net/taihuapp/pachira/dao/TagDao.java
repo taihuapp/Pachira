@@ -29,7 +29,7 @@ import java.sql.SQLException;
 
 public class TagDao extends Dao<Tag, Integer> {
 
-    public TagDao(Connection connection) { this.connection = connection; }
+    TagDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "TAGS"; }

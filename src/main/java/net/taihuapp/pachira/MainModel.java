@@ -65,7 +65,7 @@ public class MainModel {
     private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
     private final ObservableList<Security> securityList = FXCollections.observableArrayList();
     private final ObservableList<Tag> tagList = FXCollections.observableArrayList();
-
+    private final ObservableList<Category> categoryList = FXCollections.observableArrayList();
 
     private final Vault vault = new Vault();
     public final BooleanProperty hasMasterPasswordProperty = new SimpleBooleanProperty(false);
@@ -77,6 +77,7 @@ public class MainModel {
      * @throws DaoException - from database operations
      */
     public MainModel() throws DaoException, ModelException {
+        categoryList.setAll(((CategoryDao) daoManager.getDao(DaoManager.DaoType.CATEGORY)).getAll());
         tagList.setAll(((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).getAll());
         securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
@@ -316,6 +317,10 @@ public class MainModel {
         return getAccountList(p, c);
     }
 
+    Optional<Account> getAccount(Predicate<Account> predicate) {
+        return accountList.stream().filter(predicate).findFirst();
+    }
+
     /**
      * compute security holdings for a given transaction up to the given date, excluding a given transaction
      * the input list should have the same account id and ordered according the account type
@@ -441,6 +446,23 @@ public class MainModel {
     public Account getCurrentAccount() { return getCurrentAccountProperty().get(); }
 
     public ObservableList<AccountDC> getAccountDCList() { return accountDCList; }
+
+    public ObservableList<Category> getCategoryList() { return categoryList; }
+
+    public Optional<Category> getCategory(Predicate<Category> predicate) {
+        return categoryList.stream().filter(predicate).findFirst();
+    }
+
+    public void insertCategory(Category category) throws DaoException {
+        int id = ((CategoryDao) DaoManager.getInstance().getDao(DaoManager.DaoType.CATEGORY)).insert(category);
+        category.setID(id);
+        categoryList.add(category);
+    }
+
+    public void updateCategory(Category category) throws DaoException {
+        ((CategoryDao) DaoManager.getInstance().getDao(DaoManager.DaoType.CATEGORY)).update(category);
+        getCategory(c -> c.getID() == category.getID()).ifPresent(c -> c.copy(category));
+    }
 
     public ObservableList<Tag> getTagList() { return tagList; }
 

@@ -30,7 +30,7 @@ import java.util.Optional;
 
 public class SecurityDao extends Dao<Security, Integer> {
 
-    public SecurityDao(Connection connection) { this.connection = connection; }
+    SecurityDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "SECURITIES"; }

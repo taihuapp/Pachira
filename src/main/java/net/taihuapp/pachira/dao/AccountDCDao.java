@@ -36,7 +36,7 @@ import java.util.TimeZone;
  */
 public class AccountDCDao extends Dao<AccountDC, Integer> {
 
-    public AccountDCDao(Connection connection) { this.connection = connection; }
+    AccountDCDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "ACCOUNTDCS"; }

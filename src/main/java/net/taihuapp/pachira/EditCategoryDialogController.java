@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -23,34 +23,41 @@ package net.taihuapp.pachira;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
 
 public class EditCategoryDialogController {
-    private MainApp mMainApp;
-    private Category mCategory;
-    private Stage mDialogStage;
+
+    private MainModel mainModel;
+    private Category category;
 
     @FXML
-    private TextField mNameTextField;
+    private TextField nameTextField;
     @FXML
-    private TextField mDescriptionTextField;
+    private TextField descriptionTextField;
 
-    void setMainApp(MainApp mainApp, Category category, Stage stage) {
-        mMainApp = mainApp;
-        mCategory = category;
-        mDialogStage = stage;
-
-        mNameTextField.textProperty().bindBidirectional(mCategory.getNameProperty());
-        mDescriptionTextField.textProperty().bindBidirectional(mCategory.getDescriptionProperty());
+    void setMainModel(MainModel mainModel, Category category) {
+        this.mainModel = mainModel;
+        this.category = category;
+        nameTextField.textProperty().bindBidirectional(this.category.getNameProperty());
+        descriptionTextField.textProperty().bindBidirectional(this.category.getDescriptionProperty());
     }
 
     @FXML
     private void handleSave() {
-        if (mMainApp.insertUpdateCategoryToDB(mCategory)) {
-            mMainApp.initCategoryList();
-            mDialogStage.close();
+        Stage stage = (Stage) nameTextField.getScene().getWindow();
+        try {
+            if (category.getID() <= 0)
+                mainModel.insertCategory(category);
+            else
+                mainModel.updateCategory(category);
+
+            stage.close();
+        } catch (DaoException e) {
+            DialogUtil.showExceptionDialog(stage, "Database Error",
+                    "Saving Category error: " + e.getErrorCode(),"", e);
         }
     }
 
     @FXML
-    private void handleCancel() { mDialogStage.close(); }
+    private void handleCancel() { ((Stage) nameTextField.getScene().getWindow()).close(); }
 }

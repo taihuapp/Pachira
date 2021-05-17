@@ -43,8 +43,8 @@ public class TransactionDao extends Dao<Transaction, Integer> {
     private final PairTidSplitTransactionListDao pairTidSplitTransactionListDao;
     private final Map<Integer, List<SplitTransaction>> tidSplitTransactionListMap = new HashMap<>();
 
-    public TransactionDao(Connection connection, SecurityDao securityDao,
-                          PairTidSplitTransactionListDao pairTidSplitTransactionListDao) {
+    TransactionDao(Connection connection, SecurityDao securityDao,
+                   PairTidSplitTransactionListDao pairTidSplitTransactionListDao) {
         this.connection = connection;
         this.securityDao = securityDao;
         this.pairTidSplitTransactionListDao = pairTidSplitTransactionListDao;

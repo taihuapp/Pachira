@@ -38,7 +38,7 @@ import java.util.Optional;
  */
 public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<SplitTransaction>>, Integer> {
 
-    public PairTidSplitTransactionListDao(Connection connection) { this.connection = connection; }
+    PairTidSplitTransactionListDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "SPLITTRANSACTIONS"; }

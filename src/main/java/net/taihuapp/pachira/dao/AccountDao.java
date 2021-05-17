@@ -31,7 +31,7 @@ import java.time.LocalDate;
 
 public class AccountDao extends Dao<Account, Integer> {
 
-    public AccountDao(Connection connection) { this.connection = connection; }
+    AccountDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "ACCOUNTS"; }

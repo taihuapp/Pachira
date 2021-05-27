@@ -65,7 +65,7 @@ public class DaoManager {
     private static final int CATEGORY_DESC_LEN = 256;
 
     private static final int AMOUNT_TOTAL_LEN = 20;
-    private static final int AMOUNT_FRACTION_LEN = 4;
+    public static final int AMOUNT_FRACTION_LEN = 4;
 
     private static final int ADDRESS_LINE_LEN = 32;
 
@@ -778,7 +778,7 @@ public class DaoManager {
     // getter for various Dao class objects
     public enum DaoType {
         ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE,
-        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY
+        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -789,12 +789,13 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new AccountDao(connection));
             case SECURITY:
                 return daoMap.computeIfAbsent(daoType, o -> new SecurityDao(connection));
-            case TRANSACTION:
+            case TRANSACTION: {
                 final SecurityDao securityDao = (SecurityDao) getDao(DaoType.SECURITY);
                 final PairTidSplitTransactionListDao pairTidSplitTransactionListDao =
                         (PairTidSplitTransactionListDao) getDao(DaoType.PAIR_TID_SPLIT_TRANSACTION);
                 return daoMap.computeIfAbsent(daoType,
                         o -> new TransactionDao(connection, securityDao, pairTidSplitTransactionListDao));
+            }
             case PAIR_TID_SPLIT_TRANSACTION:
                 return daoMap.computeIfAbsent(daoType, o -> new PairTidSplitTransactionListDao(connection));
             case PAIR_TID_MATCH_INFO:
@@ -809,6 +810,15 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new TagDao(connection));
             case CATEGORY:
                 return daoMap.computeIfAbsent(daoType, o -> new CategoryDao(connection));
+            case REMINDER: {
+                final PairTidSplitTransactionListDao pairTidSplitTransactionListDao =
+                        (PairTidSplitTransactionListDao) getDao(DaoType.PAIR_TID_SPLIT_TRANSACTION);
+                return daoMap.computeIfAbsent(daoType, o -> new ReminderDao(connection,
+                        pairTidSplitTransactionListDao));
+            }
+            case REMINDER_TRANSACTION:
+                ReminderDao reminderDao = (ReminderDao) getDao(DaoType.REMINDER);
+                return daoMap.computeIfAbsent(daoType, o -> new ReminderTransactionDao(connection, reminderDao));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

@@ -206,7 +206,7 @@ abstract class Dao<T, K> {
     public K insert(T t) throws DaoException {
         try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.INSERT),
                 Statement.RETURN_GENERATED_KEYS)) {
-            setPreparedStatement(preparedStatement, t, false);
+            setPreparedStatement(preparedStatement, t, !autoGenKey());
 
             preparedStatement.executeUpdate();
 

@@ -857,7 +857,30 @@ public class MainController {
     }
 
     @FXML
-    private void handleReminderList() { mMainApp.showBillIncomeReminderDialog(); }
+    private void handleReminderList() {
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/ReminderTransactionListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Reminder Transaction List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(stage);
+            dialogStage.setScene(new Scene(loader.load()));
+            ReminderTransactionListDialogController controller = loader.getController();
+            if (controller == null) {
+                mLogger.error("Null controller for ReminderTransactionListDialog");
+                return;
+            }
+            //controller.setMainApp(this, dialogStage);
+            controller.setMainModel(mainModel);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            mLogger.error("IOException", e);
+        }
+    }
 
     @FXML
     private void handleNAVReport() {
@@ -921,7 +944,19 @@ public class MainController {
 
     @FXML
     private void handleEnterTransaction() {
-        mMainApp.showEditTransactionDialog(mMainApp.getStage(), null);
+        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        final Account account = mainModel.getCurrentAccount();
+        final List<Transaction.TradeAction> taList = account.getType().isGroup(Account.Type.Group.INVESTING) ?
+                Arrays.asList(Transaction.TradeAction.values()) :
+                Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
+        try {
+            DialogUtil.showEditTransactionDialog(mainModel, stage, null,
+                    Collections.singletonList(account), account, taList);
+        } catch (IOException | DaoException e) {
+            final String msg = e.getClass().getName() + " when opening EditTransactionDialog";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.getMessage(), e);
+        }
     }
 
     @FXML
@@ -1286,9 +1321,22 @@ public class MainController {
                         if (getItem().getStatus().equals(Transaction.Status.RECONCILED)
                                 && !showChangeReconciledConfirmation())
                             return;
+                        final Account account = mainModel.getCurrentAccount();
                         final Transaction transaction = getItem();
-                        int selectedTransactionID = transaction.getID();
-                        mMainApp.showEditTransactionDialog(mMainApp.getStage(), new Transaction(getItem()));
+                        final int selectedTransactionID = transaction.getID();
+                        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+                        final List<Transaction.TradeAction> taList = account.getType()
+                                .isGroup(Account.Type.Group.INVESTING) ?
+                                Arrays.asList(Transaction.TradeAction.values()) :
+                                Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
+                        try {
+                            DialogUtil.showEditTransactionDialog(mainModel, stage, transaction,
+                                    Collections.singletonList(account), account, taList);
+                        } catch (IOException | DaoException e) {
+                            final String msg = e.getClass().getName() + " when opening EditTransactionDialog";
+                            mLogger.error(msg, e);
+                            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+                        }
                         for (int i = 0; i < mTransactionTableView.getItems().size(); i++) {
                             if (mTransactionTableView.getItems().get(i).getID() == selectedTransactionID)
                                 mTransactionTableView.getSelectionModel().select(i);
@@ -1544,7 +1592,7 @@ public class MainController {
         } catch (IOException e) {
             final String msg = "IOException when loading SplashScreenDialog.fxml";
             mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(null, "Exception", msg, e.getMessage(), e);
+            DialogUtil.showExceptionDialog(null, "Exception", msg, e.toString(), e);
         }
     }
 }

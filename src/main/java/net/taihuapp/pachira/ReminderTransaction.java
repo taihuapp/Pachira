@@ -25,7 +25,7 @@ import javafx.beans.property.*;
 
 import java.time.LocalDate;
 
-class ReminderTransaction {
+public class ReminderTransaction {
     static final String OVERDUE = "Over due";
     static final String DUE_SOON = "Due soon";
     static final String COMPLETED = "Completed";
@@ -38,7 +38,7 @@ class ReminderTransaction {
 
     // tid 0 is skipped
     // tid < 0 is un-executed
-    ReminderTransaction(Reminder r, LocalDate d, int tid) {
+    public ReminderTransaction(Reminder r, LocalDate d, int tid) {
         mReminder = r;
         mDueDateProperty = new SimpleObjectProperty<>(d);
         mStatusProperty = new SimpleStringProperty();
@@ -65,12 +65,12 @@ class ReminderTransaction {
     }
 
     ObjectProperty<LocalDate> getDueDateProperty() { return mDueDateProperty; }
-    LocalDate getDueDate() { return getDueDateProperty().get(); }
-    Reminder getReminder() { return mReminder; }
+    public LocalDate getDueDate() { return getDueDateProperty().get(); }
+    public Reminder getReminder() { return mReminder; }
     StringProperty getStatusProperty() { return mStatusProperty; }
-    String getStatus() { return getStatusProperty().get(); }
+    public String getStatus() { return getStatusProperty().get(); }
     private IntegerProperty getTransactionIDProperty() { return mTransactionIDProperty; }
-    int getTransactionID() { return getTransactionIDProperty().get(); }
+    public int getTransactionID() { return getTransactionIDProperty().get(); }
 
     void setTransactionID(int tid) { getTransactionIDProperty().set(tid); }
 }

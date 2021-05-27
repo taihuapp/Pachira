@@ -158,4 +158,24 @@ public class TransactionDao extends Dao<Transaction, Integer> {
 
         return super.getAll();
     }
+
+    @Override
+    public int delete(Integer tid) throws DaoException {
+        DaoManager daoManager = DaoManager.getInstance();
+        try {
+            daoManager.beginTransaction();
+            final int n = super.delete(tid);
+            pairTidSplitTransactionListDao.delete(tid);
+            daoManager.commit();
+            return n;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+
+            throw e;
+        }
+    }
 }

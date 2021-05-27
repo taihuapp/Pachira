@@ -2472,7 +2472,7 @@ public class MainApp extends Application {
                 mLogger.error("Null controller for ReminderTransactionListDialog");
                 return;
             }
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2887,7 +2887,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             dialogStage.setUserData(false);
             SplitTransactionsDialogController controller = loader.getController();
-            controller.setMainApp(this, accountID, dialogStage, stList, netAmount);
+            //controller.setMainApp(this, accountID, dialogStage, stList, netAmount);
             dialogStage.showAndWait();
             return controller.getSplitTransactionList();
         } catch (IOException e) {
@@ -2907,7 +2907,7 @@ public class MainApp extends Application {
             dialogStage.initOwner(parent);
             dialogStage.setScene(new Scene(loader.load()));
             SpecifyLotsDialogController controller = loader.getController();
-            controller.setMainApp(this, t, matchInfoList, dialogStage);
+//            controller.setMainApp(this, t, matchInfoList, dialogStage);
             dialogStage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
@@ -2938,7 +2938,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             EditTransactionDialogControllerNew controller = loader.getController();
-            controller.setMainApp(this, transaction, dialogStage, accountList, defaultAccount, taList);
+//            controller.setMainApp(this, transaction, dialogStage, accountList, defaultAccount, taList);
             dialogStage.showAndWait();
             return controller.getTransactionID();
         } catch (IOException e) {

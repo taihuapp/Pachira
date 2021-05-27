@@ -48,10 +48,13 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
-import static net.taihuapp.pachira.Transaction.TradeAction.STKSPLIT;
+import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class MainModel {
+
+    public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
     private static final Logger logger = Logger.getLogger(MainModel.class);
 
@@ -61,6 +64,7 @@ public class MainModel {
                     a.getCurrentBalanceProperty() });
     private final ObjectProperty<Account> currentAccountProperty = new SimpleObjectProperty<>(null);
 
+    // transactionList should be sorted according to getID
     private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
     private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
     private final ObservableList<Security> securityList = FXCollections.observableArrayList();
@@ -82,6 +86,7 @@ public class MainModel {
         securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
         transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
+        FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
 
         // transaction comparator for investing accounts
         final Comparator<Transaction> investingAccountTransactionComparator = Comparator
@@ -117,12 +122,65 @@ public class MainModel {
     }
 
     /**
+     *
+     * @param t - search key
+     * @return index of object matches the key, or (-(insertion point)-1).
+     */
+    private int getTransactionIndex(Transaction t) {
+        return Collections.binarySearch(transactionList, t, Comparator.comparing(Transaction::getID));
+    }
+
+    private int getTransactionIndexByID(int tid) {
+        Transaction t = new Transaction(-1, LocalDate.MAX, BUY, 0);
+        t.setID(tid);
+        return getTransactionIndex(t);
+    }
+
+    private Optional<Transaction> getTransactionByID(int tid) {
+        final int index = getTransactionIndexByID(tid);
+        if (index >= 0)
+            return Optional.of(transactionList.get(index));
+        return Optional.empty();
+    }
+
+    public Optional<Transaction> getTransaction(Predicate<Transaction> predicate) {
+        return transactionList.stream().filter(predicate).findFirst();
+    }
+
+    // why do we expose DB vs MEM to public?
+    // that's because enterShareClassConversionTransaction need it.  We need to move that
+    // inside mainModel
+    void insertTransaction(Transaction transaction, InsertMode mode) throws DaoException {
+        if (mode != InsertMode.MEM_ONLY) {
+            final int tid = ((TransactionDao) DaoManager.getInstance().getDao(DaoManager.DaoType.TRANSACTION))
+                    .insert(transaction);
+            transaction.setID(tid);
+        }
+        if (mode != InsertMode.DB_ONLY) {
+            final int index = getTransactionIndex(transaction);
+            if (index < 0)
+                transactionList.add(-(1+index), transaction);
+            else {
+                throw new IllegalStateException("Transaction list and database out of sync");
+            }
+        }
+    }
+
+    /**
      * find the first security matches the predicate
      * @param predicate - search criteria
      * @return Optional
      */
     public Optional<Security> getSecurity(Predicate<Security> predicate) {
         return securityList.stream().filter(predicate).findFirst();
+    }
+
+    /**
+     * return the security list
+     * @return - the security list
+     */
+    public ObservableList<Security> getSecurityList() {
+        return securityList;
     }
 
     /**
@@ -186,6 +244,18 @@ public class MainModel {
         }
     }
 
+    /**
+     *
+     * @param pair input pair of security and date
+     * @return the price of the security for the given date as an optional or an empty optional
+     */
+    Optional<Pair<Security, Price>> getSecurityPrice(Pair<Security, LocalDate> pair) throws DaoException {
+        return ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).get(pair);
+    }
+
+    void insertSecurityPrice(Pair<Security, Price> pair) throws DaoException {
+        ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).insert(pair);
+    }
     /**
      * Given a csv file name, scan the file, import the lines of valid Symbol,Date,Price triplets
      * @param file - a file object of the csv file
@@ -321,6 +391,62 @@ public class MainModel {
         return accountList.stream().filter(predicate).findFirst();
     }
 
+    void insertReminderTransaction(ReminderTransaction rt) throws DaoException {
+        ((ReminderTransactionDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER_TRANSACTION)).insert(rt);
+    }
+
+    /**
+     * get
+     * @return - the past reminder transactions and one next future reminder transaction for each reminder
+     * @throws DaoException - database operations
+     */
+    ObservableList<ReminderTransaction> getReminderTransactionList() throws DaoException {
+        // get the past reminder transactions first
+        ObservableList<ReminderTransaction> reminderTransactions = FXCollections.observableArrayList();
+        reminderTransactions.setAll(((ReminderTransactionDao) daoManager
+                .getDao(DaoManager.DaoType.REMINDER_TRANSACTION)).getAll());
+
+        List<Reminder> reminders = ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).getAll();
+
+        for (Reminder reminder : reminders) {
+            FilteredList<ReminderTransaction> filteredList = new FilteredList<>(reminderTransactions,
+                    rt -> rt.getReminder() != null && rt.getReminder().getID() == reminder.getID());
+            SortedList<ReminderTransaction> sortedList = new SortedList<>(filteredList,
+                    Comparator.comparing(ReminderTransaction::getDueDate).reversed());
+
+            // let estimate the amount
+            final int n = Math.min(reminder.getEstimateCount(), sortedList.size());
+            BigDecimal amt = BigDecimal.ZERO;
+            for (int i = 0; i < n; i++) {
+                final int tid = sortedList.get(i).getTransactionID();
+                amt = amt.add(getTransactionByID(tid).map(Transaction::getAmount).orElse(BigDecimal.ZERO));
+            }
+            if (n > 0) {
+                amt = amt.divide(BigDecimal.valueOf(n), DaoManager.AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
+                reminder.setAmount(amt);
+            }
+
+            // calculate next due date
+            final LocalDate lastDueDate = sortedList.isEmpty() ?
+                    reminder.getDateSchedule().getStartDate() : sortedList.get(0).getDueDate().plusDays(1);
+            final LocalDate nextDueDate = reminder.getDateSchedule().getNextDueDate(lastDueDate);
+            reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
+        }
+        return reminderTransactions;
+    }
+
+    void deleteReminder(Reminder reminder) throws DaoException {
+        ((ReminderDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER)).delete(reminder.getID());
+    }
+
+    void insertReminder(Reminder reminder) throws DaoException {
+        ((ReminderDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER)).insert(reminder);
+    }
+
+    void updateReminder(Reminder reminder) throws DaoException {
+        ((ReminderDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER)).update(reminder);
+    }
+
     /**
      * compute security holdings for a given transaction up to the given date, excluding a given transaction
      * the input list should have the same account id and ordered according the account type
@@ -436,7 +562,7 @@ public class MainModel {
      * @return list of MatchInfo for the transaction with id tid
      * @throws DaoException - from Dao operations
      */
-    private List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) throws DaoException {
+    List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) throws DaoException {
         return ((PairTidMatchInfoListDao) DaoManager.getInstance().getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO))
                 .get(tid).map(Pair::getValue).orElse(new ArrayList<>());
     }
@@ -489,5 +615,466 @@ public class MainModel {
         ((TagDao) DaoManager.getInstance().getDao(DaoManager.DaoType.TAG)).update(tag);
         // update master list
         getTag(t -> t.getID() == tag.getID()).ifPresent(t -> t.copy(tag));
+    }
+
+    /**
+     *
+     * @return all payees in a sorted set with case insensitive ordering.
+     */
+    public SortedSet<String> getPayeeSet() {
+        SortedSet<String> payeeSet = new TreeSet<>(Comparator.comparing(String::toLowerCase));
+
+        for (Transaction transaction : transactionList) {
+            final String payee = transaction.getPayee();
+            if (payee != null && !payee.isEmpty())
+                payeeSet.add(payee);
+        }
+        return payeeSet;
+    }
+
+    // Alter, including insert, delete, and modify a transaction, both in DB and in MasterList.
+    // It performs all the necessary consistency checks.
+    // If oldT is null, newT is inserted
+    // If newT is null, oldT is deleted
+    // If oldT and newT both are not null, oldT is modified to newT.
+    // return true for success and false for failure
+    // this is the new one
+    void alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList)
+            throws DaoException, ModelException {
+        if (oldT == null && newT == null)
+            return; // both null, no-op.
+
+        final Set<Transaction> insertTSet = new HashSet<>(); // transactions inserted to DB
+        final Set<Transaction> updateTSet = new HashSet<>(); // transactions updated in DB
+        final Set<Integer> deleteTIDSet = new HashSet<>(); // IDs of transactions deleted in DB
+        final Set<Integer> accountIDSet = new HashSet<>(); // IDs of accounts need to update balance
+
+        DaoManager daoManager = DaoManager.getInstance();
+        TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
+        PairTidMatchInfoListDao pairTidMatchInfoListDao =
+                (PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO);
+        SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
+        try {
+            // start a dao transaction
+            daoManager.beginTransaction();
+
+            if (newT != null) {
+                // we will be working on the copy instead of the original
+                final Transaction newTCopy = new Transaction(newT);
+
+                final Transaction.TradeAction newTTA = newTCopy.getTradeAction();
+
+                // check quantity
+                if (newTTA == SELL || newTTA == SHRSOUT || newTTA == CVTSHRT) {
+                    // get account transaction list
+                    final ObservableList<Transaction> transactions = getAccount(a -> a.getID() == newTCopy.getAccountID())
+                            .map(Account::getTransactionList).orElseThrow(() ->
+                            new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                    "Transaction '" + newTCopy.getID() + "' has an invalid account ID ("
+                                            + newTCopy.getAccountID() + ")", null));
+                    // compute security holdings
+                    final BigDecimal quantity = computeSecurityHoldings(transactions, newTCopy.getTDate(),
+                            newTCopy.getID())
+                            .stream().filter(sh -> sh.getSecurityName().equals(newTCopy.getSecurityName()))
+                            .map(SecurityHolding::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+                    if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newTCopy.getQuantity()) < 0)
+                            || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newTCopy.getQuantity()) < 0)) {
+                        // existing quantity not enough for the new trade
+                        throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                "New " + newTTA + " transaction quantity exceeds existing quantity",
+                                null);
+                    }
+                }
+
+                // check ADate for SHRSIN
+                if (newTTA == SHRSIN) {
+                    final LocalDate aDate = newTCopy.getADate();
+                    if (aDate == null || aDate.isAfter(newTCopy.getTDate())) {
+                        throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                "Acquisition date '" + aDate + "' should be on or before trade date '"
+                                        + newTCopy.getTDate() + "'", null);
+                    }
+                }
+
+                // we need to save newT and newMatchInfoList to DB
+                if (newTCopy.getID() > 0) {
+                    transactionDao.update(newTCopy);
+                    updateTSet.add(newTCopy);
+                } else {
+                    newTCopy.setID(transactionDao.insert(newTCopy));
+                    insertTSet.add(newTCopy);
+                }
+                pairTidMatchInfoListDao.insert(new Pair<>(newTCopy.getID(), newMatchInfoList));
+
+                if (newTCopy.isSplit()) {
+                    // split transaction shouldn't have any match id and match split id.
+                    newTCopy.setMatchID(-1, -1);
+                    // check transfer in split transactions
+                    for (SplitTransaction st : newTCopy.getSplitTransactionList()) {
+                        if (st.isTransfer(newTCopy.getAccountID())) {
+                            if (st.getCategoryID() == -newTCopy.getAccountID()) {
+                                throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                        "Split transaction transferring back to the same account. "
+                                        + "Self transferring is not permitted.", null);
+                            }
+                            // this split transaction is a transfer transaction
+                            Transaction stXferT = null;
+                            if (st.getMatchID() > 0) {
+                                // it is modify exist transfer transaction
+                                // stXferT is a copy of the original.
+                                stXferT = getTransaction(t -> t.getID() == st.getMatchID())
+                                        .map(Transaction::new).orElseThrow(() ->
+                                                new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                                        "Split Transaction (" + newTCopy.getID() + ", " + st.getID()
+                                                                + ") linked to null",
+                                                        null));
+
+                                if (!stXferT.isCash()) {
+                                    // transfer transaction is an invest transaction, check trade action compatibility
+                                    if (stXferT.TransferTradeAction() != (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
+                                            Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW)) {
+                                        throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                                "Split transaction cash flow not compatible with "
+                                                        + "transfer transaction trade action",
+                                                null);
+                                    }
+                                    if (stXferT.getTradeAction() == SHRSIN) {
+                                        // shares transferred in, need to check acquisition date
+                                        final LocalDate aDate = stXferT.getADate();
+                                        if (aDate == null || newTCopy.getTDate().isBefore(aDate)) {
+                                            throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                                    "Invalid acquisition date for shares transferred in", null);
+                                        }
+                                    } else {
+                                        stXferT.setADate(null);
+                                    }
+                                    // for existing transfer transactions, we only update the minimum information
+                                    stXferT.setAccountID(-st.getCategoryID());
+                                    stXferT.setCategoryID(-newTCopy.getAccountID());
+                                    stXferT.setTDate(newTCopy.getTDate());
+                                    stXferT.setAmount(st.getAmount().abs());
+                                }
+                            }
+
+                            if (stXferT == null || stXferT.isCash()) {
+                                // we need to create new xfer transaction
+                                stXferT = new Transaction(-st.getCategoryID(), newTCopy.getTDate(),
+                                        (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ? WITHDRAW : DEPOSIT),
+                                        -newTCopy.getAccountID());
+                                stXferT.setID(st.getMatchID());
+                                stXferT.setPayee(newTCopy.getPayee());
+                                stXferT.setMemo(st.getMemo());
+                                stXferT.setMatchID(newTCopy.getID(), st.getID());
+                                stXferT.setAmount(st.getAmount().abs());
+                            }
+
+                            // insert stXferT to database and update st match id
+                            if (stXferT.getID() > 0) {
+                                transactionDao.update(stXferT);
+                                updateTSet.add(stXferT);
+                            } else {
+                                stXferT.setID(transactionDao.insert(stXferT));
+                                insertTSet.add(stXferT);
+                            }
+                            st.setMatchID(stXferT.getID());
+
+                            // we need to update the transfer account
+                            accountIDSet.add(-st.getCategoryID());
+                        } else {
+                            // st is not a transfer, set match id to 0
+                            st.setMatchID(0);
+                        }
+                    }
+
+                    // match id and/or match split id in newT might have changed
+                    // match id in split transactions might have changed
+                    transactionDao.update(newTCopy);
+                } else if (newTCopy.isTransfer()) {
+                    if (newTCopy.getCategoryID() == -newTCopy.getAccountID()) {
+                        throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                "Transaction is transferring back to the same account", null);
+                    }
+
+                    // non split, transfer
+                    Transaction xferT = null;
+                    if (newTCopy.getMatchID() > 0) {
+                        // newT linked to a split transaction
+                        // xferT is a copy of the original
+                        xferT = getTransaction(t -> t.getID() == newTCopy.getMatchID())
+                                .map(Transaction::new).orElseThrow(() ->
+                                        new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                                "Transaction " + newTCopy.getID() + " is linked to null",
+                                                null));
+                        if (xferT.isSplit()) {
+                            if (newTCopy.getMatchSplitID() <= 0) {
+                                throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                        "Transaction (" + newTCopy.getMatchID() + ") missing match split id",
+                                        null);
+                            }
+                            if (!newTCopy.getTDate().equals(xferT.getTDate())
+                                    || (-newTCopy.getCategoryID() != xferT.getAccountID())) {
+                                throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                        "Can't change date and/or transfer account to a transaction linked "
+                                                + "to a split transaction.",
+                                        null);
+                            }
+                            final List<SplitTransaction> stList = xferT.getSplitTransactionList();
+                            final SplitTransaction xferSt = stList.stream()
+                                    .filter(st -> st.getID() == newTCopy.getMatchSplitID())
+                                    .findFirst()
+                                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                            "Transaction (" + newTCopy.getID() + ") linked to null split transaction",
+                                            null));
+                            xferSt.setMatchID(newTCopy.getID());
+                            xferSt.setAmount(newTCopy.TransferTradeAction() == DEPOSIT ?
+                                    newTCopy.getAmount() : newTCopy.getAmount().negate());
+                            xferSt.getCategoryIDProperty().set(-newTCopy.getAccountID());
+                            if (xferSt.getMemo().isEmpty())
+                                xferSt.setMemo(newTCopy.getMemo());
+                            final BigDecimal amount = xferT.getSplitTransactionList().stream()
+                                    .map(SplitTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                            if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                                xferT.setTradeAction(DEPOSIT);
+                                xferT.setAmount(amount);
+                            } else {
+                                xferT.setTradeAction(WITHDRAW);
+                                xferT.setAmount(amount.negate());
+                            }
+                        } else if (!xferT.isCash()) {
+                            // non cash, check trade action compatibility
+                            if (xferT.TransferTradeAction() != newTCopy.getTradeAction()) {
+                                throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                        "Transfer transaction has an investment trade action not "
+                                                + "compatible with " + newTCopy.getTradeAction(),
+                                        null);
+                            }
+                            if (xferT.getTradeAction() == SHRSIN) {
+                                // shares transferred in, need to check acquisition date
+                                final LocalDate aDate = xferT.getADate();
+                                if (aDate == null || newTCopy.getTDate().isBefore(aDate)) {
+                                    throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                            "Invalid acquisition date for shares transferred in",
+                                            null);
+                                }
+                            } else {
+                                xferT.setADate(null);
+                            }
+                            xferT.setAccountID(-newTCopy.getCategoryID());
+                            xferT.setCategoryID(-newTCopy.getAccountID());
+                            xferT.setTDate(newTCopy.getTDate());
+                            xferT.setAmount(newTCopy.getAmount());
+                        }
+                    }
+
+                    if ((xferT == null) || (!xferT.isSplit() && xferT.isCash())) {
+                        xferT = new Transaction(-newTCopy.getCategoryID(), newTCopy.getTDate(),
+                                newTCopy.TransferTradeAction(), -newTCopy.getAccountID());
+                        xferT.setID(newTCopy.getMatchID());
+                        xferT.setPayee(newTCopy.getPayee());
+                        xferT.setMemo(newTCopy.getMemo());
+                        xferT.setAmount(newTCopy.getAmount());
+                    }
+
+                    // setMatchID for xferT
+                    if (!xferT.isSplit())
+                        xferT.setMatchID(newTCopy.getID(), -1);
+
+                    // we might need to set matchID if xferT is newly created
+                    // but we never create a new match split transaction
+                    // so we keep the matchSplitID the same as before
+                    if (xferT.getID() > 0) {
+                        transactionDao.update(xferT);
+                        updateTSet.add(xferT);
+                    } else {
+                        xferT.setID(transactionDao.insert(xferT));
+                        insertTSet.add(xferT);
+                    }
+                    newTCopy.setMatchID(xferT.getID(), newTCopy.getMatchSplitID());
+
+                    // update newT MatchID in DB
+                    transactionDao.update(newTCopy);
+
+                    // we need to update xfer account
+                    accountIDSet.add(-newTCopy.getCategoryID());
+                } else {
+                    // non-split, non transfer, make sure set match id properly
+                    newTCopy.setMatchID(-1, -1);
+                    transactionDao.update(newTCopy);
+                }
+
+                final Security security;
+                final BigDecimal price;
+                if (!newTCopy.isCash()) {
+                    security = getSecurity(s -> s.getName().equals(newTCopy.getSecurityName())).orElse(null);
+                    price = security == null ? null : newTCopy.getPrice();
+                } else {
+                    security = null;
+                    price = null;
+                }
+
+                if (security != null && price != null && price.compareTo(BigDecimal.ZERO) > 0) {
+                    // insert price if not currently present
+                    if (securityPriceDao.get(new Pair<>(security, newTCopy.getTDate())).isEmpty()) {
+                        securityPriceDao.insert(new Pair<>(security, new Price(newTCopy.getTDate(), price)));
+                    }
+                    getAccountList(Account.Type.Group.INVESTING, false, true).stream()
+                            .filter(a -> a.hasSecurity(security)).forEach(a -> accountIDSet.add(a.getID()));
+                }
+
+                accountIDSet.add(newTCopy.getAccountID());
+            }
+
+            if (oldT != null) {
+                // we have an oldT, need to delete the related transactions, if those are not updated
+                // we never modify oldT, so no need to create a copy
+
+                // first make sure it is not covered by SELL or CVTSHRT
+                if (pairTidMatchInfoListDao.get(oldT.getID()).isPresent()) {
+                    throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                            "Cannot delete transaction (" + oldT.getID() + ") which is lot matched",
+                            null);
+                }
+
+                if (oldT.isSplit()) {
+                    // this is a split transaction
+                    for (SplitTransaction st : oldT.getSplitTransactionList()) {
+                        if (st.isTransfer(oldT.getID())) {
+                            // check if the transfer transaction is updated
+                            if (updateTSet.stream().noneMatch(t -> t.getID() == st.getMatchID())) {
+                                // not being updated
+                                transactionDao.delete(st.getMatchID());
+                                deleteTIDSet.add(st.getMatchID());
+                            }
+
+                            // need to update the account later
+                            accountIDSet.add(-st.getCategoryID());
+                        }
+                    }
+                } else if (oldT.isTransfer()) {
+                    // oldT is a transfer.  Check if the xferT is updated
+                    if (updateTSet.stream().noneMatch(t -> t.getID() == oldT.getMatchID())) {
+                        // linked transaction is not being updated
+                        if (oldT.getMatchSplitID() > 0) {
+                            // oldT is a transfer from a split transaction,
+                            // we will delete the corresponding split, adjust amount of
+                            // the main transferring transaction, and update it
+                            final Transaction xferT = getTransaction(t -> t.getID() == oldT.getMatchID())
+                                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                            "Transaction (" + oldT.getID() + ") linked to null transaction",
+                                            null));
+
+                            // delete the split transaction matching split id.
+                            final List<SplitTransaction> stList = xferT.getSplitTransactionList().stream()
+                                    .filter(st -> st.getID() != oldT.getMatchSplitID()).collect(Collectors.toList());
+                            // check consistency of resulting amount with xferT trade action
+                            final BigDecimal amount = stList.stream().map(SplitTransaction::getAmount)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                            if (((xferT.TransferTradeAction() == WITHDRAW)
+                                    && (amount.compareTo(BigDecimal.ZERO) > 0))
+                                    || ((xferT.TransferTradeAction() == DEPOSIT)
+                                    && (amount.compareTo(BigDecimal.ZERO) < 0))) {
+                                throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                        "Modify/delete transaction linked to a split transaction, "
+                                                + "resulting inconsistency in linked transaction",
+                                        null);
+                            }
+                            xferT.setAmount(amount.abs());
+                            if (stList.size() == 1) {
+                                // only one split transaction in the list, no need to split
+                                // make it a simple transfer
+                                final SplitTransaction st = stList.get(0);
+                                stList.clear();
+
+                                xferT.getCategoryIDProperty().set(st.getCategoryID());
+                                if (xferT.getMemo().isEmpty())
+                                    xferT.setMemo(st.getMemo());
+                                xferT.setMatchID(st.getMatchID(), -1);
+
+                                if (st.getMatchID() > 0) {
+                                    final Transaction xferXferT = transactionDao.get(st.getMatchID())
+                                            .orElseThrow(() ->
+                                                    new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                                            "(" + oldT.getID() + ", " + st.getID()
+                                                                    + ") is linked to missing transaction "
+                                                                    + st.getMatchID(),
+                                                            null));
+
+                                    // xferXferT was linked to (xferT, st), now is only linked to xferT
+                                    xferXferT.setMatchID(xferXferT.getMatchID(), -1);
+                                    transactionDao.update(xferXferT);
+
+                                    updateTSet.add(xferXferT);
+                                    accountIDSet.add(xferXferT.getAccountID());
+                                }
+                            }
+                            xferT.setSplitTransactionList(stList);
+                            transactionDao.update(xferT);
+
+                            updateTSet.add(xferT);
+                        } else {
+                            // oldT linked to non-split transaction
+                            transactionDao.delete(oldT.getMatchID());
+                            deleteTIDSet.add(oldT.getMatchID());
+                        }
+
+                        accountIDSet.add(-oldT.getCategoryID());
+                    }
+                }
+
+                // now ready to delete oldT
+                accountIDSet.add(oldT.getAccountID());
+                if (updateTSet.stream().noneMatch(t -> t.getID() == oldT.getID())) {
+                    transactionDao.delete(oldT.getID());
+                    deleteTIDSet.add(oldT.getID());
+                }
+
+                // need to update account
+                accountIDSet.add(oldT.getAccountID());
+            }
+
+            // commit to database
+            daoManager.commit();
+
+            // done with database work, update MasterList now
+
+            // delete these transactions from master list
+            for (int tid : deleteTIDSet) {
+                final int index = getTransactionIndexByID(tid);
+                if (index < 0) {
+                    throw new IllegalStateException("Transaction " + tid + " should be, but not found in master list");
+                }
+                transactionList.remove(index);
+            }
+
+            // update these
+            for (Transaction t : updateTSet) {
+                final int index = getTransactionIndex(t);
+                if (index < 0) {
+                    throw new IllegalStateException("Transaction " + t + " should be, but not found in master list");
+                }
+                transactionList.set(index, t);
+            }
+
+            // insert these
+            for (Transaction t : insertTSet) {
+                final int index = getTransactionIndex(t);
+                if (index >= 0) {
+                    throw new IllegalStateException("Transaction " + t + " should not be, but found in master list");
+                }
+                transactionList.add(-(1+index), t);
+            }
+
+            // update account balances
+            updateAccountBalance(account -> accountIDSet.contains(account.getID()));
+
+            // we are done
+        } catch (DaoException | ModelException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
     }
 }

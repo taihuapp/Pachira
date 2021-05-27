@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -32,8 +32,8 @@ import java.util.concurrent.Callable;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 
-class DateSchedule {
-    enum BaseUnit {
+public class DateSchedule {
+    public enum BaseUnit {
         DAY, WEEK, MONTH, QUARTER, YEAR
     }
 
@@ -77,17 +77,17 @@ class DateSchedule {
                 to = from.plusDays(getNumPeriod());
                 break;
             case WEEK:
-                to = from.plusDays(getNumPeriod()*7);
+                to = from.plusDays(getNumPeriod()*7L);
                 break;
             case MONTH:
                 // add one more month just to be safe
-                to = from.plusDays((1+getNumPeriod())*31);
+                to = from.plusDays((1+getNumPeriod())*31L);
                 break;
             case QUARTER:
-                to = from.plusDays((1+getNumPeriod())*92);
+                to = from.plusDays((1+getNumPeriod())*92L);
                 break;
             case YEAR:
-                to = from.plusDays((1+getNumPeriod())*366);
+                to = from.plusDays((1+getNumPeriod())*366L);
                 break;
             default:
                 to = from; // we shouldn't be here
@@ -118,7 +118,7 @@ class DateSchedule {
                     l1 = s;
                 if (e < l2)
                     l2 = e;
-                long baseCnt = (getBaseUnit() == BaseUnit.DAY ? 1 : 7)* getNumPeriod();
+                long baseCnt = (getBaseUnit() == BaseUnit.DAY ? 1L : 7L)* getNumPeriod();
                 long r = ((l1-s) % baseCnt);
                 for (long i = r == 0 ? l1 : l1 + (baseCnt-r); i <= l2; i += baseCnt) {
                     dList.add(LocalDate.ofEpochDay(i));
@@ -241,28 +241,22 @@ class DateSchedule {
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
 
     // getters
-    BaseUnit getBaseUnit() { return getBaseUnitProperty().get(); }
-    LocalDate getStartDate() { return getStartDateProperty().get(); }
-    LocalDate getEndDate() { return getEndDateProperty().get(); }
-    Integer getNumPeriod() { return getNumPeriodProperty().get(); }
-    Integer getAlertDay() { return getAlertDayProperty().get(); }
-    Boolean isDOMBased() { return getIsDOMBasedProperty().get(); }
-    Boolean isForward() { return getIsForwardProperty().get(); }
+    public BaseUnit getBaseUnit() { return getBaseUnitProperty().get(); }
+    public LocalDate getStartDate() { return getStartDateProperty().get(); }
+    public LocalDate getEndDate() { return getEndDateProperty().get(); }
+    public Integer getNumPeriod() { return getNumPeriodProperty().get(); }
+    public Integer getAlertDay() { return getAlertDayProperty().get(); }
+    public Boolean isDOMBased() { return getIsDOMBasedProperty().get(); }
+    public Boolean isForward() { return getIsForwardProperty().get(); }
 
     // setters
-    void setBaseUnit(BaseUnit bu) { getBaseUnitProperty().set(bu); }
     void setStartDate(LocalDate s) { getStartDateProperty().set(s); }
-    void setEndDate(LocalDate e) { getEndDateProperty().set(e); }
-    void setNumPeriod(int n) { getNumPeriodProperty().set(n); }
-    void setAlertDay(int ad) { getAlertDayProperty().set(ad); }
-    void setDOMBased(boolean tf) { getIsDOMBasedProperty().set(tf); }
-    void setForward(boolean tf) { getIsForwardProperty().set(tf); }
 
     // constructor
     // np > 0.
     // e should be after s
     // isDOM and isFwd are not used for DAY and WEEK
-    DateSchedule(BaseUnit bu, int np, LocalDate s, LocalDate e, int ad, boolean isDOM, boolean isFwd) {
+    public DateSchedule(BaseUnit bu, int np, LocalDate s, LocalDate e, int ad, boolean isDOM, boolean isFwd) {
         mBaseUnitProperty.set(bu);
         mNumPeriodProperty.set(np);
         mStartDateProperty.set(s);
@@ -317,7 +311,7 @@ class DateSchedule {
                         }
                     }
                 default:
-                    return "Unknow problem";
+                    return "Unknown problem";
             }
         };
         mDescriptionProperty.bind(Bindings.createStringBinding(converter, getBaseUnitProperty(),

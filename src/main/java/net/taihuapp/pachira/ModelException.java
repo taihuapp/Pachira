@@ -25,7 +25,14 @@ package net.taihuapp.pachira;
  */
 public class ModelException extends Exception {
     enum ErrorCode {
-        FAIL_TO_SETUP_KEYSTORE
+        /**
+         * failure in setting up key store
+         */
+        FAIL_TO_SETUP_KEYSTORE,
+        /**
+         * the input transaction is not valid
+         */
+        INVALID_TRANSACTION
     }
 
     private final ErrorCode errorCode;

@@ -20,28 +20,42 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import static java.time.temporal.ChronoUnit.DAYS;
+import static net.taihuapp.pachira.ReminderTransaction.*;
 
 public class ReminderTransactionListDialogController {
-    private MainApp mMainApp = null;
-    private Stage mDialogStage = null;
+
+    private static final Logger logger = Logger.getLogger(ReminderTransactionListDialogController.class);
+
+    private MainModel mainModel;
+    private final ObservableList<ReminderTransaction> reminderTransactions = FXCollections.observableArrayList(
+            rt -> new Observable[]{ rt.getStatusProperty() }
+    );
 
     @FXML
     private CheckBox mShowCompletedTransactionsCheckBox;
@@ -82,39 +96,23 @@ public class ReminderTransactionListDialogController {
         reminder.getDateSchedule().setStartDate(rt.getDueDate());
         showEditReminderDialog(new Reminder(reminder));
     }
+
     @FXML
     private void handleDelete() {
-        ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
-        Reminder reminder = rt.getReminder();
+        Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
+        ReminderTransaction reminderTransaction = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+        Reminder reminder = reminderTransaction.getReminder();
         try {
-            if (!mMainApp.setDBSavepoint()) {
-                MainApp.showExceptionDialog(mDialogStage, "Error", "Unable to set DB save point",
-                        "Something is wrong. Please restart.", null);
-                return;
-            }
-            mMainApp.deleteReminderFromDB(reminder.getID());
-            mMainApp.commitDB();
-        } catch (SQLException e) {
-            try {
-                MainApp.showExceptionDialog(mDialogStage,"Database Error",
-                        "insert or update Reminder failed", MainApp.SQLExceptionToString(e), e);
-                mMainApp.rollbackDB();
-            } catch (SQLException e1) {
-                MainApp.showExceptionDialog(mDialogStage, "Database Error",
-                        "Failed to rollback reminder database update",
-                        MainApp.SQLExceptionToString(e), e);
-            }
-        } finally {
-            try {
-                mMainApp.releaseDBSavepoint();
-            } catch (SQLException e) {
-                MainApp.showExceptionDialog(mDialogStage, "Database Error",
-                        "set autocommit failed after insert update reminder",
-                        MainApp.SQLExceptionToString(e), e);
-            }
+            mainModel.deleteReminder(reminder);
+        } catch (DaoException e) {
+            logger.error("Delete Reminder failed: " + e.getErrorCode(), e);
+            DialogUtil.showExceptionDialog(stage,"Database Error",
+                    "delete Reminder failed", e.getErrorCode() + "", e);
         }
-        mMainApp.initReminderMap();
-        mMainApp.initReminderTransactionList();
+
+        List<ReminderTransaction> toBeRemoved = new FilteredList<>(reminderTransactions,
+                rt -> rt.getReminder().getID() == reminder.getID());
+        reminderTransactions.removeAll(toBeRemoved);
     }
 
     @FXML
@@ -131,37 +129,64 @@ public class ReminderTransactionListDialogController {
         transaction.setMemo(reminder.getMemo());
         transaction.setSplitTransactionList(reminder.getSplitTransactionList());
         transaction.setTagID(reminder.getTagID());
-        int tid = mMainApp.showEditTransactionDialog(mMainApp.getStage(), transaction,
-                mMainApp.getAccountList(Account.Type.Group.SPENDING, null, false),
-                mMainApp.getAccountByID(reminder.getAccountID()), Collections.singletonList(ta));
-        if (tid >= 0) {
-            mMainApp.insertReminderTransactions(rt, tid);
-            mMainApp.initReminderTransactionList();
+        Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
+        try {
+            int tid = DialogUtil.showEditTransactionDialog(mainModel, stage, transaction,
+                    mainModel.getAccountList(a -> a.getType().isGroup(Account.Type.Group.SPENDING)),
+                    mainModel.getAccount(a -> a.getID() == reminder.getAccountID()).orElse(null),
+                    Collections.singletonList(ta));
+            if (tid >= 0) {
+                rt.setTransactionID(tid);
+                mainModel.insertReminderTransaction(rt);
+                reminderTransactions.setAll(mainModel.getReminderTransactionList());
+            }
+        } catch (DaoException | IOException e) {
+            final String msg = e.getClass().getName() + " when opening EditTransactionDialog";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.getMessage(), e);
         }
     }
 
     @FXML
     private void handleSkip() {
         ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
-        mMainApp.insertReminderTransactions(rt, 0);
-        mMainApp.initReminderTransactionList();
+        rt.setTransactionID(0);
+        try {
+            mainModel.insertReminderTransaction(rt);
+            reminderTransactions.setAll(mainModel.getReminderTransactionList());
+        } catch (DaoException e) {
+            logger.error("Insert ReminderTransaction failed: " + e.getErrorCode(), e);
+            Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
+            DialogUtil.showExceptionDialog(stage, "Exception", "Unable to insert ReminderTransaction",
+                    e.getErrorCode() + "", e);
+        }
     }
 
     @FXML
     private void handleNew() { showEditReminderDialog(new Reminder()); }
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
+    void setMainModel(MainModel mainModel) {
+        this.mainModel = mainModel;
 
         // uncheck the showCompletedTransactionCheckBox
         mShowCompletedTransactionsCheckBox.setSelected(false);
-        // we need to call handleCheckBox here because setSelect don't trigger an event
-        // and won't call the event handler
-        handleCheckbox();
+
+        // get the list of reminder transactions
+        try {
+            reminderTransactions.setAll(mainModel.getReminderTransactionList());
+
+            // we need to call handleCheckBox here because setSelect don't trigger an event
+            // and won't call the event handler
+            handleCheckbox();
+        } catch (DaoException e) {
+            Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
+            DialogUtil.showExceptionDialog(stage, "Exception", "Unable to get ReminderTransaction list",
+                    e.getErrorCode() + "", e);
+        }
     }
 
     private void showEditReminderDialog(Reminder reminder) {
+        Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditReminderDialog.fxml"));
@@ -169,38 +194,46 @@ public class ReminderTransactionListDialogController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Reminder:");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mDialogStage);
+            dialogStage.initOwner(stage);
             dialogStage.setScene(new Scene(loader.load()));
 
             EditReminderDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, reminder, dialogStage);
+            controller.setMainModel(mainModel, reminder);
             dialogStage.showAndWait();
-        } catch (IOException e) {
-            e.printStackTrace();
+            reminderTransactions.setAll(mainModel.getReminderTransactionList());
+        } catch (IOException | DaoException e) {
+            final String msg = e.getClass().getName() + " when opening EditReminderDialog";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
-    void close() { mDialogStage.close(); }
+    void close() { ((Stage) mReminderTransactionTableView.getScene().getWindow()).close(); }
 
     @FXML
     private void handleCheckbox() {
-        boolean showCompleted = mShowCompletedTransactionsCheckBox.isSelected();
-        ObservableList<ReminderTransaction> rtList = mMainApp.getReminderTransactionList(showCompleted);
+        FilteredList<ReminderTransaction> filteredList = new FilteredList<>(reminderTransactions);
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(()-> rt ->
+                        (rt.getReminder() != null) && (mShowCompletedTransactionsCheckBox.isSelected()
+                                || !(rt.getStatus().equals(SKIPPED) || rt.getStatus().equals(COMPLETED))),
+                mShowCompletedTransactionsCheckBox.selectedProperty()));
+        SortedList<ReminderTransaction> sortedList = new SortedList<>(filteredList,
+                Comparator.comparing(ReminderTransaction::getDueDate));
         int cnt = 0;
         long minDistance = -1;
-        for (int i = 0; i < rtList.size(); i++) {
-            long distance = Math.abs(DAYS.between(LocalDate.now(), rtList.get(i).getDueDate()));
+        for (int i = 0; i < sortedList.size(); i++) {
+            long distance = Math.abs(DAYS.between(LocalDate.now(), sortedList.get(i).getDueDate()));
             if (minDistance < 0 || distance < minDistance) {
                 cnt = i;
                 minDistance = distance;
             }
         }
-        mReminderTransactionTableView.setItems(rtList);
+        mReminderTransactionTableView.setItems(sortedList);
         mReminderTransactionTableView.scrollTo(cnt);
     }
 
     @FXML
-    private void handleClose() { mDialogStage.close(); }
+    private void handleClose() { close(); }
 
     @FXML
     private void initialize() {
@@ -209,16 +242,12 @@ public class ReminderTransactionListDialogController {
         mTypeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getReminder().getTypeProperty());
         mPayeeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getReminder().getPayeeProperty());
         mAmountTableColumn.setCellValueFactory(cellData -> {
-            Transaction t = mMainApp.getTransactionByID(cellData.getValue().getTransactionID());
-            if (t != null)
-                return t.getAmountProperty();
-
-            if (cellData.getValue().getTransactionID() >= 0) {
-                // either intentionally skipped, or transaction deleted which will be treated as skipped
-                return null;
-            }
-            // return reminder estimated amount
-            return cellData.getValue().getReminder().getAmountProperty();
+            final int tid = cellData.getValue().getTransactionID();
+            if (tid < 0)
+                return cellData.getValue().getReminder().getAmountProperty();
+            else
+                return mainModel.getTransaction(t -> t.getID() == cellData.getValue().getTransactionID())
+                        .map(Transaction::getAmountProperty).orElse(null);
         });
         mAmountTableColumn.setCellFactory(column -> new TableCell<>() {
             @Override
@@ -251,7 +280,7 @@ public class ReminderTransactionListDialogController {
                         case ReminderTransaction.OVERDUE:
                             setStyle("-fx-background-color:red");
                             break;
-                        case ReminderTransaction.DUE_SOON:
+                        case DUE_SOON:
                             setStyle("-fx-background-color:yellow");
                             break;
                         default:
@@ -274,17 +303,17 @@ public class ReminderTransactionListDialogController {
             protected void updateItem(Integer item, boolean empty) {
                 super.updateItem(item, empty);
 
-                Tag t;
-                if (item == null || empty || (t = mMainApp.getTagByID(item)) == null) {
+                if (item == null || empty) {
                     setText(null);
                 } else {
-                    setText(t.getName());
+                    setText(mainModel.getTag(tag -> tag.getID() == item).map(Tag::getName).orElse(null));
                 }
             }
         });
 
-        mAccountTableColumn.setCellValueFactory(cellData
-                -> mMainApp.getAccountByID(cellData.getValue().getReminder().getAccountID()).getNameProperty());
+        mAccountTableColumn.setCellValueFactory(cellData ->
+                mainModel.getAccount(account -> account.getID() == cellData.getValue().getReminder().getAccountID())
+                .map(Account::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
 
         BooleanBinding visibility = Bindings.createBooleanBinding(() -> {
             ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();

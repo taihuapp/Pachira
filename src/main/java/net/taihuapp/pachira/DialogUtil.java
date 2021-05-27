@@ -30,10 +30,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -145,5 +147,59 @@ public class DialogUtil {
         alert.setContentText(content);
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
+    }
+
+    static void showSpecifyLotsDialog(MainModel mainModel, Stage parent, Transaction t,
+                                      List<SecurityHolding.MatchInfo> matchInfoList) throws IOException, DaoException {
+        FXMLLoader loader = new FXMLLoader();
+        loader.setLocation(MainApp.class.getResource("/view/SpecifyLotsDialog.fxml"));
+
+        Stage dialogStage = new Stage();
+        dialogStage.setTitle("Specify Lots...");
+        dialogStage.initModality(Modality.WINDOW_MODAL);
+        dialogStage.initOwner(parent);
+        dialogStage.setScene(new Scene(loader.load()));
+        SpecifyLotsDialogController controller = loader.getController();
+        controller.setMainModel(mainModel, t, matchInfoList);
+        dialogStage.showAndWait();
+    }
+
+    static List<SplitTransaction> showSplitTransactionsDialog(MainModel mainModel, Stage parent, int accountID,
+                                                              List<SplitTransaction> stList,
+                                                              BigDecimal netAmount) throws IOException {
+        FXMLLoader loader = new FXMLLoader();
+        loader.setLocation(MainApp.class.getResource("/view/SplitTransactionsDialog.fxml"));
+
+        Stage dialogStage = new Stage();
+        dialogStage.setTitle("Split Transaction");
+        dialogStage.initModality(Modality.WINDOW_MODAL);
+        dialogStage.initOwner(parent);
+        dialogStage.setScene(new Scene(loader.load()));
+        dialogStage.setUserData(false);
+        SplitTransactionsDialogController controller = loader.getController();
+        controller.setMainModel(mainModel, accountID, stList, netAmount);
+        dialogStage.showAndWait();
+        return controller.getSplitTransactionList();
+    }
+
+    // return transaction id or -1 for failure
+    // The input transaction is not changed.
+    static int showEditTransactionDialog(MainModel mainModel, Stage parent, Transaction transaction,
+                                         List<Account> accountList, Account defaultAccount,
+                                         List<Transaction.TradeAction> taList)
+            throws IOException, DaoException {
+        FXMLLoader loader = new FXMLLoader();
+        loader.setLocation((MainApp.class.getResource("/view/EditTransactionDialog.fxml")));
+
+        Stage dialogStage = new Stage();
+        dialogStage.setTitle("Enter Transaction:");
+        dialogStage.initModality(Modality.WINDOW_MODAL);
+        dialogStage.initOwner(parent);
+        dialogStage.setScene(new Scene(loader.load()));
+
+        EditTransactionDialogControllerNew controller = loader.getController();
+        controller.setMainModel(mainModel, transaction, accountList, defaultAccount, taList);
+        dialogStage.showAndWait();
+        return controller.getTransactionID();
     }
 }

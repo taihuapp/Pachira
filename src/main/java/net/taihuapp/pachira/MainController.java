@@ -1229,8 +1229,10 @@ public class MainController {
                                         Account newAccount = mMainApp.getAccountByName(accountMI.getText());
                                         if (newAccount != null) {
                                             // let show transaction table for the new account
-                                            TreeItem<Account> groupNode = mAccountTreeTableView.getRoot().getChildren().stream()
-                                                    .filter(n -> n.getValue().getType().equals(newAccount.getType()))
+                                            TreeItem<Account> groupNode = mAccountTreeTableView.getRoot().getChildren()
+                                                    .stream()
+                                                    .filter(n -> n.getValue().getType()
+                                                            .isGroup(newAccount.getType().getGroup()))
                                                     .findFirst().orElse(null);
                                             if (groupNode != null) {
                                                 TreeItem<Account> accountNode = groupNode.getChildren().stream()

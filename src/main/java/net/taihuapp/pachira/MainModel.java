@@ -1077,4 +1077,116 @@ public class MainModel {
             throw e;
         }
     }
+
+    ObservableList<Transaction> getMergeCandidateTransactionList(final Transaction transaction) {
+        final Optional<Account> accountOptional = getAccount(a -> a.getID() == transaction.getAccountID());
+        if (accountOptional.isEmpty())
+            throw new IllegalArgumentException("Transaction (" + transaction.getID() + ") has an invalid account ID ("
+                    + transaction.getAccountID() + ")");
+        final Account account = accountOptional.get();
+        if (account.getType().isGroup(Account.Type.Group.SPENDING)) {
+            throw new IllegalArgumentException("Account type " + account.getType().toString()
+                    + " is not supported yet");
+        }
+        // find transactions of the same account, within 2 weeks before or after,
+        // not reconciled, not downloaded, ant match amount
+        final BigDecimal netAmount = transaction.getDeposit().subtract(transaction.getPayment());
+        final Predicate<Transaction> predicate = t ->
+                t.getTDate().isAfter(transaction.getTDate().minusWeeks(2))
+                        && t.getTDate().isBefore(transaction.getTDate().plusWeeks(2))
+                        && !t.getStatus().equals(Transaction.Status.RECONCILED)
+                        && t.getFITID().isEmpty()
+                        && t.getDeposit().subtract(t.getPayment()).compareTo(netAmount) == 0;
+        return new FilteredList<>(account.getTransactionList(), predicate);
+    }
+
+    /**
+     * mark all cleared transaction for the given account as reconciled
+     * and update account reconciled date
+     * @param account the account to be reconciled
+     * @param d - the date
+     */
+    void reconcileAccount(Account account, LocalDate d) throws DaoException {
+        // create a local list of relevant transactions
+        final List<Transaction> tList = new ArrayList<>(account.getTransactionList()
+                .filtered(t -> t.getStatus().equals(Transaction.Status.CLEARED)));
+        LocalDate oldReconcileDate = account.getLastReconcileDate();
+
+        tList.forEach(t -> t.setStatus(Transaction.Status.RECONCILED));
+        account.setLastReconcileDate(d);
+
+        DaoManager daoManager = DaoManager.getInstance();
+        TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
+        AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
+        try {
+            daoManager.beginTransaction();
+            for (Transaction t : tList) {
+                transactionDao.update(t);
+            }
+            accountDao.update(account);
+            daoManager.commit();
+        } catch (DaoException e) {
+            // something went wrong
+
+            // put back the old reconcile date
+            account.setLastReconcileDate(oldReconcileDate);
+            tList.forEach(t -> t.setStatus(Transaction.Status.CLEARED));
+
+            // roll back database
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+
+            throw e;
+        }
+    }
+
+    /**
+     * find all transactions contains searchString in the following fields:
+     *   category name, transfer account name, tag name, payee, security name, memo, trade action
+     * @param searchString - the string to be searched
+     * @return - the list of transactions contains the search string
+     */
+    ObservableList<Transaction> getStringSearchTransactionList(final String searchString) {
+        final String lowerSearchString = searchString.toLowerCase();
+
+        // category name and transfer account name
+        Set<Integer> categoryOrTransferAccountNameMatchIDSet = getCategoryList()
+                .filtered(c -> c.getName().toLowerCase().contains(lowerSearchString))
+                .stream().map(Category::getID).collect(Collectors.toCollection(HashSet<Integer>::new));
+        getAccountList(a -> a.getName().toLowerCase().contains(lowerSearchString))
+                        .stream().map(a -> -a.getID())
+                .forEach(categoryOrTransferAccountNameMatchIDSet::add);
+
+        // Tag name
+        Set<Integer> tagNameMatchIDSet = getTagList()
+                .filtered(t -> t.getName().toLowerCase().contains(lowerSearchString))
+                .stream().map(Tag::getID).collect(Collectors.toCollection(HashSet<Integer>::new));
+
+        Predicate<Transaction> predicate = t -> {
+            if (categoryOrTransferAccountNameMatchIDSet.contains(t.getCategoryID()))
+                return true;
+
+            if (tagNameMatchIDSet.contains(t.getTagID()))
+                return true;
+
+            final String payee = t.getPayee();
+            if (payee != null && payee.toLowerCase().contains(lowerSearchString))
+                return true;
+
+            final String securityName = t.getSecurityName();
+            if (securityName != null && securityName.toLowerCase().contains(lowerSearchString))
+                return true;
+
+            final String memo = t.getMemo();
+            if (memo != null && memo.toLowerCase().contains(lowerSearchString))
+                return true;
+
+            return t.getTradeAction().toString().toLowerCase().contains(lowerSearchString);
+        };
+
+        return new FilteredList<>(transactionList, predicate);
+    }
 }

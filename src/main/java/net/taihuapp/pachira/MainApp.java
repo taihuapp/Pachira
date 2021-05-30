@@ -2365,7 +2365,7 @@ public class MainApp extends Application {
             dialogStage.setTitle("Reconcile Account: " + getCurrentAccount().getName());
             dialogStage.setScene(new Scene(loader.load()));
             ReconcileDialogController controller = loader.getController();
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(e -> controller.handleCancel());
             dialogStage.showAndWait();
         } catch (IOException e) {

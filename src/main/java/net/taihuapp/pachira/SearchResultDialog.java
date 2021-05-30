@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -36,7 +36,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 
 class SearchResultDialog {
-    private Stage mDialogStage;
+    private final Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
 
     static class SearchTransactionTableView extends TransactionTableView {
@@ -57,8 +57,8 @@ class SearchResultDialog {
         @Override
         final void setColumnSortability() {}  // all columns remains sortable
 
-        SearchTransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) {
-            super(mainApp, tList);
+        SearchTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
+            super(mainModel, tList);
         }
     }
 
@@ -66,11 +66,11 @@ class SearchResultDialog {
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
 
     // constructor
-    SearchResultDialog(String searchString, MainApp mainApp, Stage stage) {
+    SearchResultDialog(String searchString, MainModel mainModel, Stage stage) {
         mDialogStage = stage;
 
-        SearchTransactionTableView searchTransactionTableView = new SearchTransactionTableView(mainApp,
-                mainApp.getStringSearchTransactionList(searchString));
+        SearchTransactionTableView searchTransactionTableView = new SearchTransactionTableView(mainModel,
+                mainModel.getStringSearchTransactionList(searchString));
 
         searchTransactionTableView.setRowFactory(tv -> {
             TableRow<Transaction> row = new TableRow<>();

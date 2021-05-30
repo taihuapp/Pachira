@@ -25,8 +25,6 @@ import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -504,14 +502,21 @@ public class MainController {
 
     @FXML
     private void handleSearch() {
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         Stage dialogStage = new Stage();
         dialogStage.initModality(Modality.WINDOW_MODAL);
-        dialogStage.initOwner(mMainApp.getStage());
-        SearchResultDialog srd = new SearchResultDialog(mSearchTextField.getText().trim(), mMainApp, dialogStage);
+        dialogStage.initOwner(stage);
+        SearchResultDialog srd = new SearchResultDialog(mSearchTextField.getText().trim(), mainModel, dialogStage);
         dialogStage.showAndWait();
         Transaction t = srd.getSelectedTransaction();
         if (t != null) {
-            Account a = mMainApp.getAccountByID(t.getAccountID());
+            Account a = mainModel.getAccount(account -> account.getID() == t.getAccountID()).orElse(null);
+            if (a == null) {
+                final String msg = "Transaction " + t.getID() + " has an invalid account id " + t.getAccountID();
+                mLogger.error(msg, null);
+                DialogUtil.showExceptionDialog(stage, "Invalid Account", msg, "", null);
+                return;
+            }
             if (a.getHiddenFlag()) {
                 DialogUtil.showWarningDialog(null,"Hidden Account Transaction",
                         "Selected Transaction Belongs to a Hidden Account",
@@ -966,7 +971,25 @@ public class MainController {
 
     @FXML
     private void handleReconcile() {
-        mMainApp.showReconcileDialog();
+        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(getClass().getResource("/view/ReconcileDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(stage);
+            dialogStage.setTitle("Reconcile Account: " + mainModel.getCurrentAccount().getName());
+            dialogStage.setScene(new Scene(loader.load()));
+            ReconcileDialogController controller = loader.getController();
+            controller.setMainModel(mainModel);
+            dialogStage.setOnCloseRequest(e -> controller.handleCancel());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            final String msg = "IOException when opening reconcile dialog";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, "IOException", msg, e.toString(), e);
+        }
     }
 
     private void showAccountTransactions(Account account) {
@@ -1277,7 +1300,7 @@ public class MainController {
                     Stage dialogStage = new Stage();
                     dialogStage.initModality(Modality.WINDOW_MODAL);
                     dialogStage.initOwner(mMainApp.getStage());
-                    MergeCandidateDialog mcd = new MergeCandidateDialog(mMainApp, dialogStage, downloadedTransaction);
+                    MergeCandidateDialog mcd = new MergeCandidateDialog(mainModel, dialogStage, downloadedTransaction);
                     dialogStage.showAndWait();
                     Transaction selected = mcd.getSelectedTransaction();
                     if (selected != null) {
@@ -1417,10 +1440,7 @@ public class MainController {
             if (categoryOptional.isPresent()) {
                 return categoryOptional.get().getNameProperty();
             } else if (accountOptional.isPresent()) {
-                StringProperty accountNameProperty = new SimpleStringProperty();
-                accountNameProperty.bind(Bindings.createStringBinding(() -> "[" + accountOptional.get().getName() + "]",
-                        accountOptional.get().getNameProperty()));
-                return accountNameProperty;
+                return Bindings.concat("[", accountOptional.get().getNameProperty(), "]");
             } else {
                 return new ReadOnlyStringWrapper("");
             }

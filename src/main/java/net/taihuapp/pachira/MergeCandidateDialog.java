@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -37,7 +37,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 
 class MergeCandidateDialog {
-    private Stage mDialogStage;
+    private final Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
 
     static class MergeCandidateTransactionTableView extends TransactionTableView {
@@ -55,19 +55,20 @@ class MergeCandidateDialog {
         @Override
         final void setColumnSortability() {} // all columns remain sortable
 
-        MergeCandidateTransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) { super(mainApp, tList);}
+        MergeCandidateTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
+            super(mainModel, tList);}
     }
 
     private void handleClose() { mDialogStage.close(); }
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
 
     // constructor
-    MergeCandidateDialog(MainApp mainApp, Stage stage, final Transaction downloadedTransaction) {
+    MergeCandidateDialog(MainModel mainModel, Stage stage, final Transaction downloadedTransaction) {
         mDialogStage = stage;
 
         MergeCandidateTransactionTableView mergeCandidateTransactionTableView =
-                new MergeCandidateTransactionTableView(mainApp,
-                        mainApp.getMergeCandidateTransactionList(downloadedTransaction));
+                new MergeCandidateTransactionTableView(mainModel,
+                        mainModel.getMergeCandidateTransactionList(downloadedTransaction));
         mergeCandidateTransactionTableView.setRowFactory(tv -> {
             TableRow<Transaction> row = new TableRow<>();
             // double click select the merge candidate

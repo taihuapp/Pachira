@@ -54,6 +54,8 @@ import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class MainModel {
 
+    public static final String DELETED_ACCOUNT_NAME = "Deleted Account";
+
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
     private static final Logger logger = Logger.getLogger(MainModel.class);
@@ -84,7 +86,28 @@ public class MainModel {
         categoryList.setAll(((CategoryDao) daoManager.getDao(DaoManager.DaoType.CATEGORY)).getAll());
         tagList.setAll(((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).getAll());
         securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
+
+        AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
+        // make sure all account display orders are correct
+
+        FXCollections.sort(accountList, Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder));
+        int currentDisplayOrder = 0;
+        Account.Type currentType = null;
+        for (Account a : accountList) {
+            if (a.getName().equals(DELETED_ACCOUNT_NAME))
+                continue;
+            if (!a.getType().equals(currentType)) {
+                currentDisplayOrder = 0;
+                currentType = a.getType();
+            }
+            if (a.getDisplayOrder() != currentDisplayOrder) {
+                a.setDisplayOrder(currentDisplayOrder);
+                accountDao.update(a);
+            }
+            currentDisplayOrder++;
+        }
+
         transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
         FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
 
@@ -381,7 +404,7 @@ public class MainModel {
     public SortedList<Account> getAccountList(Account.Type.Group g, Boolean hidden, Boolean exDeleted) {
         Predicate<Account> p = a ->  (g == null || a.getType().isGroup(g))
                 && (hidden == null || a.getHiddenFlag().equals(hidden))
-                && !(exDeleted && a.getName().equals(DaoManager.DELETED_ACCOUNT_NAME));
+                && !(exDeleted && a.getName().equals(DELETED_ACCOUNT_NAME));
         Comparator<Account> c = Comparator.comparing(Account::getType)
                 .thenComparing(Account::getDisplayOrder).thenComparing(Account::getID);
         return getAccountList(p, c);
@@ -445,6 +468,34 @@ public class MainModel {
 
     void updateReminder(Reminder reminder) throws DaoException {
         ((ReminderDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER)).update(reminder);
+    }
+
+    /**
+     * insert or update account to database and master list
+     * @param account - the account to be inserted or updated
+     * @throws DaoException - from database operations
+     */
+    void insertUpdateAccount(Account account) throws DaoException {
+        AccountDao accountDao = (AccountDao) DaoManager.getInstance().getDao(DaoManager.DaoType.ACCOUNT);
+        final boolean isInsert = account.getID() <= 0;
+        if (isInsert) {
+            account.setDisplayOrder(getAccountList(a -> a.getType().equals(account.getType())).size());
+            account.setID(accountDao.insert(account));
+        } else
+            accountDao.update(account);
+
+        if (isInsert)
+            accountList.add(account);
+        else {
+            for (int i = 0; i < accountList.size(); i++) {
+                final Account a = accountList.get(i);
+                if (a.getID() == account.getID()) {
+                    if (a != account)
+                        accountList.set(i, account);
+                    break;
+                }
+            }
+        }
     }
 
     /**
@@ -1188,5 +1239,58 @@ public class MainModel {
         };
 
         return new FilteredList<>(transactionList, predicate);
+    }
+
+    /**
+     * swap account display order in db and in memory
+     * @param a1 one of the two accounts to be swapped
+     * @param a2 one of the two account to be swapped
+     */
+    void swapAccountDisplayOrder(Account a1, Account a2) throws DaoException {
+        if (a1 == null || a2 == null || a1.getType() != a2.getType())
+            throw new IllegalArgumentException("swapAccountDisplayOrder takes two account of same group");
+
+        final int o1 = a1.getDisplayOrder();
+        final int o2 = a2.getDisplayOrder();
+
+        a1.setDisplayOrder(o2);
+        a2.setDisplayOrder(o1);
+
+        DaoManager daoManager = DaoManager.getInstance();
+        AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
+
+        try {
+            daoManager.beginTransaction();
+            accountDao.update(a1);
+            accountDao.update(a2);
+            daoManager.commit();
+
+            int count = 0;
+            for (int i = 0; i < accountList.size(); i++) {
+                Account account = accountList.get(i);
+                if (account.getID() == a1.getID()) {
+                    if (account != a1)
+                        accountList.set(i, a1);
+                    count++;
+                }
+                if (account.getID() == a2.getID()) {
+                    if (account != a2)
+                        accountList.set(i, a2);
+                    count++;
+                }
+                if (count > 1)
+                    break;
+            }
+        } catch (DaoException e) {
+            try {
+                // put back the original display orders
+                a1.setDisplayOrder(o1);
+                a2.setDisplayOrder(o2);
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
     }
 }

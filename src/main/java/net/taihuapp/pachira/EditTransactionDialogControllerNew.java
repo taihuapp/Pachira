@@ -93,7 +93,7 @@ public class EditTransactionDialogControllerNew {
             for (Category category : mainModel.getCategoryList())
                 idList.add(category.getID());
             for (Account account : mainModel.getAccountList(a -> !a.getHiddenFlag()
-                            && !a.getName().equals(DaoManager.DELETED_ACCOUNT_NAME),
+                            && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME),
                     Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)))
                 idList.add(-account.getID());
 

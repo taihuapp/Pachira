@@ -28,7 +28,6 @@ import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import javafx.util.converter.NumberStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import net.taihuapp.pachira.dao.DaoManager;
 import org.apache.log4j.Logger;
 import org.controlsfx.control.textfield.TextFields;
 
@@ -134,7 +133,7 @@ public class EditReminderDialogController {
         mAccountIDComboBox.getItems().clear();
         for (Account a : mainModel.getAccountList(account ->
                     account.getType().isGroup(Account.Type.Group.SPENDING) && !account.getHiddenFlag()
-                    && !account.getName().equals(DaoManager.DELETED_ACCOUNT_NAME),
+                    && !account.getName().equals(MainModel.DELETED_ACCOUNT_NAME),
                 Comparator.comparing(Account::getDisplayOrder)))
             mAccountIDComboBox.getItems().add(a.getID());
 

@@ -2449,7 +2449,7 @@ public class MainApp extends Application {
                 mLogger.error("Null AccountListDialog controller?");
                 return;
             }
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {

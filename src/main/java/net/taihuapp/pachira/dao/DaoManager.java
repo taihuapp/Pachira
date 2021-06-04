@@ -21,6 +21,7 @@
 package net.taihuapp.pachira.dao;
 
 import net.taihuapp.pachira.Account;
+import net.taihuapp.pachira.MainModel;
 import net.taihuapp.pachira.Transaction;
 import org.h2.api.ErrorCode;
 import org.h2.tools.ChangeFileEncryption;
@@ -52,7 +53,6 @@ public class DaoManager {
     private static final int ACCOUNT_NAME_LEN = 40;
     private static final int ACCOUNT_DESC_LEN = 256;
     private static final int MIN_ACCOUNT_ID = 10;
-    public static final String DELETED_ACCOUNT_NAME = "Deleted Account";
 
     private static final int SECURITY_TICKER_LEN = 16;
     private static final int SECURITY_NAME_LEN = 64;
@@ -365,7 +365,7 @@ public class DaoManager {
                 + "primary key (ID));";
         executeUpdateQuery(sqlCmd);
         AccountDao accountDao = (AccountDao) getDao(DaoType.ACCOUNT);
-        accountDao.insert(new Account(-1, Account.Type.CHECKING, DELETED_ACCOUNT_NAME,
+        accountDao.insert(new Account(-1, Account.Type.CHECKING, MainModel.DELETED_ACCOUNT_NAME,
                 "Placeholder for the Deleted Account", true, Integer.MAX_VALUE,
                 null, BigDecimal.ZERO));
 

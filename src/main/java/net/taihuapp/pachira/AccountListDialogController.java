@@ -20,7 +20,7 @@
 
 package net.taihuapp.pachira;
 
-import javafx.collections.ListChangeListener;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -29,28 +29,18 @@ import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Comparator;
 
 public class AccountListDialogController {
 
     private static final Logger mLogger = Logger.getLogger(AccountListDialogController.class);
 
-    private MainApp mMainApp = null;
-    private Stage mDialogStage = null;
-    private final ListChangeListener<Account> mAccountListChangeListener = c -> {
-        while (c.next()) {
-            if (c.wasUpdated()) {
-                for (int i = c.getFrom(); i < c.getTo(); i++) {
-                    mMainApp.insertUpdateAccountToDB(c.getList().get(i));
-                }
-            }
-        }
-    };
+    private MainModel mainModel;
 
     @FXML
     private ChoiceBox<Account.Type.Group> mGroupChoiceBox;
@@ -87,37 +77,28 @@ public class AccountListDialogController {
     private void handleMoveUp() {
         int selectedIdx = mAccountTableView.getSelectionModel().getSelectedIndex();
         Account account = mAccountTableView.getSelectionModel().getSelectedItem();
-        if (account == null || selectedIdx <= 0)
-            return; // how we got here
-
         Account accountAbove = mAccountTableView.getItems().get(selectedIdx-1);
-        if (accountAbove == null || accountAbove.getType() != account.getType())
-            return; // how did this happen?
-
-        account.setDisplayOrder(account.getDisplayOrder()-1);
-        accountAbove.setDisplayOrder(account.getDisplayOrder()+1);
-        mMainApp.insertUpdateAccountToDB(account);
-        mMainApp.insertUpdateAccountToDB(accountAbove);
+        swapAccountDisplayOrder(account, accountAbove);
     }
 
     @FXML
     private void handleMoveDown() {
         int selectedIdx = mAccountTableView.getSelectionModel().getSelectedIndex();
-        int numberOfRows = mAccountTableView.getItems().size();
         Account account = mAccountTableView.getSelectionModel().getSelectedItem();
-        if (account == null || selectedIdx < 0 || selectedIdx >= numberOfRows-1)
-            return; // we shouldn't be here
-
         Account accountBelow = mAccountTableView.getItems().get(selectedIdx+1);
-        if (accountBelow == null || accountBelow.getType() != account.getType())
-            return;
+        swapAccountDisplayOrder(account, accountBelow);
+    }
 
-        account.setDisplayOrder(account.getDisplayOrder()+1);
-        accountBelow.setDisplayOrder(accountBelow.getDisplayOrder()-1);
-
-        // these two accounts are in MainApp.mAccountList, no need to update
-        mMainApp.insertUpdateAccountToDB(account);
-        mMainApp.insertUpdateAccountToDB(accountBelow);
+    private void swapAccountDisplayOrder(Account a1, Account a2) {
+        try {
+            mainModel.swapAccountDisplayOrder(a1, a2);
+        } catch (DaoException e) {
+            final String msg = e.getErrorCode() + "DaoException on SwapAccountDisplayOrder with accounts "
+                    + a1.getName() + "/" + a2.getName();
+            mLogger.error(msg, e);
+            Stage stage = (Stage) mAccountTableView.getScene().getWindow();
+            DialogUtil.showExceptionDialog(stage, "DaoException", msg, e.toString(), e);
+        }
     }
 
     @FXML
@@ -127,13 +108,23 @@ public class AccountListDialogController {
             return;  // is this necessary?
         // working on the account in mMainApp.mAccountList
         account.setHiddenFlag(!account.getHiddenFlag());
-        mMainApp.insertUpdateAccountToDB(account);
+        try {
+            mainModel.insertUpdateAccount(account);
+        } catch (DaoException e) {
+            // first put back
+            account.setHiddenFlag(!account.getHiddenFlag());
+            Stage stage = (Stage) mAccountTableView.getScene().getWindow();
+            final String msg = e.getErrorCode() + " DaoException when hide/unhide account " + account.getName();
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, "DaoException", msg, e.toString(), e);
+        }
     }
 
     @FXML
     private void handleClose() { close(); }
 
     private void showEditAccountDialog(Account account, Account.Type.Group g) {
+        Stage stage = (Stage) mAccountTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditAccountDialog.fxml"));
@@ -141,7 +132,7 @@ public class AccountListDialogController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle(account == null ? "New Account" : "Edit Account");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mDialogStage);
+            dialogStage.initOwner(stage);
             dialogStage.setScene(new Scene(loader.load()));
             EditAccountDialogController controller = loader.getController();
             if (controller == null) {
@@ -149,17 +140,17 @@ public class AccountListDialogController {
                 return;
             }
 
-            controller.setDialogStage(dialogStage);
-            controller.setAccount(mMainApp, account, g);
+            controller.setAccount(mainModel, account, g);
             dialogStage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
+            DialogUtil.showExceptionDialog(stage, "IOException", "showEditAccountDialog IO Exception",
+                    e.toString(), e);
         }
     }
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
+    void setMainModel(MainModel mainModel) {
+        this.mainModel = mainModel;
 
         class AccountGroupConverter extends StringConverter<Account.Type.Group> {
             public Account.Type.Group fromString(String s) {
@@ -173,18 +164,6 @@ public class AccountListDialogController {
                 if (g == null)
                     return "All";
                 return g.toString();
-            }
-        }
-
-        // first make sure all account display order is set properly
-        for (Account.Type.Group g : Account.Type.Group.values()) {
-            final List<Account> accountList = new ArrayList<>(mMainApp.getAccountList(g, null, true));
-            for (int i = 0; i < accountList.size(); i++) {
-                Account a = accountList.get(i);
-                if (a.getDisplayOrder() != i) {
-                    a.setDisplayOrder(i);
-                    mMainApp.insertUpdateAccountToDB(a); // save to DB
-                }
             }
         }
 
@@ -246,11 +225,10 @@ public class AccountListDialogController {
         mGroupChoiceBox.getItems().setAll(Account.Type.Group.values());
         mGroupChoiceBox.getItems().add(null);
         mGroupChoiceBox.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
-            // remove old listener if there is any
-            mAccountTableView.getItems().removeListener(mAccountListChangeListener);
-            // get all account for the given type, exclude deleted account.
-            mAccountTableView.setItems(mMainApp.getAccountList(n, null, true));
-            mAccountTableView.getItems().addListener(mAccountListChangeListener);
+            // get all account for the given group, exclude deleted account.
+            mAccountTableView.setItems(new SortedList<>(mainModel.getAccountList(a -> n == null ||
+                            (a.getType().isGroup(n) && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME))),
+                    Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)));
             mEditButton.setDisable(true);
             mMoveUpButton.setDisable(true);
             mMoveDownButton.setDisable(true);
@@ -259,7 +237,6 @@ public class AccountListDialogController {
     }
 
     void close() {
-        mAccountTableView.getItems().removeListener(mAccountListChangeListener);
-        mDialogStage.close();
+        ((Stage) mAccountTableView.getScene().getWindow()).close();
     }
 }

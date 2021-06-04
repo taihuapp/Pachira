@@ -810,7 +810,29 @@ public class MainController {
     private void handleFinancialInstitutionList() { mMainApp.showFinancialInstitutionListDialog(); }
 
     @FXML
-    private void handleEditAccountList() { mMainApp.showAccountListDialog(); }
+    private void handleEditAccountList() {
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/AccountListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Account List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(stage);
+            dialogStage.setScene(new Scene(loader.load()));
+            AccountListDialogController controller = loader.getController();
+            if (controller == null) {
+                mLogger.error("Null AccountListDialog controller?");
+                return;
+            }
+            controller.setMainModel(mainModel);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            mLogger.error("IOException", e);
+        }
+    }
 
     @FXML
     private void handleEditSecurityList() {
@@ -834,6 +856,7 @@ public class MainController {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
+            mLogger.error("IOException on showCategoryListDialog", e);
             DialogUtil.showExceptionDialog(stage, "Exception", "IOException",
                     "showCategoryListDialog IOException", e);
         }
@@ -856,6 +879,7 @@ public class MainController {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
+            mLogger.error("IOException on showTagListDialog", e);
             DialogUtil.showExceptionDialog(stage,"Exception", "IO Exception",
                     "showTagListDialog IO Exception", e);
         }
@@ -884,6 +908,8 @@ public class MainController {
             dialogStage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
+            DialogUtil.showExceptionDialog(stage, "Exception", "IO Exception",
+                    "showReminderTransactionListDialog IO Exception", e);
         }
     }
 

@@ -32,6 +32,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Security prices
+ * For securities with an nonempty Ticker, the security id column is set to 0 and
+ * the prices are key by the ticker and the date
+ *
+ * For securities with empty ticker, the prices are key by the security id and the date
+ */
 public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, LocalDate>> {
 
     SecurityPriceDao(Connection connection) { this.connection = connection; }
@@ -175,9 +182,11 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
                 for (Pair<Security, Price> pair : pairList) {
                     final Security security = pair.getKey();
+                    final String ticker = security.getTicker();
+                    final int id = ticker.isEmpty() ? security.getID() : 0;
                     final Price price = pair.getValue();
-                    preparedStatement.setInt(1, security.getID());
-                    preparedStatement.setString(2, security.getTicker());
+                    preparedStatement.setInt(1, id);
+                    preparedStatement.setString(2, ticker);
                     preparedStatement.setObject(3, price.getDate());
                     preparedStatement.setBigDecimal(4, price.getPrice());
 
@@ -198,6 +207,45 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
         }
     }
 
+    /**
+     * get prices for the given security in a list ordered by date
+     * @param security - the given security
+     * @return - a list of prices
+     * @throws DaoException - database operations
+     */
+    public List<Price> get(Security security) throws DaoException {
+        final String ticker = security.getTicker();
+        final int id = security.getID();
+        final String sqlCmd = ticker.isEmpty() ?
+                "SELECT * FROM " + getTableName() + " WHERE SECURITYID = ? ORDER BY DATE" :
+                "SELECT * FROM " + getTableName() + " WHERE TICKER = ? ORDER BY DATE";
+        List<Price> priceList = new ArrayList<>();
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            if (ticker.isEmpty())
+                preparedStatement.setInt(1, id);
+            else
+                preparedStatement.setString(1, ticker);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    final LocalDate date = resultSet.getObject("DATE", LocalDate.class);
+                    final BigDecimal p = resultSet.getBigDecimal("PRICE");
+                    priceList.add(new Price(date, p));
+                }
+                return priceList;
+            }
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET,
+                    "Failed to get prices for '" + ticker + "'(" + id + ")", e);
+        }
+    }
+
+    /**
+     * get price for the given security on the given date
+     * @param securityDatePair - input security and date
+     * @return - optional price
+     * @throws DaoException - from database operations
+     */
     public Optional<Pair<Security, Price>> getLastPrice(Pair<Security, LocalDate> securityDatePair)
             throws DaoException {
         final Security security = securityDatePair.getKey();

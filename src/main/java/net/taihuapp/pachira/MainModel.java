@@ -85,8 +85,30 @@ public class MainModel {
     public MainModel() throws DaoException, ModelException {
         categoryList.setAll(((CategoryDao) daoManager.getDao(DaoManager.DaoType.CATEGORY)).getAll());
         tagList.setAll(((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).getAll());
-        securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
 
+        initSecurityList();
+
+        initTransactionList();
+
+        initAccountList();
+
+        // initialize AccountDCList
+        accountDCList.setAll(((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).getAll());
+
+        // initialize the Direct connection vault
+        initVault();
+    }
+
+    void initSecurityList() throws DaoException {
+        securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
+    }
+
+    void initTransactionList() throws DaoException {
+        transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
+        FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
+    }
+
+    void initAccountList() throws DaoException {
         AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
         // make sure all account display orders are correct
@@ -108,9 +130,6 @@ public class MainModel {
             currentDisplayOrder++;
         }
 
-        transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
-        FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
-
         // transaction comparator for investing accounts
         final Comparator<Transaction> investingAccountTransactionComparator = Comparator
                 .comparing(Transaction::getTDate)
@@ -126,8 +145,8 @@ public class MainModel {
             final FilteredList<Transaction> filteredList = new FilteredList<>(transactionList,
                     t -> t.getAccountID() == account.getID());
             final SortedList<Transaction> sortedList = new SortedList<>(filteredList,
-                            account.getType().isGroup(Account.Type.Group.INVESTING) ?
-                                    investingAccountTransactionComparator : spendingAccountTransactionComparator);
+                    account.getType().isGroup(Account.Type.Group.INVESTING) ?
+                            investingAccountTransactionComparator : spendingAccountTransactionComparator);
             account.setTransactionList(sortedList);
 
             // computer security holding list and update account balance for each transaction
@@ -136,12 +155,6 @@ public class MainModel {
             account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
             account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
         }
-
-        // initialize AccountDCList
-        accountDCList.setAll(((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).getAll());
-
-        // initialize the Direct connection vault
-        initVault();
     }
 
     /**
@@ -196,6 +209,19 @@ public class MainModel {
      */
     public Optional<Security> getSecurity(Predicate<Security> predicate) {
         return securityList.stream().filter(predicate).findFirst();
+    }
+
+    /**
+     * insert or update security in database and master list
+     * @param security - the input security
+     * @throws DaoException - from database operation
+     */
+    void mergeSecurity(Security security) throws DaoException {
+        SecurityDao securityDao = (SecurityDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY);
+        if (security.getID() <= 0)
+            securityDao.insert(security);
+        else
+            securityDao.update(security);
     }
 
     /**
@@ -276,9 +302,27 @@ public class MainModel {
         return ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).get(pair);
     }
 
+    List<Price> getSecurityPriceList(Security security) throws DaoException {
+        return ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).get(security);
+    }
+
     void insertSecurityPrice(Pair<Security, Price> pair) throws DaoException {
         ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).insert(pair);
     }
+
+    /**
+     * insert or update a list of security and price pairs.
+     * @param priceList - the input list
+     * @throws DaoException - from database operation
+     */
+    void mergeSecurityPrices(List<Pair<Security, Price>> priceList) throws DaoException {
+        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).mergePricesToDB(priceList);
+    }
+
+    void deleteSecurityPrice(Security security, LocalDate date) throws DaoException {
+        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).delete(new Pair<>(security, date));
+    }
+
     /**
      * Given a csv file name, scan the file, import the lines of valid Symbol,Date,Price triplets
      * @param file - a file object of the csv file
@@ -288,7 +332,6 @@ public class MainModel {
         final List<Pair<Security, Price>> priceList = new ArrayList<>();
         final List<String[]> skippedLines = new ArrayList<>();
 
-        final DaoManager daoManager = DaoManager.getInstance();
         final Map<String, Security> tickerSecurityMap = new HashMap<>();
         securityList.forEach(s -> tickerSecurityMap.put(s.getTicker(), s));
 
@@ -338,7 +381,7 @@ public class MainModel {
         }
 
         // now ready to insert to database
-        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).mergePricesToDB(priceList);
+        mergeSecurityPrices(priceList);
 
         // the set of securities updated prices
         Set<Security> securitySet = new HashSet<>();

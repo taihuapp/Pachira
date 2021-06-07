@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -23,15 +23,17 @@ package net.taihuapp.pachira;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.IOException;
 
 public class SecurityListDialogController {
-    private MainApp mMainApp = null;
-    private Stage mDialogStage = null;
+
+    private MainModel mainModel;
 
     @FXML
     private TableView<Security> mSecurityTableView;
@@ -48,11 +50,11 @@ public class SecurityListDialogController {
     @FXML
     private Button mDeleteButton;
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
+    void setMainModel(MainModel mainModel) {
 
-        mSecurityTableView.setItems(mainApp.getSecurityList());
+        this.mainModel = mainModel;
+
+        mSecurityTableView.setItems(mainModel.getSecurityList());
 
         mSecurityNameColumn.setCellValueFactory(cellData->cellData.getValue().getNameProperty());
         mSecurityTickerColumn.setCellValueFactory(cellData->cellData.getValue().getTickerProperty());
@@ -67,9 +69,10 @@ public class SecurityListDialogController {
         });
     }
 
-    void close() { mDialogStage.close(); }
+    void close() { ((Stage) mSecurityTableView.getScene().getWindow()).close(); }
 
     private void showEditSecurityDialog(Security security) {
+        Stage stage = (Stage) mSecurityTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditSecurityDialog.fxml"));
@@ -77,12 +80,13 @@ public class SecurityListDialogController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Security:");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mDialogStage);
+            dialogStage.initOwner(stage);
             dialogStage.setScene(new Scene(loader.load()));
 
             EditSecurityDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, security, dialogStage);
+            controller.setMainModel(mainModel, security);
             dialogStage.showAndWait();
+            mSecurityTableView.setItems(mainModel.getSecurityList());
             // need to check selection here and enable/disable edit button
             mEditButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
             mEditPriceButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
@@ -92,6 +96,7 @@ public class SecurityListDialogController {
     }
 
     private void showEditSecurityPriceDialog(Security security) {
+        Stage stage = (Stage) mSecurityTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditSecurityPriceDialog.fxml"));
@@ -99,11 +104,11 @@ public class SecurityListDialogController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Security Price:");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mDialogStage);
+            dialogStage.initOwner(stage);
             dialogStage.setScene(new Scene(loader.load()));
 
             EditSecurityPriceDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, security, dialogStage);
+            controller.setMainModel(mainModel, security);
             dialogStage.showAndWait();
             // need to check selection here and enable/disable edit button
             mEditButton.setDisable(mSecurityTableView.getSelectionModel().getSelectedItem() == null);
@@ -132,11 +137,12 @@ public class SecurityListDialogController {
 
     @FXML
     private void handleDelete() {
-        MainApp.showExceptionDialog(mDialogStage,"Exception", "Action Not Implemented",
-                "Delete security action not implemented", null);
+        Stage stage = (Stage) mSecurityTableView.getScene().getWindow();
+        DialogUtil.showInformationDialog(stage, "Unsupported Operation", "Unsupported Operation",
+                "Delete security is not implemented yet");
     }
 
     @FXML
-    private void handleClose() { mDialogStage.close(); }
+    private void handleClose() { close(); }
 
 }

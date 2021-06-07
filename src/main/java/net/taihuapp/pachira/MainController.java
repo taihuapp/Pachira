@@ -340,9 +340,7 @@ public class MainController {
             }
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
                 | UnrecoverableKeyException e) {
-            mLogger.error("Verify Master Password throws exception " + e.getMessage(), e);
-            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "Vault Exception",
-                    e.getMessage(), e);
+            logAndDisplayException("Verify Master Password throws exception", e);
             return;
         }
 
@@ -512,9 +510,7 @@ public class MainController {
         if (t != null) {
             Account a = mainModel.getAccount(account -> account.getID() == t.getAccountID()).orElse(null);
             if (a == null) {
-                final String msg = "Transaction " + t.getID() + " has an invalid account id " + t.getAccountID();
-                mLogger.error(msg, null);
-                DialogUtil.showExceptionDialog(stage, "Invalid Account", msg, "", null);
+                logAndDisplayException("Invalid account id " + t.getAccountID() + " for Transaction " + t.getID(), null);
                 return;
             }
             if (a.getHiddenFlag()) {
@@ -544,14 +540,12 @@ public class MainController {
 
     @FXML
     private void handleClose() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             DaoManager.getInstance().closeConnection();
+            ((Stage) mAccountTreeTableView.getScene().getWindow()).close();
         } catch (DaoException e) {
-            mLogger.error("Failed to close connection", e);
-            DialogUtil.showExceptionDialog(stage, "Exception", "Failed to close database", e.getMessage(), e);
+            logAndDisplayException("Failed to close connection", e);
         }
-        ((Stage) mAccountTreeTableView.getScene().getWindow()).close();
     }
 
     /**
@@ -564,7 +558,7 @@ public class MainController {
         final FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DB", "*" + dbPostfix));
         
-        final String implementationTitle = MainApp.class.getPackage().getImplementationTitle();
+        final String implementationTitle = getClass().getPackage().getImplementationTitle();
         final File file;
         Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         if (isNew) {
@@ -624,9 +618,7 @@ public class MainController {
             if (passwords.isEmpty())
                 return; // user cancelled
         } catch (IOException e) {
-            mLogger.error("IOException", e);
-            DialogUtil.showExceptionDialog(stage, "Exception", "IO Exception",
-                    "Failed to load fxml", e);
+            logAndDisplayException("Failure on opening password dialog", e);
             return;
         }
 
@@ -638,9 +630,7 @@ public class MainController {
                 DaoManager.getInstance().openConnection(dbName, passwords.get(1), isNew);
                 model = new MainModel();
             } catch (DaoException | ModelException e) {
-                mLogger.error("Failed open connection or init MainModel", e);
-                Platform.runLater(() -> DialogUtil.showExceptionDialog(stage, "Error", e.getMessage(),
-                        e.toString(), e));
+                Platform.runLater(() -> logAndDisplayException("Failed to open connection or init MainModel", e));
             }
             return model;
         }).thenAccept(m -> Platform.runLater(() -> {
@@ -649,7 +639,7 @@ public class MainController {
             if (m == null)
                 return;  // open db failed, don't change the current model
 
-            stage.setTitle(MainApp.class.getPackage().getImplementationTitle() + " " + dbName);
+            stage.setTitle(getClass().getPackage().getImplementationTitle() + " " + dbName);
             putOpenedDBNames(addToOpenedDBNames(getOpenedDBNames(), dbName));
             updateRecentMenu();
 
@@ -701,12 +691,9 @@ public class MainController {
             else
                 msg = e.getMessage() + " while try to change password for " + dbName + System.lineSeparator()
                         + "Old database is saved in " + backupDBFileName;
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, "Exception", e.getErrorCode() + "", msg, e);
+            logAndDisplayException(msg, e);
         } catch (IOException e) {
-            final String msg = "failed to load fxml";
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, "Exception", "IOException", e.getMessage(), e);
+            logAndDisplayException("Failed to load fxml", e);
         }
     }
 
@@ -734,13 +721,9 @@ public class MainController {
             DialogUtil.showInformationDialog(stage, "Import Prices", priceList.size() + " prices imported",
                     message.toString());
         } catch (IOException e) {
-            final String msg = "Failed to open file " + file.getAbsolutePath() + " for read";
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, "IOException", msg, e.getMessage(), e);
+            logAndDisplayException("Failed to open file " + file.getAbsolutePath() + " for read", e);
         } catch (DaoException e) {
-            final String msg = "Database exception " + e.getErrorCode();
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, "DaoException", msg, e.getMessage(), e);
+            logAndDisplayException("Database exception " + e.getErrorCode(), e);
         }
     }
 
@@ -769,9 +752,7 @@ public class MainController {
             controller.setMainApp(mMainApp, stage);
             stage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException", e);
-            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "IO Exception",
-                    "Failed to load ExportQIFDialog", e);
+            logAndDisplayException("IOException when export QIF", e);
         }
     }
 
@@ -793,8 +774,7 @@ public class MainController {
             DialogUtil.showInformationDialog(stage, "Information", "Backup Successful",
                     "Current database was successfully saved to " + backupDBFileName);
         } catch (DaoException e) {
-            mLogger.error("Backup Failed", e);
-            DialogUtil.showExceptionDialog(stage, "Exception", "Backup failed", e.getMessage(), e);
+            logAndDisplayException("Backup failed", e);
         }
     }
 
@@ -830,13 +810,33 @@ public class MainController {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException", e);
+            logAndDisplayException("IOException on showing EditAccountList", e);
         }
     }
 
     @FXML
     private void handleEditSecurityList() {
-        mMainApp.showSecurityListDialog();
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/SecurityListDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Security List");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(stage);
+            dialogStage.setScene(new Scene(loader.load()));
+            SecurityListDialogController controller = loader.getController();
+            if (controller == null) {
+                mLogger.error("Null controller for SecurityListDialog");
+                return;
+            }
+            controller.setMainModel(mainModel);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            logAndDisplayException("IOException on showing security list dialog", e);
+        }
     }
 
     @FXML
@@ -856,9 +856,7 @@ public class MainController {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException on showCategoryListDialog", e);
-            DialogUtil.showExceptionDialog(stage, "Exception", "IOException",
-                    "showCategoryListDialog IOException", e);
+          logAndDisplayException("IOException on showCategoryListDialog", e);
         }
     }
 
@@ -879,9 +877,7 @@ public class MainController {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException on showTagListDialog", e);
-            DialogUtil.showExceptionDialog(stage,"Exception", "IO Exception",
-                    "showTagListDialog IO Exception", e);
+            logAndDisplayException("IOException on showTagListDialog", e);
         }
     }
 
@@ -907,9 +903,7 @@ public class MainController {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException", e);
-            DialogUtil.showExceptionDialog(stage, "Exception", "IO Exception",
-                    "showReminderTransactionListDialog IO Exception", e);
+            logAndDisplayException("IOException on showReminderTransactionListDialog", e);
         }
     }
 
@@ -984,9 +978,7 @@ public class MainController {
             DialogUtil.showEditTransactionDialog(mainModel, stage, null,
                     Collections.singletonList(account), account, taList);
         } catch (IOException | DaoException e) {
-            final String msg = e.getClass().getName() + " when opening EditTransactionDialog";
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.getMessage(), e);
+            logAndDisplayException(e.getClass().getName() + " when opening EditTransactionDialog", e);
         }
     }
 
@@ -1012,9 +1004,7 @@ public class MainController {
             dialogStage.setOnCloseRequest(e -> controller.handleCancel());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            final String msg = "IOException when opening reconcile dialog";
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, "IOException", msg, e.toString(), e);
+            logAndDisplayException("IOException when opening reconcile dialog", e);
         }
     }
 
@@ -1178,13 +1168,11 @@ public class MainController {
         try {
             userPref.flush();
         } catch (BackingStoreException e) {
-            mLogger.error("BackingStoreException encountered when storing Acknowledge TimeStamp.", e);
+            logAndDisplayException("BackingStoreException encountered when storing Acknowledge TimeStamp.", e);
         }
     }
 
-    private Preferences getUserPreferences() {
-        return Preferences.userNodeForPackage(MainApp.class);
-    }
+    private Preferences getUserPreferences() { return Preferences.userNodeForPackage(MainApp.class); }
 
     @FXML
     private void initialize() {
@@ -1195,7 +1183,7 @@ public class MainController {
             try {
                 getMainModel().updateAccountBalance((account) -> true);
             } catch (DaoException e){
-                mLogger.error("UpdateAccountBalance Error", e);
+                logAndDisplayException("UpdateAccountBalance Error", e);
             }
             mTransactionTableView.refresh();
         });
@@ -1384,9 +1372,7 @@ public class MainController {
                             DialogUtil.showEditTransactionDialog(mainModel, stage, transaction,
                                     Collections.singletonList(account), account, taList);
                         } catch (IOException | DaoException e) {
-                            final String msg = e.getClass().getName() + " when opening EditTransactionDialog";
-                            mLogger.error(msg, e);
-                            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+                            logAndDisplayException(e.getClass().getName() + " when opening EditTransactionDialog", e);
                         }
                         for (int i = 0; i < mTransactionTableView.getItems().size(); i++) {
                             if (mTransactionTableView.getItems().get(i).getID() == selectedTransactionID)
@@ -1549,7 +1535,7 @@ public class MainController {
      * @param openedDBNames the list of opened db names
      */
     private void putOpenedDBNames(List<String> openedDBNames) {
-        final String prefix = MainApp.class.getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
+        final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
                 "SNAPSHOT-" : "";
         final int n = Math.min(openedDBNames.size(), MAX_OPENED_DB_HIST);
         Preferences userPreferences = getUserPreferences();
@@ -1561,7 +1547,7 @@ public class MainController {
         try {
             userPreferences.flush();
         } catch (BackingStoreException e) {
-            mLogger.error("BackingStoreException when storing Opened DB names", e);
+            logAndDisplayException("BackingStoreException when storing Opened DB names", e);
         }
     }
 
@@ -1602,7 +1588,7 @@ public class MainController {
      */
     private List<String> getOpenedDBNames() {
         List<String> fileNameList = new ArrayList<>();
-        final String prefix = MainApp.class.getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
+        final String prefix = getClass().getPackage().getImplementationVersion().endsWith("SNAPSHOT") ?
                 "SNAPSHOT-" : "";
 
         Preferences userPreferences = getUserPreferences();
@@ -1638,9 +1624,21 @@ public class MainController {
                 }
             }
         } catch (IOException e) {
-            final String msg = "IOException when loading SplashScreenDialog.fxml";
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(null, "Exception", msg, e.toString(), e);
+            logAndDisplayException("IOException when loading SplashScreenDialog.fxml", e);
         }
+    }
+
+    /**
+     * log exception and display dialog for exception
+     * @param msg - the message to show
+     * @param e - the exception
+     */
+    private void logAndDisplayException(final String msg, final Exception e) {
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        mLogger.error(msg, e);
+        if (e != null)
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+        else
+            DialogUtil.showExceptionDialog(stage, "", msg, "", null);
     }
 }

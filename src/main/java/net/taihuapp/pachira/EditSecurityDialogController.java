@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -25,12 +25,14 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 
 public class EditSecurityDialogController {
 
-    private MainApp mMainApp;
+    private static final Logger logger = Logger.getLogger(EditSecurityDialogController.class);
+    private MainModel mainModel;
     private Security mSecurity;
-    private Stage mDialogStage;
 
     @FXML
     private TextField mNameTextField;
@@ -39,15 +41,15 @@ public class EditSecurityDialogController {
     @FXML
     private ChoiceBox<Security.Type> mTypeChoiceBox;
 
-    void setMainApp(MainApp mainApp, Security security, Stage stage) {
-        mMainApp = mainApp;
+    void setMainModel(MainModel mainModel, Security security) {
+
+        this.mainModel = mainModel;
         mSecurity = security;
-        mDialogStage = stage;
 
         mNameTextField.textProperty().bindBidirectional(mSecurity.getNameProperty());
         mTickerTextField.textProperty().bindBidirectional(mSecurity.getTickerProperty());
 
-        mTypeChoiceBox.setConverter(new StringConverter<Security.Type>() {
+        mTypeChoiceBox.setConverter(new StringConverter<>() {
             public Security.Type fromString(String s) { return Security.Type.fromString(s); }
             public String toString(Security.Type type) { return type.toString(); }
         });
@@ -57,14 +59,20 @@ public class EditSecurityDialogController {
 
     @FXML
     private void handleSave() {
-        if (mMainApp.insertUpdateSecurityToDB(mSecurity)) {
-            mMainApp.initializeLists();
-            mDialogStage.close();
+        try {
+            mainModel.mergeSecurity(mSecurity);
+            mainModel.initSecurityList();
+            mainModel.initTransactionList();
+            mainModel.initAccountList();
+            ((Stage) mNameTextField.getScene().getWindow()).close();
+        } catch (DaoException e) {
+            Stage stage = (Stage) mNameTextField.getScene().getWindow();
+            final String msg = e.getErrorCode() + " when save security " + mSecurity;
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
     @FXML
-    private void handleCancel() {
-        mDialogStage.close();
-    }
+    private void handleCancel() { ((Stage) mNameTextField.getScene().getWindow()).close(); }
 }

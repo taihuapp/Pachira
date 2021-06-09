@@ -92,7 +92,7 @@ abstract class Dao<T, K> {
     /**
      * supported SQL commands
      */
-    enum SQLCommands {
+    enum SQLCommand {
         DELETE, GET, GET_ALL, INSERT, UPDATE
     }
 
@@ -113,7 +113,7 @@ abstract class Dao<T, K> {
      * @param sqlCommand one of the enum input
      * @return sql command in String
      */
-    String getSQLString(SQLCommands sqlCommand) {
+    String getSQLString(SQLCommand sqlCommand) {
         switch (sqlCommand) {
             case DELETE:
                 return "DELETE FROM " + getTableName() + " " + buildWhereClause();
@@ -149,7 +149,7 @@ abstract class Dao<T, K> {
      * @throws DaoException from Dao operations
      */
     public Optional<T> get(K key) throws DaoException {
-        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.GET))) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommand.GET))) {
             setPreparedStatement(preparedStatement, key);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -169,7 +169,7 @@ abstract class Dao<T, K> {
      * @throws DaoException from Dao operations
      */
     public int delete(K key) throws DaoException {
-        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.DELETE))) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommand.DELETE))) {
             setPreparedStatement(preparedStatement, key);
             return preparedStatement.executeUpdate();
         } catch (SQLException e) {
@@ -184,7 +184,7 @@ abstract class Dao<T, K> {
      */
     public List<T> getAll() throws DaoException {
         try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(getSQLString(SQLCommands.GET_ALL))) {
+             ResultSet resultSet = statement.executeQuery(getSQLString(SQLCommand.GET_ALL))) {
             List<T> tList = new ArrayList<>();
             while (resultSet.next()) {
                 tList.add(fromResultSet(resultSet));
@@ -204,7 +204,7 @@ abstract class Dao<T, K> {
      */
     @SuppressWarnings("unchecked")
     public K insert(T t) throws DaoException {
-        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.INSERT),
+        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommand.INSERT),
                 Statement.RETURN_GENERATED_KEYS)) {
             setPreparedStatement(preparedStatement, t, !autoGenKey());
 
@@ -229,7 +229,7 @@ abstract class Dao<T, K> {
      * @throws DaoException from Dao operations
      */
     public int update(T t) throws DaoException {
-        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.UPDATE))) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommand.UPDATE))) {
             setPreparedStatement(preparedStatement, t, true);
 
             return preparedStatement.executeUpdate();

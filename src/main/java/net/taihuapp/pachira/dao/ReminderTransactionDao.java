@@ -41,8 +41,7 @@ public class ReminderTransactionDao extends Dao<ReminderTransaction, Integer> {
     String getTableName() { return "REMINDERTRANSACTIONS"; }
 
     @Override
-    String[] getKeyColumnNames() { return new String[]{ "REMINDERID" };
-    }
+    String[] getKeyColumnNames() { return new String[]{ "REMINDERID" }; }
 
     @Override
     String[] getColumnNames() { return new String[]{ "DUEDATE", "TRANSACTIONID"}; }

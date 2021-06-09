@@ -49,7 +49,7 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHold
     }
 
     @Override
-    boolean autoGenKey() { return true; }
+    boolean autoGenKey() { return false; }
 
     @Override
     Integer getKeyValue(Pair<Integer, List<SecurityHolding.MatchInfo>> integerListPair) {
@@ -57,7 +57,7 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHold
     }
 
     @Override
-    String getSQLString(SQLCommands sqlCommand) {
+    String getSQLString(SQLCommand sqlCommand) {
         switch (sqlCommand) {
             case INSERT:
             case UPDATE:
@@ -93,7 +93,7 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHold
 
     @Override
     public Optional<Pair<Integer, List<SecurityHolding.MatchInfo>>> get(Integer key) throws DaoException {
-        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.GET))) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommand.GET))) {
             setPreparedStatement(preparedStatement, key);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 List<SecurityHolding.MatchInfo> matchInfoList = new ArrayList<>();
@@ -114,7 +114,7 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHold
     @Override
     public List<Pair<Integer, List<SecurityHolding.MatchInfo>>> getAll() throws DaoException {
         try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(getSQLString(SQLCommands.GET_ALL))) {
+             ResultSet resultSet = statement.executeQuery(getSQLString(SQLCommand.GET_ALL))) {
             int tid = -1;
             List<SecurityHolding.MatchInfo> matchInfoList = null;
             List<Pair<Integer, List<SecurityHolding.MatchInfo>>> fullList = new ArrayList<>();

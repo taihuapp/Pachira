@@ -32,7 +32,11 @@ public class ModelException extends Exception {
         /**
          * the input transaction is not valid
          */
-        INVALID_TRANSACTION
+        INVALID_TRANSACTION,
+        /**
+         * the lot info is not valid
+         */
+        INVALID_LOT_INFO
     }
 
     private final ErrorCode errorCode;

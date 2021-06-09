@@ -78,7 +78,7 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
     }
 
     @Override
-    String getSQLString(SQLCommands sqlCommands) {
+    String getSQLString(SQLCommand sqlCommands) {
         throw new IllegalArgumentException("getSQLString() should not be called for " + getClass().getName());
     }
 

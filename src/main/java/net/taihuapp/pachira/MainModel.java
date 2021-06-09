@@ -55,6 +55,7 @@ import static net.taihuapp.pachira.Transaction.TradeAction.*;
 public class MainModel {
 
     public static final String DELETED_ACCOUNT_NAME = "Deleted Account";
+    public static final int SAVEDREPORTS_NAME_LEN = 32;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
@@ -97,6 +98,19 @@ public class MainModel {
 
         // initialize the Direct connection vault
         initVault();
+    }
+
+    void insertUpdateReportSetting(ReportDialogController.Setting setting) throws DaoException {
+        ReportSettingDao reportSettingDao =
+                (ReportSettingDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REPORT_SETTING);
+        if (setting.getID() <= 0)
+            setting.setID(reportSettingDao.insert(setting));
+        else
+            reportSettingDao.update(setting);
+    }
+
+    List<ReportDialogController.Setting> getReportSettingList() throws DaoException {
+        return ((ReportSettingDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REPORT_SETTING)).getAll();
     }
 
     void initSecurityList() throws DaoException {
@@ -567,8 +581,8 @@ public class MainModel {
 
             t.setBalance(totalCash);
 
-            if ((t.getTDate().equals(date) && t.getID() >= exTid) || t.getTDate().isAfter(date))
-                continue;
+            if ((t.getTDate().equals(date) && t.getID() == exTid) || t.getTDate().isAfter(date))
+                break;
 
             String name = t.getSecurityName();
             if (name != null && !name.isEmpty()) {
@@ -763,9 +777,9 @@ public class MainModel {
                     // get account transaction list
                     final ObservableList<Transaction> transactions = getAccount(a -> a.getID() == newTCopy.getAccountID())
                             .map(Account::getTransactionList).orElseThrow(() ->
-                            new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                                    "Transaction '" + newTCopy.getID() + "' has an invalid account ID ("
-                                            + newTCopy.getAccountID() + ")", null));
+                                    new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                            "Transaction '" + newTCopy.getID() + "' has an invalid account ID ("
+                                                    + newTCopy.getAccountID() + ")", null));
                     // compute security holdings
                     final BigDecimal quantity = computeSecurityHoldings(transactions, newTCopy.getTDate(),
                             newTCopy.getID())
@@ -1335,5 +1349,75 @@ public class MainModel {
             }
             throw e;
         }
+    }
+
+    // take a Transaction input (with SELL or CVTSHRT), compute the realize gain
+    BigDecimal calcRealizedGain(Transaction transaction) throws DaoException, ModelException {
+        BigDecimal realizedGain = BigDecimal.ZERO;
+        for (CapitalGainItem cgi : getCapitalGainItemList(transaction)) {
+            realizedGain = realizedGain.add(cgi.getProceeds()).subtract(cgi.getCostBasis());
+        }
+        return realizedGain;
+    }
+
+    List<CapitalGainItem> getCapitalGainItemList(Transaction transaction) throws DaoException, ModelException {
+        Transaction.TradeAction ta = transaction.getTradeAction();
+        if (!ta.equals(SELL) && ta.equals(Transaction.TradeAction.CVTSHRT))
+            return null;
+
+        Account account = getAccount(a -> a.getID() == transaction.getAccountID())
+                .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                       "Transaction " + transaction.getID()
+                        + " has an invalid account id " + transaction.getAccountID(), null));
+        List<SecurityHolding> securityHoldingList = computeSecurityHoldings(account.getTransactionList(),
+                transaction.getTDate(), transaction.getID());
+        List<SecurityHolding.MatchInfo> miList = getMatchInfoList(transaction.getID());
+        List<CapitalGainItem> capitalGainItemList = new ArrayList<>();
+        for (SecurityHolding securityHolding : securityHoldingList) {
+            if (!securityHolding.getSecurityName().equals(transaction.getSecurityName()))
+                continue;  // different security, skip
+
+            // we have the right security holding here now
+            BigDecimal remainCash = transaction.getAmount();
+            BigDecimal remainQuantity = transaction.getQuantity();
+            FilteredList<SecurityHolding.LotInfo> lotInfoList = new FilteredList<>(securityHolding.getLotInfoList());
+            Map<Integer, SecurityHolding.MatchInfo> matchMap = new HashMap<>();
+            if (!miList.isEmpty()) {
+                // we have a matchInfo list,
+                for (SecurityHolding.MatchInfo mi : miList)
+                    matchMap.put(mi.getMatchTransactionID(), mi);
+                lotInfoList.setPredicate(li -> matchMap.containsKey(li.getTransactionID()));
+            }
+            //for (SecurityHolding.LotInfo li : securityHolding.getLotInfoList()) {
+            for (SecurityHolding.LotInfo li : lotInfoList) {
+                BigDecimal costBasis;
+                BigDecimal proceeds;
+                Transaction matchTransaction;
+
+                matchTransaction = getTransactionByID(li.getTransactionID()).orElseThrow(() ->
+                        new ModelException(ModelException.ErrorCode.INVALID_LOT_INFO,
+                                "LotInfo " + li + " has an invalid transaction id (" + li.getTransactionID() + ")",
+                                null));
+                SecurityHolding.MatchInfo mi = matchMap.get(li.getTransactionID());
+                BigDecimal liMatchQuantity = (mi == null) ?
+                        li.getQuantity().min(remainQuantity) : mi.getMatchQuantity();
+
+                costBasis = li.getCostBasis().multiply(liMatchQuantity).divide(li.getQuantity(), RoundingMode.HALF_UP);
+                proceeds = remainCash.multiply(liMatchQuantity).divide(remainQuantity, RoundingMode.HALF_UP);
+                remainCash = remainCash.subtract(proceeds);
+                remainQuantity = remainQuantity.subtract(liMatchQuantity);
+                if (ta.equals(SELL))
+                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, liMatchQuantity,
+                            costBasis, proceeds));
+                else
+                    capitalGainItemList.add(new CapitalGainItem(transaction, matchTransaction, liMatchQuantity,
+                            proceeds, costBasis));
+
+                if (remainQuantity.compareTo(BigDecimal.ZERO) == 0)
+                    break; // done
+            }
+        }
+
+        return capitalGainItemList;
     }
 }

@@ -158,8 +158,6 @@ public class MainApp extends Application {
     static final int QUANTITY_FRACTION_LEN = 8;
     static final int QUANTITY_FRACTION_DISP_LEN = 6;
 
-    static final int SAVEDREPORTSNAMELEN = 32;
-
     private static final String HASHEDMASTERPASSWORDNAME = "HASHEDMASTERPASSWORD";
     private static final String CLIENTUIDNAME = "ClientUID";
 
@@ -541,10 +539,7 @@ public class MainApp extends Application {
                 if (itemName != null)
                 switch (ReportDialogController.ItemName.valueOf(itemName)) {
                     case ACCOUNTID:
-                        int accountID = Integer.parseInt(itemValue);
-                        Account account = getAccountByID(accountID);
-                        if (account != null)
-                            setting.getSelectedAccountSet().add(account);
+                        setting.getSelectedAccountIDSet().add(Integer.parseInt(itemValue));
                         break;
                     case CATEGORYID:
                         setting.getSelectedCategoryIDSet().add(Integer.parseInt(itemValue));
@@ -644,10 +639,10 @@ public class MainApp extends Application {
                  PreparedStatement preparedStatement1 = connection.prepareStatement(sqlCmd1)) {
                 statement.execute("delete from SAVEDREPORTDETAILS where REPORTID = " + id);
                 // loop through account list
-                for (Account account : setting.getSelectedAccountSet()) {
+                for (int accountID : setting.getSelectedAccountIDSet()) {
                     preparedStatement1.setInt(1, id);
                     preparedStatement1.setString(2, ReportDialogController.ItemName.ACCOUNTID.name());
-                    preparedStatement1.setString(3, String.valueOf(account.getID()));
+                    preparedStatement1.setString(3, String.valueOf(accountID));
 
                     preparedStatement1.executeUpdate();
                 }
@@ -2387,7 +2382,7 @@ public class MainApp extends Application {
                 mLogger.error("Null ReportDialogController");
                 return;
             }
-            controller.setMainApp(setting, this, dialogStage);
+            //controller.setMainApp(setting, this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -5320,7 +5315,7 @@ public class MainApp extends Application {
         // SavedReports table
         sqlCmd = "create table SAVEDREPORTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
-                + "NAME varchar (" + SAVEDREPORTSNAMELEN + ") UNIQUE NOT NULL, "       // name of the report
+                + "NAME varchar (" + MainModel.SAVEDREPORTS_NAME_LEN + ") UNIQUE NOT NULL, "       // name of the report
                 + "TYPE varchar (16) NOT NULL, "              // type of the report
                 + "DATEPERIOD varchar (16) NOT NULL, "        // enum for dateperiod
                 + "SDATE date NOT NULL, "                              // customized start date

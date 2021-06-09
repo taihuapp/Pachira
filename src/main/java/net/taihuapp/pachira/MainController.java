@@ -187,6 +187,7 @@ public class MainController {
 
         if (m != null) {
             populateTreeTable();
+            updateSavedReportsMenu();
             mImportOFXAccountStatementMenuItem.setDisable(true);
             mTransactionVBox.setVisible(false);
         }
@@ -909,43 +910,52 @@ public class MainController {
 
     @FXML
     private void handleNAVReport() {
-        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.NAV));
+        showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.NAV));
         updateSavedReportsMenu();
     }
 
     @FXML
     private void handleInvestingTransactions() {
-        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTTRANS));
+        showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTTRANS));
         updateSavedReportsMenu();
     }
 
     @FXML
     private void handleInvestingIncome() {
-        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTINCOME));
+        showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.INVESTINCOME));
         updateSavedReportsMenu();
     }
 
     @FXML
     private void handleBankingTransactions() {
-        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.BANKTRANS));
+        showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.BANKTRANS));
         updateSavedReportsMenu();
     }
 
     @FXML
     private void handleCapitalGains() {
-        mMainApp.showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.CAPITALGAINS));
+        showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.CAPITALGAINS));
         updateSavedReportsMenu();
     }
 
     private void updateSavedReportsMenu() {
         List<MenuItem> menuItemList = new ArrayList<>();
-        for (ReportDialogController.Setting setting : mMainApp.loadReportSetting(0)) {
-            MenuItem mi = new MenuItem(setting.getName());
-            mi.setUserData(setting);
-            mi.setOnAction(t -> mMainApp.showReportDialog((ReportDialogController.Setting) mi.getUserData()));
-            menuItemList.add(mi);
+        try {
+            List<ReportDialogController.Setting> settings = mainModel.getReportSettingList();
+            settings.sort(Comparator.comparing(ReportDialogController.Setting::getID));
+            for (ReportDialogController.Setting setting : settings) {
+                MenuItem mi = new MenuItem(setting.getName());
+                mi.setUserData(setting);
+                mi.setOnAction(t -> {
+                    showReportDialog((ReportDialogController.Setting) mi.getUserData());
+                    updateSavedReportsMenu();
+                });
+                menuItemList.add(mi);
+            }
+            mSavedReportsMenu.getItems().setAll(menuItemList);
+        } catch (DaoException e) {
+            logAndDisplayException(e.getErrorCode() + " when get Report settings", e);
         }
-        mSavedReportsMenu.getItems().setAll(menuItemList);
     }
 
     private void updateRecentMenu() {
@@ -992,7 +1002,7 @@ public class MainController {
         final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(getClass().getResource("/view/ReconcileDialog.fxml"));
+            loader.setLocation(MainApp.class.getResource("/view/ReconcileDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.initModality(Modality.WINDOW_MODAL);
@@ -1006,6 +1016,30 @@ public class MainController {
         } catch (IOException e) {
             logAndDisplayException("IOException when opening reconcile dialog", e);
         }
+    }
+
+    private void showReportDialog(ReportDialogController.Setting setting) {
+        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/ReportDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(stage);
+            dialogStage.setScene(new Scene(loader.load()));
+            ReportDialogController controller = loader.getController();
+            if (controller == null) {
+                mLogger.error("Null ReportDialogController");
+                return;
+            }
+            controller.setMainModel(mainModel, setting);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            mLogger.error("IOException", e);
+        }
+
     }
 
     private void showAccountTransactions(Account account) {

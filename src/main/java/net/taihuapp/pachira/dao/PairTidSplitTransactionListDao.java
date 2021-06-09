@@ -60,7 +60,7 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
     }
 
     @Override
-    String getSQLString(SQLCommands sqlCommand) {
+    String getSQLString(SQLCommand sqlCommand) {
         switch (sqlCommand) {
             case INSERT:
             case UPDATE:
@@ -105,7 +105,7 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
 
     @Override
     public Optional<Pair<Integer, List<SplitTransaction>>> get(Integer key) throws DaoException {
-        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommands.GET))) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommand.GET))) {
             setPreparedStatement(preparedStatement, key);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 List<SplitTransaction> spList = new ArrayList<>();
@@ -125,7 +125,7 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
     @Override
     public List<Pair<Integer, List<SplitTransaction>>> getAll() throws DaoException {
         try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(getSQLString(SQLCommands.GET_ALL))) {
+             ResultSet resultSet = statement.executeQuery(getSQLString(SQLCommand.GET_ALL))) {
             int tid = -1;
             List<SplitTransaction> spList = null;
             List<Pair<Integer, List<SplitTransaction>>> fullList = new ArrayList<>();

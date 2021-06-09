@@ -34,26 +34,28 @@ import javafx.scene.layout.TilePane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
-import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.temporal.WeekFields;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class ReportDialogController {
 
     private static final Logger mLogger = Logger.getLogger(ReportDialogController.class);
 
-    enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS }
-    enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
-    enum DatePeriod {
+    public enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS }
+    public enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
+    public enum DatePeriod {
         TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE,
         WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
         LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR,
@@ -64,12 +66,12 @@ public class ReportDialogController {
                 LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD);
     }
 
-    enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
+    public enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
 
     private static final String NOSECURITY = "(No Security)";
     private static final String NOCATEGORY = "(No Category)";
 
-    static class Setting {
+    public static class Setting {
         private int mID;
         private String mName = "";
         private final ReportType mType;
@@ -77,7 +79,7 @@ public class ReportDialogController {
         private LocalDate mStartDate;
         private LocalDate mEndDate;
         private Frequency mFrequency;
-        private final Set<Account> mSelectedAccountSet = new HashSet<>();
+        private final Set<Integer> mSelectedAccountIDSet = new HashSet<>();
         private final Set<Integer> mSelectedCategoryIDSet = new HashSet<>();
         private final Set<Integer> mSelectedSecurityIDSet = new HashSet<>();
         private final Set<Transaction.TradeAction> mSelectedTradeActionSet = new HashSet<>();
@@ -91,7 +93,7 @@ public class ReportDialogController {
             this(-1, type);
         }
 
-        Setting(int id, ReportType type) {
+        public Setting(int id, ReportType type) {
             mID = id;
             mType = type;
             switch (type) {
@@ -117,49 +119,43 @@ public class ReportDialogController {
         }
 
         // getters
-        int getID() { return mID; }
-        String getName() { return mName; }
-        ReportType getType() { return mType; }
-        DatePeriod getDatePeriod() { return mDatePeriod; }
-        LocalDate getStartDate() { return mStartDate; }
-        LocalDate getEndDate() { return mEndDate; }
-        Frequency getFrequency() { return mFrequency; }
-        String getPayeeContains() { return mPayeeContains; }
-        boolean getPayeeRegEx() { return mPayeeRegEx; }
-        String getMemoContains() { return mMemoContains; }
-        boolean getMemoRegEx() { return mMemoRegEx; }
+        public int getID() { return mID; }
+        public String getName() { return mName; }
+        public ReportType getType() { return mType; }
+        public DatePeriod getDatePeriod() { return mDatePeriod; }
+        public LocalDate getStartDate() { return mStartDate; }
+        public LocalDate getEndDate() { return mEndDate; }
+        public Frequency getFrequency() { return mFrequency; }
+        public String getPayeeContains() { return mPayeeContains; }
+        public boolean getPayeeRegEx() { return mPayeeRegEx; }
+        public String getMemoContains() { return mMemoContains; }
+        public boolean getMemoRegEx() { return mMemoRegEx; }
 
-        Set<Account> getSelectedAccountSet() { return mSelectedAccountSet; }
-        List<Account> getSelectedAccountList(MainApp mainApp) {
-            Account.Type.Group g;
-            switch (getType()) {
-                case INVESTINCOME:
-                case INVESTTRANS:
-                case CAPITALGAINS:
-                    g = Account.Type.Group.INVESTING;
-                    break;
-                default:
-                    g = null;
-                    break;
-            }
-            return new FilteredList<>(mainApp.getAccountList(g, null, true),
-                    a->getSelectedAccountSet().contains(a));
+        public Set<Integer> getSelectedAccountIDSet() { return mSelectedAccountIDSet; }
+        List<Account> getSelectedAccountList(MainModel mainModel) {
+            Predicate<Account> predicate = a -> !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME)
+                    && getSelectedAccountIDSet().contains(a.getID());
+            if (getType() == ReportType.INVESTINCOME || getType() == ReportType.INVESTTRANS
+                || getType() == ReportType.CAPITALGAINS)
+                predicate = predicate.and(a -> a.getType().isGroup(Account.Type.Group.INVESTING));
+
+            return mainModel.getAccountList(predicate);
         }
-        Set<Integer> getSelectedCategoryIDSet() { return mSelectedCategoryIDSet; }
-        Set<Integer> getSelectedSecurityIDSet() { return mSelectedSecurityIDSet; }
-        Set<Transaction.TradeAction> getSelectedTradeActionSet() { return mSelectedTradeActionSet; }
+        public Set<Integer> getSelectedCategoryIDSet() { return mSelectedCategoryIDSet; }
+        public Set<Integer> getSelectedSecurityIDSet() { return mSelectedSecurityIDSet; }
+        public Set<Transaction.TradeAction> getSelectedTradeActionSet() { return mSelectedTradeActionSet; }
 
         // setters
         void setID(int id) { mID = id; }
-        void setName(String name) { mName = name; }
-        void setDatePeriod(DatePeriod dp) { mDatePeriod = dp; }
-        void setStartDate(LocalDate date) { mStartDate = date; }
-        void setEndDate(LocalDate date) { mEndDate = date; }
-        void setFrequency(Frequency f) { mFrequency = f; }
-        void setPayeeContains(String p) { mPayeeContains = p; }
-        void setPayeeRegEx(boolean r) { mPayeeRegEx = r; }
-        void setMemoContains(String p) { mMemoContains = p; }
-        void setMemoRegEx(boolean r) { mMemoRegEx = r; }
+        public void setName(String name) { mName = name; }
+        public void setDatePeriod(DatePeriod dp) { mDatePeriod = dp; }
+        public void setStartDate(LocalDate date) { mStartDate = date; }
+        public void setEndDate(LocalDate date) { mEndDate = date; }
+        public void setFrequency(Frequency f) { mFrequency = f; }
+        public void setPayeeContains(String p) { mPayeeContains = p; }
+        public void setPayeeRegEx(boolean r) { mPayeeRegEx = r; }
+        public void setMemoContains(String p) { mMemoContains = p; }
+        public void setMemoRegEx(boolean r) { mMemoRegEx = r; }
     }
 
     private Setting mSetting;
@@ -246,18 +242,15 @@ public class ReportDialogController {
     @FXML
     Button mSaveSettingButton;
 
-    private MainApp mMainApp;
-    private Stage mDialogStage;
+    private MainModel mainModel;
 
-    void setMainApp(Setting setting, MainApp mainApp, Stage stage) {
+    void setMainModel(MainModel mainModel, Setting setting) {
 
-        // set members
         mSetting = setting;
-        mMainApp = mainApp;
-        mDialogStage = stage;
+        this.mainModel = mainModel;
 
         // set window title
-        mDialogStage.setTitle(mSetting.getType() + " Report");
+        ((Stage) mTabPane.getScene().getWindow()).setTitle(mSetting.getType() + " Report");
 
         switch (mSetting.getType()) {
             case NAV:
@@ -281,17 +274,13 @@ public class ReportDialogController {
     }
 
     private Set<String> mapSecurityIDSetToNameSet(Set<Integer> idSet) {
-        Set<String> nameSet = new HashSet<>();
-        for (Integer id : idSet) {
-            Security security = mMainApp.getSecurityByID(id);
-            nameSet.add(security == null ? NOSECURITY : security.getName());
-        }
-        return nameSet;
+        return idSet.stream().map(id -> mainModel.getSecurity(s -> s.getID() == id)
+                .map(Security::getName).orElse(NOSECURITY)).collect(Collectors.toSet());
     }
 
     private void setupCapitalGainsReport() {
-        setupDatesTab(true, false);
-        setupAccountsTab(Account.Type.Group.INVESTING);
+        setupDatesTab(true);
+        setupAccountsTab(Set.of(Account.Type.Group.INVESTING));
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         mTradeActionTab.setDisable(true);
@@ -299,8 +288,8 @@ public class ReportDialogController {
     }
 
     private void setupNAVReport() {
-        setupDatesTab(false, false);  // just one date
-        setupAccountsTab(null); // show all accounts
+        setupDatesTab(false);  // just one date
+        setupAccountsTab(Set.of(Account.Type.Group.values())); // show all accounts
         mCategoriesTab.setDisable(true);
         mSecuritiesTab.setDisable(true);
         mTradeActionTab.setDisable(true);
@@ -308,8 +297,8 @@ public class ReportDialogController {
     }
 
     private void setupInvestIncomeReport() {
-        setupDatesTab(true, false);
-        setupAccountsTab(Account.Type.Group.INVESTING); // show investing accounts only
+        setupDatesTab(true);
+        setupAccountsTab(Set.of(Account.Type.Group.INVESTING)); // show investing accounts only
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         setupTradeActionTab();
@@ -317,8 +306,8 @@ public class ReportDialogController {
     }
 
     private void setupInvestTransactionReport() {
-        setupDatesTab(true, false);
-        setupAccountsTab(Account.Type.Group.INVESTING); // show investing accounts only
+        setupDatesTab(true);
+        setupAccountsTab(Set.of(Account.Type.Group.INVESTING)); // show investing accounts only
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
         setupTradeActionTab();
@@ -326,8 +315,8 @@ public class ReportDialogController {
     }
 
     private void setupBankTransactionReport() {
-        setupDatesTab(true, false);
-        setupAccountsTab(null); // show all accounts
+        setupDatesTab(true);
+        setupAccountsTab(Set.of(Account.Type.Group.values())); // show all accounts
         setupCategoriesTab();
         setupSecuritiesTab();
         mTradeActionTab.setDisable(true); // no need for TradeAction
@@ -341,7 +330,7 @@ public class ReportDialogController {
         mMemoRegExCheckBox.setSelected(mSetting.getMemoRegEx());
     }
 
-    private void setupDatesTab(boolean showPeriod, boolean showFreq) {
+    private void setupDatesTab(boolean showPeriod) {
         if (showPeriod)
             mDatePeriodLabel.setText("Date Range:");
         mDatePeriodChoiceBox.getItems().setAll(
@@ -360,19 +349,22 @@ public class ReportDialogController {
 
         mFrequencyChoiceBox.getItems().setAll(Frequency.values());
         mFrequencyChoiceBox.getSelectionModel().select(0);
-        mFrequencyLabel.setVisible(showFreq);
-        mFrequencyChoiceBox.setVisible(showFreq);
+        mFrequencyLabel.setVisible(false);
+        mFrequencyChoiceBox.setVisible(false);
 
         mDatePeriodChoiceBox.getSelectionModel().select(mSetting.getDatePeriod());
         mFrequencyChoiceBox.getSelectionModel().select(mSetting.getFrequency());
     }
 
-    private void setupAccountsTab(Account.Type.Group g) {
+    // show accounts with group included in groupSet
+    private void setupAccountsTab(Set<Account.Type.Group> groupSet) {
         // a list of Pair<Pair<account, displayOrder>, selected>
         ObservableList<Pair<Account, BooleanProperty>> abList = FXCollections.observableArrayList();
 
-        for (Account a : mMainApp.getAccountList(g,null, true)) {
-            abList.add(new Pair<>(a, new SimpleBooleanProperty(mSetting.getSelectedAccountSet().contains(a))));
+        for (Account account : mainModel.getAccountList(a -> groupSet.contains(a.getType().getGroup())
+                && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME))) {
+            abList.add(new Pair<>(account,
+                    new SimpleBooleanProperty(mSetting.getSelectedAccountIDSet().contains(account.getID()))));
         }
 
         mAccountSelectionTableView.setItems(abList);
@@ -388,13 +380,14 @@ public class ReportDialogController {
         sibList.add(new Pair<>(new Pair<>(NOCATEGORY, 0),
                 new SimpleBooleanProperty(newSetting
                         || mSetting.getSelectedCategoryIDSet().contains(0))));
-        for (Category c : mMainApp.getCategoryList()) {
+        for (Category c : mainModel.getCategoryList()) {
             sibList.add(new Pair<>(new Pair<>(c.getNameProperty().get(), c.getID()),
                     new SimpleBooleanProperty(newSetting
                             || mSetting.getSelectedCategoryIDSet().contains(c.getID()))));
         }
-        for (Account a : mMainApp.getAccountList(null, false, true)) {
-            sibList.add(new Pair<>(new Pair<>(MainApp.getWrappedAccountName(a), -a.getID()),
+        for (Account a : mainModel.getAccountList(a -> !a.getHiddenFlag()
+                && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME))) {
+            sibList.add(new Pair<>(new Pair<>("[" + a.getName() + "]", -a.getID()),
                     new SimpleBooleanProperty(newSetting
                             || mSetting.getSelectedCategoryIDSet().contains(-a.getID()))));
         }
@@ -411,7 +404,7 @@ public class ReportDialogController {
         boolean newSetting = mSetting.getID() < 0;
         sibList.add(new Pair<>(new Pair<>(NOSECURITY, 0),
                 new SimpleBooleanProperty(newSetting || mSetting.getSelectedSecurityIDSet().contains(0))));
-        for (Security s : mMainApp.getSecurityList()) {
+        for (Security s : mainModel.getSecurityList()) {
             sibList.add(new Pair<>(new Pair<>(s.getNameProperty().get(), s.getID()),
                     new SimpleBooleanProperty(newSetting
                             || mSetting.getSelectedSecurityIDSet().contains(s.getID()))));
@@ -474,30 +467,37 @@ public class ReportDialogController {
     @FXML
     private void handleShowReport() {
         updateSetting();
-        switch (mSetting.getType()) {
-            case NAV:
-                mReportTextArea.setText(NAVReport());
-                break;
-            case INVESTINCOME:
-                mReportTextArea.setText(InvestIncomeReport());
-                break;
-            case INVESTTRANS:
-                mReportTextArea.setText(InvestTransReport());
-                break;
-            case BANKTRANS:
-                mReportTextArea.setText(BankTransReport());
-                break;
-            case CAPITALGAINS:
-                mReportTextArea.setText(CapitalGainsReport());
-                break;
-            default:
-                mReportTextArea.setText("Report type " + mSetting.getType() + " not implemented yet");
-                break;
+        try {
+            switch (mSetting.getType()) {
+                case NAV:
+                    mReportTextArea.setText(NAVReport());
+                    break;
+                case INVESTINCOME:
+                    mReportTextArea.setText(InvestIncomeReport());
+                    break;
+                case INVESTTRANS:
+                    mReportTextArea.setText(InvestTransReport());
+                    break;
+                case BANKTRANS:
+                    mReportTextArea.setText(BankTransReport());
+                    break;
+                case CAPITALGAINS:
+                    mReportTextArea.setText(CapitalGainsReport());
+                    break;
+                default:
+                    mReportTextArea.setText("Report type " + mSetting.getType() + " not implemented yet");
+                    break;
+            }
+            mReportTextArea.setVisible(true);
+            mShowReportButton.setDisable(true);
+            mSaveReportButton.setDisable(false);
+            mShowSettingButton.setDisable(false);
+        } catch (DaoException | ModelException e) {
+            final String msg =  e.getClass().getName() + " when showing report";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog((Stage) mTabPane.getScene().getWindow(), e.getClass().getName(),
+                    msg, e.toString(), e);
         }
-        mReportTextArea.setVisible(true);
-        mShowReportButton.setDisable(true);
-        mSaveReportButton.setDisable(false);
-        mShowSettingButton.setDisable(false);
     }
 
     @FXML
@@ -507,7 +507,7 @@ public class ReportDialogController {
                 "*.TXT", "*.TXt", "*.TxT", "*.Txt", "*.tXT", "*.tXt", "*.txT", "*.txt");
         fileChooser.getExtensionFilters().add(txtFilter);
         fileChooser.setInitialFileName(mSetting.getName()+".txt");
-        File reportFile = fileChooser.showSaveDialog(mDialogStage);
+        File reportFile = fileChooser.showSaveDialog(mTabPane.getScene().getWindow());
 
         if (reportFile != null) {
             try (PrintWriter pw = new PrintWriter(reportFile.getCanonicalPath())) {
@@ -530,10 +530,10 @@ public class ReportDialogController {
         mSetting.setStartDate(mStartDatePicker.getValue());
         mSetting.setEndDate(mEndDatePicker.getValue());
         mSetting.setFrequency(mFrequencyChoiceBox.getValue());
-        mSetting.getSelectedAccountSet().clear();
+        mSetting.getSelectedAccountIDSet().clear();
         for (Pair<Account, BooleanProperty> ab : mAccountSelectionTableView.getItems()) {
             if (ab.getValue().get())
-                mSetting.getSelectedAccountSet().add(ab.getKey());
+                mSetting.getSelectedAccountIDSet().add(ab.getKey().getID());
         }
 
         if (!mCategoriesTab.isDisable()) {
@@ -581,42 +581,35 @@ public class ReportDialogController {
             tiDialog.setHeaderText("Overwrite existing report setting, or input a new name to save under:");
         }
 
+        Stage stage = (Stage) mTabPane.getScene().getWindow();
         Optional<String> result = tiDialog.showAndWait();
         if (result.isPresent()) {
             String settingName = result.get();
-            if (settingName.length() == 0) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning Dialog");
-                alert.setHeaderText("Bad Report Setting Name");
-                alert.setContentText("Name cannot be empty");
-                alert.showAndWait();
-            } else if (settingName.length() > MainApp.SAVEDREPORTSNAMELEN) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning Dialog");
-                alert.setHeaderText("Bad Report Setting Name");
-                alert.setContentText("Name cannot exceed 32 characters");
-                alert.showAndWait();
+            if (settingName.length() == 0 || settingName.length() > MainModel.SAVEDREPORTS_NAME_LEN) {
+                DialogUtil.showWarningDialog(stage, "Warning", "Bad Report Setting Name",
+                        "Name length should be between 1 and " + MainModel.SAVEDREPORTS_NAME_LEN);
             } else {
-                int oldID = mSetting.getID();
                 if (!result.get().equals(mSetting.getName())) {
                     // name has changed, need to save as new
                     mSetting.setID(-1);
+                    mSetting.setName(result.get());
                 }
-                mSetting.setName(result.get());
+
                 try {
-                    mMainApp.insertUpdateReportSettingToDB(mSetting);
-                } catch (SQLException e) {
-                    mSetting.setID(oldID);  // put back oldID
-                    MainApp.showExceptionDialog(mDialogStage, "Error Dialog", "Failed to save report setting!",
-                            "Make sure the name is not already used.", e);
+                    mainModel.insertUpdateReportSetting(mSetting);
+                } catch (DaoException e) {
+                    final String msg = e.getErrorCode() + " when saving report setting";
+                    mLogger.error(msg, e);
+                    DialogUtil.showExceptionDialog((Stage) mTabPane.getScene().getWindow(), e.getClass().getName(),
+                            msg, e.toString(), e);
                 }
             }
         }
     }
 
-    void close() { mDialogStage.close(); }
+    void close() { ((Stage) mTabPane.getScene().getWindow()).close(); }
 
-    private String InvestIncomeReport() {
+    private String InvestIncomeReport() throws DaoException, ModelException {
         StringBuilder reportStr = new StringBuilder("Investment Income Report from "
                 + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
         if (mSetting.getSelectedTradeActionSet().isEmpty()) {
@@ -625,26 +618,26 @@ public class ReportDialogController {
         }
 
         class Income {
-            private BigDecimal divident = BigDecimal.ZERO;
+            private BigDecimal dividend = BigDecimal.ZERO;
             private BigDecimal interest = BigDecimal.ZERO;
             private BigDecimal ltcgdist = BigDecimal.ZERO;
             private BigDecimal mtcgdist = BigDecimal.ZERO;
             private BigDecimal stcgdist = BigDecimal.ZERO;
             private BigDecimal realized = BigDecimal.ZERO;
-            private BigDecimal miscinc = BigDecimal.ZERO;
+            private BigDecimal misc_inc = BigDecimal.ZERO;
 
             BigDecimal total() {
-                return divident.add(interest).add(ltcgdist).add(mtcgdist).add(stcgdist).add(realized).add(miscinc);
+                return dividend.add(interest).add(ltcgdist).add(mtcgdist).add(stcgdist).add(realized).add(misc_inc);
             }
             Income add(Income addend) {
                 Income i = new Income();
-                i.divident = this.divident.add(addend.divident);
+                i.dividend = this.dividend.add(addend.dividend);
                 i.interest = this.interest.add(addend.interest);
                 i.ltcgdist = this.ltcgdist.add(addend.ltcgdist);
                 i.mtcgdist = this.mtcgdist.add(addend.mtcgdist);
                 i.stcgdist = this.stcgdist.add(addend.stcgdist);
                 i.realized = this.realized.add(addend.realized);
-                i.miscinc = this.miscinc.add(addend.miscinc);
+                i.misc_inc = this.misc_inc.add(addend.misc_inc);
                 return i;
             }
         }
@@ -652,8 +645,10 @@ public class ReportDialogController {
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
         Income fieldUsed = new Income(); // use this to keep track the field being used
         List<Map<String, Income>> accountSecurityIncomeList = new ArrayList<>();
-        for (Account account : mMainApp.getAccountList(Account.Type.Group.INVESTING, null, true)) {
-            if (!mSetting.getSelectedAccountSet().contains(account))
+        for (Account account : mainModel.getAccountList(a -> a.getType().isGroup(Account.Type.Group.INVESTING)
+                && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME))) {
+
+            if (!mSetting.getSelectedAccountIDSet().contains(account.getID()))
                 continue;
 
             Map<String, Income> securityIncomeMap = new TreeMap<>();
@@ -665,15 +660,10 @@ public class ReportDialogController {
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                String sName = t.getSecurityName();
-                int sID;
-                if (sName == null || sName.equals("")) {
-                    sName = NOSECURITY;
-                    sID = 0;
-                } else {
-                    Security security = mMainApp.getSecurityByName(sName);
-                    sID = security == null ? 0 : security.getID();
-                }
+                final String sName = (t.getSecurityName() == null || t.getSecurityName().isEmpty()) ?
+                    NOSECURITY : t.getSecurityName();
+                final int sID = mainModel.getSecurity(security -> security.getName().equals(t.getSecurityName()))
+                            .map(Security::getID).orElse(0);
                 if (!mSetting.getSelectedSecurityIDSet().contains(sID))
                     continue;
 
@@ -681,13 +671,11 @@ public class ReportDialogController {
                 if (income == null)
                     income = new Income();
                 switch (t.getTradeAction()) {
-                    case BUY:
-                        break;
                     case SELL:
                     case CVTSHRT:
                         fieldUsed.realized = BigDecimal.ONE;
                         securityIncomeMap.put(sName, income);
-                        BigDecimal realized = mMainApp.calcRealizedGain(t);
+                        BigDecimal realized = mainModel.calcRealizedGain(t);
                         if (realized == null) {
                             reportStr.append("**********************\n" + "* Lot Matching Error *\n" + "* Account:  ")
                                     .append(account.getName()).append("\n").append("* Date:     ").append(t.getTDate())
@@ -700,9 +688,9 @@ public class ReportDialogController {
                         break;
                     case DIV:
                     case REINVDIV:
-                        fieldUsed.divident = BigDecimal.ONE;
+                        fieldUsed.dividend = BigDecimal.ONE;
                         securityIncomeMap.put(sName, income);
-                        income.divident = income.divident.add(t.getAmount());
+                        income.dividend = income.dividend.add(t.getAmount());
                         break;
                     case INTINC:
                     case REINVINT:
@@ -728,29 +716,25 @@ public class ReportDialogController {
                         securityIncomeMap.put(sName, income);
                         income.stcgdist = income.stcgdist.add(t.getAmount());
                         break;
-                    case STKSPLIT:
-                        break;
-                    case SHRSIN:
-                        break;
-                    case SHRSOUT:
-                        break;
                     case MISCEXP:
-                        fieldUsed.miscinc = BigDecimal.ONE;
+                        fieldUsed.misc_inc = BigDecimal.ONE;
                         securityIncomeMap.put(sName, income);
-                        income.miscinc = income.miscinc.subtract(t.getAmount());
+                        income.misc_inc = income.misc_inc.subtract(t.getAmount());
                         break;
                     case MISCINC:
-                        fieldUsed.miscinc = BigDecimal.ONE;
+                        fieldUsed.misc_inc = BigDecimal.ONE;
                         securityIncomeMap.put(sName, income);
-                        income.miscinc = income.miscinc.add(t.getAmount());
+                        income.misc_inc = income.misc_inc.add(t.getAmount());
                         break;
                     case RTRNCAP:
-                        break;
                     case SHTSELL:
-                        break;
                     case MARGINT:
                     case DEPOSIT:
                     case WITHDRAW:
+                    case BUY:
+                    case STKSPLIT:
+                    case SHRSIN:
+                    case SHRSOUT:
                     default:
                         break;
                 }
@@ -773,26 +757,26 @@ public class ReportDialogController {
 
             private Line(String sn, Income income, DecimalFormat df) {
                 sName = sn;
-                divident = df.format(income.divident);
+                divident = df.format(income.dividend);
                 interest = df.format(income.interest);
                 ltcgdist = df.format(income.ltcgdist);
                 mtcgdist = df.format(income.mtcgdist);
                 stcgdist = df.format(income.stcgdist);
                 realized = df.format(income.realized);
-                miscinc = df.format(income.miscinc);
+                miscinc = df.format(income.misc_inc);
                 total = df.format(income.total());
             }
         }
 
         int gap = 2;
         int sNameLen = 10;
-        int dividentLen = 4;
+        int dividendLen = 4;
         int interestLen = 4;
         int ltcgdistLen = 4;
         int mtcgdistLen = 4;
         int stcgdistLen = 4;
         int realizedLen = 4;
-        int miscincLen = 4;
+        int misc_incLen = 4;
         int totalLen = 4;
 
         final List<Line> lineList = new ArrayList<>();
@@ -815,7 +799,7 @@ public class ReportDialogController {
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         Income totalTotal = new Income();
         int accountIdx = 0;
-        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
             final Map<String, Income> securityIncomeMap = accountSecurityIncomeList.get(accountIdx++);
 
             final Line accountLine = new Line();
@@ -841,47 +825,47 @@ public class ReportDialogController {
             lineList.add(emptyLine);
         }
 
-        if (mSetting.getSelectedAccountSet().size() > 1) {
+        if (mSetting.getSelectedAccountIDSet().size() > 1) {
             lineList.add(separator0);
             lineList.add(new Line("Total", totalTotal, dcFormat));
         }
 
         for (Line line : lineList) {
             sNameLen = Math.max(sNameLen, line.sName.length());
-            dividentLen = Math.max(dividentLen, line.divident.length());
+            dividendLen = Math.max(dividendLen, line.divident.length());
             interestLen = Math.max(interestLen, line.interest.length());
             ltcgdistLen = Math.max(ltcgdistLen, line.ltcgdist.length());
             mtcgdistLen = Math.max(mtcgdistLen, line.mtcgdist.length());
             stcgdistLen = Math.max(stcgdistLen, line.stcgdist.length());
             realizedLen = Math.max(realizedLen, line.realized.length());
-            miscincLen = Math.max(miscincLen, line.miscinc.length());
+            misc_incLen = Math.max(misc_incLen, line.miscinc.length());
             totalLen = Math.max(totalLen, line.total.length());
         }
 
         separator0.sName = new String(new char[sNameLen]).replace("\0", "=");
-        separator0.divident = new String(new char[dividentLen+gap]).replace("\0", "=");
+        separator0.divident = new String(new char[dividendLen+gap]).replace("\0", "=");
         separator0.interest = new String(new char[interestLen+gap]).replace("\0", "=");
         separator0.ltcgdist = new String(new char[ltcgdistLen+gap]).replace("\0", "=");
         separator0.mtcgdist = new String(new char[mtcgdistLen+gap]).replace("\0", "=");
         separator0.stcgdist = new String(new char[stcgdistLen+gap]).replace("\0", "=");
         separator0.realized = new String(new char[realizedLen+gap]).replace("\0", "=");
-        separator0.miscinc = new String(new char[miscincLen+gap]).replace("\0", "=");
+        separator0.miscinc = new String(new char[misc_incLen+gap]).replace("\0", "=");
         separator0.total = new String(new char[totalLen+gap]).replace("\0", "=");
 
         separator1.sName = new String(new char[sNameLen]).replace("\0", "-");
-        separator1.divident = new String(new char[dividentLen+gap]).replace("\0", "-");
+        separator1.divident = new String(new char[dividendLen+gap]).replace("\0", "-");
         separator1.interest = new String(new char[interestLen+gap]).replace("\0", "-");
         separator1.ltcgdist = new String(new char[ltcgdistLen+gap]).replace("\0", "-");
         separator1.mtcgdist = new String(new char[mtcgdistLen+gap]).replace("\0", "-");
         separator1.stcgdist = new String(new char[stcgdistLen+gap]).replace("\0", "-");
         separator1.realized = new String(new char[realizedLen+gap]).replace("\0", "-");
-        separator1.miscinc = new String(new char[miscincLen+gap]).replace("\0", "-");
+        separator1.miscinc = new String(new char[misc_incLen+gap]).replace("\0", "-");
         separator1.total = new String(new char[totalLen+gap]).replace("\0", "-");
 
         for (Line l : lineList) {
             reportStr.append(String.format("%-" + sNameLen + "s", l.sName));
-            if (fieldUsed.divident.compareTo(BigDecimal.ZERO) != 0)
-                reportStr.append(String.format("%" + (dividentLen + gap) + "s", l.divident));
+            if (fieldUsed.dividend.compareTo(BigDecimal.ZERO) != 0)
+                reportStr.append(String.format("%" + (dividendLen + gap) + "s", l.divident));
             if (fieldUsed.interest.compareTo(BigDecimal.ZERO) != 0)
                 reportStr.append(String.format("%" + (interestLen + gap) + "s", l.interest));
             if (fieldUsed.ltcgdist.compareTo(BigDecimal.ZERO) != 0)
@@ -892,8 +876,8 @@ public class ReportDialogController {
                 reportStr.append(String.format("%" + (stcgdistLen + gap) + "s", l.stcgdist));
             if (fieldUsed.realized.compareTo(BigDecimal.ZERO) != 0)
                 reportStr.append(String.format("%" + (realizedLen + gap) + "s", l.realized));
-            if (fieldUsed.miscinc.compareTo(BigDecimal.ZERO) != 0)
-                reportStr.append(String.format("%" + (miscincLen + gap) + "s", l.miscinc));
+            if (fieldUsed.misc_inc.compareTo(BigDecimal.ZERO) != 0)
+                reportStr.append(String.format("%" + (misc_incLen + gap) + "s", l.miscinc));
 
             reportStr.append(String.format("%" + (totalLen + gap) + "s\n", l.total));
         }
@@ -944,7 +928,7 @@ public class ReportDialogController {
         BigDecimal totalCommissionAmt = BigDecimal.ZERO;
         BigDecimal totalCashAmt = BigDecimal.ZERO;
         BigDecimal totalInvAmt = BigDecimal.ZERO;
-        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
                 if (tDate.isBefore(mSetting.getStartDate()))
@@ -1039,7 +1023,7 @@ public class ReportDialogController {
         return reportStr.toString();
     }
 
-    private String CapitalGainsReport() {
+    private String CapitalGainsReport() throws DaoException, ModelException {
         class Line {
             private String aName = "";  // account name
             private String sName = "";  // security name
@@ -1087,7 +1071,10 @@ public class ReportDialogController {
 
         final LocalDate sDate1 = mSetting.mStartDate.minusDays(1); // one day before start date
         final LocalDate eDate1 = mSetting.mEndDate.plusDays(1); // one day after end date
-        for (Account account : mSetting.getSelectedAccountSet()) {
+        for (int accountID : mSetting.getSelectedAccountIDSet()) {
+            Account account = mainModel.getAccount(a -> a.getID() == accountID).orElse(null);
+            if (account == null)
+                continue;
             for (Transaction t : new FilteredList<>(account.getTransactionList(), p -> {
                 final String sName = p.getSecurityName().isEmpty() ? NOSECURITY : p.getSecurityName();
                 return (securityNameSet.contains(sName) &&
@@ -1098,7 +1085,7 @@ public class ReportDialogController {
                 BigDecimal matchedQuantity = BigDecimal.ZERO;
                 CapitalGainItem transactionSTG = null; // keep track short term gain for the transaction
                 CapitalGainItem transactionLTG = null; // keep track long term gain for the transaction
-                for (CapitalGainItem cgi : mMainApp.getCapitalGainItemList(t)) {
+                for (CapitalGainItem cgi : mainModel.getCapitalGainItemList(t)) {
                     matchedQuantity = matchedQuantity.add(cgi.getQuantity());
                     Line line = new Line();
                     line.aName = account.getName();
@@ -1377,7 +1364,7 @@ public class ReportDialogController {
         final Pattern memoPattern = mSetting.getMemoContains().isEmpty() ?
                 null : Pattern.compile(mSetting.getMemoRegEx() ?
                 mSetting.getMemoContains() : "(?i)" + Pattern.quote(mSetting.getMemoContains()));
-        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
                 if (tDate.isBefore(mSetting.getStartDate()))
@@ -1398,7 +1385,9 @@ public class ReportDialogController {
                     else
                         line.num = t.getReference() == null ? "" : t.getReference();
                     line.memo = t.getMemo() == null ? "" : t.getMemo();
-                    line.category = mMainApp.mapCategoryOrAccountIDToName(t.getCategoryID());
+                    line.category = mainModel.getCategory(c -> c.getID() == t.getCategoryID()).map(Category::getName)
+                            .orElse(mainModel.getAccount(a -> a.getID() == -t.getCategoryID())
+                                    .map(a -> "[" + a.getName() + "]").orElse(""));
                     BigDecimal amount;
                     if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
                         line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
@@ -1455,7 +1444,7 @@ public class ReportDialogController {
         return reportStr.toString();
     }
 
-    private String NAVReport() {
+    private String NAVReport() throws DaoException {
         final LocalDate date = mSetting.getEndDate();
         StringBuilder outputStr = new StringBuilder("NAV Report as of " + date + "\n\n");
 
@@ -1465,8 +1454,9 @@ public class ReportDialogController {
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
-        for (Account account : mSetting.getSelectedAccountList(mMainApp)) {
-            List<SecurityHolding> shList = mMainApp.updateAccountSecurityHoldingList(account, date, -1);
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
+            List<SecurityHolding> shList = mainModel.computeSecurityHoldings(account.getTransactionList(),
+                    date, -1);
             int shListLen = shList.size();
 
             // aggregate total
@@ -1546,7 +1536,6 @@ public class ReportDialogController {
                 endDate = LocalDate.of(today.getYear()-1, 12, 31);
                 break;
             case WEEKTODATE:
-                // todo: this supposely handles locale correctly, need to test
                 startDate = today.with(WeekFields.of(Locale.getDefault()).dayOfWeek(), 1);
                 endDate = today;
                 break;

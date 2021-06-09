@@ -79,8 +79,6 @@ public class DaoManager {
     private static final int TRANSACTION_TRANSFER_REMINDER_LEN = 40;
     private static final int TRANSACTION_FITID_LEN = 256;
 
-    private static final int SAVEDREPORTS_NAME_LEN = 32;
-
     private static final int QUANTITY_FRACTION_LEN = 8;
     private static final int QUANTITY_TOTAL_LEN = 20;
     public static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
@@ -489,7 +487,7 @@ public class DaoManager {
         // SavedReports table
         sqlCmd = "create table SAVEDREPORTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
-                + "NAME varchar (" + SAVEDREPORTS_NAME_LEN + ") UNIQUE NOT NULL, "       // name of the report
+                + "NAME varchar (" + MainModel.SAVEDREPORTS_NAME_LEN + ") UNIQUE NOT NULL, "       // name of the report
                 + "TYPE varchar (16) NOT NULL, "              // type of the report
                 + "DATEPERIOD varchar (16) NOT NULL, "        // enum for dateperiod
                 + "SDATE date NOT NULL, "                              // customized start date
@@ -778,7 +776,7 @@ public class DaoManager {
     // getter for various Dao class objects
     public enum DaoType {
         ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE,
-        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION
+        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -819,6 +817,11 @@ public class DaoManager {
             case REMINDER_TRANSACTION:
                 ReminderDao reminderDao = (ReminderDao) getDao(DaoType.REMINDER);
                 return daoMap.computeIfAbsent(daoType, o -> new ReminderTransactionDao(connection, reminderDao));
+            case REPORT_SETTING:
+                ReportDetailDao reportDetailDao = (ReportDetailDao) getDao(DaoType.REPORT_DETAIL);
+                return daoMap.computeIfAbsent(daoType, o -> new ReportSettingDao(connection, reportDetailDao));
+            case REPORT_DETAIL:
+                return daoMap.computeIfAbsent(daoType, o -> new ReportDetailDao(connection));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

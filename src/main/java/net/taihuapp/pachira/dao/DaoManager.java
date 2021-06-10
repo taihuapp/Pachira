@@ -31,10 +31,7 @@ import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * DaoManager class for file based H2 databases
@@ -49,6 +46,8 @@ public class DaoManager {
     private static final String URL_PREFIX = "jdbc:h2:";
     private static final String CIPHER_CLAUSE="CIPHER=AES;";
     private static final String IF_EXIST_CLAUSE="IFEXISTS=TRUE;";
+
+    private static final String CLIENT_UID_NAME = "ClientUID";
 
     private static final int ACCOUNT_NAME_LEN = 40;
     private static final int ACCOUNT_DESC_LEN = 256;
@@ -331,6 +330,22 @@ public class DaoManager {
             }
         }
         return Optional.empty();
+    }
+
+    public Optional<UUID> getClientUID() throws DaoException {
+        try {
+            return getSetting(CLIENT_UID_NAME).map(UUID::fromString);
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "Failed to get Client UID", e);
+        }
+    }
+
+    public void putClientUID(UUID uuid) throws DaoException {
+        try {
+            putSetting(CLIENT_UID_NAME, uuid.toString());
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "Failed to put Client UID", e);
+        }
     }
 
     /**

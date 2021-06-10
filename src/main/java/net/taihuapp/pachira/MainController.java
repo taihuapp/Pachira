@@ -1087,8 +1087,8 @@ public class MainController {
     // warn user about changing Clint UID.
     // and return true of user OK's it
     // do nothing and return true if current UID is not set.
-    private boolean warnChangingClientUID() throws SQLException {
-        return mMainApp.getClientUID().map(uuid -> MainApp.showConfirmationDialog("Changing ClientUID",
+    private boolean warnChangingClientUID() throws DaoException {
+        return mainModel.getClientUID().map(uuid -> MainApp.showConfirmationDialog("Changing ClientUID",
                 "Current ClientUID is " + uuid.toString(),
                 "May have to reestablish existing Direct Connections after reset ClientUID"))
                 .orElse(true);
@@ -1105,11 +1105,11 @@ public class MainController {
         final TextField currentTF = new TextField();
         currentTF.setEditable(false);
         try {
-            currentTF.setText(mMainApp.getClientUID().map(UUID::toString).orElse(""));
-        } catch (SQLException e) {
-            mLogger.error("SQLException on getClientUID", e);
+            currentTF.setText(mainModel.getClientUID().map(UUID::toString).orElse(""));
+        } catch (DaoException e) {
+            mLogger.error(e.getErrorCode() + " DaoException on getClientUID", e);
             textArea.setVisible(true);
-            textArea.setText(MainApp.SQLExceptionToString(e));
+            textArea.setText(e.toString());
         }
         final TextField newTF = new TextField();
         final Button randomButton = new Button("Random");
@@ -1150,13 +1150,13 @@ public class MainController {
         updateButton.setOnAction(actionEvent -> {
             try {
                 if (warnChangingClientUID()) {
-                    mMainApp.putClientUID(UUID.fromString(newTF.getText()));
+                    mainModel.putClientUID(UUID.fromString(newTF.getText()));
                     currentTF.setText(newTF.getText());
                     newTF.setText("");
                 }
-            } catch (SQLException e) {
-                mLogger.error("SQLException on Update ClientUID", e);
-                textArea.setText(MainApp.SQLExceptionToString(e));
+            } catch (DaoException e) {
+                mLogger.error(e.getErrorCode() + " DaoException on Update ClientUID", e);
+                textArea.setText(e.toString());
                 textArea.setVisible(true);
             }
         });

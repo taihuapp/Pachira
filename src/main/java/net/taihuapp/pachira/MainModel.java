@@ -100,6 +100,14 @@ public class MainModel {
         initVault();
     }
 
+    Optional<UUID> getClientUID() throws DaoException {
+        return daoManager.getClientUID();
+    }
+
+    void putClientUID(UUID uuid) throws DaoException {
+        daoManager.putClientUID(uuid);
+    }
+
     void insertUpdateReportSetting(ReportDialogController.Setting setting) throws DaoException {
         ReportSettingDao reportSettingDao =
                 (ReportSettingDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REPORT_SETTING);

@@ -237,4 +237,16 @@ abstract class Dao<T, K> {
             throw (new DaoException(DaoException.ErrorCode.FAIL_TO_UPDATE, "", e));
         }
     }
+
+    /**
+     * delete all rows in the table
+     * @throws DaoException from database operation
+     */
+    public void deleteAll() throws DaoException {
+        try (Statement statement = connection.createStatement()){
+            statement.executeUpdate("DELETE FROM " + getTableName());
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_DELETE, "", e);
+        }
+    }
 }

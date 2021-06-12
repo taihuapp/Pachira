@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -35,17 +35,16 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.sql.SQLException;
 
 public class FinancialInstitutionListDialogController {
 
     private static final Logger mLogger = Logger.getLogger(FinancialInstitutionListDialogController.class);
 
-    private MainApp mMainApp;
-    private Stage mDialogStage;
+    MainModel mainModel;
 
     @FXML
     private TableView<DirectConnection.FIData> mImportedFIDataTableView;
@@ -86,14 +85,14 @@ public class FinancialInstitutionListDialogController {
     @FXML
     private TextField mFilterTextField;
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
+    void setMainModel(MainModel mainModel) {
+
+        this.mainModel = mainModel;
 
         // todo clean up here
         try {
             FilteredList<DirectConnection.FIData> filteredFIDataList =
-                    new FilteredList<>(mMainApp.getFIDataList());
+                    new FilteredList<>(mainModel.getFIDataList());
             SortedList<DirectConnection.FIData> sortedFIDataList = new SortedList<>(filteredFIDataList);
             sortedFIDataList.comparatorProperty().bind(mImportedFIDataTableView.comparatorProperty());
             mImportedFIDataTableView.setItems(sortedFIDataList);
@@ -109,6 +108,8 @@ public class FinancialInstitutionListDialogController {
         }
     }
 
+    private Stage getStage() { return (Stage) mImportedFIDataTableView.getScene().getWindow(); }
+
     private void showEditFIDataDialog(DirectConnection.FIData fiData) {
         try {
             FXMLLoader loader = new FXMLLoader();
@@ -117,16 +118,16 @@ public class FinancialInstitutionListDialogController {
             Stage stage = new Stage();
             stage.setTitle("Edit Financial Institution Data:");
             stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(mDialogStage);
+            stage.initOwner(getStage());
             stage.setScene(new Scene(loader.load()));
 
             EditFIDataDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, fiData, stage);
+            controller.setMainModel(mainModel, fiData);
             stage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException", e);
-            MainApp.showExceptionDialog(mDialogStage, "IOException", "showEditFIDataDialog failed",
-                    e.getMessage(), e);
+            final String msg = "IOException when showEditFIDataDialog";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
@@ -145,7 +146,7 @@ public class FinancialInstitutionListDialogController {
         // check usage
         DirectConnection.FIData fiData = mImportedFIDataTableView.getSelectionModel().getSelectedItem();
         int fiDataID = fiData.getID();
-        FilteredList<DirectConnection> usageList = new FilteredList<>(mMainApp.getDCInfoList(),
+        FilteredList<DirectConnection> usageList = new FilteredList<>(mainModel.getDCInfoList(),
                 dc -> dc.getFIID() == fiDataID);
         if (usageList.size() > 0) {
             StringBuilder contentSB = new StringBuilder("It is used by following Direct Connection(s):\n");
@@ -153,17 +154,16 @@ public class FinancialInstitutionListDialogController {
                 contentSB.append(" ").append(dc.getName()).append("\n");
             }
             contentSB.append("It can't be deleted.");
-            MainApp.showWarningDialog("Warning", "Financial Institution can't be deleted.",
+            DialogUtil.showWarningDialog(getStage(), "Warning", "Financial Institution can't be deleted.",
                     contentSB.toString());
             return;
         }
         try {
-            mMainApp.deleteFIDataFromDB(fiDataID);
-            mMainApp.initFIDataList();
-        } catch (SQLException e) {
-            mLogger.error(MainApp.SQLExceptionToString(e), e);
-            MainApp.showExceptionDialog(mDialogStage,"Exception", "Database Exception",
-                    MainApp.SQLExceptionToString(e), e);
+            mainModel.deleteFIData(fiDataID);
+        } catch (DaoException e) {
+            final String msg = e.getErrorCode() + " when delete FIData " + fiDataID;
+            mLogger.error(msg, e);
+            MainApp.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
@@ -184,12 +184,11 @@ public class FinancialInstitutionListDialogController {
                 org,
                 url);
         try {
-            mMainApp.insertUpdateFIDataToDB(fiData);
-            mMainApp.initFIDataList();
-        } catch (SQLException e) {
-            mLogger.error("SQLException", e);
-            MainApp.showExceptionDialog(mDialogStage,"SQLException", "Import Financial Institution Data failed",
-                    MainApp.SQLExceptionToString(e), e);
+            mainModel.insertUpdateFIData(fiData);
+        } catch (DaoException e) {
+            final String msg = e.getErrorCode() + " when insert/update FIData " + fiData;
+            mLogger.error(msg, e);
+            MainApp.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }
     }
 

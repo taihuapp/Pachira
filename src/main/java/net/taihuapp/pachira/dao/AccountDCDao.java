@@ -27,9 +27,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.*;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.TimeZone;
+import java.util.*;
+import java.util.stream.Stream;
 
 /**
  * Dao for AccountDC (Account Direct Connect)
@@ -89,5 +88,20 @@ public class AccountDCDao extends Dao<AccountDC, Integer> {
         preparedStatement.setObject(6, localDateTime.toLocalTime());
         preparedStatement.setBigDecimal(7, accountDC.getLastDownloadLedgeBalance());
         preparedStatement.setInt(8, accountDC.getAccountID());
+    }
+
+    public void merge(AccountDC accountDC) throws DaoException {
+        final String sqlCmd = "MERGE INTO " + getTableName() + " ("
+                + String.join(", ", Stream.concat(Arrays.stream(getColumnNames()),
+                Arrays.stream(getKeyColumnNames())).toArray(String[]::new)) + ") VALUES ("
+                +  String.join(", ",
+                Collections.nCopies(getColumnNames().length + getKeyColumnNames().length, "?")) + ")";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            setPreparedStatement(preparedStatement, accountDC, true);
+
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_MERGE, "Merge AccountDC failed", e);
+        }
     }
 }

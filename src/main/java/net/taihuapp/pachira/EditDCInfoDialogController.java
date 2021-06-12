@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -27,6 +27,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
@@ -34,15 +35,16 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
-import java.sql.SQLException;
 import java.util.Arrays;
 
 
 public class EditDCInfoDialogController {
 
-    private class FIDataConverter extends StringConverter<DirectConnection.FIData> {
+    private static class FIDataConverter extends StringConverter<DirectConnection.FIData> {
+        private final MainModel mainModel;
+        FIDataConverter(MainModel mainModel) { this.mainModel = mainModel; }
         public DirectConnection.FIData fromString(String s) {
-            return s.length() == 0 ? null : mMainApp.getFIDataByName(s);
+            return s.isEmpty() ? null : mainModel.getFIData(fid -> fid.getName().equals(s)).orElse(null);
         }
         public String toString(DirectConnection.FIData fiData) {
             return fiData == null ? "" : fiData.getName();
@@ -50,9 +52,8 @@ public class EditDCInfoDialogController {
     }
     private static final Logger mLogger = Logger.getLogger(EditDCInfoDialogController.class);
 
-    private MainApp mMainApp;
+    private MainModel mainModel;
     private DirectConnection mDCInfo;
-    private Stage mStage;
     private final BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
     private void setChanged() { mChangedProperty.set(true); }
     private boolean isChanged() { return mChangedProperty.get(); }
@@ -78,37 +79,38 @@ public class EditDCInfoDialogController {
     @FXML
     private Button mSaveButton;
 
-    void setMainApp(MainApp mainApp, DirectConnection dcInfo, Stage stage) {
-        mMainApp = mainApp;
-        mDCInfo = dcInfo;
-        mStage = stage;
+    void setMainModel(MainModel mainModel, DirectConnection dcInfo) {
 
-        mFIComboBox.setConverter(new FIDataConverter());
-        mFIComboBox.getItems().clear();
-        mFIComboBox.getItems().addAll(mMainApp.getFIDataList());
-        mFIComboBox.getSelectionModel().select(mMainApp.getFIDataByID(dcInfo.getFIID()));
+        this.mainModel = mainModel;
+
+        mDCInfo = dcInfo;
 
         mDCNameTextField.setText(dcInfo.getName());
-        mFIComboBox.getSelectionModel().select(mMainApp.getFIDataByID(dcInfo.getFIID()));
+        mFIComboBox.setConverter(new FIDataConverter(mainModel));
+        mFIComboBox.getItems().setAll(mainModel.getFIDataList());
+        mFIComboBox.getSelectionModel().select(mainModel.getFIData(fidata -> fidata.getID() == dcInfo.getFIID())
+                .orElse(null));
+
         char[] clearUserName = null;
         char[] clearPassword = null;
         try {
             if (dcInfo.getEncryptedUserName().isEmpty())
                 clearUserName = new char[0];
             else
-                clearUserName = mMainApp.decrypt(dcInfo.getEncryptedUserName());
+                clearUserName = mainModel.decrypt(dcInfo.getEncryptedUserName());
             if (dcInfo.getEncryptedPassword().isEmpty())
                 clearPassword = new char[0];
             else
-                clearPassword = mMainApp.decrypt(dcInfo.getEncryptedPassword());
+                clearPassword = mainModel.decrypt(dcInfo.getEncryptedPassword());
             mUserNamePasswordField.setText(new String(clearUserName));
             mPasswordPasswordField.setText(new String(clearPassword));
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
                 | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException
                 | InvalidAlgorithmParameterException | BadPaddingException e) {
-            mLogger.error("Unable decrypt user name and password for " + dcInfo.getName(), e);
-            MainApp.showExceptionDialog(mStage, "Exception", "Decryption Exception",
-                    "Failed to decrypt DCInfo for " + dcInfo.getName(), e);
+            final String msg = "Unable decrypt user name and password for " + dcInfo.getName();
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog((Stage) mSaveButton.getScene().getWindow(),
+                    e.getClass().getName(), msg, e.toString(), e);
         } finally {
             if (clearUserName != null)
                 Arrays.fill(clearUserName, ' ');
@@ -126,24 +128,21 @@ public class EditDCInfoDialogController {
     @FXML
     private void handleSave() {
         try {
-            String encryptedUserName = mMainApp.encrypt(mUserNamePasswordField.getText().toCharArray());
-            String encryptedPassword = mMainApp.encrypt(mPasswordPasswordField.getText().toCharArray());
+            String encryptedUserName = mainModel.encrypt(mUserNamePasswordField.getText().toCharArray());
+            String encryptedPassword = mainModel.encrypt(mPasswordPasswordField.getText().toCharArray());
             mDCInfo.setName(mDCNameTextField.getText());
             mDCInfo.setFIID(mFIComboBox.getSelectionModel().getSelectedItem().getID());
             mDCInfo.setEncryptedUserName(encryptedUserName);
             mDCInfo.setEncryptedPassword(encryptedPassword);
-            mMainApp.insertUpdateDCToDB(mDCInfo);
-            mMainApp.initDCInfoList();
-            mStage.close();
+            mainModel.mergeDCInfo(mDCInfo);
+            ((Stage) mSaveButton.getScene().getWindow()).close();
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
                 | NoSuchPaddingException | InvalidAlgorithmParameterException | InvalidKeyException
-                | IllegalBlockSizeException | BadPaddingException e) {
-            mLogger.error("Vault Exception", e);
-            MainApp.showExceptionDialog(mStage, "Exception", "Vault Exception", e.getMessage(), e);
-        } catch (SQLException e) {
-            mLogger.error(MainApp.SQLExceptionToString(e), e);
-            MainApp.showExceptionDialog(mStage,"Exception","Database Exception",
-                    MainApp.SQLExceptionToString(e), e);
+                | IllegalBlockSizeException | BadPaddingException | DaoException e) {
+            final String msg = (e instanceof DaoException) ? "Database Exception" : "Vault Exception";
+            mLogger.error(msg, e);
+            MainApp.showExceptionDialog((Stage) mSaveButton.getScene().getWindow(), e.getClass().getName(),
+                    msg, e.toString(), e);
         }
     }
 
@@ -156,7 +155,7 @@ public class EditDCInfoDialogController {
         }
 
         // close
-        mStage.close();
+        ((Stage) mSaveButton.getScene().getWindow()).close();
     }
 
     @FXML

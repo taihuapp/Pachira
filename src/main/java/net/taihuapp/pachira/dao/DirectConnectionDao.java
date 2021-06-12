@@ -26,6 +26,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.Optional;
 
 public class DirectConnectionDao extends Dao<DirectConnection, Integer> {
 
@@ -60,5 +62,44 @@ public class DirectConnectionDao extends Dao<DirectConnection, Integer> {
         preparedStatement.setString(4, directConnection.getEncryptedPassword());
         if (withKey)
             preparedStatement.setInt(5, directConnection.getID());
+    }
+
+    /**
+     * get DirectConnection by name
+     * @param name - input name
+     * @return - Optional of DirectConnection
+     * @throws DaoException - from database operations
+     */
+    public Optional<DirectConnection> get(String name) throws DaoException {
+        final String sqlCmd = "SELECT * FROM " + getTableName() + " WHERE NAME = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            preparedStatement.setString(1, name);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next())
+                    return Optional.of(fromResultSet(resultSet));
+                return Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "", e);
+        }
+    }
+
+    /**
+     * merge DirectConnection to database
+     * @param directConnection - the input
+     * @throws DaoException - from database operation
+     */
+    public void merge(DirectConnection directConnection) throws DaoException {
+        final String sqlCmd = "MERGE INTO " + getTableName()
+                + "(" + String.join(", ", getColumnNames()) + ") key(NAME) values("
+                + String.join(", ", Collections.nCopies(getColumnNames().length, "?")) + ")";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            setPreparedStatement(preparedStatement, directConnection, false);
+
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_MERGE, "", e);
+        }
     }
 }

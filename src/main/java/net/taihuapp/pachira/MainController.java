@@ -20,6 +20,8 @@
 
 package net.taihuapp.pachira;
 
+import com.webcohesion.ofx4j.OFXException;
+import com.webcohesion.ofx4j.domain.data.common.TransactionType;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -54,9 +56,9 @@ import javax.crypto.NoSuchPaddingException;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.MalformedURLException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -213,6 +215,8 @@ public class MainController {
         }
     }
 
+    private Stage getStage() { return (Stage) mAccountTreeTableView.getScene().getWindow(); }
+
     private boolean isNonTrivialPermutated(ListChangeListener.Change<?> c) {
         if (!c.wasPermutated())
             return false;  // not even a permutated change
@@ -328,12 +332,14 @@ public class MainController {
     @FXML
     private void downloadAccountTransactions() {
         try {
-            if (!mMainApp.hasMasterPasswordInKeyStore()) {
-                List<String> passwords = mMainApp.showPasswordDialog("Enter Vault Master Password",
-                        PasswordDialogController.MODE.ENTER);
-                if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
+            if (!mainModel.hasMasterPasswordInKeyStore()) {
+                List<String> passwords = DialogUtil.showPasswordDialog(getStage(),
+                        "Enter Vault Master Password", PasswordDialogController.MODE.ENTER);
+                if (passwords.isEmpty())
+                    return; // user cancelled, do nothing
+                if (passwords.size() != 2 || !mainModel.verifyMasterPassword(passwords.get(1))) {
                     // either didn't enter master password or failed to enter a correct one
-                    MainApp.showWarningDialog("Download Account Transactions",
+                    DialogUtil.showWarningDialog(getStage(), "Download Account Transactions",
                             "Failed to input correct Master Password",
                             "Account transactions cannot be downloaded." );
                     return;
@@ -343,24 +349,40 @@ public class MainController {
                 | UnrecoverableKeyException e) {
             logAndDisplayException("Verify Master Password throws exception", e);
             return;
+        } catch (IOException e) {
+            logAndDisplayException("ShowPasswordDialog throws IOException", e);
+            return;
         }
 
         try {
-            mMainApp.DCDownloadAccountStatement(mMainApp.getCurrentAccount());
-        } catch (Exception e) {
-            System.out.println("more work here");
+            Set<TransactionType> untested = mainModel.DCDownloadAccountStatement(mainModel.getCurrentAccount());
+            if (!untested.isEmpty()) {
+                StringBuilder context = new StringBuilder();
+                for (TransactionType tt : untested)
+                    context.append(tt.toString()).append(System.lineSeparator());
+                DialogUtil.showWarningDialog(getStage(), "Untested Download Transaction Type",
+                        "The following download transaction types are not fully tested, proceed with caution:",
+                        context.toString());
+            }
+        } catch (IllegalArgumentException | MalformedURLException | NoSuchAlgorithmException |
+            InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException |
+            NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException |
+            IllegalBlockSizeException | BadPaddingException | OFXException | DaoException | ModelException e) {
+            logAndDisplayException(e.getClass().getName() + " exception when download account statement", e);
         }
     }
 
     @FXML
     private void setAccountDirectConnection() {
         try {
-            if (!mMainApp.hasMasterPasswordInKeyStore()) {
-                List<String> passwords = mMainApp.showPasswordDialog("Enter Vault Master Password",
-                        PasswordDialogController.MODE.ENTER);
-                if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
+            if (!mainModel.hasMasterPasswordInKeyStore()) {
+                List<String> passwords = DialogUtil.showPasswordDialog(getStage(),
+                        "Enter Vault Master Password", PasswordDialogController.MODE.ENTER);
+                if (passwords.isEmpty())
+                    return; // user cancelled, do nothing
+                if (passwords.size() != 2 || !mainModel.verifyMasterPassword(passwords.get(1))) {
                     // either didn't enter master password or failed to enter a correct one
-                    MainApp.showWarningDialog("Edit Direct Connection",
+                    DialogUtil.showWarningDialog(getStage(), "Edit Direct Connection",
                             "Failed to input correct Master Password",
                             "Direct connection cannot be edited");
                     return;
@@ -368,8 +390,10 @@ public class MainController {
             }
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
                 | UnrecoverableKeyException e) {
-            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "Vault Exception",
-                    e.getMessage(), e);
+            logAndDisplayException("Vault operation throws " + e.getClass().getName(), e);
+            return;
+        } catch (IOException e) {
+            logAndDisplayException("ShowPasswordDialog throws IOException", e);
             return;
         }
 
@@ -380,13 +404,12 @@ public class MainController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Direct Connection");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mMainApp.getStage());
+            dialogStage.initOwner(mAccountTreeTableView.getScene().getWindow());
             dialogStage.setScene(new Scene(loader.load()));
 
             EditAccountDirectConnectionDialogController controller = loader.getController();
-            Account a = mMainApp.getCurrentAccount();
-            AccountDC adc = mMainApp.getAccountDC(a.getID());
-            if (adc == null) {
+            Account a = mainModel.getCurrentAccount();
+            AccountDC adc = mainModel.getAccountDC(a.getID()).orElseGet(() -> {
                 java.util.Date lastDownloadDate;
                 LocalDate lastReconcileDate = a.getLastReconcileDate();
                 if (lastReconcileDate == null)
@@ -394,13 +417,12 @@ public class MainController {
                 else
                     lastDownloadDate = java.util.Date.from(lastReconcileDate.atStartOfDay()
                             .atZone(ZoneId.systemDefault()).toInstant());
-                adc = new AccountDC(a.getID(), "", 0, "", "", lastDownloadDate, null);
-            }
-            controller.setMainApp(mMainApp, dialogStage, adc);
+                return new AccountDC(a.getID(), "", 0, "", "", lastDownloadDate, null);
+            });
+            controller.setMainModel(mainModel, adc);
             dialogStage.showAndWait();
-        } catch (IOException e) {
-            mLogger.error("IOException", e);
-            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "IOException", e.getMessage(), e);
+        } catch (DaoException | IOException e) {
+            logAndDisplayException(e.getClass().getName() + " when opening EditAccountDirectConnectionDialog", e);
         }
     }
 
@@ -416,50 +438,51 @@ public class MainController {
 
     @FXML
     private void deleteVaultMasterPassword() {
-        if (!MainApp.showConfirmationDialog("Delete Master Password",
+        if (!DialogUtil.showConfirmationDialog(getStage(), "Delete Master Password",
                 "Delete Master Password will also delete all encrypted Direct Connection info!",
                 "Do you want to delete master password?")) {
                 return;  // user choose not to continue
         }
 
         try {
-            mMainApp.deleteMasterPassword();
-            mMainApp.showInformationDialog("Delete Master Password",
+            mainModel.deleteMasterPassword();
+            DialogUtil.showInformationDialog(getStage(),"Delete Master Password",
                     "Delete Master Password Successful",
                     "Master password successfully deleted");
         } catch (KeyStoreException e) {
-            mLogger.error("KeyStore exception", e);
-            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "KeyStore Exception",
-                    e.getMessage(), e);
-        } catch (SQLException e) {
-            mLogger.error("Database Exception", e);
-            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", "Database Exception",
-                    MainApp.SQLExceptionToString(e), e);
+            logAndDisplayException("KeyStore exception", e);
+        } catch (DaoException e) {
+            logAndDisplayException("Database Exception", e);
         }
     }
 
     // either create new or update existing master password
     private void setupVaultMasterPassword(boolean isUpdate) {
         List<String> passwords;
-        if (isUpdate)
-            passwords = mMainApp.showPasswordDialog("Update Vault Master Password",
-                PasswordDialogController.MODE.CHANGE);
-        else
-            passwords = mMainApp.showPasswordDialog("Create New Vault Master Password",
-                    PasswordDialogController.MODE.NEW);
+        try {
+            if (isUpdate)
+                passwords = DialogUtil.showPasswordDialog(getStage(), "Update Vault Master Password",
+                        PasswordDialogController.MODE.CHANGE);
+            else
+                passwords = DialogUtil.showPasswordDialog(getStage(), "Create New Vault Master Password",
+                        PasswordDialogController.MODE.NEW);
+        } catch (IOException e) {
+            logAndDisplayException("ShowPasswordDialog IOException", e);
+            return;
+        }
 
         if (passwords.isEmpty()) {
             String title = "Warning";
             String header = "Password not entered";
             String content = "Master Password not " + (isUpdate ? "updated" : "created");
-            MainApp.showWarningDialog(title, header, content);
+            DialogUtil.showWarningDialog(getStage(), title, header, content);
             return;
         }
 
         try {
             String title, header, content;
             if (isUpdate) {
-                if (mMainApp.updateMasterPassword(passwords.get(0), passwords.get(1))) {
+                if (mainModel.updateMasterPassword(passwords.get(0), passwords.get(1))) {
                     title = "Update Master Password";
                     header = "Update master password successful";
                     content = "Master password successfully updated.";
@@ -469,26 +492,25 @@ public class MainController {
                     content = "Current password doesn't match.  Master password is not updated";
                 }
             } else {
-                mMainApp.setMasterPassword(passwords.get(1));
+                mainModel.setMasterPassword(passwords.get(1));
                 title = "Create Master Password";
                 header = "Create master password successful";
                 content = "Master password successfully created";
             }
-            mMainApp.showInformationDialog(title, header, content);
+            DialogUtil.showInformationDialog(getStage(), title, header, content);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
                 | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException
-                | IllegalBlockSizeException | BadPaddingException | SQLException e) {
-            String exceptionType, message;
-            if (e instanceof SQLException) {
-                exceptionType = "Database exception";
-                message = MainApp.SQLExceptionToString((SQLException) e);
+                | IllegalBlockSizeException | BadPaddingException | DaoException | ModelException e) {
+            final String message;
+            if (e instanceof DaoException) {
+                message = "Database exception " + e.toString();
+            } else if (e instanceof ModelException) {
+                message = "Model exception " + e.toString();
             } else {
-                exceptionType = "Vault exception";
-                message = e.getMessage();
+                message = "Vault exception " + e.toString();
             }
-            mLogger.error(exceptionType, e);
-            MainApp.showExceptionDialog(mMainApp.getStage(), "Exception", exceptionType, message, e);
-            mMainApp.showInformationDialog("Create/Update Master Password",
+            logAndDisplayException(message, e);
+            DialogUtil.showInformationDialog(getStage(), "Create/Update Master Password",
                     "Failed to create/update master password",
                     "Master Password not " + (isUpdate ? "updated" : "created"));
         }
@@ -501,10 +523,9 @@ public class MainController {
 
     @FXML
     private void handleSearch() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         Stage dialogStage = new Stage();
         dialogStage.initModality(Modality.WINDOW_MODAL);
-        dialogStage.initOwner(stage);
+        dialogStage.initOwner(getStage());
         SearchResultDialog srd = new SearchResultDialog(mSearchTextField.getText().trim(), mainModel, dialogStage);
         dialogStage.showAndWait();
         Transaction t = srd.getSelectedTransaction();
@@ -543,7 +564,7 @@ public class MainController {
     private void handleClose() {
         try {
             DaoManager.getInstance().closeConnection();
-            ((Stage) mAccountTreeTableView.getScene().getWindow()).close();
+            getStage().close();
         } catch (DaoException e) {
             logAndDisplayException("Failed to close connection", e);
         }
@@ -561,7 +582,7 @@ public class MainController {
         
         final String implementationTitle = getClass().getPackage().getImplementationTitle();
         final File file;
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        Stage stage = getStage();
         if (isNew) {
             fileChooser.setTitle("Create a new " + implementationTitle + " database...");
             file = fileChooser.showSaveDialog(stage);
@@ -588,7 +609,7 @@ public class MainController {
     private void openDB(final File file, boolean isNew) {
         final String dbPostfix = DaoManager.getDBPostfix();
         final String dbName = file.getAbsolutePath().substring(0, file.getAbsolutePath().length()-dbPostfix.length());
-        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        final Stage stage = getStage();
 
         if (isNew && file.exists() && !file.delete()) {
             // can't delete an existing file
@@ -669,7 +690,7 @@ public class MainController {
 
     @FXML
     private void handleChangePassword() {
-        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        final Stage stage = getStage();
         DaoManager daoManager = DaoManager.getInstance();
         String dbName = null;
         String backupDBFileName = null;
@@ -705,7 +726,7 @@ public class MainController {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
                 Arrays.asList("*.csv", "*.CSV")));
         fileChooser.setTitle("Import Prices in CSV file...");
-        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        final Stage stage = getStage();
         final File file = fileChooser.showOpenDialog(stage);
         if (file == null)
             return;  // user cancelled it
@@ -746,7 +767,7 @@ public class MainController {
 
             Stage stage = new Stage();
             stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(mMainApp.getStage());
+            stage.initOwner(getStage());
             stage.setTitle("Export to QIF");
             stage.setScene(new Scene(loader.load()));
             ExportQIFDialogController controller = loader.getController();
@@ -769,10 +790,9 @@ public class MainController {
 
     @FXML
     private void handleBackup() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             final String backupDBFileName = DaoManager.getInstance().backup();
-            DialogUtil.showInformationDialog(stage, "Information", "Backup Successful",
+            DialogUtil.showInformationDialog(getStage(), "Information", "Backup Successful",
                     "Current database was successfully saved to " + backupDBFileName);
         } catch (DaoException e) {
             logAndDisplayException("Backup failed", e);
@@ -786,13 +806,48 @@ public class MainController {
     }
 
     @FXML
-    private void handleDirectConnectionList() { mMainApp.showDirectConnectionListDialog(); }
+    private void handleDirectConnectionList() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/DirectConnectionListDialog.fxml"));
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.initOwner(getStage());
+            stage.setTitle("Direct Connection List");
+            stage.setScene(new Scene(loader.load()));
+
+            DirectConnectionListDialogController controller = loader.getController();
+            controller.setMainModel(mainModel);
+            stage.showAndWait();
+        } catch (IOException e) {
+            logAndDisplayException("IOException when open Direct Connection List dialog", e);
+        }
+    }
+
     @FXML
-    private void handleFinancialInstitutionList() { mMainApp.showFinancialInstitutionListDialog(); }
+    private void handleFinancialInstitutionList() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/FinancialInstitutionListDialog.fxml"));
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.initOwner(getStage());
+            stage.setTitle("Manage Financial Institution List");
+            stage.setScene(new Scene(loader.load()));
+
+            FinancialInstitutionListDialogController controller = loader.getController();
+            controller.setMainModel(mainModel);
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            mLogger.error("IOException when open Financial Institution List Dialog", e);
+        }
+    }
 
     @FXML
     private void handleEditAccountList() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/AccountListDialog.fxml"));
@@ -800,7 +855,7 @@ public class MainController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Account List");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(stage);
+            dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             AccountListDialogController controller = loader.getController();
             if (controller == null) {
@@ -817,7 +872,6 @@ public class MainController {
 
     @FXML
     private void handleEditSecurityList() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/SecurityListDialog.fxml"));
@@ -825,7 +879,7 @@ public class MainController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Security List");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(stage);
+            dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             SecurityListDialogController controller = loader.getController();
             if (controller == null) {
@@ -842,7 +896,6 @@ public class MainController {
 
     @FXML
     private void handleEditCategoryList() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/CategoryListDialog.fxml"));
@@ -850,7 +903,7 @@ public class MainController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Category List");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(stage);
+            dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             CategoryListDialogController controller = loader.getController();
             controller.setMainModel(mainModel);
@@ -863,7 +916,6 @@ public class MainController {
 
     @FXML
     private void handleEditTagList() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/TagListDialog.fxml"));
@@ -871,7 +923,7 @@ public class MainController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Tag List");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(stage);
+            dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             TagListDialogController controller = loader.getController();
             controller.setMainModel(mainModel);
@@ -884,7 +936,6 @@ public class MainController {
 
     @FXML
     private void handleReminderList() {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/ReminderTransactionListDialog.fxml"));
@@ -892,7 +943,7 @@ public class MainController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Reminder Transaction List");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(stage);
+            dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             ReminderTransactionListDialogController controller = loader.getController();
             if (controller == null) {
@@ -979,13 +1030,12 @@ public class MainController {
 
     @FXML
     private void handleEnterTransaction() {
-        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         final Account account = mainModel.getCurrentAccount();
         final List<Transaction.TradeAction> taList = account.getType().isGroup(Account.Type.Group.INVESTING) ?
                 Arrays.asList(Transaction.TradeAction.values()) :
                 Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
         try {
-            DialogUtil.showEditTransactionDialog(mainModel, stage, null,
+            DialogUtil.showEditTransactionDialog(mainModel, getStage(), null,
                     Collections.singletonList(account), account, taList);
         } catch (IOException | DaoException e) {
             logAndDisplayException(e.getClass().getName() + " when opening EditTransactionDialog", e);
@@ -999,14 +1049,13 @@ public class MainController {
 
     @FXML
     private void handleReconcile() {
-        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/ReconcileDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(stage);
+            dialogStage.initOwner(getStage());
             dialogStage.setTitle("Reconcile Account: " + mainModel.getCurrentAccount().getName());
             dialogStage.setScene(new Scene(loader.load()));
             ReconcileDialogController controller = loader.getController();
@@ -1019,14 +1068,13 @@ public class MainController {
     }
 
     private void showReportDialog(ReportDialogController.Setting setting) {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/ReportDialog.fxml"));
 
             Stage dialogStage = new Stage();
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(stage);
+            dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             ReportDialogController controller = loader.getController();
             if (controller == null) {
@@ -1037,13 +1085,13 @@ public class MainController {
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException", e);
+            logAndDisplayException("IOException on shownReportDialog", e);
         }
 
     }
 
     private void showAccountTransactions(Account account) {
-        mMainApp.setCurrentAccount(account);
+        mainModel.setCurrentAccount(account);
 
         if (account == null) {
             return;
@@ -1080,7 +1128,7 @@ public class MainController {
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private boolean showChangeReconciledConfirmation() {
-        return MainApp.showConfirmationDialog("Confirmation","Reconciled transaction?",
+        return DialogUtil.showConfirmationDialog(getStage(), "Confirmation","Reconciled transaction?",
                 "Do you really want to change it?");
     }
 
@@ -1088,8 +1136,8 @@ public class MainController {
     // and return true of user OK's it
     // do nothing and return true if current UID is not set.
     private boolean warnChangingClientUID() throws DaoException {
-        return mainModel.getClientUID().map(uuid -> MainApp.showConfirmationDialog("Changing ClientUID",
-                "Current ClientUID is " + uuid.toString(),
+        return mainModel.getClientUID().map(uuid -> DialogUtil.showConfirmationDialog(getStage(),
+                "Changing ClientUID", "Current ClientUID is " + uuid.toString(),
                 "May have to reestablish existing Direct Connections after reset ClientUID"))
                 .orElse(true);
     }
@@ -1140,7 +1188,7 @@ public class MainController {
         alert.getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
 
         alert.setTitle("ClientUID");
-        alert.initOwner(mMainApp.getStage());
+        alert.initOwner(getStage());
         alert.getDialogPane().setContent(gridPane);
 
         randomButton.setOnAction(actionEvent -> {
@@ -1271,8 +1319,8 @@ public class MainController {
                             && !showChangeReconciledConfirmation())
                         return;
                     // delete this transaction
-                    if (MainApp.showConfirmationDialog("Confirmation", "Delete transaction?",
-                            "Do you really want to delete it?"))
+                    if (DialogUtil.showConfirmationDialog(getStage(), "Confirmation",
+                            "Delete transaction?", "Do you really want to delete it?"))
                         mMainApp.alterTransaction(getItem(), null, new ArrayList<>());
                 });
                 final Menu moveToMenu = new Menu("Move to...");
@@ -1347,7 +1395,7 @@ public class MainController {
 
                     Stage dialogStage = new Stage();
                     dialogStage.initModality(Modality.WINDOW_MODAL);
-                    dialogStage.initOwner(mMainApp.getStage());
+                    dialogStage.initOwner(getStage());
                     MergeCandidateDialog mcd = new MergeCandidateDialog(mainModel, dialogStage, downloadedTransaction);
                     dialogStage.showAndWait();
                     Transaction selected = mcd.getSelectedTransaction();
@@ -1397,13 +1445,12 @@ public class MainController {
                         final Account account = mainModel.getCurrentAccount();
                         final Transaction transaction = getItem();
                         final int selectedTransactionID = transaction.getID();
-                        final Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
                         final List<Transaction.TradeAction> taList = account.getType()
                                 .isGroup(Account.Type.Group.INVESTING) ?
                                 Arrays.asList(Transaction.TradeAction.values()) :
                                 Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
                         try {
-                            DialogUtil.showEditTransactionDialog(mainModel, stage, transaction,
+                            DialogUtil.showEditTransactionDialog(mainModel, getStage(), transaction,
                                     Collections.singletonList(account), account, taList);
                         } catch (IOException | DaoException e) {
                             logAndDisplayException(e.getClass().getName() + " when opening EditTransactionDialog", e);
@@ -1668,7 +1715,7 @@ public class MainController {
      * @param e - the exception
      */
     private void logAndDisplayException(final String msg, final Exception e) {
-        Stage stage = (Stage) mAccountTreeTableView.getScene().getWindow();
+        Stage stage = getStage();
         mLogger.error(msg, e);
         if (e != null)
             DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);

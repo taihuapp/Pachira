@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -41,8 +41,7 @@ public class DirectConnectionListDialogController {
 
     private static final Logger mLogger = Logger.getLogger(DirectConnectionListDialogController.class);
 
-    private MainApp mMainApp;
-    private Stage mDialogStage;
+    private MainModel mainModel;
 
     @FXML
     private TableView<DirectConnection> mDCTableView;
@@ -56,37 +55,35 @@ public class DirectConnectionListDialogController {
     @FXML
     private Button mDeleteButton;
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
+    void setMainModel(MainModel mainModel) {
 
-        mDCTableView.setItems(mMainApp.getDCInfoList());
+        this.mainModel = mainModel;
+
+        mDCTableView.setItems(mainModel.getDCInfoList());
         mDCAliasColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
-        mFINameColumn.setCellValueFactory(cd -> {
-            DirectConnection dc = cd.getValue();
-            DirectConnection.FIData fiData = mMainApp.getFIDataByID(dc.getFIID());
-            if (fiData == null)
-                return new ReadOnlyStringWrapper("");
-            return fiData.getNameProperty();
-        });
+        mFINameColumn.setCellValueFactory(cd -> mainModel.getFIData(fid -> fid.getID() == cd.getValue().getFIID())
+                .map(DirectConnection.FIData::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
     }
 
     private void showEditDCInfoDialog(DirectConnection dcInfo) {
         try {
-            if (!mMainApp.hasMasterPasswordInKeyStore()) {
+            if (!mainModel.hasMasterPasswordInKeyStore()) {
                 try {
-                    List<String> passwords = mMainApp.showPasswordDialog("Enter Vault Master Password",
-                            PasswordDialogController.MODE.ENTER);
-                    if (passwords.size() != 2 || !mMainApp.verifyMasterPassword(passwords.get(1))) {
+                    List<String> passwords = DialogUtil.showPasswordDialog((Stage) mDCTableView.getScene().getWindow(),
+                            "Enter Vault Master Password", PasswordDialogController.MODE.ENTER);
+                    if (passwords.isEmpty())
+                        return; // user cancelled, do nothing
+                    if (passwords.size() != 2 || !mainModel.verifyMasterPassword(passwords.get(1))) {
                         // failed to verify master password
-                        MainApp.showWarningDialog("Edit Direct Connection",
-                                "Failed to input correct Master Password",
+                        DialogUtil.showWarningDialog((Stage) mDCTableView.getScene().getWindow(),
+                                "Edit Direct Connection","Failed to input correct Master Password",
                                 "Direct connection cannot be edited");
                         return;
                     }
                 } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException
                         | UnrecoverableKeyException e) {
-                    MainApp.showExceptionDialog(mDialogStage,"Exception", "Vault Exception", e.getMessage(), e);
+                    DialogUtil.showExceptionDialog((Stage) mDCTableView.getScene().getWindow(),
+                            e.getClass().getName(), "Vault Exception", e.toString(), e);
                     return;
                 }
             }
@@ -97,16 +94,17 @@ public class DirectConnectionListDialogController {
             Stage stage = new Stage();
             stage.setTitle("Edit Direct Connection Information:");
             stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(mDialogStage);
+            stage.initOwner(mDCTableView.getScene().getWindow());
             stage.setScene(new Scene(loader.load()));
 
             EditDCInfoDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, dcInfo, stage);
+            controller.setMainModel(mainModel, dcInfo);
             stage.showAndWait();
         } catch (IOException e) {
-            mLogger.error("IOException", e);
-            MainApp.showExceptionDialog(mDialogStage,"IOException", "showEditDCInfoDialog failed",
-                    e.getMessage(), e);
+            final String msg = "IOException when showEditDCInfoDialog";
+            mLogger.error(msg, e);
+            MainApp.showExceptionDialog((Stage) mDCTableView.getScene().getWindow(), e.getClass().getName(),
+                    msg, e.toString(), e);
         }
     }
 

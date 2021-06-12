@@ -36,7 +36,19 @@ public class ModelException extends Exception {
         /**
          * the lot info is not valid
          */
-        INVALID_LOT_INFO
+        INVALID_LOT_INFO,
+        /**
+         * the DirectConnection is not valid
+         */
+        INVALID_DIRECT_CONNECTION,
+        /**
+         * the account doesn't have have DC
+         */
+        ACCOUNT_NO_DC,
+        /**
+         *
+         */
+        INVALID_ACCOUNT_DC
     }
 
     private final ErrorCode errorCode;

@@ -193,7 +193,7 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
                     preparedStatement.executeUpdate();
                 }
             } catch (SQLException e) {
-                throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "Merge to prices failed", e);
+                throw new DaoException(DaoException.ErrorCode.FAIL_TO_MERGE, "Merge to prices failed", e);
             }
             daoManager.commit();
         } catch (DaoException e) {

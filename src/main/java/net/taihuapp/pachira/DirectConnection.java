@@ -27,9 +27,9 @@ import javafx.beans.property.StringProperty;
 
 public class DirectConnection {
 
-    public static final String HAS_MASTER_PASSWORD_NAME = "HASHEDMASTERPASSWORD";
+    public static final String HASHED_MASTER_PASSWORD_NAME = "HASHEDMASTERPASSWORD";
 
-    static class FIData {
+    public static class FIData {
         private int mID;
         private final StringProperty mFIIDProperty = new SimpleStringProperty();
         private final StringProperty mSubIDProperty = new SimpleStringProperty();
@@ -53,7 +53,7 @@ public class DirectConnection {
                     fiData.getORG(), fiData.getURL());
         }
 
-        FIData(int id, String fiid, String subId, String brokerId, String name, String  org, String url) {
+        public FIData(int id, String fiid, String subId, String brokerId, String name, String  org, String url) {
             mID = id;
             mFIIDProperty.set(fiid);
             mSubIDProperty.set(subId);
@@ -63,26 +63,26 @@ public class DirectConnection {
             mURLProperty.set(url);
         }
 
-        int getID() { return mID; }
+        public int getID() { return mID; }
         void setID(int id) { mID = id; }
 
         StringProperty getFIIDProperty() { return mFIIDProperty; }
-        String getFIID() { return getFIIDProperty().get(); }
+        public String getFIID() { return getFIIDProperty().get(); }
 
         StringProperty getSubIDProperty() { return mSubIDProperty; }
-        String getSubID() { return getSubIDProperty().get(); }
+        public String getSubID() { return getSubIDProperty().get(); }
 
         StringProperty getBrokerIDProperty() { return mBrokerIDProperty; }
-        String getBrokerID() { return getBrokerIDProperty().get(); }
+        public String getBrokerID() { return getBrokerIDProperty().get(); }
 
         StringProperty getNameProperty() { return mNameProperty; }
-        String getName() { return getNameProperty().get(); }
+        public String getName() { return getNameProperty().get(); }
 
         StringProperty getORGProperty() { return mORGProperty; }
-        String getORG() { return getORGProperty().get(); }
+        public String getORG() { return getORGProperty().get(); }
 
         StringProperty getURLProperty() { return mURLProperty; }
-        String getURL() { return getURLProperty().get(); }
+        public String getURL() { return getURLProperty().get(); }
     }
 
     private int mID;
@@ -102,7 +102,7 @@ public class DirectConnection {
     public String getEncryptedUserName() { return mEncryptedUserName; }
     public String getEncryptedPassword() { return mEncryptedPassword; }
     void setEncryptedUserName(String eun) { mEncryptedUserName = eun; }
-    void setEncryptedPassword(String encryptedPassword) { mEncryptedPassword = encryptedPassword; }
+    public void setEncryptedPassword(String encryptedPassword) { mEncryptedPassword = encryptedPassword; }
 
     // constructor
     // don't use null to initialize eun and encryptedPassword, if necessary, use empty string instead

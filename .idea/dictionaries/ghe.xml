@@ -36,6 +36,7 @@
       <w>fitid</w>
       <w>hashedmasterpassword</w>
       <w>hiddenflag</w>
+      <w>hmac</w>
       <w>incomeflag</w>
       <w>invst</w>
       <w>isdom</w>
@@ -47,6 +48,7 @@
       <w>lastdownloadtime</w>
       <w>lastreconciledate</w>
       <w>lotmatch</w>
+      <w>masterkey</w>
       <w>matchid</w>
       <w>matchquantity</w>
       <w>matchsplittransactionid</w>
@@ -61,7 +63,9 @@
       <w>pachira</w>
       <w>payeecontains</w>
       <w>payeeregex</w>
+      <w>pbkdf</w>
       <w>permutated</w>
+      <w>pkcs</w>
       <w>reinvdiv</w>
       <w>reminderid</w>
       <w>remindertransaction</w>
@@ -73,6 +77,7 @@
       <w>sdate</w>
       <w>securityid</w>
       <w>securitystringconverter</w>
+      <w>sessionkey</w>
       <w>shrsin</w>
       <w>sortability</w>
       <w>splitflag</w>

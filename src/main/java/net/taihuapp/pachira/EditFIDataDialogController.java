@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -23,17 +23,15 @@ package net.taihuapp.pachira;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
-
-import java.sql.SQLException;
 
 public class EditFIDataDialogController {
 
     private static final Logger mLogger = Logger.getLogger(EditFIDataDialogController.class);
 
-    private MainApp mMainApp;
+    private MainModel mainModel;
     private DirectConnection.FIData mFIData;
-    private Stage mStage;
 
     @FXML
     private TextField mNameTextField;
@@ -46,10 +44,10 @@ public class EditFIDataDialogController {
     @FXML
     private TextField mURLTextField;
 
-    void setMainApp(MainApp mainApp, DirectConnection.FIData fiData, Stage stage) {
-        mMainApp = mainApp;
+    void setMainModel(MainModel mainModel, DirectConnection.FIData fiData) {
+
+        this.mainModel = mainModel;
         mFIData = fiData;
-        mStage = stage;
 
         mNameTextField.textProperty().bindBidirectional(fiData.getNameProperty());
         mFIIDTextField.textProperty().bindBidirectional(fiData.getFIIDProperty());
@@ -60,41 +58,17 @@ public class EditFIDataDialogController {
 
     @FXML
     private void handleSave() {
+        Stage stage = (Stage) mNameTextField.getScene().getWindow();
         try {
-            if (!mMainApp.setDBSavepoint()) {
-                mLogger.error("Database savepoint unexpectedly set");
-                MainApp.showWarningDialog("Unexpected situation", "Database savepoint already set?",
-                        "Please restart application");
-            } else {
-                mMainApp.insertUpdateFIDataToDB(mFIData);
-                mMainApp.commitDB();
-                mMainApp.initFIDataList();
-            }
-            mStage.close();
-        } catch (SQLException e) {
-            try {
-                mLogger.error(MainApp.SQLExceptionToString(e), e);
-                MainApp.showExceptionDialog(mStage, "Database Error", "insertUpdateFIDataToDB failed",
-                        MainApp.SQLExceptionToString(e), e);
-                mMainApp.rollbackDB();
-            } catch (SQLException e1) {
-                mLogger.error(MainApp.SQLExceptionToString(e1), e1);
-                MainApp.showExceptionDialog(mStage,"Database Error", "Unable to rollback to savepoint",
-                        MainApp.SQLExceptionToString(e1), e1);
-            }
-        } finally {
-            try {
-                mMainApp.releaseDBSavepoint();
-            } catch (SQLException e) {
-                MainApp.showExceptionDialog(mStage,"Database Error",
-                        "Unable to release savepoint and set DB autocommit",
-                        MainApp.SQLExceptionToString(e), e);
-            }
+            mainModel.insertUpdateFIData(mFIData);
+            stage.close();
+        } catch (DaoException e) {
+            final String msg = "insertUpdateFIData failed";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
     @FXML
-    private void handleCancel() {
-        mStage.close();
-    }
+    private void handleCancel() { ((Stage) mNameTextField.getScene().getWindow()).close(); }
 }

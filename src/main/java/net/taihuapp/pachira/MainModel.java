@@ -21,6 +21,19 @@
 package net.taihuapp.pachira;
 
 import com.opencsv.CSVReader;
+import com.webcohesion.ofx4j.OFXException;
+import com.webcohesion.ofx4j.client.AccountStatement;
+import com.webcohesion.ofx4j.client.FinancialInstitution;
+import com.webcohesion.ofx4j.client.FinancialInstitutionAccount;
+import com.webcohesion.ofx4j.client.impl.BaseFinancialInstitutionData;
+import com.webcohesion.ofx4j.client.impl.FinancialInstitutionImpl;
+import com.webcohesion.ofx4j.client.net.OFXV1Connection;
+import com.webcohesion.ofx4j.domain.data.banking.AccountType;
+import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
+import com.webcohesion.ofx4j.domain.data.common.TransactionType;
+import com.webcohesion.ofx4j.domain.data.creditcard.CreditCardAccountDetails;
+import com.webcohesion.ofx4j.domain.data.investment.accounts.InvestmentAccountDetails;
+import com.webcohesion.ofx4j.domain.data.signup.AccountProfile;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -34,16 +47,21 @@ import javafx.util.Pair;
 import net.taihuapp.pachira.dao.*;
 import org.apache.log4j.Logger;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -77,6 +95,7 @@ public class MainModel {
     private final Vault vault = new Vault();
     public final BooleanProperty hasMasterPasswordProperty = new SimpleBooleanProperty(false);
     private final ObservableList<DirectConnection> dcInfoList = FXCollections.observableArrayList();
+    private final ObservableList<DirectConnection.FIData> fiDataList = FXCollections.observableArrayList();
     ObservableList<DirectConnection> getDCInfoList() { return dcInfoList; }
 
     /**
@@ -95,6 +114,7 @@ public class MainModel {
 
         // initialize AccountDCList
         accountDCList.setAll(((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).getAll());
+        fiDataList.setAll(((FIDataDao) daoManager.getDao(DaoManager.DaoType.FIDATA)).getAll());
 
         // initialize the Direct connection vault
         initVault();
@@ -121,16 +141,16 @@ public class MainModel {
         return ((ReportSettingDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REPORT_SETTING)).getAll();
     }
 
-    void initSecurityList() throws DaoException {
+    private void initSecurityList() throws DaoException {
         securityList.setAll(((SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY)).getAll());
     }
 
-    void initTransactionList() throws DaoException {
+    private void initTransactionList() throws DaoException {
         transactionList.setAll(((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).getAll());
         FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
     }
 
-    void initAccountList() throws DaoException {
+    private void initAccountList() throws DaoException {
         AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
         accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
         // make sure all account display orders are correct
@@ -202,7 +222,7 @@ public class MainModel {
     }
 
     public Optional<Transaction> getTransaction(Predicate<Transaction> predicate) {
-        return transactionList.stream().filter(predicate).findFirst();
+        return transactionList.stream().filter(predicate).findAny();
     }
 
     // why do we expose DB vs MEM to public?
@@ -230,7 +250,7 @@ public class MainModel {
      * @return Optional
      */
     public Optional<Security> getSecurity(Predicate<Security> predicate) {
-        return securityList.stream().filter(predicate).findFirst();
+        return securityList.stream().filter(predicate).findAny();
     }
 
     /**
@@ -240,10 +260,24 @@ public class MainModel {
      */
     void mergeSecurity(Security security) throws DaoException {
         SecurityDao securityDao = (SecurityDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY);
-        if (security.getID() <= 0)
+        if (security.getID() <= 0) {
             securityDao.insert(security);
-        else
+            getSecurityList().add(security);
+        } else {
             securityDao.update(security);
+            for (int i = 0; i < getSecurityList().size(); i++) {
+                Security s = getSecurityList().get(i);
+                if (s.getID() == security.getID()) {
+                    getSecurityList().set(i, security);
+                }
+            }
+        }
+
+        // update security name in transaction list
+        initTransactionList();
+
+        // update security holdings of accounts
+        initAccountList();
     }
 
     /**
@@ -286,18 +320,181 @@ public class MainModel {
         }
     }
 
+    private Vault getVault() { return vault; }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    boolean hasMasterPasswordInKeyStore() { return getVault().hasMasterPasswordInKeyStore(); }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    boolean verifyMasterPassword(final String password) throws NoSuchAlgorithmException, InvalidKeySpecException,
+            KeyStoreException, UnrecoverableKeyException {
+        char[] mpChars = password.toCharArray();
+        try {
+            return getVault().verifyMasterPassword(mpChars);
+        } finally {
+            Arrays.fill(mpChars, ' ');
+        }
+    }
+
+    // set master password in Vault
+    // save hashed and encoded master password to database
+    void setMasterPassword(final String password) throws NoSuchAlgorithmException, InvalidKeySpecException,
+            KeyStoreException, UnrecoverableKeyException, DaoException {
+        char[] mpChars = password.toCharArray();
+        try {
+            getVault().setMasterPassword(mpChars);
+            mergeMasterPassword(getVault().getEncodedHashedMasterPassword());
+        } finally {
+            Arrays.fill(mpChars, ' ');
+            hasMasterPasswordProperty.set(getVault().hasMasterPassword());
+        }
+    }
+
+    // save hashed and encoded master password into database.
+    private void mergeMasterPassword(String encodedHashedMasterPassword) throws DaoException {
+        ((DirectConnectionDao) daoManager.getDao(DaoManager.DaoType.DIRECT_CONNECTION))
+                .merge(new DirectConnection(-1, DirectConnection.HASHED_MASTER_PASSWORD_NAME,
+                        0, null, encodedHashedMasterPassword));
+    }
+
+    // delete master password in vault
+    // empty DCInfo table and AccountDCS table
+    // empty DCInfoList
+    void deleteMasterPassword() throws KeyStoreException, DaoException {
+        DirectConnectionDao directConnectionDao =
+                (DirectConnectionDao) daoManager.getDao(DaoManager.DaoType.DIRECT_CONNECTION);
+        AccountDCDao accountDCDao = (AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC);
+        daoManager.beginTransaction();
+        try {
+            // handle h2 database first, we can roll back if something went wrong
+            directConnectionDao.deleteAll();
+            accountDCDao.deleteAll();
+
+            // delete master password in the vault, this cannot be undo
+            getVault().deleteMasterPassword();
+
+            daoManager.commit();
+
+            getAccountDCList().clear();
+            getDCInfoList().clear();
+            hasMasterPasswordProperty.set(getVault().hasMasterPassword());
+        } catch (DaoException | KeyStoreException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    // this method setDBSavepoint.  If the save point is set by the caller, an SQLException will be thrown
+    // return false when isUpdate is true and curPassword doesn't match existing master password
+    // exception will be thrown if any is encountered
+    // otherwise, return true
+    boolean updateMasterPassword(final String curPassword, final String newPassword)
+            throws NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException,
+            UnrecoverableKeyException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException, DaoException, ModelException {
+
+        if (!verifyMasterPassword(curPassword))
+            return false;  // in update mode, curPassword doesn't match existing master password
+
+        final char[] newPasswordChars = newPassword.toCharArray();
+
+        final List<char[]> clearUserNameList = new ArrayList<>();
+        final List<char[]> clearPasswordList = new ArrayList<>();
+        final List<char[]> clearAccountNumberList = new ArrayList<>();
+
+        try {
+            for (DirectConnection dc : getDCInfoList()) {
+                clearUserNameList.add(decrypt(dc.getEncryptedUserName()));
+                clearPasswordList.add(decrypt(dc.getEncryptedPassword()));
+            }
+            for (AccountDC adc : getAccountDCList())
+                clearAccountNumberList.add(decrypt(adc.getEncryptedAccountNumber()));
+
+            getVault().setMasterPassword(newPasswordChars);
+
+            for (int i = 0; i < getDCInfoList().size(); i++) {
+                DirectConnection dc = getDCInfoList().get(i);
+                dc.setEncryptedUserName(encrypt(clearUserNameList.get(i)));
+                dc.setEncryptedPassword(encrypt(clearPasswordList.get(i)));
+            }
+            for (int i = 0; i < getAccountDCList().size(); i++) {
+                AccountDC adc = getAccountDCList().get(i);
+                adc.setEncryptedAccountNumber(encrypt(clearAccountNumberList.get(i)));
+            }
+        } finally {
+            // wipe it clean
+            Arrays.fill(newPasswordChars, ' ');
+
+            for (char[] chars : clearUserNameList)
+                Arrays.fill(chars, ' ');
+            for (char[] chars : clearPasswordList)
+                Arrays.fill(chars, ' ');
+            for (char[] chars : clearAccountNumberList)
+                Arrays.fill(chars, ' ');
+        }
+
+        daoManager.beginTransaction();
+        try {
+            mergeMasterPassword(getVault().getEncodedHashedMasterPassword());
+            for (DirectConnection directConnection : getDCInfoList())
+                mergeDCInfo(directConnection);
+            for (AccountDC accountDC : getAccountDCList())
+                mergeAccountDC(accountDC);
+            daoManager.commit();
+            return true;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            initVault(); // reload vault
+            throw e;
+        }
+    }
+
     /**
-     * initialized direct connect information list
-     * * @return encoded hashed master password or null if not set
+     * initialized direct connect information list, exclude HASHED_MASTER_PASSWORD_NAME from dcInfoList
+     * @return encoded hashed master password or null if not set
      * @throws DaoException from database operations
      */
-    private String initDCInfoList() throws DaoException {
+    String initDCInfoList() throws DaoException {
         dcInfoList.setAll(((DirectConnectionDao) daoManager.getDao(DaoManager.DaoType.DIRECT_CONNECTION)).getAll());
-        for (DirectConnection directConnection : dcInfoList) {
-            if (directConnection.getName().equals(DirectConnection.HAS_MASTER_PASSWORD_NAME))
+        dcInfoList.sort(Comparator.comparing(DirectConnection::getID));
+        Iterator<DirectConnection> iterator = dcInfoList.iterator();
+        while (iterator.hasNext()) {
+            DirectConnection directConnection = iterator.next();
+            if (directConnection.getName().equals(DirectConnection.HASHED_MASTER_PASSWORD_NAME)) {
+                iterator.remove();
                 return directConnection.getEncryptedPassword();
+            }
         }
         return null;
+    }
+
+    void mergeDCInfo(DirectConnection dcInfo) throws DaoException {
+        DirectConnectionDao directConnectionDao =
+                (DirectConnectionDao) daoManager.getDao(DaoManager.DaoType.DIRECT_CONNECTION);
+        if (dcInfo.getID() > 0) {
+            directConnectionDao.update(dcInfo);
+            for (int i = 0; i < getDCInfoList().size(); i++) {
+                if (getDCInfoList().get(i).getID() == dcInfo.getID()) {
+                    getDCInfoList().set(i, dcInfo);
+                    break;
+                }
+            }
+        } else {
+            directConnectionDao.insert(dcInfo);
+            getDCInfoList().add(dcInfo);
+        }
+    }
+
+    public Optional<DirectConnection> getDCInfo(Predicate<DirectConnection> predicate) {
+        return getDCInfoList().filtered(predicate).stream().findAny();
     }
 
     /**
@@ -438,8 +635,30 @@ public class MainModel {
      * @throws DaoException - from database operations
      */
     public Optional<AccountDC> getAccountDC(int accountID) throws DaoException {
-        AccountDCDao accountDCDao = (AccountDCDao) DaoManager.getInstance().getDao(DaoManager.DaoType.ACCOUNT_DC);
-        return accountDCDao.get(accountID);
+        return getAccountDCList().filtered(accountDC -> accountDC.getAccountID() == accountID).stream().findAny();
+    }
+
+    public void deleteAccountDC(int accountID) throws DaoException {
+        ((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).delete(accountID);
+        Iterator<AccountDC> iterator = getAccountDCList().iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next().getAccountID() == accountID) {
+                iterator.remove();
+                break;
+            }
+        }
+    }
+
+    public void mergeAccountDC(AccountDC accountDC) throws DaoException {
+        ((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).merge(accountDC);
+        for (int i = 0; i < getAccountDCList().size(); i++) {
+            AccountDC adc = getAccountDCList().get(i);
+            if (adc.getAccountID() == accountDC.getAccountID()) {
+                getAccountDCList().set(i, accountDC);
+                return;
+            }
+        }
+        getAccountDCList().add(accountDC);
     }
 
     /**
@@ -476,7 +695,44 @@ public class MainModel {
     }
 
     Optional<Account> getAccount(Predicate<Account> predicate) {
-        return accountList.stream().filter(predicate).findFirst();
+        return accountList.stream().filter(predicate).findAny();
+    }
+
+    ObservableList<DirectConnection.FIData> getFIDataList() { return fiDataList; }
+
+    Optional<DirectConnection.FIData> getFIData(Predicate<DirectConnection.FIData> predicate) {
+        return fiDataList.stream().filter(predicate).findAny();
+    }
+
+    void deleteFIData(int fiDataID) throws DaoException {
+        ((FIDataDao) daoManager.getDao(DaoManager.DaoType.FIDATA)).delete(fiDataID);
+        Iterator<DirectConnection.FIData> iterator = fiDataList.iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next().getID() == fiDataID) {
+                iterator.remove();
+                break;
+            }
+        }
+    }
+
+    /**
+     * save fiData to database and master list
+     * @param fiData - input
+     * @throws DaoException - from database operation
+     */
+    void insertUpdateFIData(DirectConnection.FIData fiData) throws DaoException {
+        FIDataDao fiDataDao = (FIDataDao) daoManager.getDao(DaoManager.DaoType.FIDATA);
+        if (fiData.getID() > 0) {
+            fiDataDao.update(fiData);
+            for (int i = 0; i < fiDataList.size(); i++)
+                if (fiDataList.get(i).getID() == fiData.getID()) {
+                    fiDataList.set(i, fiData);
+                    break;
+                }
+        } else {
+            fiData.setID(fiDataDao.insert(fiData));
+            fiDataList.add(fiData);
+        }
     }
 
     void insertReminderTransaction(ReminderTransaction rt) throws DaoException {
@@ -692,7 +948,7 @@ public class MainModel {
     public ObservableList<Category> getCategoryList() { return categoryList; }
 
     public Optional<Category> getCategory(Predicate<Category> predicate) {
-        return categoryList.stream().filter(predicate).findFirst();
+        return categoryList.stream().filter(predicate).findAny();
     }
 
     public void insertCategory(Category category) throws DaoException {
@@ -708,7 +964,7 @@ public class MainModel {
 
     public ObservableList<Tag> getTagList() { return tagList; }
 
-    public Optional<Tag> getTag(Predicate<Tag> predicate) { return tagList.stream().filter(predicate).findFirst(); }
+    public Optional<Tag> getTag(Predicate<Tag> predicate) { return tagList.stream().filter(predicate).findAny(); }
 
     /**
      * insert tag to the database and the master tag list
@@ -937,7 +1193,7 @@ public class MainModel {
                             final List<SplitTransaction> stList = xferT.getSplitTransactionList();
                             final SplitTransaction xferSt = stList.stream()
                                     .filter(st -> st.getID() == newTCopy.getMatchSplitID())
-                                    .findFirst()
+                                    .findAny()
                                     .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                             "Transaction (" + newTCopy.getID() + ") linked to null split transaction",
                                             null));
@@ -1200,7 +1456,7 @@ public class MainModel {
             throw new IllegalArgumentException("Transaction (" + transaction.getID() + ") has an invalid account ID ("
                     + transaction.getAccountID() + ")");
         final Account account = accountOptional.get();
-        if (account.getType().isGroup(Account.Type.Group.SPENDING)) {
+        if (!account.getType().isGroup(Account.Type.Group.SPENDING)) {
             throw new IllegalArgumentException("Account type " + account.getType().toString()
                     + " is not supported yet");
         }
@@ -1428,4 +1684,259 @@ public class MainModel {
 
         return capitalGainItemList;
     }
+
+    // todo
+    // These few methods should belong to Direct Connection, but I need to put a FIData object instead of
+    // a FIID in DirectConnection
+    // Later.
+    private FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection)
+            throws MalformedURLException, ModelException {
+        OFXV1Connection connection = new OFXV1Connection();
+        DirectConnection.FIData fiData = getFIData(fd -> fd.getID() == directConnection.getFIID())
+                .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_DIRECT_CONNECTION,
+                        "DirectConnection " + directConnection.getName() + " doesn't have valid FIID",
+                        null));
+        BaseFinancialInstitutionData baseFIData = new BaseFinancialInstitutionData();
+        baseFIData.setFinancialInstitutionId(fiData.getFIID());
+        baseFIData.setOFXURL(new URL(fiData.getURL()));
+        baseFIData.setName(fiData.getName());
+        baseFIData.setOrganization(fiData.getORG());
+        FinancialInstitution fi = new FinancialInstitutionImpl(baseFIData, connection);
+        fi.setLanguage(Locale.US.getISO3Language().toUpperCase());
+        return fi;
+    }
+
+    // download account statement from DirectConnection
+    // currently only support SPENDING account type
+    Set<TransactionType> DCDownloadAccountStatement(Account account)
+            throws IllegalArgumentException, MalformedURLException, NoSuchAlgorithmException,
+            InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
+            NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException, OFXException, DaoException, ModelException {
+
+        Account.Type accountType = account.getType();
+        AccountDC adc = getAccountDC(account.getID()).orElseThrow(() ->
+                new ModelException(ModelException.ErrorCode.ACCOUNT_NO_DC,
+                        account.getName() + " has no AccountDC", null));
+        DirectConnection directConnection = getDCInfo(dc -> dc.getID() == adc.getDCID()).orElseThrow(() ->
+                new ModelException(ModelException.ErrorCode.INVALID_ACCOUNT_DC,
+                        "AccountDC for account " + account.getName() + " has no DirectConnection", null));
+        FinancialInstitution financialInstitution = DCGetFinancialInstitution(directConnection);
+        getClientUID().ifPresent(uuid -> financialInstitution.setClientUID(uuid.toString()));
+
+        final String username = new String(decrypt(directConnection.getEncryptedUserName()));
+        final String password = new String(decrypt(directConnection.getEncryptedPassword()));
+        final String clearAccountNumber = new String(decrypt(adc.getEncryptedAccountNumber()));
+
+        final FinancialInstitutionAccount fiAccount;
+        if (accountType.equals(Account.Type.CREDIT_CARD)) {
+            CreditCardAccountDetails creditCardAccountDetails = new CreditCardAccountDetails();
+            creditCardAccountDetails.setAccountNumber(clearAccountNumber);
+            fiAccount = financialInstitution.loadCreditCardAccount(creditCardAccountDetails, username, password);
+        } else if (accountType.isGroup(Account.Type.Group.INVESTING)) {
+            InvestmentAccountDetails investmentAccountDetails = new InvestmentAccountDetails();
+            investmentAccountDetails.setAccountNumber(clearAccountNumber);
+            fiAccount = financialInstitution.loadInvestmentAccount(investmentAccountDetails, username, password);
+        } else {
+            BankAccountDetails bankAccountDetails = new BankAccountDetails();
+            bankAccountDetails.setAccountType(AccountType.valueOf(adc.getAccountType()));
+            bankAccountDetails.setBankId(adc.getRoutingNumber());
+            bankAccountDetails.setAccountNumber(clearAccountNumber);
+            fiAccount = financialInstitution.loadBankAccount(bankAccountDetails,  username, password);
+        }
+
+        java.util.Date endDate = new java.util.Date();
+        java.util.Date startDate = adc.getLastDownloadDateTime();
+
+        // lastReconcileDate should correspond to the end of business of on that day
+        // at the local time zone (use systemDefault zone for now).
+        // so we use the start of the next day as the start date
+        LocalDate lastReconcileDate = account.getLastReconcileDate();
+        java.util.Date lastReconcileDatePlusOneDay = lastReconcileDate == null ?
+                null : java.sql.Date.from(lastReconcileDate.plusDays(1).atStartOfDay()
+                .atZone(ZoneId.systemDefault()).toInstant());
+        if (lastReconcileDatePlusOneDay != null && startDate.compareTo(lastReconcileDatePlusOneDay) < 0)
+            startDate = lastReconcileDatePlusOneDay;
+
+        daoManager.beginTransaction();
+        try {
+            AccountStatement statement = fiAccount.readStatement(startDate, endDate);
+            Set<TransactionType> unTested = importAccountStatement(account, statement);
+            adc.setLastDownloadInfo(statement.getLedgerBalance().getAsOfDate(),
+                    BigDecimal.valueOf(statement.getLedgerBalance().getAmount())
+                            .setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
+            mergeAccountDC(adc);
+            return unTested;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+                initTransactionList(); // this is a hack.  Need to re-organize the code
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    // Banking transaction logic is currently coded in.
+    private Set<TransactionType> importAccountStatement(Account account, AccountStatement statement)
+            throws DaoException {
+        if (statement.getTransactionList() == null)
+            return Collections.emptySet();  // didn't download any transaction, do nothing
+
+        Set<String> downloadedIDSet = account.getTransactionList().stream().map(Transaction::getFITID)
+                .filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+
+        Set<TransactionType> testedTransactionType = new HashSet<>(Arrays.asList(TransactionType.OTHER,
+                TransactionType.CREDIT, TransactionType.DEBIT, TransactionType.CHECK, TransactionType.INT));
+        Set<TransactionType> unTestedTransactionType = new HashSet<>();
+
+        ArrayList<Transaction> tobeImported = new ArrayList<>();
+        for (com.webcohesion.ofx4j.domain.data.common.Transaction ofx4jT
+                : statement.getTransactionList().getTransactions()) {
+            if (downloadedIDSet.contains(ofx4jT.getId()))
+                continue; // this transaction has been downloaded. skip
+
+            // posted is always at 1200 UTC, which would convert to the same date at any time zone
+            LocalDate tDate = ofx4jT.getDatePosted().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            Transaction.TradeAction ta = null;
+            BigDecimal amount = ofx4jT.getBigDecimalAmount();
+            Category category = new Category();
+            switch (ofx4jT.getTransactionType()) {
+                case CREDIT:
+                case DEP:
+                case DIRECTDEP:
+                    ta = Transaction.TradeAction.DEPOSIT;
+                    break;
+                case CHECK:
+                case DEBIT:
+                case DIRECTDEBIT:
+                case PAYMENT:
+                case REPEATPMT:
+                    ta = Transaction.TradeAction.WITHDRAW;
+                    amount = amount.negate();
+                    break;
+                case INT:
+                    ta = Transaction.TradeAction.DEPOSIT;
+                    category = getCategory(c -> c.getName().equals("Interest Inc")).orElse(null);
+                    break;
+                case DIV:
+                    ta = Transaction.TradeAction.DEPOSIT;
+                    category = getCategory(c -> c.getName().equals("Div Income")).orElse(null);
+                    break;
+                case FEE:
+                case SRVCHG:
+                    ta = Transaction.TradeAction.WITHDRAW;
+                    category = getCategory(c -> c.getName().equals("Fees & Charges")).orElse(null);
+                    break;
+                case XFER:
+                    if (amount.compareTo(BigDecimal.ZERO) >= 0)
+                        ta = Transaction.TradeAction.DEPOSIT;
+                    else {
+                        ta = Transaction.TradeAction.WITHDRAW;
+                        amount = amount.negate();
+                    }
+                    break;
+                case ATM:
+                case CASH:
+                case OTHER:
+                case POS:
+                    if (amount.compareTo(BigDecimal.ZERO) >= 0) {
+                        ta = Transaction.TradeAction.DEPOSIT;
+                    } else {
+                        ta = Transaction.TradeAction.WITHDRAW;
+                        amount = amount.negate();
+                    }
+                    break;
+            }
+
+            if (!testedTransactionType.contains(ofx4jT.getTransactionType()))
+                unTestedTransactionType.add(ofx4jT.getTransactionType());
+
+            Transaction transaction = new Transaction(account.getID(), tDate, ta,
+                    category == null ? 0 : category.getID());
+
+            transaction.setAmount(amount);
+            transaction.setFITID(ofx4jT.getId());
+
+            String refString;
+            if (ofx4jT.getCheckNumber() != null) {
+                refString = ofx4jT.getCheckNumber();
+                if (ofx4jT.getReferenceNumber() != null)
+                    refString += " " + ofx4jT.getReferenceNumber();
+            } else {
+                if (ofx4jT.getReferenceNumber() != null)
+                    refString = ofx4jT.getReferenceNumber();
+                else
+                    refString = "";
+            }
+            transaction.setReference(refString);
+
+
+            String payee;
+            if (ofx4jT.getName() != null) {
+                payee = ofx4jT.getName();
+                if (ofx4jT.getPayee() != null && ofx4jT.getPayee().getName() != null)
+                    payee += " " + ofx4jT.getPayee().getName();
+            } else {
+                if (ofx4jT.getPayee() != null && ofx4jT.getPayee().getName() != null)
+                    payee = ofx4jT.getPayee().getName();
+                else
+                    payee = "";
+            }
+            transaction.setPayee(payee);
+
+            String memo = ofx4jT.getMemo();
+            transaction.setMemo(memo == null ? "" : memo);
+
+            transaction.setStatus(Transaction.Status.CLEARED); // downloaded transactions are all cleared
+
+            tobeImported.add(transaction);
+        }
+
+        daoManager.beginTransaction();
+        try {
+            for (Transaction t : tobeImported)
+                insertTransaction(t, InsertMode.DB_ONLY);
+            daoManager.commit();
+            transactionList.addAll(tobeImported);
+            FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
+            updateAccountBalance(a -> a.getID() == account.getID());
+            return unTestedTransactionType;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    Collection<AccountProfile> DCDownloadFinancialInstitutionAccountProfiles(DirectConnection directConnection)
+            throws MalformedURLException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException,
+            UnrecoverableKeyException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException, OFXException, DaoException, ModelException {
+        FinancialInstitution financialInstitution = DCGetFinancialInstitution(directConnection);
+        getClientUID().ifPresent(uuid -> financialInstitution.setClientUID(uuid.toString()));
+        String username = new String(decrypt(directConnection.getEncryptedUserName()));
+        String password = new String(decrypt(directConnection.getEncryptedPassword()));
+
+        return financialInstitution.readAccountProfiles(username, password);
+    }
+
+    // encrypt a char array using master password in the vault, return encrypted and encoded
+    String encrypt(final char[] secret) throws NoSuchAlgorithmException, InvalidKeySpecException,
+            KeyStoreException, UnrecoverableKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException,
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        return getVault().encrypt(secret);
+    }
+
+    char[] decrypt(final String encodedEncryptedSecretWithSaltAndIV) throws IllegalArgumentException,
+            NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException, UnrecoverableKeyException,
+            NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
+            IllegalBlockSizeException, BadPaddingException {
+        return getVault().decrypt(encodedEncryptedSecretWithSaltAndIV);
+    }
+
 }

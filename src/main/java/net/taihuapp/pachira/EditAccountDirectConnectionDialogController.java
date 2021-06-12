@@ -37,6 +37,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
@@ -45,7 +46,6 @@ import javax.crypto.NoSuchPaddingException;
 import java.net.MalformedURLException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Arrays;
@@ -55,12 +55,13 @@ public class EditAccountDirectConnectionDialogController {
     private static final Logger mLogger = Logger.getLogger(EditAccountDirectConnectionDialogController.class);
 
     private class DCInfoConverter extends StringConverter<DirectConnection> {
-        public DirectConnection fromString(String s) { return mMainApp.getDCInfoByName(s); }
+        public DirectConnection fromString(String s) {
+            return mainModel.getDCInfo(dc -> dc.getName().equals(s)).orElse(null);
+        }
         public String toString(DirectConnection dc) { return dc == null ? "" : dc.getName(); }
     }
 
-    private Stage mStage;
-    private MainApp mMainApp;
+    private MainModel mainModel;
     private AccountDC mADC;
     private final BooleanProperty mChangedProperty = new SimpleBooleanProperty(false);
     private boolean isChanged() { return mChangedProperty.get(); }
@@ -94,6 +95,9 @@ public class EditAccountDirectConnectionDialogController {
     @FXML
     private TableColumn<BankAccountDetails, String> mBankAccountNumberTableColumn;
 
+    // return the stage.  It only works after the controller is properly initialized.
+    private Stage getStage() { return (Stage) mAccountTableView.getScene().getWindow(); }
+
     // compare if information in accountDetails matches what is stored in accountDC
     private boolean compareAccountDetailsWithADC(AccountDetails accountDetails, AccountDC accountDC) {
         if (accountDetails == null)
@@ -103,14 +107,14 @@ public class EditAccountDirectConnectionDialogController {
         try {
             if (mADC.getEncryptedAccountNumber().isEmpty())
                 return false;
-            clearADCAccountNumber = mMainApp.decrypt(mADC.getEncryptedAccountNumber());
+            clearADCAccountNumber = mainModel.decrypt(mADC.getEncryptedAccountNumber());
             return compareStringWithChars(accountDetails.getAccountNumber(), clearADCAccountNumber);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
                 UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
                 InvalidAlgorithmParameterException | IllegalBlockSizeException |
                 BadPaddingException | IllegalArgumentException e ) {
             mLogger.error(e.getClass(), e);
-            MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
+            MainApp.showExceptionDialog(getStage(), e.getClass().getName(), "Decryption Error",
                     e.getMessage(), e);
         } finally {
             if (clearADCAccountNumber != null)
@@ -141,18 +145,19 @@ public class EditAccountDirectConnectionDialogController {
         return true;
     }
 
-    void setMainApp(MainApp mainApp, Stage stage, AccountDC adc) {
-        mStage = stage;
-        mMainApp = mainApp;
+    //void setMainApp(MainApp mainApp, Stage stage, AccountDC adc) {
+    void setMainModel(MainModel mainModel, AccountDC adc) {
+
+        this.mainModel = mainModel;
         mADC = adc;
 
-        Account account = mMainApp.getCurrentAccount();
+        Account account = mainModel.getCurrentAccount();
         mDCComboBox.setConverter(new DCInfoConverter());
         mDCComboBox.getItems().clear();
         // adding null item for ComboBox would lead to a IndexOutOfBoundsException when null is selected
         // this is a bug in javafx 8 https://bugs.openjdk.java.net/browse/JDK-8134923
         mDCComboBox.getItems().add(new DirectConnection(0, "", 0, "", ""));  // add a blank one
-        mDCComboBox.getItems().addAll(mMainApp.getDCInfoList());
+        mDCComboBox.getItems().addAll(mainModel.getDCInfoList());
 
         mAccountNameLabel.setText(account.getName());
 
@@ -161,13 +166,13 @@ public class EditAccountDirectConnectionDialogController {
             if (ndc.getID() < 0)
                 return;  // why are we here?
 
-            Account.Type currentAccountType = mMainApp.getCurrentAccount().getType();
+            Account.Type currentAccountType = mainModel.getCurrentAccount().getType();
             ObservableList<BankAccountDetails> bankAccounts = FXCollections.observableArrayList();
             ObservableList<CreditCardAccountDetails> creditCardAccounts = FXCollections.observableArrayList();
             ObservableList<InvestmentAccountDetails> investmentAccounts = FXCollections.observableArrayList();
 
             try {
-                for (AccountProfile ap : mMainApp.DCDownloadFinancialInstitutionAccountProfiles(ndc)) {
+                for (AccountProfile ap : mainModel.DCDownloadFinancialInstitutionAccountProfiles(ndc)) {
                     if (ap == null)
                         continue;
                     if (currentAccountType == Account.Type.CREDIT_CARD) {
@@ -210,33 +215,22 @@ public class EditAccountDirectConnectionDialogController {
                     mAccountTableView.setVisible(false);
                     mBankAccountTableView.setVisible(true);
                 }
-            } catch (MalformedURLException e) {
-                mLogger.error("MalformedURLException", e);
-                MainApp.showExceptionDialog(mStage,"MalformedURLException", "Bad URL",
-                        e.getMessage(), e);
             } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException |
                     UnrecoverableKeyException | NoSuchPaddingException | InvalidKeyException |
-                    InvalidAlgorithmParameterException | IllegalBlockSizeException |
-                    BadPaddingException e) {
-                mLogger.error(e.getClass(), e);
-                MainApp.showExceptionDialog(mStage, e.getClass().getName(), "Decryption Error",
-                        e.getMessage(), e);
-            } catch (OFXException e) {
-                mLogger.error("OFXException", e);
-                MainApp.showExceptionDialog(mStage,"OFXException", "OFXException", e.getMessage(), e);
-            }  catch (SQLException e) {
-                mLogger.error("SQLException", e);
-                MainApp.showExceptionDialog(mStage, "Exception", "Database Exception",
-                        MainApp.SQLExceptionToString(e), e);
+                    InvalidAlgorithmParameterException | IllegalBlockSizeException | ModelException |
+                    BadPaddingException | DaoException | OFXException | MalformedURLException e) {
+                mLogger.error(e.getClass().getName(), e);
+                DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), e.getClass().getName(),
+                        e.toString(), e);
             }
         });
-        mDCComboBox.getSelectionModel().select(mMainApp.getDCInfoByID(adc.getDCID()));
+        mDCComboBox.getSelectionModel().select(mainModel.getDCInfo(dc -> dc.getID() == adc.getDCID()).orElse(null));
     }
 
     @FXML
     private void handleSave() {
         int dcID = mDCComboBox.getValue().getID();
-        Account account = mMainApp.getCurrentAccount();
+        Account account = mainModel.getCurrentAccount();
         int aid = account.getID();
 
         try {
@@ -246,11 +240,11 @@ public class EditAccountDirectConnectionDialogController {
             if (dcID <= 0) {
                 if (MainApp.showConfirmationDialog("Confirmation", "Direct connection is empty",
                         "entry will be deleted"))
-                    mMainApp.deleteAccountDCFromDB(aid);
+                    mainModel.deleteAccountDC(aid);
             } else if (accountDetails == null) {
                 if (MainApp.showConfirmationDialog("Confirmation", "No account selected",
                         "Account Direct Connection entry will be deleted"))
-                    mMainApp.deleteAccountDCFromDB(aid);
+                    mainModel.deleteAccountDC(aid);
             } else {
                 // leave account type and routing empty except for bank accounts
                 final String at;
@@ -262,7 +256,7 @@ public class EditAccountDirectConnectionDialogController {
                     at = "";
                     rn = "";
                 }
-                String ean = mMainApp.encrypt(accountDetails.getAccountNumber().toCharArray());
+                String ean = mainModel.encrypt(accountDetails.getAccountNumber().toCharArray());
                 // note, every time an AccountDC is changed, the last download date time is reset
                 java.util.Date lastDownloadDate;
                 LocalDate lastReconcileDate = account.getLastReconcileDate();
@@ -271,19 +265,19 @@ public class EditAccountDirectConnectionDialogController {
                 else
                     lastDownloadDate = java.util.Date.from(lastReconcileDate.atStartOfDay()
                             .atZone(ZoneId.systemDefault()).toInstant());
-                mMainApp.mergeAccountDCToDB(new AccountDC(aid, at, dcID, rn, ean, lastDownloadDate, null));
+                mainModel.mergeAccountDC(new AccountDC(aid, at, dcID, rn, ean, lastDownloadDate, null));
             }
-            mMainApp.initAccountDCList();
-            mStage.close();
-        } catch (SQLException e) {
-            mLogger.error("SQLException", e);
-            MainApp.showExceptionDialog(mStage, "Exception", "Database Exception",
-                    MainApp.SQLExceptionToString(e), e);
+            getStage().close();
+        } catch (DaoException e) {
+            final String msg = e.getErrorCode() + " DaoException on deleting Account Direct Connection info";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException | UnrecoverableKeyException
                 | NoSuchPaddingException | InvalidAlgorithmParameterException | InvalidKeyException
                 | IllegalBlockSizeException | BadPaddingException e) {
             mLogger.error("Encrypt throws " + e.getClass().getName(), e);
-            MainApp.showExceptionDialog(mStage,"Exception", "Encryption Exception", e.getMessage(), e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), "Encryption Exception",
+                    e.toString(), e);
         }
     }
 
@@ -293,7 +287,7 @@ public class EditAccountDirectConnectionDialogController {
                 "Do you want to discard changes?")) {
             return;
         }
-        mStage.close();
+        getStage().close();
     }
 
     @FXML

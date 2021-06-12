@@ -59,14 +59,11 @@ public class EditSecurityDialogController {
 
     @FXML
     private void handleSave() {
+        Stage stage = (Stage) mNameTextField.getScene().getWindow();
         try {
             mainModel.mergeSecurity(mSecurity);
-            mainModel.initSecurityList();
-            mainModel.initTransactionList();
-            mainModel.initAccountList();
-            ((Stage) mNameTextField.getScene().getWindow()).close();
+            stage.close();
         } catch (DaoException e) {
-            Stage stage = (Stage) mNameTextField.getScene().getWindow();
             final String msg = e.getErrorCode() + " when save security " + mSecurity;
             logger.error(msg, e);
             DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);

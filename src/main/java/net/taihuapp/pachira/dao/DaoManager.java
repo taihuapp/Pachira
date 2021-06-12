@@ -790,7 +790,7 @@ public class DaoManager {
 
     // getter for various Dao class objects
     public enum DaoType {
-        ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE,
+        ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE, FIDATA,
         ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL
     }
 
@@ -815,6 +815,8 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new PairTidMatchInfoListDao(connection));
             case SECURITY_PRICE:
                 return daoMap.computeIfAbsent(daoType, o -> new SecurityPriceDao(connection));
+            case FIDATA:
+                return daoMap.computeIfAbsent(daoType, o -> new FIDataDao(connection));
             case ACCOUNT_DC:
                 return daoMap.computeIfAbsent(daoType, o -> new AccountDCDao(connection));
             case DIRECT_CONNECTION:

@@ -2402,7 +2402,7 @@ public class MainApp extends Application {
             stage.setScene(new Scene(loader.load()));
 
             DirectConnectionListDialogController controller = loader.getController();
-            controller.setMainApp(this, stage);
+            //controller.setMainApp(this, stage);
             stage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException when open Direct Connection List dialog", e);
@@ -2421,7 +2421,7 @@ public class MainApp extends Application {
             stage.setScene(new Scene(loader.load()));
 
             FinancialInstitutionListDialogController controller = loader.getController();
-            controller.setMainApp(this, stage);
+            //controller.setMainApp(this, stage);
             stage.showAndWait();
 
         } catch (IOException e) {

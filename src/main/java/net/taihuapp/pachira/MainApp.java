@@ -78,7 +78,6 @@ import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.Date;
 import java.sql.*;
-import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -112,9 +111,6 @@ public class MainApp extends Application {
     private static final Logger mLogger = Logger.getLogger(MainApp.class);
 
     static final ObjectProperty<LocalDate> CURRENT_DATE_PROPERTY = new SimpleObjectProperty<>(LocalDate.now());
-
-    // minimum 2 decimal places, maximum 4 decimal places
-    static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
 
     private static final int MAXOPENEDDBHIST = 5; // keep max 5 opened files
     private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
@@ -152,11 +148,9 @@ public class MainApp extends Application {
 
     private static final int PRICE_TOTAL_LEN = 20;
     static final int PRICE_FRACTION_LEN = 8;
-    static final int PRICE_FRACTION_DISP_LEN = 6;
 
     private static final int QUANTITY_TOTAL_LEN = 20;
     static final int QUANTITY_FRACTION_LEN = 8;
-    static final int QUANTITY_FRACTION_DISP_LEN = 6;
 
     private static final String HASHEDMASTERPASSWORDNAME = "HASHEDMASTERPASSWORD";
     private static final String CLIENTUIDNAME = "ClientUID";
@@ -2707,7 +2701,7 @@ public class MainApp extends Application {
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
 
-            if (securityHolding.getQuantity().setScale(QUANTITY_FRACTION_DISP_LEN,
+            if (securityHolding.getQuantity().setScale(MainModel.QUANTITY_FRACTION_DISPLAY_LEN,
                     RoundingMode.HALF_UP).signum() == 0) {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
@@ -2963,7 +2957,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             HoldingsDialogController controller = loader.getController();
-            controller.setMainApp(this);
+//            controller.setMainApp(this);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -5626,7 +5620,7 @@ public class MainApp extends Application {
     @Override
     public void init() {
         mPrefs = Preferences.userNodeForPackage(MainApp.class);
-        DOLLAR_CENT_FORMAT.setParseBigDecimal(true);  // always parse BigDecimal
+        MainModel.DOLLAR_CENT_FORMAT.setParseBigDecimal(true);  // always parse BigDecimal
     }
 
     @Override

@@ -177,7 +177,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                         } else {
                             // format
                             DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_DISP_LEN);
+                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
                             df.setMinimumFractionDigits(0);
                             setText(df.format(item));
                         }
@@ -200,7 +200,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(item.signum() == 0 ? "" : MainApp.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(item.signum() == 0 ? "" : MainModel.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }

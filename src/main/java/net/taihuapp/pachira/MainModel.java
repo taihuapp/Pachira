@@ -60,6 +60,7 @@ import java.net.URL;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -74,6 +75,10 @@ public class MainModel {
 
     public static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     public static final int SAVEDREPORTS_NAME_LEN = 32;
+    static final int PRICE_FRACTION_DISPLAY_LEN = 6;
+    // minimum 2 decimal places, maximum 4 decimal places
+    static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
+    static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
@@ -1002,6 +1007,19 @@ public class MainModel {
                 payeeSet.add(payee);
         }
         return payeeSet;
+    }
+
+    void setTransactionStatus(int tid, Transaction.Status newStatus) throws DaoException, ModelException {
+        Transaction t = getTransactionByID(tid).orElseThrow(() ->
+                new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION, "Bad Transaction ID" + tid, null));
+        Transaction.Status oldStatus = t.getStatus();
+        t.setStatus(newStatus);
+        try {
+            ((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).update(t);
+        } catch (DaoException e) {
+            t.setStatus(oldStatus);
+            throw e;
+        }
     }
 
     // Alter, including insert, delete, and modify a transaction, both in DB and in MasterList.

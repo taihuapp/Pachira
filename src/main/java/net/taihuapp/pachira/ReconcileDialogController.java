@@ -328,7 +328,7 @@ public class ReconcileDialogController {
                         } else {
                             // format
                             DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_DISP_LEN);
+                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
                             df.setMinimumFractionDigits(0);
                             setText(df.format(item));
                         }

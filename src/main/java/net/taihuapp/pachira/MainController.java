@@ -1044,7 +1044,36 @@ public class MainController {
 
     @FXML
     private void handleShowHoldings() {
-        mMainApp.showAccountHoldings();
+        final Account account = mainModel.getCurrentAccount();
+        if (account == null) {
+            // we shouldn't be here, log it.
+            mLogger.error("Current Account is not set");
+            return;
+        }
+        if (!account.getType().isGroup(Account.Type.Group.INVESTING)) {
+            // we shouldn't be here, log it
+            mLogger.error("show holdings works only for investing account");
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/view/HoldingsDialog.fxml"));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Account Holdings: " + account.getName());
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(getStage());
+            dialogStage.setScene(new Scene(loader.load()));
+
+            HoldingsDialogController controller = loader.getController();
+            controller.setMainModel(mainModel);
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            logAndDisplayException("IOException when showAccountHoldingDialog", e);
+        }
+
     }
 
     @FXML
@@ -1295,7 +1324,7 @@ public class MainController {
                     setText("");
                 } else {
                     // format
-                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
+                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }
@@ -1321,7 +1350,11 @@ public class MainController {
                     // delete this transaction
                     if (DialogUtil.showConfirmationDialog(getStage(), "Confirmation",
                             "Delete transaction?", "Do you really want to delete it?"))
-                        mMainApp.alterTransaction(getItem(), null, new ArrayList<>());
+                        try {
+                            mainModel.alterTransaction(getItem(), null, new ArrayList<>());
+                        } catch (ModelException | DaoException e1) {
+                            logAndDisplayException(e.getClass().getName() + " by alterTransaction", e1);
+                        }
                 });
                 final Menu moveToMenu = new Menu("Move to...");
                 for (Account.Type.Group ag : Account.Type.Group.values()) {
@@ -1329,7 +1362,9 @@ public class MainController {
                     agMenu.getItems().add(new MenuItem(ag.toString())); // need this placeholder for setOnShowing to work
                     agMenu.setOnShowing(e -> {
                         agMenu.getItems().clear();
-                        final ObservableList<Account> accountList = mMainApp.getAccountList(ag, false, true);
+                        final ObservableList<Account> accountList = mainModel.getAccountList(a ->
+                                a.getType().isGroup(ag) && !a.getHiddenFlag()
+                                        && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME));
                         for (Account a : accountList) {
                             if (a.getID() != getItem().getAccountID()) {
                                 MenuItem accountMI = new MenuItem(a.getName());
@@ -1338,39 +1373,45 @@ public class MainController {
                                             && !showChangeReconciledConfirmation())
                                         return;
                                     Transaction oldT = getItem();
-                                    List<SecurityHolding.MatchInfo> matchInfoList = mMainApp.getMatchInfoList(oldT.getID());
-                                    if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
-                                            "Transaction with Lot Matching",
-                                            "The lot matching information will be lost. " +
-                                                    "Do you want to continue?")) {
-                                        // either this transaction doesn't have lot matching information,
-                                        // or user choose to ignore lot matching information
-                                        Account newAccount = mMainApp.getAccountByName(accountMI.getText());
-                                        if (newAccount != null) {
-                                            // let show transaction table for the new account
-                                            TreeItem<Account> groupNode = mAccountTreeTableView.getRoot().getChildren()
-                                                    .stream()
-                                                    .filter(n -> n.getValue().getType()
-                                                            .isGroup(newAccount.getType().getGroup()))
-                                                    .findFirst().orElse(null);
-                                            if (groupNode != null) {
-                                                TreeItem<Account> accountNode = groupNode.getChildren().stream()
-                                                        .filter(n -> n.getValue().getID() == newAccount.getID())
+                                    try {
+                                        List<SecurityHolding.MatchInfo> matchInfoList = mainModel.getMatchInfoList(oldT.getID());
+                                        if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
+                                                "Transaction with Lot Matching",
+                                                "The lot matching information will be lost. " +
+                                                        "Do you want to continue?")) {
+                                            // either this transaction doesn't have lot matching information,
+                                            // or user choose to ignore lot matching information
+                                            Account newAccount = mainModel.getAccount(act -> act.getName()
+                                                    .equals(accountMI.getText())).orElse(null);
+                                            if (newAccount != null) {
+                                                // let show transaction table for the new account
+                                                TreeItem<Account> groupNode = mAccountTreeTableView.getRoot().getChildren()
+                                                        .stream()
+                                                        .filter(n -> n.getValue().getType()
+                                                                .isGroup(newAccount.getType().getGroup()))
                                                         .findFirst().orElse(null);
-                                                if (accountNode != null) {
-                                                    Transaction newT = new Transaction(oldT);
-                                                    newT.setAccountID(newAccount.getID());
-                                                    Transaction.ValidationStatus vs = newT.validate();
-                                                    if (vs.isValid()) {
-                                                        mAccountTreeTableView.getSelectionModel().select(accountNode);
-                                                        mMainApp.alterTransaction(oldT, newT, new ArrayList<>());
-                                                    } else {
-                                                        MainApp.showWarningDialog("Invalid Transaction",
-                                                                "Move Cancelled", vs.getMessage());
+                                                if (groupNode != null) {
+                                                    TreeItem<Account> accountNode = groupNode.getChildren().stream()
+                                                            .filter(n -> n.getValue().getID() == newAccount.getID())
+                                                            .findFirst().orElse(null);
+                                                    if (accountNode != null) {
+                                                        Transaction newT = new Transaction(oldT);
+                                                        newT.setAccountID(newAccount.getID());
+                                                        Transaction.ValidationStatus vs = newT.validate();
+                                                        if (vs.isValid()) {
+                                                            mAccountTreeTableView.getSelectionModel().select(accountNode);
+                                                            mainModel.alterTransaction(oldT, newT, new ArrayList<>());
+                                                        } else {
+                                                            DialogUtil.showWarningDialog(getStage(),
+                                                                    "Invalid Transaction",
+                                                                    "Move Cancelled", vs.getMessage());
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
+                                    } catch (DaoException | ModelException e2) {
+                                        logAndDisplayException("Exception " + e2.getClass().getName(), e2);
                                     }
                                 });
                                 agMenu.getItems().add(accountMI);
@@ -1403,12 +1444,12 @@ public class MainController {
                         Transaction mergedTransaction = Transaction.mergeDownloadedTransaction(
                                 selected, downloadedTransaction);
 
-                        // delete downloaded transaction, save mergedTransaction
-                        if (!mMainApp.alterTransaction(downloadedTransaction, mergedTransaction,
-                                mMainApp.getMatchInfoList(mergedTransaction.getID()))) {
-                            DialogUtil.showWarningDialog(null, "Merge Transaction Failed",
-                                    "Failed to merge a downloaded transaction with an existing one",
-                                    "Transactions remained un-merged");
+                        try {
+                            // delete downloaded transaction, save mergedTransaction
+                            mainModel.alterTransaction(downloadedTransaction, mergedTransaction,
+                                    mainModel.getMatchInfoList(mergedTransaction.getID()));
+                        } catch (DaoException | ModelException e1) {
+                            logAndDisplayException("Failed to merge a downloaded transaction", e1);
                         }
                     }
                 });
@@ -1419,12 +1460,12 @@ public class MainController {
                         if (getItem().getStatus().equals(Transaction.Status.RECONCILED)
                                 && !showChangeReconciledConfirmation())
                             return;
-                        if (mMainApp.setTransactionStatusInDB(getItem().getID(), status))
-                            getItem().setStatus(status);
-                        else
-                            DialogUtil.showWarningDialog(null, "Database problem",
-                                    "Unable to change transaction status in DB",
-                                    "Transaction status unchanged.");
+                        try {
+                            mainModel.setTransactionStatus(getItem().getID(), status);
+                        } catch (DaoException | ModelException e1) {
+                            logAndDisplayException("SetTransactionStatus " + getItem().getID() + " " + status
+                                    + " Exception", e1);
+                        }
                     });
                     contextMenu.getItems().add(statusMI);
                 }
@@ -1560,7 +1601,7 @@ public class MainController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(item.signum() == 0 ? "" : MainApp.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(item.signum() == 0 ? "" : MainModel.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }
@@ -1594,7 +1635,7 @@ public class MainController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }

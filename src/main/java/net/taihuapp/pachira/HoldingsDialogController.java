@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -29,16 +29,23 @@ import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import javafx.util.Pair;
 import javafx.util.StringConverter;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public class HoldingsDialogController {
 
-    private MainApp mMainApp;
+    private static final Logger logger = Logger.getLogger(HoldingsDialogController.class);
+
+    private MainModel mainModel;
 
     @FXML
     private AnchorPane mMainPane;
@@ -64,22 +71,31 @@ public class HoldingsDialogController {
     private ListChangeListener<Transaction> mTransactionListChangeListener = null;
 
     private void populateTreeTable() {
-        mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(mMainApp.getRootSecurityHolding()));
-        for (LotHolding l : mMainApp.getSecurityHoldingList()) {
-            TreeItem<LotHolding> t = new TreeItem<>(l);
-            mSecurityHoldingTreeTableView.getRoot().getChildren().add(t);
-            for (LotHolding l1 : ((SecurityHolding) l).getLotInfoList()) {
-                t.getChildren().add(new TreeItem<>(l1));
+        try {
+            mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(new SecurityHolding("Root")));
+            for (LotHolding l : mainModel.computeSecurityHoldings(mainModel.getCurrentAccount().getTransactionList(),
+                    mDatePicker.getValue(), -1)) {
+                TreeItem<LotHolding> t = new TreeItem<>(l);
+                mSecurityHoldingTreeTableView.getRoot().getChildren().add(t);
+                for (LotHolding l1 : ((SecurityHolding) l).getLotInfoList()) {
+                    t.getChildren().add(new TreeItem<>(l1));
+                }
             }
-        }
 
-        // set initial sort order
-        mNameColumn.setSortType(TreeTableColumn.SortType.ASCENDING);
-        mSecurityHoldingTreeTableView.getSortOrder().add(mNameColumn);
+            // set initial sort order
+            mNameColumn.setSortType(TreeTableColumn.SortType.ASCENDING);
+            mSecurityHoldingTreeTableView.getSortOrder().add(mNameColumn);
+        } catch (DaoException e) {
+            final String msg = e.getErrorCode() + " DaoException";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog((Stage) mMainPane.getScene().getWindow(), e.getClass().getName(),
+                    msg, e.toString(), e);
+        }
     }
 
-    void setMainApp(MainApp mainApp) {
-        mMainApp = mainApp;
+    void setMainModel(MainModel mainModel) {
+
+        this.mainModel = mainModel;
 
         // javafx DatePicker aren't aware of edited the value in its TextField,
         // this is a work around
@@ -106,7 +122,7 @@ public class HoldingsDialogController {
                             return null;
                         // format to 6 decimal places
                         DecimalFormat df = new DecimalFormat();
-                        df.setMaximumFractionDigits(MainApp.PRICE_FRACTION_DISP_LEN);
+                        df.setMaximumFractionDigits(MainModel.PRICE_FRACTION_DISPLAY_LEN);
                         df.setMinimumFractionDigits(0);
                         return df.format(object);
                     }
@@ -124,41 +140,43 @@ public class HoldingsDialogController {
                 }) {
                     @Override
                     public void updateItem(BigDecimal item, boolean empty) {
-                        super.updateItem(item, empty);
                         TreeTableRow<LotHolding> treeTableRow = getTreeTableRow();
+                        boolean isTotalOrCash = false;
                         if (treeTableRow != null) {
                             TreeItem<LotHolding> treeItem = treeTableRow.getTreeItem();
                             if (treeItem != null) {
-                                String label = treeItem.getValue().getLabel();
+                                final String label = treeItem.getValue().getLabel();
+                                isTotalOrCash = label.equals("TOTAL") || label.equals("CASH");
                                 setEditable(mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) <= 1
-                                        && !label.equals("TOTAL") && !label.equals("CASH")); // it seems the setEditable need to be called again and again
+                                        && !isTotalOrCash); // it seems the setEditable need to be called again and again
                             }
                         }
+                        if (isTotalOrCash)
+                            super.updateItem(null, empty); // don't show price for TOTAL or CASH
+                        else
+                            super.updateItem(item, empty);
                     }
                 };
             }
         });
         mPriceColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
-        mPriceColumn.setOnEditCommit(e -> {
-            Security security = mMainApp.getSecurityByName(e.getRowValue().getValue().getSecurityName());
+        mPriceColumn.setOnEditCommit(event -> {
+            Security security = mainModel.getSecurity(s -> s.getName()
+                    .equals(event.getRowValue().getValue().getSecurityName())).orElse(null);
             if (security == null)
                 return;
             LocalDate date = mDatePicker.getValue();
-            BigDecimal newPrice = e.getNewValue();
-            if (newPrice == null) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning!");
-                alert.setHeaderText("Bad Input Price, change discarded!");
-                alert.setContentText(""
-                        + "Security Name  : " + security.getName() + "\n"
-                        + "Security Ticker: " + security.getTicker() + "\n"
-                        + "Security ID    : " + security.getID() + "\n"
-                        + "Date           : " + date);
-                alert.showAndWait();
+            BigDecimal newPrice = event.getNewValue();
+            if (newPrice == null || newPrice.signum() < 0) {
+                DialogUtil.showWarningDialog((Stage) mSecurityHoldingTreeTableView.getScene().getWindow(),
+                        "Warning!", "Bad input price, change discarded!",
+                        ""
+                                + "Security Name  : " + security.getName() + System.lineSeparator()
+                                + "Security Ticker: " + security.getTicker() + System.lineSeparator()
+                                + "Security ID    : " + security.getID() + System.lineSeparator()
+                                + "Date           : " + date);
                 return; // don't do anything
             }
-            if (newPrice.signum() < 0)
-                return; // we don't want to anything with bad input (negative price)
             if (newPrice.signum() == 0) {
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Confirmation Dialog");
@@ -174,18 +192,20 @@ public class HoldingsDialogController {
                     return; // don't save, go back
             }
 
-            if (!mMainApp.insertUpdatePriceToDB(security.getID(), security.getTicker(), date, newPrice, 3)) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setHeaderText("Failed to insert/update price:");
-                alert.setContentText("Security Name: " + security.getName() + "\n"
-                        + "Security Ticker: " + security.getTicker() + "\n"
-                        + "Security ID    : " + security.getID() + "\n"
-                        + "Date           : " + date + "\n"
-                        + "Price          : " + newPrice);
-                alert.showAndWait();
-            } else {
-                updateHoldings();
-                mMainApp.updateAccountBalance(security);
+            try {
+                mainModel.mergeSecurityPrices(List.of(new Pair<>(security, new Price(date, newPrice))));
+                populateTreeTable();
+                mainModel.updateAccountBalance(a -> a.hasSecurity(security));
+            } catch (DaoException e) {
+                final String msg = "Failed to merge price: " + System.lineSeparator()
+                        + "Security Name: " + security.getName() + System.lineSeparator()
+                        + "Security Ticker: " + security.getTicker() + System.lineSeparator()
+                        + "Security ID    : " + security.getID() + System.lineSeparator()
+                        + "Date           : " + date + System.lineSeparator()
+                        + "Price          : " + newPrice;
+                logger.error(msg, e);
+                DialogUtil.showExceptionDialog((Stage) mSecurityHoldingTreeTableView.getScene().getWindow(),
+                        e.getClass().getName(), msg, e.toString(), e);
             }
         });
 
@@ -202,7 +222,7 @@ public class HoldingsDialogController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }
@@ -225,7 +245,7 @@ public class HoldingsDialogController {
                         } else {
                             // format
                             DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_DISP_LEN);
+                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
                             df.setMinimumFractionDigits(0);
                             setText(df.format(item));
                         }
@@ -256,25 +276,31 @@ public class HoldingsDialogController {
         mPctReturnColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPctReturnColumn.setComparator(null);
 
-        mDatePicker.setOnAction(event -> updateHoldings());
+        mDatePicker.setOnAction(event -> populateTreeTable());
         mDatePicker.setValue(LocalDate.now());
-        updateHoldings();// setValue doesn't trigger an event, call update manually.
+        populateTreeTable();// setValue doesn't trigger an event, call update manually.
 
         // set a listener on TransactionList
-        mTransactionListChangeListener = c -> updateHoldings();
-        mMainApp.getCurrentAccount().getTransactionList().addListener(mTransactionListChangeListener);
+        mTransactionListChangeListener = c -> populateTreeTable();
+        mainModel.getCurrentAccount().getTransactionList().addListener(mTransactionListChangeListener);
     }
 
-    private void updateHoldings() {
-        mMainApp.setCurrentAccountSecurityHoldingList(mDatePicker.getValue(), 0);
-        populateTreeTable();
-    }
-
-    void close() { mMainApp.getCurrentAccount().getTransactionList().removeListener(mTransactionListChangeListener); }
+    void close() { mainModel.getCurrentAccount().getTransactionList().removeListener(mTransactionListChangeListener); }
 
     @FXML
     private void handleEnterTransaction() {
-        mMainApp.showEditTransactionDialog((Stage) mMainPane.getScene().getWindow(),  null);
-        updateHoldings();
+        final Stage stage = (Stage) mMainPane.getScene().getWindow();
+        final Account account = mainModel.getCurrentAccount();
+        List<Transaction.TradeAction> taList = account.getType().isGroup(Account.Type.Group.INVESTING) ?
+                List.of(Transaction.TradeAction.values()) :
+                List.of(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
+        try {
+            DialogUtil.showEditTransactionDialog(mainModel, stage,null, List.of(account), account, taList);
+            populateTreeTable();
+        } catch (DaoException | IOException e) {
+            final String msg = "showEditTransactionDialog throws " + e.getClass().getName();
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+        }
     }
 }

@@ -258,7 +258,7 @@ public class ReminderTransactionListDialogController {
                     setText("");
                 } else {
                     // format
-                    setText(MainApp.DOLLAR_CENT_FORMAT.format(item));
+                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }

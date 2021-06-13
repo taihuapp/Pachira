@@ -38,6 +38,7 @@
       <w>hiddenflag</w>
       <w>hmac</w>
       <w>incomeflag</w>
+      <w>intinc</w>
       <w>invst</w>
       <w>isdom</w>
       <w>isfwd</w>
@@ -67,6 +68,7 @@
       <w>permutated</w>
       <w>pkcs</w>
       <w>reinvdiv</w>
+      <w>reinvint</w>
       <w>reminderid</w>
       <w>remindertransaction</w>
       <w>remindertransactions</w>

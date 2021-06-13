@@ -55,7 +55,7 @@ public class Transaction {
         // amount, U amount and T amount are always the same.
         BigDecimal tAmount = (isBanking && getTradeAction().equals(TradeAction.WITHDRAW)) ?
                 getAmount().negate() : getAmount();
-        String amountStr = MainApp.DOLLAR_CENT_FORMAT.format(tAmount);
+        String amountStr = MainModel.DOLLAR_CENT_FORMAT.format(tAmount);
         stringBuilder.append("U").append(amountStr).append(EOL);
         stringBuilder.append("T").append(amountStr).append(EOL);
         if (!getStatus().equals(Status.UNCLEARED))

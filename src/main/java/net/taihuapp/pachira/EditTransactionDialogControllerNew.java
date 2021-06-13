@@ -61,14 +61,14 @@ public class EditTransactionDialogControllerNew {
 
     private static final BigDecimalStringConverter DOLLAR_CENT_STRING_CONVERTER = new BigDecimalStringConverter() {
         public String toString(BigDecimal b) {
-            return b == null ? "" : MainApp.DOLLAR_CENT_FORMAT.format(b);
+            return b == null ? "" : MainModel.DOLLAR_CENT_FORMAT.format(b);
         }
         public BigDecimal fromString(String s) {
             if (s == null)
                 return BigDecimal.ZERO;
 
             try {
-                return (BigDecimal) MainApp.DOLLAR_CENT_FORMAT.parse(s);
+                return (BigDecimal) MainModel.DOLLAR_CENT_FORMAT.parse(s);
             } catch (ParseException e) {
                 return BigDecimal.ZERO;
             }

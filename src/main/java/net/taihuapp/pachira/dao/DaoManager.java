@@ -25,9 +25,14 @@ import net.taihuapp.pachira.MainModel;
 import net.taihuapp.pachira.Transaction;
 import org.h2.api.ErrorCode;
 import org.h2.tools.ChangeFileEncryption;
+import org.h2.tools.RunScript;
 
 import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -152,6 +157,50 @@ public class DaoManager {
             } catch (SQLException e) {
                 throw new DaoException(DaoException.ErrorCode.FAIL_TO_ROLLBACK, "rollback failure", e);
             }
+        }
+    }
+
+    /**
+     * create a brand new DB file from scripts in a SQL file
+     * @param sqlFile - input SQL file
+     * @param dbFile - output DB file (with full postfix)
+     * @param password - password for the new DB
+     */
+    public static void importSQLtoDB(final File sqlFile, final File dbFile, final String password)
+            throws IOException, DaoException {
+
+        // We want to create a brand new DB file, remove it if it is there.
+        Files.deleteIfExists(dbFile.toPath());
+
+        final String dbName = dbFile.getAbsolutePath().substring(0,
+                dbFile.getAbsolutePath().length()-getDBPostfix().length());
+
+        try {
+            RunScript.execute(URL_PREFIX + dbName + ";" + CIPHER_CLAUSE, DB_OWNER,
+                    password + " " + password, sqlFile.getAbsolutePath(), null, false);
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_RUN_SCRIPT,
+                    "SQL file: '" + sqlFile.getAbsolutePath() + "', "
+                            + "DB file:  '" + dbFile.getAbsolutePath() + "'", e);
+        }
+    }
+
+    public static void exportDBtoSQL(final File dbFile, final File sqlFile, final String password)
+            throws DaoException, IOException {
+        Path scriptFile = Files.createTempFile("dumpScript", ".sql");
+        Files.write(scriptFile, ("SCRIPT TO '" + sqlFile.getAbsolutePath() + "'").getBytes(StandardCharsets.UTF_8));
+
+        String dbName = dbFile.getAbsolutePath();
+        if (dbName.endsWith(getDBPostfix()))
+            dbName = dbName.substring(0, dbName.length()-getDBPostfix().length());
+
+        try {
+            RunScript.execute(URL_PREFIX + dbName + ";" + CIPHER_CLAUSE,
+                    DB_OWNER, password + " " + password, scriptFile.toString(), null, false);
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_RUN_SCRIPT,
+                    "SQL file: '" + sqlFile.getAbsolutePath() + "', "
+                            + "DB file:  '" + dbFile.getAbsolutePath() + "'", e);
         }
     }
 

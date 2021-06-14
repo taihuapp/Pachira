@@ -571,28 +571,40 @@ public class MainController {
     }
 
     /**
+     * Ask user to select a input or output file
+     * @param title - title to prompt user
+     * @param ef - selecting files for the given extension only.  If null, all files are permitted
+     * @param isNew - if true, create a new file or overwrite an existing file
+     * @return - a file object, or null if user cancelled. The file name may or may not include the extension.
+     */
+    private File getUserFile(final String title, final FileChooser.ExtensionFilter ef, final boolean isNew) {
+        final FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(title);
+
+        if (ef != null)
+            fileChooser.getExtensionFilters().add(ef);
+
+        if (isNew)
+            return fileChooser.showSaveDialog(getStage());
+        else
+            return fileChooser.showOpenDialog(getStage());
+    }
+
+    /**
      * return a file object of database file
      * @param isNew - prompt for a new file if isNew is true, otherwise, prompt a existing file
-     * @return a File object with name ending dbPostfix.  Null is returned if the user cancelled it.
+     * @return a File object. The name always ends with dbPostfix.  Null is returned if the user cancelled it.
      */
     private File getDBFileFromUser(boolean isNew) {
         final String dbPostfix = DaoManager.getDBPostfix();
-        final FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DB", "*" + dbPostfix));
-        
+        final FileChooser.ExtensionFilter ef = new FileChooser.ExtensionFilter("DB", "*" + dbPostfix);
         final String implementationTitle = getClass().getPackage().getImplementationTitle();
-        final File file;
-        Stage stage = getStage();
-        if (isNew) {
-            fileChooser.setTitle("Create a new " + implementationTitle + " database...");
-            file = fileChooser.showSaveDialog(stage);
-        } else {
-            fileChooser.setTitle("Open an existing " + implementationTitle + " database");
-            file = fileChooser.showOpenDialog(stage);
-        }
-        
+        final String title = isNew ? "Create a new " + implementationTitle + " database..." :
+                "Open an existing " + implementationTitle + " database...";
+
+        final File file = getUserFile(title, ef, isNew);
         if (file == null)
-            return null;  // user cancelled
+            return null; // user cancelled
 
         final String fileName = file.getAbsolutePath();
         if (fileName.endsWith(dbPostfix))
@@ -780,12 +792,78 @@ public class MainController {
 
     @FXML
     private void handleSQLToDB() {
-        mMainApp.SQLToDB();
+        // get input SQL file from user
+        final File sqlFile = getUserFile("Select input SQL script file...", null, false);
+        if (sqlFile == null)
+            return; // user cancelled
+
+        if (!sqlFile.exists() || !sqlFile.canRead()) {
+            final String reason = !sqlFile.exists() ? "not exist" : "not readable";
+            DialogUtil.showWarningDialog(getStage(),
+                    "File " + reason, sqlFile.getAbsolutePath() + " " + reason, "Cannot continue");
+            return;
+        }
+
+        // get DB file from user
+        final File dbFile = getDBFileFromUser(true);
+        if (dbFile == null)
+            return;
+
+        if (dbFile.exists()) {
+            if (!DialogUtil.showConfirmationDialog(getStage(), "Confirmation",
+                    "File " + dbFile.getAbsolutePath() + " exists.",
+                    "All content in the file will be overwritten." +
+                            "  Click OK to continue, click Cancel to stop.")) {
+                return; // user cancelled
+            }
+        }
+
+        try {
+            final List<String> passwords = DialogUtil.showPasswordDialog(getStage(),
+                    "Please create new password for " + dbFile.getAbsolutePath(),
+                    PasswordDialogController.MODE.NEW);
+            if (passwords.size() != 2)
+                return;
+
+            DaoManager.importSQLtoDB(sqlFile, dbFile, passwords.get(1));
+            DialogUtil.showInformationDialog(getStage(), "Success!", "import SQL to DB success!",
+                    sqlFile.getAbsolutePath() + " successfully imported to " + dbFile.getAbsolutePath());
+        } catch (IOException | DaoException e) {
+            logAndDisplayException(e.getClass().getName(), e);
+        }
     }
 
     @FXML
     private void handleDBToSQL() {
-        mMainApp.DBToSQL();
+        // get input DB file from user
+        final File dbFile = getUserFile("Select DB File...",
+                new FileChooser.ExtensionFilter("DB", "*" + DaoManager.getDBPostfix()), false);
+        if (dbFile == null)
+            return; // user cancelled
+
+        if (!dbFile.exists() || !dbFile.canExecute()) {
+            final String reason = !dbFile.exists() ? "not exist" : "not readable";
+            DialogUtil.showWarningDialog(getStage(), "File " + reason,
+                    dbFile.getAbsolutePath() + " " + reason, "Cannot continue");
+            return;
+        }
+
+        // get output SQL file from user
+        final File sqlFile = getUserFile("Select output SQL script file...", null, true);
+        if (sqlFile == null)
+            return; // user cancelled
+
+        try {
+            final List<String> passwords = DialogUtil.showPasswordDialog(getStage(),
+                    "Please enter password for " + dbFile.getAbsolutePath(),
+                    PasswordDialogController.MODE.ENTER);
+            if (passwords.size() != 2)
+                return; // user cancelled
+
+            DaoManager.exportDBtoSQL(dbFile, sqlFile, passwords.get(1));
+        } catch (IOException | DaoException e) {
+            logAndDisplayException(e.getClass().getName(), e);
+        }
     }
 
     @FXML

@@ -112,7 +112,7 @@ public class Category {
 
     private ObjectProperty<BigDecimal> getBudgetAmountProperty() { return mBudgetAmountProperty; }
     public BigDecimal getBudgetAmount() { return getBudgetAmountProperty().get(); }
-    void setBudgetAmount(BigDecimal b) { getBudgetAmountProperty().set(b); }
+    public void setBudgetAmount(BigDecimal b) { getBudgetAmountProperty().set(b); }
 
     public String toString() { return "[" + getName() + "," + getDescription() + "]" ;}
 

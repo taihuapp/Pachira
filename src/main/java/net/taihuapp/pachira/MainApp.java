@@ -463,6 +463,7 @@ public class MainApp extends Application {
             getSecurityList().forEach(s -> stringBuilder.append(s.toQIF()));
         }
 
+/*
         if (exportTransaction) {
             stringBuilder.append("!Option:AutoSwitch").append(EOL);
             accountList.forEach(account -> {
@@ -474,6 +475,7 @@ public class MainApp extends Application {
                         .forEach(transaction -> stringBuilder.append(transaction.toQIF(this)));
             });
         }
+*/
 
         if (exportSecurity) {
             // need to export prices if securities are exported.

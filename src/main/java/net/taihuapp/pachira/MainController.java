@@ -839,7 +839,7 @@ public class MainController {
             stage.setTitle("Export to QIF");
             stage.setScene(new Scene(loader.load()));
             ExportQIFDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, stage);
+            controller.setMainModel(mainModel);
             stage.showAndWait();
         } catch (IOException e) {
             logAndDisplayException("IOException when export QIF", e);
@@ -1084,7 +1084,6 @@ public class MainController {
                 mLogger.error("Null controller for ReminderTransactionListDialog");
                 return;
             }
-            //controller.setMainApp(this, dialogStage);
             controller.setMainModel(mainModel);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
@@ -1426,11 +1425,13 @@ public class MainController {
 
         MainApp.CURRENT_DATE_PROPERTY.addListener((obs, ov, nv) -> {
             try {
-                getMainModel().updateAccountBalance((account) -> true);
+                if (getMainModel() != null) {
+                    getMainModel().updateAccountBalance((account) -> true);
+                    mTransactionTableView.refresh();
+                }
             } catch (DaoException e){
                 logAndDisplayException("UpdateAccountBalance Error", e);
             }
-            mTransactionTableView.refresh();
         });
 
         mAccountNameTreeTableColumn.setCellValueFactory(cd -> cd.getValue().getValue().getNameProperty());

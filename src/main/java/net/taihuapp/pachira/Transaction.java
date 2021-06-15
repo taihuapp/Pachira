@@ -39,14 +39,17 @@ import static net.taihuapp.pachira.QIFUtil.*;
 
 public class Transaction {
 
-    String toQIF(MainApp mainApp) {
+    String toQIF(MainModel mainModel) throws ModelException {
 
         final StringBuilder stringBuilder = new StringBuilder();
 
-        final Account account = mainApp.getAccountByID(getAccountID());
+        final Account account = mainModel.getAccount(a -> a.getID() == getAccountID())
+                .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                        "Transaction " + toString() + " has an invalid account ID", null));
         final boolean isBanking = !account.getType().isGroup(Account.Type.Group.INVESTING);
-        final String categoryOrTransferAccountName = mainApp.mapCategoryOrAccountIDToName(getCategoryID());
-        final Tag tag = mainApp.getTagByID(getTagID());
+        final ConverterUtil.CategoryIDConverter converter = new ConverterUtil.CategoryIDConverter(mainModel);
+        final String categoryOrTransferAccountName = converter.toString(getCategoryID());
+        final String tagName = (new ConverterUtil.TagIDConverter(mainModel)).toString(getTagID());
 
 
         // bank transaction
@@ -96,12 +99,12 @@ public class Transaction {
         if (!getMemo().isEmpty())
             stringBuilder.append("M").append(getMemo()).append(EOL);
 
-        if (!categoryOrTransferAccountName.isEmpty() || tag != null) {
+        if (!categoryOrTransferAccountName.isEmpty() || !tagName.isEmpty()) {
             stringBuilder.append("L");
             if (!categoryOrTransferAccountName.isEmpty())
                 stringBuilder.append(categoryOrTransferAccountName);
-            if (tag != null)
-                stringBuilder.append("/").append(tag.getName());
+            if (!tagName.isEmpty())
+                stringBuilder.append("/").append(tagName);
             stringBuilder.append(EOL);
         }
 
@@ -113,7 +116,7 @@ public class Transaction {
                 mLogger.error("Split transactions in INVESTING account are not supported");
             } else {
                 getSplitTransactionList().forEach(s -> {
-                    stringBuilder.append("S").append(mainApp.mapCategoryOrAccountIDToName(s.getCategoryID())).append(EOL);
+                    stringBuilder.append("S").append(converter.toString(s.getCategoryID())).append(EOL);
                     if (!s.getMemo().isEmpty())
                         stringBuilder.append("E").append(s.getMemo()).append(EOL);
                     stringBuilder.append("$").append(s.getAmount()).append(EOL);

@@ -72,6 +72,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static net.taihuapp.pachira.QIFUtil.EOL;
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class MainModel {
@@ -135,6 +136,8 @@ public class MainModel {
     void putClientUID(UUID uuid) throws DaoException {
         daoManager.putClientUID(uuid);
     }
+
+    String getDBFileName() throws DaoException { return daoManager.getDBFileName(); }
 
     void insertUpdateReportSetting(ReportDialogController.Setting setting) throws DaoException {
         ReportSettingDao reportSettingDao =
@@ -1981,6 +1984,66 @@ public class MainModel {
             NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException,
             IllegalBlockSizeException, BadPaddingException {
         return getVault().decrypt(encodedEncryptedSecretWithSaltAndIV);
+    }
+
+    String exportToQIF(boolean exportAccount, boolean exportCategory, boolean exportSecurity,
+                       boolean exportTransaction, LocalDate fromDate, LocalDate toDate, List<Account> accountList)
+            throws DaoException, ModelException {
+        final StringBuilder stringBuilder = new StringBuilder();
+
+        if (exportCategory) {
+            // export Tags first
+            stringBuilder.append("!Type:Tag").append(EOL);
+            getTagList().forEach(t -> stringBuilder.append(t.toQIF()));
+
+            stringBuilder.append("!Type:Cat").append(EOL);
+            getCategoryList().forEach(c -> stringBuilder.append(c.toQIF()));
+        }
+
+        if (exportAccount || accountList.size() > 1) {
+            // need to export account information
+            stringBuilder.append("!Option:AutoSwitch").append(EOL);
+            stringBuilder.append("!Account").append(EOL);
+            getAccountList(a -> !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME))
+                    .forEach(a -> stringBuilder.append(a.toQIF(false)));
+            stringBuilder.append("!Clear:AutoSwitch").append(EOL);
+        }
+
+        if (exportSecurity) {
+            stringBuilder.append("!Type:Security").append(EOL);
+            getSecurityList().forEach(s -> stringBuilder.append(s.toQIF()));
+        }
+
+        if (exportTransaction) {
+            stringBuilder.append("!Option:AutoSwitch").append(EOL);
+            for (Account account : accountList) {
+                stringBuilder.append("!Account").append(EOL);
+                stringBuilder.append(account.toQIF(true));
+                stringBuilder.append("!Type:").append(account.getType().toQIF(true)).append(EOL);
+
+                for (Transaction transaction : account.getTransactionList()) {
+                    if (transaction.getTDate().isBefore(fromDate))
+                        continue;
+                    if (transaction.getTDate().isAfter(toDate))
+                        break;
+                    stringBuilder.append(transaction.toQIF(this));
+                }
+            }
+        }
+
+        if (exportSecurity) {
+            // need to export prices if securities are exported.
+            for (Security s : getSecurityList()) {
+                if (s.getTicker().isEmpty())
+                    continue; // we don't export prices for security without a ticker
+                for (Price p : getSecurityPriceList(s)) {
+                    final String ticker = s.getTicker();
+                    stringBuilder.append(p.toQIF(ticker));
+                }
+            }
+        }
+
+        return stringBuilder.toString();
     }
 
 }

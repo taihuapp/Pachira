@@ -50,9 +50,11 @@ public class CategoryDao extends Dao<Category, Integer> {
 
     @Override
     Category fromResultSet(ResultSet resultSet) throws SQLException, DaoException {
-        return new Category(resultSet.getInt("ID"), resultSet.getString("NAME"),
+        final Category category = new Category(resultSet.getInt("ID"), resultSet.getString("NAME"),
                 resultSet.getString("DESCRIPTION"), resultSet.getBoolean("INCOMEFLAG"),
                 resultSet.getInt("TAXREFNUM"));
+        category.setBudgetAmount(resultSet.getBigDecimal("BUDGETAMOUNT"));
+        return category;
     }
 
     @Override

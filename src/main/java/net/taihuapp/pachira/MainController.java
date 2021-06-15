@@ -21,6 +21,7 @@
 package net.taihuapp.pachira;
 
 import com.webcohesion.ofx4j.OFXException;
+import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
 import com.webcohesion.ofx4j.domain.data.common.TransactionType;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -35,12 +36,14 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.HPos;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -762,7 +765,60 @@ public class MainController {
     }
 
     @FXML
-    private void handleImportOFXAccountStatement() { mMainApp.importOFXAccountStatement(); }
+    private void handleImportOFXAccountStatement() {
+        final FileChooser.ExtensionFilter ef = new FileChooser.ExtensionFilter("OFX files",
+                Arrays.asList("*.ofx", "*.OFX"));
+        final File file = getUserFile("Import OFX Account Statement File...", ef, false);
+        if (file == null)
+            return; // user cancelled
+
+        try {
+            BankStatementResponse statement = mainModel.readOFXStatement(file);
+
+            // show confirmation dialog
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            GridPane gridPane = new GridPane();
+            gridPane.setHgap(10);
+            gridPane.setVgap(10);
+            gridPane.setMaxWidth(Double.MAX_VALUE);
+            gridPane.add(new Label("Routing Number"), 1, 0);
+
+            Label accountNumber = new Label("Account Number");
+            accountNumber.setTextAlignment(TextAlignment.RIGHT);
+            gridPane.add(accountNumber, 2, 0);
+
+            gridPane.add(new Label("Current Account"), 0, 1);
+            gridPane.add(new Label("routing #"), 1, 1);
+
+            Label currentAccountNumber = new Label("account #");
+            currentAccountNumber.setTextAlignment(TextAlignment.RIGHT);
+            gridPane.add(currentAccountNumber, 2, 1);
+
+            gridPane.add(new Label("Import Info"), 0, 2);
+            gridPane.add(new Label(statement.getAccount().getBankId()), 1, 2);
+            Label importAccountNumber = new Label(statement.getAccount().getAccountNumber());
+            importAccountNumber.setTextAlignment(TextAlignment.RIGHT);
+            gridPane.add(importAccountNumber, 2, 2);
+
+            GridPane.setHalignment(accountNumber, HPos.RIGHT);
+            GridPane.setHalignment(currentAccountNumber, HPos.RIGHT);
+            GridPane.setHalignment(importAccountNumber, HPos.RIGHT);
+
+            alert.getDialogPane().setContent(gridPane);
+            alert.setTitle("Confirmation");
+            int nTrans = statement.getTransactionList().getTransactions().size();
+            alert.setHeaderText("Do you want to import " + nTrans + " transactions?");
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isEmpty() || result.get() != ButtonType.OK)
+                return;
+
+            mainModel.importAccountStatement(mainModel.getCurrentAccount(), statement);
+
+        } catch (DaoException | ModelException | IOException e) {
+            logAndDisplayException(e.getClass().getName(), e);
+        }
+    }
 
     @FXML
     private void handleImportQIF() {

@@ -30,10 +30,12 @@ import com.webcohesion.ofx4j.client.impl.FinancialInstitutionImpl;
 import com.webcohesion.ofx4j.client.net.OFXV1Connection;
 import com.webcohesion.ofx4j.domain.data.banking.AccountType;
 import com.webcohesion.ofx4j.domain.data.banking.BankAccountDetails;
+import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
 import com.webcohesion.ofx4j.domain.data.common.TransactionType;
 import com.webcohesion.ofx4j.domain.data.creditcard.CreditCardAccountDetails;
 import com.webcohesion.ofx4j.domain.data.investment.accounts.InvestmentAccountDetails;
 import com.webcohesion.ofx4j.domain.data.signup.AccountProfile;
+import com.webcohesion.ofx4j.io.OFXParseException;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -51,6 +53,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -851,7 +854,7 @@ public class MainModel {
             t.setBalance(totalCash);
 
             if ((t.getTDate().equals(date) && t.getID() == exTid) || t.getTDate().isAfter(date))
-                break;
+                continue;
 
             String name = t.getSecurityName();
             if (name != null && !name.isEmpty()) {
@@ -1796,9 +1799,32 @@ public class MainModel {
         }
     }
 
+
+    /**
+     * read account statement from OFX file
+     * @param file - input ofx file
+     * @return BankStatementResponse
+     * @throws IOException - from open input file
+     * @throws ModelException - from OFX parse
+     */
+    BankStatementResponse readOFXStatement(final File file) throws IOException, ModelException {
+        final OFXBankStatementReader reader = new OFXBankStatementReader();
+        try {
+            final BankStatementResponse statement = reader.readOFXStatement(new FileInputStream(file));
+
+            final String warning = reader.getWarning();
+            if (warning != null)
+                logger.warn("readOFXStatement " + file.getAbsolutePath() + " warning: "
+                        + System.lineSeparator() + warning);
+            return statement;
+        } catch (OFXParseException e) {
+            throw new ModelException(ModelException.ErrorCode.OFX_PARSE_EXCEPTION,
+                    "OFX parse exception on " + file.getAbsolutePath(), e);
+        }
+    }
+
     // Banking transaction logic is currently coded in.
-    private Set<TransactionType> importAccountStatement(Account account, AccountStatement statement)
-            throws DaoException {
+    Set<TransactionType> importAccountStatement(Account account, AccountStatement statement) throws DaoException {
         if (statement.getTransactionList() == null)
             return Collections.emptySet();  // didn't download any transaction, do nothing
 

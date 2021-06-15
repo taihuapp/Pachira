@@ -46,9 +46,13 @@ public class ModelException extends Exception {
          */
         ACCOUNT_NO_DC,
         /**
-         *
+         * invalid account dc
          */
-        INVALID_ACCOUNT_DC
+        INVALID_ACCOUNT_DC,
+        /**
+         * OFX parse exception
+         */
+        OFX_PARSE_EXCEPTION
     }
 
     private final ErrorCode errorCode;

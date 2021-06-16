@@ -160,6 +160,44 @@ public class TransactionDao extends Dao<Transaction, Integer> {
     }
 
     @Override
+    public Integer insert(Transaction t) throws DaoException {
+        DaoManager daoManager = DaoManager.getInstance();
+        try {
+            daoManager.beginTransaction();
+            int n = super.insert(t);
+            pairTidSplitTransactionListDao.insert(new Pair<>(n, t.getSplitTransactionList()));
+            daoManager.commit();
+            return n;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public int update(Transaction t) throws DaoException {
+        DaoManager daoManager = DaoManager.getInstance();
+        try {
+            daoManager.beginTransaction();
+            pairTidSplitTransactionListDao.update(new Pair<>(t.getID(), t.getSplitTransactionList()));
+            int n = super.update(t);
+            daoManager.commit();
+            return n;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    @Override
     public int delete(Integer tid) throws DaoException {
         DaoManager daoManager = DaoManager.getInstance();
         try {

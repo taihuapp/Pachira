@@ -80,6 +80,8 @@ public class SplitTransaction {
     void setMatchID(int mid) { mMatchID = mid; }
     void setMemo(String memo) { getMemoProperty().set(memo); }
     void setAmount(BigDecimal amount) { getAmountProperty().set(amount); }
+    public void setCategoryID(int cid) { mCategoryIDProperty.set(cid); }
+    public void setTagID(int tid) { mTagIDProperty.set(tid); }
 
     boolean isTransfer(int exAid) {
         int cid = getCategoryID();

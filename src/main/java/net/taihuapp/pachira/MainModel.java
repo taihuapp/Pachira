@@ -1986,6 +1986,272 @@ public class MainModel {
         return getVault().decrypt(encodedEncryptedSecretWithSaltAndIV);
     }
 
+    // given a date, an originating accountID, and receiving accountid, and the amount of cash flow
+    // find a matching transaction in a sorted list
+    // return the index of matching transaction in tList
+    // return -1 if no match found or t is a split transaction
+    // tList is sorted according to the date, reverse(isSplit), accountid
+    // transactions with getMatchID > 0 will not be considered.
+    private int findMatchingTransaction(LocalDate date, int fromAccountID, int toAccountID, BigDecimal cashFlow,
+                                List<Transaction> tList) {
+        for (int j = 0; j < tList.size(); j++) {
+            Transaction t1 = tList.get(j);
+            if (t1.getTDate().isBefore(date) || (t1.getAccountID() < toAccountID) || t1.isSplit())
+                continue;
+
+            if ((t1.getAccountID() > toAccountID) || t1.getTDate().isAfter(date)) {
+                // pass the date or the account ID
+                return -1;
+            }
+            if (!t1.isTransfer() || (t1.getMatchID() > 0))
+                continue;
+            if ((fromAccountID == -t1.getCategoryID()) && (cashFlow.add(t1.cashTransferAmount()).signum() == 0))
+                return j;
+        }
+        return -1;
+    }
+
+    private void fixDB() throws DaoException {
+        // load all transactions
+        final SortedList<Transaction> sortedList = new SortedList<>(transactionList,
+                Comparator.comparing(Transaction::getTDate)
+                        .reversed().thenComparing(Transaction::isSplit).reversed()  // put split first
+                        .thenComparing(Transaction::getAccountID));
+        final int nTrans = sortedList.size();
+        logger.info("Total " + nTrans + " transactions");
+
+        if (nTrans == 0)
+            return; // nothing to do
+
+        final List<Transaction> updateList = new ArrayList<>();  // transactions needs to be updated in DB
+        final List<Transaction> unMatchedList = new ArrayList<>(); // (partially) unmatched transactions
+
+        for (int i = 0; i < nTrans; i++) {
+            Transaction t0 = sortedList.get(i);
+            if (t0.isSplit()) {
+                boolean needUpdate = false;
+                int unMatched = 0;
+                for (int s = 0; s < t0.getSplitTransactionList().size(); s++) {
+                    // loop through split transaction list
+                    SplitTransaction st = t0.getSplitTransactionList().get(s);
+                    if (!st.isTransfer(t0.getAccountID()) || (st.getMatchID() > 0)) {
+                        // either not a transfer, or already matched
+                        continue;
+                    }
+
+                    // transfer split transaction
+                    unMatched++;  // we've seen a unmatched
+                    boolean modeAgg = false; // default not aggregate
+                    int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
+                            st.getAmount(), sortedList.subList(i+1, nTrans));
+                    if (matchIdx < 0) {
+                        // didn't find match, it's possible more than one split transaction transferring
+                        // to the same account, the receiving account aggregates all into one transaction.
+                        modeAgg = true; // try aggregate mode
+                        logger.debug("Aggregate mode");
+                        BigDecimal cf = BigDecimal.ZERO;
+                        for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
+                            SplitTransaction st1 = t0.getSplitTransactionList().get(s1);
+                            if (st1.getCategoryID().equals(st.getCategoryID()))
+                                cf = cf.add(st1.getAmount());
+                        }
+                        matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -st.getCategoryID(),
+                                cf, sortedList.subList(i+1, nTrans));
+                    }
+                    if (matchIdx >= 0) {
+                        // found a match
+                        needUpdate = true;
+                        unMatched--;
+                        Transaction t1 = sortedList.get(i+1+matchIdx);
+                        if (modeAgg) {
+                            // found a match via modeAgg
+                            for (int s1 = s; s1 < t0.getSplitTransactionList().size(); s1++) {
+                                SplitTransaction st1 = t0.getSplitTransactionList().get(s1);
+                                if (st1.getCategoryID().equals(st.getCategoryID()))
+                                    st1.setMatchID(t1.getID());
+                            }
+                        } else {
+                            st.setMatchID(t1.getID());
+                        }
+                        t1.setMatchID(t0.getID(), st.getID());
+                        updateList.add(t1);
+                    }
+                }
+                if (needUpdate) {
+                    updateList.add(t0);
+                }
+                if (unMatched != 0) {
+                    unMatchedList.add(t0);
+                }
+            } else {
+                // single transaction
+                // loop through the remaining transaction for the same day
+                if (!t0.isTransfer() || (t0.getMatchID() > 0)) {
+                    continue;
+                }
+                int matchIdx = findMatchingTransaction(t0.getTDate(), t0.getAccountID(), -t0.getCategoryID(),
+                        t0.cashTransferAmount(), sortedList.subList(i+1, nTrans));
+                if (matchIdx >= 0) {
+                    Transaction t1 = sortedList.get(i+1+matchIdx);
+                    t0.setMatchID(t1.getID(), -1);
+                    t1.setMatchID(t0.getID(), -1);
+                    updateList.add(t0);
+                    updateList.add(t1);
+                } else {
+                    unMatchedList.add(t0);
+                }
+            }
+        }
+
+        int cnt = 0;
+        try {
+            daoManager.beginTransaction();
+            TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
+            for (Transaction t : updateList) {
+                    transactionDao.update(t);
+                    cnt++;
+            }
+            daoManager.commit();
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+
+        String message = "Total " + nTrans + " transactions processed." + "\n"
+                + "Found " + updateList.size() + " matching transactions." + "\n"
+                + "Updated " + cnt + " transactions." + "\n"
+                + "Remain " + unMatchedList.size() + " unmatched transactions.";
+
+        logger.info(message);
+    }
+
+    void importFromQIF(File file, String defaultAccountName) throws IOException, ModelException, DaoException {
+        final QIFParser qifParser = new QIFParser(defaultAccountName);
+        if (qifParser.parseFile(file) < 0)
+            throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION,
+                    file.getAbsolutePath(), null);
+
+        daoManager.beginTransaction();
+        try {
+            final AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
+            for (Account account : qifParser.getAccountList()) {
+                accountDao.insert(account);
+            }
+            initAccountList();
+
+            final SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
+            for (Security security : qifParser.getSecurityList()) {
+                securityDao.insert(security);
+            }
+            initSecurityList();
+
+            final Map<String, Security> tickerSecurityMap = new HashMap<>();
+
+            final CategoryDao categoryDao = (CategoryDao) daoManager.getDao(DaoManager.DaoType.CATEGORY);
+            for (Category category : qifParser.getCategorySet()) {
+                categoryDao.insert(category);
+            }
+            categoryList.setAll(categoryDao.getAll());
+
+            final TagDao tagDao = (TagDao) daoManager.getDao(DaoManager.DaoType.TAG);
+            for (Tag tag : qifParser.getTagSet()) {
+                tagDao.insert(tag);
+            }
+            tagList.setAll(((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).getAll());
+
+            Map<String, Integer> categoryNameIDMap = new HashMap<>();
+            getCategoryList().forEach(c -> categoryNameIDMap.put(c.getName(), c.getID()));
+            getAccountList(a -> true).forEach(a -> categoryNameIDMap.put("[" + a.getName() + "]", -a.getID()));
+            for (Map.Entry<String, List<Transaction>> entry : qifParser.getCategoryNameTransactionMap().entrySet()) {
+                final int categoryID = categoryNameIDMap.getOrDefault(entry.getKey(), 0);
+                entry.getValue().forEach(t -> t.setCategoryID(categoryID));
+            }
+
+            for (Map.Entry<String, List<SplitTransaction>> entry :
+                    qifParser.getCategoryNameSplitTransactionMap().entrySet()) {
+                final int categoryID = categoryNameIDMap.getOrDefault(entry.getKey(), 0);
+                entry.getValue().forEach(st -> st.setCategoryID(categoryID));
+            }
+
+            Map<String, Integer> tagNameIDMap = new HashMap<>();
+            getTagList().forEach(t -> tagNameIDMap.put(t.getName(), t.getID()));
+            for (Map.Entry<String, List<Transaction>> entry : qifParser.getTagNameTransactionMap().entrySet()) {
+                final int tagID = tagNameIDMap.getOrDefault(entry.getKey(), 0);
+                entry.getValue().forEach(t -> t.setTagID(tagID));
+            }
+
+            for (Map.Entry<String, List<SplitTransaction>> entry :
+                    qifParser.getTagNameSplitTransactionMap().entrySet()) {
+                final int tagID = tagNameIDMap.getOrDefault(entry.getKey(), 0);
+                entry.getValue().forEach(st -> st.setTagID(tagID));
+            }
+
+            TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
+            Map<String, Integer> accountNameIDMap = new HashMap<>();
+            getAccountList(a -> true).forEach(a -> accountNameIDMap.put(a.getName(), a.getID()));
+            Map<String, List<Transaction>> accountNameTransactionMap = qifParser.getAccountNameTransactionMap();
+            Map<String, Security> securityNameMap = new HashMap<>();
+            getSecurityList().forEach(security -> securityNameMap.put(security.getName(), security));
+            List<Pair<Security, Price>> tradePriceList = new ArrayList<>();
+            for (Map.Entry<String, List<Transaction>> entry : accountNameTransactionMap.entrySet()) {
+                final int accountID = accountNameIDMap.getOrDefault(entry.getKey(), 0);
+                if (accountID <= 0)
+                    throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                            "Bad account name " + entry.getKey(), null);
+                for (Transaction t : entry.getValue()) {
+                    t.setAccountID(accountID);
+                    transactionDao.insert(t);
+
+                    // save trade price
+                    Security security = securityNameMap.get(t.getSecurityName());
+                    if (security != null) {
+                        BigDecimal p = t.getPrice();
+                        LocalDate d = t.getTDate();
+                        if (p != null && p.signum() > 0) {
+                            tradePriceList.add(new Pair<>(security, new Price(d, p)));
+                        }
+                    }
+                }
+            }
+
+            SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
+            securityPriceDao.mergePricesToDB(tradePriceList); // need to add trade price before the other prices
+
+            // save imported prices last
+            final List<Pair<Security, Price>> priceList = new ArrayList<>();
+            for (Pair<String, Price> ticker_price : qifParser.getPriceList()) {
+                final String ticker = ticker_price.getKey();
+                final Price p = ticker_price.getValue();
+                final Security security = tickerSecurityMap.computeIfAbsent(ticker,
+                        k -> getSecurity(s -> s.getTicker().equals(ticker)).orElse(null));
+                if (security == null)
+                    throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION, "Bad ticker " + ticker, null);
+                priceList.add(new Pair<>(security, p));
+            }
+            securityPriceDao.mergePricesToDB(priceList);  // this may over write trade prices
+
+            daoManager.commit();
+
+            // reload transaction list
+            initTransactionList();
+            initAccountList();
+
+            // link up linked transactions
+            fixDB();
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
     String exportToQIF(boolean exportAccount, boolean exportCategory, boolean exportSecurity,
                        boolean exportTransaction, LocalDate fromDate, LocalDate toDate, List<Account> accountList)
             throws DaoException, ModelException {

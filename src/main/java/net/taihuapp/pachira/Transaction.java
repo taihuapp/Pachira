@@ -467,7 +467,7 @@ public class Transaction {
     public String getSecurityName() { return mSecurityNameProperty.get();}
     public BigDecimal getCashAmount() { return getCashAmountProperty().get(); }
     public BigDecimal getInvestAmount() { return getInvestAmountProperty().get(); }
-    List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
+    public List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
     public boolean isSplit() { return !getSplitTransactionList().isEmpty(); }
     public BigDecimal getAmount() { return mAmountProperty.get(); }
     BigDecimal getPayment() { return mPaymentProperty.get(); }
@@ -617,8 +617,7 @@ public class Transaction {
     void setSplitTransactionList(List<SplitTransaction> stList) {
         mSplitTransactionList.clear();
         if (stList != null)
-            for (SplitTransaction st : stList)
-                mSplitTransactionList.add(new SplitTransaction(st));
+            mSplitTransactionList.addAll(stList);
     }
 
     // minimum constructor

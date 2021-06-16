@@ -52,7 +52,11 @@ public class ModelException extends Exception {
         /**
          * OFX parse exception
          */
-        OFX_PARSE_EXCEPTION
+        OFX_PARSE_EXCEPTION,
+        /**
+         * QIF parse exception
+         */
+        QIF_PARSE_EXCEPTION
     }
 
     private final ErrorCode errorCode;

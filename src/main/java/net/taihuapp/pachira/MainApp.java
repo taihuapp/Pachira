@@ -50,7 +50,10 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.HPos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
@@ -1371,6 +1374,7 @@ public class MainApp extends Application {
     // take a transaction id, and a list of split BT, insert the list of bt into database
     // return the number of splitBT inserted, which should be same as the length of
     // the input list
+/*
     private int insertSplitBTToDB(int btID, List<QIFParser.BankTransaction.SplitBT> splitBTList) {
         int cnt = 0;
 
@@ -1393,6 +1397,7 @@ public class MainApp extends Application {
         }
         return cnt;
     }
+*/
 
     // return the inserted rowID, -1 if error.
     private int insertAddressToDB(List<String> address) {
@@ -1466,6 +1471,7 @@ public class MainApp extends Application {
 
     // insert transaction to database and returns rowID
     // return -1 if failed
+/*
     private int insertTransactionToDB(QIFParser.BankTransaction bt) throws SQLException {
         int rowID = -1;
         String accountName = bt.getAccountName();
@@ -1565,9 +1571,11 @@ public class MainApp extends Application {
 
         return rowID;
     }
+*/
 
     // insert trade transaction to database and returns rowID
     // return -1 if failed
+/*
     private int insertTransactionToDB(QIFParser.TradeTransaction tt) throws SQLException {
         int rowID = -1;
         Account account = getAccountByName(tt.getAccountName());
@@ -1635,6 +1643,7 @@ public class MainApp extends Application {
         connection.setAutoCommit(true);
         return rowID;
     }
+*/
 
     private void insertCategoryToDB(Category category) {
         String sqlCmd;
@@ -3342,6 +3351,7 @@ public class MainApp extends Application {
         }
     }
     // import data from QIF file
+/*
     void importQIF() {
         ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
         accountChoiceDialog.getItems().add("");
@@ -3369,7 +3379,7 @@ public class MainApp extends Application {
             if (qifParser.parseFile(file) < 0) {
                 mLogger.error("Failed to parse " + file);
             }
-        } catch (IOException e) {
+        } catch (IOException | ModelException e) {
             mLogger.error("IOException", e);
         }
 
@@ -3432,6 +3442,7 @@ public class MainApp extends Application {
         // linkup transferring transactions
         fixDB();
     }
+*/
 
     // todo need to handle error gracefully
     String doBackup() {
@@ -5528,7 +5539,7 @@ public class MainApp extends Application {
             loader.setLocation(MainApp.class.getResource("/view/MainLayout.fxml"));
             mPrimaryStage.setScene(new Scene(loader.load()));
             mPrimaryStage.show();
-            ((MainController) loader.getController()).setMainApp(this);
+            //((MainController) loader.getController()).setMainApp(this);
         } catch (IOException e) {
             mLogger.error("IOException", e);
         }

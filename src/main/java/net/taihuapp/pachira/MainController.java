@@ -70,6 +70,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 public class MainController {
 
@@ -79,7 +80,6 @@ public class MainController {
     private static final int MAX_OPENED_DB_HIST = 5; // keep max 5 opened files
     private static final String KEY_OPENED_DB_PREFIX = "OPENEDDB#";
 
-    private MainApp mMainApp;
     private MainModel mainModel = null;
 
     @FXML
@@ -171,11 +171,8 @@ public class MainController {
     @FXML
     private TextField mSearchTextField;
 
-    void setMainApp(MainApp mainApp) {
-        mMainApp = mainApp;
-    }
-
     private MainModel getMainModel() { return mainModel; }
+
     private void setMainModel(MainModel m) {
         mainModel = m;
 
@@ -822,8 +819,35 @@ public class MainController {
 
     @FXML
     private void handleImportQIF() {
-        mMainApp.importQIF();
-        mMainApp.initAccountList();
+        final ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
+        accountChoiceDialog.getItems().addAll(mainModel.getAccountList(a ->
+                !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME)).stream()
+                .map(Account::getName).collect(Collectors.toList()));
+
+        accountChoiceDialog.setTitle("Importing...");
+        accountChoiceDialog.setHeaderText("Default account for transactions:");
+        accountChoiceDialog.setContentText("Select default account");
+        final Optional<String> result = accountChoiceDialog.showAndWait();
+
+
+        final FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("QIF",
+                Arrays.asList("*.qif", "*.QIF")));
+        if (result.isPresent())
+            fileChooser.setTitle("Import QIF file for default account: " + result.get());
+        else
+            fileChooser.setTitle("Import QIF file...");
+        final File file = fileChooser.showOpenDialog(getStage());
+        if (file == null)
+            return; // user cancelled
+
+        try {
+            mainModel.importFromQIF(file, result.orElse(""));
+        } catch (DaoException | ModelException | IOException e) {
+            final String msg = e.getClass().getName() + " exception when importing QIF file";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+        }
     }
 
     @FXML

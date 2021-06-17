@@ -235,8 +235,7 @@ public class MainController {
         root.setExpanded(true);
         mAccountTreeTableView.setRoot(root);
 
-        MainModel mainModel = getMainModel();
-        if (mainModel == null)
+        if (getMainModel() == null)
             return;
 
         ObservableList<Account> groupAccountList = FXCollections.observableArrayList(account ->
@@ -250,7 +249,7 @@ public class MainController {
             groupAccountList.add(groupAccount);
             TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
             typeNode.setExpanded(true);
-            final ObservableList<Account> accountList = mainModel.getAccountList(g, false, true);
+            final ObservableList<Account> accountList = getMainModel().getAccountList(g, false, true);
             for (Account a : accountList) {
                 typeNode.getChildren().add(new TreeItem<>(a));
             }
@@ -332,12 +331,12 @@ public class MainController {
     @FXML
     private void downloadAccountTransactions() {
         try {
-            if (!mainModel.hasMasterPasswordInKeyStore()) {
+            if (!getMainModel().hasMasterPasswordInKeyStore()) {
                 List<String> passwords = DialogUtil.showPasswordDialog(getStage(),
                         "Enter Vault Master Password", PasswordDialogController.MODE.ENTER);
                 if (passwords.isEmpty())
                     return; // user cancelled, do nothing
-                if (passwords.size() != 2 || !mainModel.verifyMasterPassword(passwords.get(1))) {
+                if (passwords.size() != 2 || !getMainModel().verifyMasterPassword(passwords.get(1))) {
                     // either didn't enter master password or failed to enter a correct one
                     DialogUtil.showWarningDialog(getStage(), "Download Account Transactions",
                             "Failed to input correct Master Password",
@@ -355,7 +354,7 @@ public class MainController {
         }
 
         try {
-            Set<TransactionType> untested = mainModel.DCDownloadAccountStatement(mainModel.getCurrentAccount());
+            Set<TransactionType> untested = getMainModel().DCDownloadAccountStatement(getMainModel().getCurrentAccount());
             if (!untested.isEmpty()) {
                 StringBuilder context = new StringBuilder();
                 for (TransactionType tt : untested)
@@ -375,12 +374,12 @@ public class MainController {
     @FXML
     private void setAccountDirectConnection() {
         try {
-            if (!mainModel.hasMasterPasswordInKeyStore()) {
+            if (!getMainModel().hasMasterPasswordInKeyStore()) {
                 List<String> passwords = DialogUtil.showPasswordDialog(getStage(),
                         "Enter Vault Master Password", PasswordDialogController.MODE.ENTER);
                 if (passwords.isEmpty())
                     return; // user cancelled, do nothing
-                if (passwords.size() != 2 || !mainModel.verifyMasterPassword(passwords.get(1))) {
+                if (passwords.size() != 2 || !getMainModel().verifyMasterPassword(passwords.get(1))) {
                     // either didn't enter master password or failed to enter a correct one
                     DialogUtil.showWarningDialog(getStage(), "Edit Direct Connection",
                             "Failed to input correct Master Password",
@@ -408,8 +407,8 @@ public class MainController {
             dialogStage.setScene(new Scene(loader.load()));
 
             EditAccountDirectConnectionDialogController controller = loader.getController();
-            Account a = mainModel.getCurrentAccount();
-            AccountDC adc = mainModel.getAccountDC(a.getID()).orElseGet(() -> {
+            Account a = getMainModel().getCurrentAccount();
+            AccountDC adc = getMainModel().getAccountDC(a.getID()).orElseGet(() -> {
                 java.util.Date lastDownloadDate;
                 LocalDate lastReconcileDate = a.getLastReconcileDate();
                 if (lastReconcileDate == null)
@@ -419,7 +418,7 @@ public class MainController {
                             .atZone(ZoneId.systemDefault()).toInstant());
                 return new AccountDC(a.getID(), "", 0, "", "", lastDownloadDate, null);
             });
-            controller.setMainModel(mainModel, adc);
+            controller.setMainModel(getMainModel(), adc);
             dialogStage.showAndWait();
         } catch (DaoException | IOException e) {
             logAndDisplayException(e.getClass().getName() + " when opening EditAccountDirectConnectionDialog", e);
@@ -445,7 +444,7 @@ public class MainController {
         }
 
         try {
-            mainModel.deleteMasterPassword();
+            getMainModel().deleteMasterPassword();
             DialogUtil.showInformationDialog(getStage(),"Delete Master Password",
                     "Delete Master Password Successful",
                     "Master password successfully deleted");
@@ -482,7 +481,7 @@ public class MainController {
         try {
             String title, header, content;
             if (isUpdate) {
-                if (mainModel.updateMasterPassword(passwords.get(0), passwords.get(1))) {
+                if (getMainModel().updateMasterPassword(passwords.get(0), passwords.get(1))) {
                     title = "Update Master Password";
                     header = "Update master password successful";
                     content = "Master password successfully updated.";
@@ -492,7 +491,7 @@ public class MainController {
                     content = "Current password doesn't match.  Master password is not updated";
                 }
             } else {
-                mainModel.setMasterPassword(passwords.get(1));
+                getMainModel().setMasterPassword(passwords.get(1));
                 title = "Create Master Password";
                 header = "Create master password successful";
                 content = "Master password successfully created";
@@ -530,7 +529,7 @@ public class MainController {
         dialogStage.showAndWait();
         Transaction t = srd.getSelectedTransaction();
         if (t != null) {
-            Account a = mainModel.getAccount(account -> account.getID() == t.getAccountID()).orElse(null);
+            Account a = getMainModel().getAccount(account -> account.getID() == t.getAccountID()).orElse(null);
             if (a == null) {
                 logAndDisplayException("Invalid account id " + t.getAccountID() + " for Transaction " + t.getID(), null);
                 return;
@@ -563,7 +562,8 @@ public class MainController {
     @FXML
     private void handleClose() {
         try {
-            DaoManager.getInstance().closeConnection();
+            if (getMainModel() != null)
+                getMainModel().close();
             getStage().close();
         } catch (DaoException e) {
             logAndDisplayException("Failed to close connection", e);
@@ -661,8 +661,7 @@ public class MainController {
         CompletableFuture.supplyAsync(() -> {
             MainModel model = null;
             try {
-                DaoManager.getInstance().openConnection(dbName, passwords.get(1), isNew);
-                model = new MainModel();
+                model = new MainModel(dbName, passwords.get(1), isNew);
             } catch (DaoException | ModelException e) {
                 Platform.runLater(() -> logAndDisplayException("Failed to open connection or init MainModel", e));
             }
@@ -702,19 +701,23 @@ public class MainController {
 
     @FXML
     private void handleChangePassword() {
+        if (mainModel == null) {
+            mLogger.error("backup called with null mainModel");
+            return;
+        }
+
         final Stage stage = getStage();
-        DaoManager daoManager = DaoManager.getInstance();
         String dbName = null;
         String backupDBFileName = null;
         try {
-            dbName = daoManager.getDBFileName();
+            dbName = getMainModel().getDBFileName();
             final List<String> passwords = DialogUtil.showPasswordDialog(stage, "Change password for " + dbName,
                     PasswordDialogController.MODE.CHANGE);
             if (passwords.size() != 2)
                 return; // action cancelled
 
-            backupDBFileName = daoManager.backup();
-            daoManager.changeDBPassword(passwords);
+            backupDBFileName = getMainModel().backup();
+            getMainModel().changeDBPassword(passwords);
             DialogUtil.showInformationDialog(stage, "Success", "Password change successful!", "");
         } catch (DaoException e) {
             final String msg;
@@ -744,7 +747,7 @@ public class MainController {
             return;  // user cancelled it
 
         try {
-            Pair<List<Pair<Security, Price>>, List<String[]>> outputPair = mainModel.importPrices(file);
+            Pair<List<Pair<Security, Price>>, List<String[]>> outputPair = getMainModel().importPrices(file);
             List<Pair<Security, Price>> priceList = outputPair.getKey();
             List<String[]> rejectLines = outputPair.getValue();
             StringBuilder message = new StringBuilder();
@@ -770,7 +773,7 @@ public class MainController {
             return; // user cancelled
 
         try {
-            BankStatementResponse statement = mainModel.readOFXStatement(file);
+            BankStatementResponse statement = getMainModel().readOFXStatement(file);
 
             // show confirmation dialog
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -810,7 +813,7 @@ public class MainController {
             if (result.isEmpty() || result.get() != ButtonType.OK)
                 return;
 
-            mainModel.importAccountStatement(mainModel.getCurrentAccount(), statement);
+            getMainModel().importAccountStatement(getMainModel().getCurrentAccount(), statement);
 
         } catch (DaoException | ModelException | IOException e) {
             logAndDisplayException(e.getClass().getName(), e);
@@ -820,7 +823,7 @@ public class MainController {
     @FXML
     private void handleImportQIF() {
         final ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
-        accountChoiceDialog.getItems().addAll(mainModel.getAccountList(a ->
+        accountChoiceDialog.getItems().addAll(getMainModel().getAccountList(a ->
                 !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME)).stream()
                 .map(Account::getName).collect(Collectors.toList()));
 
@@ -842,7 +845,7 @@ public class MainController {
             return; // user cancelled
 
         try {
-            mainModel.importFromQIF(file, result.orElse(""));
+            getMainModel().importFromQIF(file, result.orElse(""));
         } catch (DaoException | ModelException | IOException e) {
             final String msg = e.getClass().getName() + " exception when importing QIF file";
             mLogger.error(msg, e);
@@ -863,7 +866,7 @@ public class MainController {
             stage.setTitle("Export to QIF");
             stage.setScene(new Scene(loader.load()));
             ExportQIFDialogController controller = loader.getController();
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             stage.showAndWait();
         } catch (IOException e) {
             logAndDisplayException("IOException when export QIF", e);
@@ -949,7 +952,7 @@ public class MainController {
     @FXML
     private void handleBackup() {
         try {
-            final String backupDBFileName = DaoManager.getInstance().backup();
+            final String backupDBFileName = getMainModel().backup();
             DialogUtil.showInformationDialog(getStage(), "Information", "Backup Successful",
                     "Current database was successfully saved to " + backupDBFileName);
         } catch (DaoException e) {
@@ -976,7 +979,7 @@ public class MainController {
             stage.setScene(new Scene(loader.load()));
 
             DirectConnectionListDialogController controller = loader.getController();
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             stage.showAndWait();
         } catch (IOException e) {
             logAndDisplayException("IOException when open Direct Connection List dialog", e);
@@ -996,7 +999,7 @@ public class MainController {
             stage.setScene(new Scene(loader.load()));
 
             FinancialInstitutionListDialogController controller = loader.getController();
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             stage.showAndWait();
 
         } catch (IOException e) {
@@ -1020,7 +1023,7 @@ public class MainController {
                 mLogger.error("Null AccountListDialog controller?");
                 return;
             }
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1044,7 +1047,7 @@ public class MainController {
                 mLogger.error("Null controller for SecurityListDialog");
                 return;
             }
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1064,7 +1067,7 @@ public class MainController {
             dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             CategoryListDialogController controller = loader.getController();
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1084,7 +1087,7 @@ public class MainController {
             dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
             TagListDialogController controller = loader.getController();
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1108,7 +1111,7 @@ public class MainController {
                 mLogger.error("Null controller for ReminderTransactionListDialog");
                 return;
             }
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1149,7 +1152,7 @@ public class MainController {
     private void updateSavedReportsMenu() {
         List<MenuItem> menuItemList = new ArrayList<>();
         try {
-            List<ReportDialogController.Setting> settings = mainModel.getReportSettingList();
+            List<ReportDialogController.Setting> settings = getMainModel().getReportSettingList();
             settings.sort(Comparator.comparing(ReportDialogController.Setting::getID));
             for (ReportDialogController.Setting setting : settings) {
                 MenuItem mi = new MenuItem(setting.getName());
@@ -1187,12 +1190,12 @@ public class MainController {
 
     @FXML
     private void handleEnterTransaction() {
-        final Account account = mainModel.getCurrentAccount();
+        final Account account = getMainModel().getCurrentAccount();
         final List<Transaction.TradeAction> taList = account.getType().isGroup(Account.Type.Group.INVESTING) ?
                 Arrays.asList(Transaction.TradeAction.values()) :
                 Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
         try {
-            DialogUtil.showEditTransactionDialog(mainModel, getStage(), null,
+            DialogUtil.showEditTransactionDialog(getMainModel(), getStage(), null,
                     Collections.singletonList(account), account, taList);
         } catch (IOException | DaoException e) {
             logAndDisplayException(e.getClass().getName() + " when opening EditTransactionDialog", e);
@@ -1201,7 +1204,7 @@ public class MainController {
 
     @FXML
     private void handleShowHoldings() {
-        final Account account = mainModel.getCurrentAccount();
+        final Account account = getMainModel().getCurrentAccount();
         if (account == null) {
             // we shouldn't be here, log it.
             mLogger.error("Current Account is not set");
@@ -1224,7 +1227,7 @@ public class MainController {
             dialogStage.setScene(new Scene(loader.load()));
 
             HoldingsDialogController controller = loader.getController();
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1242,10 +1245,10 @@ public class MainController {
             Stage dialogStage = new Stage();
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(getStage());
-            dialogStage.setTitle("Reconcile Account: " + mainModel.getCurrentAccount().getName());
+            dialogStage.setTitle("Reconcile Account: " + getMainModel().getCurrentAccount().getName());
             dialogStage.setScene(new Scene(loader.load()));
             ReconcileDialogController controller = loader.getController();
-            controller.setMainModel(mainModel);
+            controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(e -> controller.handleCancel());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1267,7 +1270,7 @@ public class MainController {
                 mLogger.error("Null ReportDialogController");
                 return;
             }
-            controller.setMainModel(mainModel, setting);
+            controller.setMainModel(getMainModel(), setting);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -1277,7 +1280,7 @@ public class MainController {
     }
 
     private void showAccountTransactions(Account account) {
-        mainModel.setCurrentAccount(account);
+        getMainModel().setCurrentAccount(account);
 
         if (account == null) {
             return;
@@ -1322,7 +1325,7 @@ public class MainController {
     // and return true of user OK's it
     // do nothing and return true if current UID is not set.
     private boolean warnChangingClientUID() throws DaoException {
-        return mainModel.getClientUID().map(uuid -> DialogUtil.showConfirmationDialog(getStage(),
+        return getMainModel().getClientUID().map(uuid -> DialogUtil.showConfirmationDialog(getStage(),
                 "Changing ClientUID", "Current ClientUID is " + uuid.toString(),
                 "May have to reestablish existing Direct Connections after reset ClientUID"))
                 .orElse(true);
@@ -1339,7 +1342,7 @@ public class MainController {
         final TextField currentTF = new TextField();
         currentTF.setEditable(false);
         try {
-            currentTF.setText(mainModel.getClientUID().map(UUID::toString).orElse(""));
+            currentTF.setText(getMainModel().getClientUID().map(UUID::toString).orElse(""));
         } catch (DaoException e) {
             mLogger.error(e.getErrorCode() + " DaoException on getClientUID", e);
             textArea.setVisible(true);
@@ -1384,7 +1387,7 @@ public class MainController {
         updateButton.setOnAction(actionEvent -> {
             try {
                 if (warnChangingClientUID()) {
-                    mainModel.putClientUID(UUID.fromString(newTF.getText()));
+                    getMainModel().putClientUID(UUID.fromString(newTF.getText()));
                     currentTF.setText(newTF.getText());
                     newTF.setText("");
                 }
@@ -1510,7 +1513,7 @@ public class MainController {
                     if (DialogUtil.showConfirmationDialog(getStage(), "Confirmation",
                             "Delete transaction?", "Do you really want to delete it?"))
                         try {
-                            mainModel.alterTransaction(getItem(), null, new ArrayList<>());
+                            getMainModel().alterTransaction(getItem(), null, new ArrayList<>());
                         } catch (ModelException | DaoException e1) {
                             logAndDisplayException(e.getClass().getName() + " by alterTransaction", e1);
                         }
@@ -1521,7 +1524,7 @@ public class MainController {
                     agMenu.getItems().add(new MenuItem(ag.toString())); // need this placeholder for setOnShowing to work
                     agMenu.setOnShowing(e -> {
                         agMenu.getItems().clear();
-                        final ObservableList<Account> accountList = mainModel.getAccountList(a ->
+                        final ObservableList<Account> accountList = getMainModel().getAccountList(a ->
                                 a.getType().isGroup(ag) && !a.getHiddenFlag()
                                         && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME));
                         for (Account a : accountList) {
@@ -1533,14 +1536,15 @@ public class MainController {
                                         return;
                                     Transaction oldT = getItem();
                                     try {
-                                        List<SecurityHolding.MatchInfo> matchInfoList = mainModel.getMatchInfoList(oldT.getID());
+                                        List<SecurityHolding.MatchInfo> matchInfoList =
+                                                getMainModel().getMatchInfoList(oldT.getID());
                                         if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
                                                 "Transaction with Lot Matching",
                                                 "The lot matching information will be lost. " +
                                                         "Do you want to continue?")) {
                                             // either this transaction doesn't have lot matching information,
                                             // or user choose to ignore lot matching information
-                                            Account newAccount = mainModel.getAccount(act -> act.getName()
+                                            Account newAccount = getMainModel().getAccount(act -> act.getName()
                                                     .equals(accountMI.getText())).orElse(null);
                                             if (newAccount != null) {
                                                 // let show transaction table for the new account
@@ -1559,7 +1563,7 @@ public class MainController {
                                                         Transaction.ValidationStatus vs = newT.validate();
                                                         if (vs.isValid()) {
                                                             mAccountTreeTableView.getSelectionModel().select(accountNode);
-                                                            mainModel.alterTransaction(oldT, newT, new ArrayList<>());
+                                                            getMainModel().alterTransaction(oldT, newT, new ArrayList<>());
                                                         } else {
                                                             DialogUtil.showWarningDialog(getStage(),
                                                                     "Invalid Transaction",
@@ -1596,7 +1600,8 @@ public class MainController {
                     Stage dialogStage = new Stage();
                     dialogStage.initModality(Modality.WINDOW_MODAL);
                     dialogStage.initOwner(getStage());
-                    MergeCandidateDialog mcd = new MergeCandidateDialog(mainModel, dialogStage, downloadedTransaction);
+                    MergeCandidateDialog mcd = new MergeCandidateDialog(getMainModel(), dialogStage,
+                            downloadedTransaction);
                     dialogStage.showAndWait();
                     Transaction selected = mcd.getSelectedTransaction();
                     if (selected != null) {
@@ -1605,8 +1610,8 @@ public class MainController {
 
                         try {
                             // delete downloaded transaction, save mergedTransaction
-                            mainModel.alterTransaction(downloadedTransaction, mergedTransaction,
-                                    mainModel.getMatchInfoList(mergedTransaction.getID()));
+                            getMainModel().alterTransaction(downloadedTransaction, mergedTransaction,
+                                    getMainModel().getMatchInfoList(mergedTransaction.getID()));
                         } catch (DaoException | ModelException e1) {
                             logAndDisplayException("Failed to merge a downloaded transaction", e1);
                         }
@@ -1620,7 +1625,7 @@ public class MainController {
                                 && !showChangeReconciledConfirmation())
                             return;
                         try {
-                            mainModel.setTransactionStatus(getItem().getID(), status);
+                            getMainModel().setTransactionStatus(getItem().getID(), status);
                         } catch (DaoException | ModelException e1) {
                             logAndDisplayException("SetTransactionStatus " + getItem().getID() + " " + status
                                     + " Exception", e1);
@@ -1642,7 +1647,7 @@ public class MainController {
                         if (getItem().getStatus().equals(Transaction.Status.RECONCILED)
                                 && !showChangeReconciledConfirmation())
                             return;
-                        final Account account = mainModel.getCurrentAccount();
+                        final Account account = getMainModel().getCurrentAccount();
                         final Transaction transaction = getItem();
                         final int selectedTransactionID = transaction.getID();
                         final List<Transaction.TradeAction> taList = account.getType()
@@ -1650,7 +1655,7 @@ public class MainController {
                                 Arrays.asList(Transaction.TradeAction.values()) :
                                 Arrays.asList(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
                         try {
-                            DialogUtil.showEditTransactionDialog(mainModel, getStage(), transaction,
+                            DialogUtil.showEditTransactionDialog(getMainModel(), getStage(), transaction,
                                     Collections.singletonList(account), account, taList);
                         } catch (IOException | DaoException e) {
                             logAndDisplayException(e.getClass().getName() + " when opening EditTransactionDialog", e);
@@ -1728,8 +1733,8 @@ public class MainController {
             if (!t.getSplitTransactionList().isEmpty())
                 return new ReadOnlyStringWrapper("--Split--");
             int categoryID = t.getCategoryID();
-            Optional<Category> categoryOptional = mainModel.getCategory(c -> c.getID() == categoryID);
-            Optional<Account> accountOptional = mainModel.getAccount(account -> account.getID() == -categoryID);
+            Optional<Category> categoryOptional = getMainModel().getCategory(c -> c.getID() == categoryID);
+            Optional<Account> accountOptional = getMainModel().getAccount(account -> account.getID() == -categoryID);
             if (categoryOptional.isPresent()) {
                 return categoryOptional.get().getNameProperty();
             } else if (accountOptional.isPresent()) {
@@ -1740,7 +1745,7 @@ public class MainController {
         });
 
         mTransactionTagColumn.setCellValueFactory(cellData -> {
-            Optional<Tag> tagOptional = mainModel.getTag(t -> t.getID() == cellData.getValue().getTagID());
+            Optional<Tag> tagOptional = getMainModel().getTag(t -> t.getID() == cellData.getValue().getTagID());
             if (tagOptional.isPresent())
                 return tagOptional.get().getNameProperty();
             else

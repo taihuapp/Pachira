@@ -129,19 +129,40 @@ public class MainModel {
         initVault();
     }
 
-    Optional<UUID> getClientUID() throws DaoException {
-        return daoManager.getClientUID();
+    public MainModel(final String dbName, final String password, boolean isNew) throws DaoException, ModelException {
+        daoManager.openConnection(dbName, password, isNew);
+
+        categoryList.setAll(((CategoryDao) daoManager.getDao(DaoManager.DaoType.CATEGORY)).getAll());
+        tagList.setAll(((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).getAll());
+
+        initSecurityList();
+
+        initTransactionList();
+
+        initAccountList();
+
+        // initialize AccountDCList
+        accountDCList.setAll(((AccountDCDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT_DC)).getAll());
+        fiDataList.setAll(((FIDataDao) daoManager.getDao(DaoManager.DaoType.FIDATA)).getAll());
+
+        // initialize the Direct connection vault
+        initVault();
     }
 
-    void putClientUID(UUID uuid) throws DaoException {
-        daoManager.putClientUID(uuid);
-    }
+    void close() throws DaoException { daoManager.closeConnection(); }
+
+    Optional<UUID> getClientUID() throws DaoException { return daoManager.getClientUID(); }
+
+    void putClientUID(UUID uuid) throws DaoException { daoManager.putClientUID(uuid); }
 
     String getDBFileName() throws DaoException { return daoManager.getDBFileName(); }
 
+    String backup() throws DaoException { return daoManager.backup(); }
+
+    void changeDBPassword(List<String> passwords) throws DaoException { daoManager.changeDBPassword(passwords); }
+
     void insertUpdateReportSetting(ReportDialogController.Setting setting) throws DaoException {
-        ReportSettingDao reportSettingDao =
-                (ReportSettingDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REPORT_SETTING);
+        ReportSettingDao reportSettingDao = (ReportSettingDao) daoManager.getDao(DaoManager.DaoType.REPORT_SETTING);
         if (setting.getID() <= 0)
             setting.setID(reportSettingDao.insert(setting));
         else
@@ -149,7 +170,7 @@ public class MainModel {
     }
 
     List<ReportDialogController.Setting> getReportSettingList() throws DaoException {
-        return ((ReportSettingDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REPORT_SETTING)).getAll();
+        return ((ReportSettingDao) daoManager.getDao(DaoManager.DaoType.REPORT_SETTING)).getAll();
     }
 
     private void initSecurityList() throws DaoException {
@@ -241,8 +262,7 @@ public class MainModel {
     // inside mainModel
     void insertTransaction(Transaction transaction, InsertMode mode) throws DaoException {
         if (mode != InsertMode.MEM_ONLY) {
-            final int tid = ((TransactionDao) DaoManager.getInstance().getDao(DaoManager.DaoType.TRANSACTION))
-                    .insert(transaction);
+            final int tid = ((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).insert(transaction);
             transaction.setID(tid);
         }
         if (mode != InsertMode.DB_ONLY) {
@@ -270,7 +290,7 @@ public class MainModel {
      * @throws DaoException - from database operation
      */
     void mergeSecurity(Security security) throws DaoException {
-        SecurityDao securityDao = (SecurityDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY);
+        SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
         if (security.getID() <= 0) {
             securityDao.insert(security);
             getSecurityList().add(security);
@@ -529,15 +549,15 @@ public class MainModel {
      * @return the price of the security for the given date as an optional or an empty optional
      */
     Optional<Pair<Security, Price>> getSecurityPrice(Pair<Security, LocalDate> pair) throws DaoException {
-        return ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).get(pair);
+        return ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).get(pair);
     }
 
     List<Price> getSecurityPriceList(Security security) throws DaoException {
-        return ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).get(security);
+        return ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).get(security);
     }
 
     void insertSecurityPrice(Pair<Security, Price> pair) throws DaoException {
-        ((SecurityPriceDao) DaoManager.getInstance().getDao(DaoManager.DaoType.SECURITY_PRICE)).insert(pair);
+        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).insert(pair);
     }
 
     /**
@@ -747,7 +767,7 @@ public class MainModel {
     }
 
     void insertReminderTransaction(ReminderTransaction rt) throws DaoException {
-        ((ReminderTransactionDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER_TRANSACTION)).insert(rt);
+        ((ReminderTransactionDao) daoManager.getDao(DaoManager.DaoType.REMINDER_TRANSACTION)).insert(rt);
     }
 
     /**
@@ -791,15 +811,15 @@ public class MainModel {
     }
 
     void deleteReminder(Reminder reminder) throws DaoException {
-        ((ReminderDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER)).delete(reminder.getID());
+        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).delete(reminder.getID());
     }
 
     void insertReminder(Reminder reminder) throws DaoException {
-        ((ReminderDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER)).insert(reminder);
+        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).insert(reminder);
     }
 
     void updateReminder(Reminder reminder) throws DaoException {
-        ((ReminderDao) DaoManager.getInstance().getDao(DaoManager.DaoType.REMINDER)).update(reminder);
+        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).update(reminder);
     }
 
     /**
@@ -808,7 +828,7 @@ public class MainModel {
      * @throws DaoException - from database operations
      */
     void insertUpdateAccount(Account account) throws DaoException {
-        AccountDao accountDao = (AccountDao) DaoManager.getInstance().getDao(DaoManager.DaoType.ACCOUNT);
+        AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
         final boolean isInsert = account.getID() <= 0;
         if (isInsert) {
             account.setDisplayOrder(getAccountList(a -> a.getType().equals(account.getType())).size());
@@ -946,7 +966,7 @@ public class MainModel {
      * @throws DaoException - from Dao operations
      */
     List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) throws DaoException {
-        return ((PairTidMatchInfoListDao) DaoManager.getInstance().getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO))
+        return ((PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO))
                 .get(tid).map(Pair::getValue).orElse(new ArrayList<>());
     }
 
@@ -963,13 +983,13 @@ public class MainModel {
     }
 
     public void insertCategory(Category category) throws DaoException {
-        int id = ((CategoryDao) DaoManager.getInstance().getDao(DaoManager.DaoType.CATEGORY)).insert(category);
+        int id = ((CategoryDao) daoManager.getDao(DaoManager.DaoType.CATEGORY)).insert(category);
         category.setID(id);
         categoryList.add(category);
     }
 
     public void updateCategory(Category category) throws DaoException {
-        ((CategoryDao) DaoManager.getInstance().getDao(DaoManager.DaoType.CATEGORY)).update(category);
+        ((CategoryDao) daoManager.getDao(DaoManager.DaoType.CATEGORY)).update(category);
         getCategory(c -> c.getID() == category.getID()).ifPresent(c -> c.copy(category));
     }
 
@@ -983,7 +1003,7 @@ public class MainModel {
      * @throws DaoException database operation
      */
     public void insertTag(Tag tag) throws DaoException {
-        int id = ((TagDao) DaoManager.getInstance().getDao(DaoManager.DaoType.TAG)).insert(tag);
+        int id = ((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).insert(tag);
         tag.setID(id);
         tagList.add(tag);
     }
@@ -995,7 +1015,7 @@ public class MainModel {
      */
     public void updateTag(Tag tag) throws DaoException {
         // update database
-        ((TagDao) DaoManager.getInstance().getDao(DaoManager.DaoType.TAG)).update(tag);
+        ((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).update(tag);
         // update master list
         getTag(t -> t.getID() == tag.getID()).ifPresent(t -> t.copy(tag));
     }
@@ -1045,7 +1065,6 @@ public class MainModel {
         final Set<Integer> deleteTIDSet = new HashSet<>(); // IDs of transactions deleted in DB
         final Set<Integer> accountIDSet = new HashSet<>(); // IDs of accounts need to update balance
 
-        DaoManager daoManager = DaoManager.getInstance();
         TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
         PairTidMatchInfoListDao pairTidMatchInfoListDao =
                 (PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO);
@@ -1511,7 +1530,6 @@ public class MainModel {
         tList.forEach(t -> t.setStatus(Transaction.Status.RECONCILED));
         account.setLastReconcileDate(d);
 
-        DaoManager daoManager = DaoManager.getInstance();
         TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
         AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
         try {
@@ -1601,7 +1619,6 @@ public class MainModel {
         a1.setDisplayOrder(o2);
         a2.setDisplayOrder(o1);
 
-        DaoManager daoManager = DaoManager.getInstance();
         AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
 
         try {
@@ -2311,5 +2328,4 @@ public class MainModel {
 
         return stringBuilder.toString();
     }
-
 }

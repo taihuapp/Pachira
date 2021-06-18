@@ -1065,6 +1065,20 @@ public class MainModel {
         final Set<Integer> deleteTIDSet = new HashSet<>(); // IDs of transactions deleted in DB
         final Set<Integer> accountIDSet = new HashSet<>(); // IDs of accounts need to update balance
 
+        final int newTID;
+        final int newTMatchID;
+        final int newTMatchSplitID;
+        if (newT != null) {
+            newTID = newT.getID();
+            newTMatchID = newT.getMatchID();
+            newTMatchSplitID = newT.getMatchSplitID();
+        } else {
+            // they're not used.  But java complains if I don't initialize them.
+            newTID = -1;
+            newTMatchID = -1;
+            newTMatchSplitID = -1;
+        }
+
         TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
         PairTidMatchInfoListDao pairTidMatchInfoListDao =
                 (PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO);
@@ -1072,28 +1086,24 @@ public class MainModel {
         try {
             // start a dao transaction
             daoManager.beginTransaction();
-
             if (newT != null) {
-                // we will be working on the copy instead of the original
-                final Transaction newTCopy = new Transaction(newT);
-
-                final Transaction.TradeAction newTTA = newTCopy.getTradeAction();
+                final Transaction.TradeAction newTTA = newT.getTradeAction();
 
                 // check quantity
                 if (newTTA == SELL || newTTA == SHRSOUT || newTTA == CVTSHRT) {
                     // get account transaction list
-                    final ObservableList<Transaction> transactions = getAccount(a -> a.getID() == newTCopy.getAccountID())
+                    final ObservableList<Transaction> transactions = getAccount(a -> a.getID() == newT.getAccountID())
                             .map(Account::getTransactionList).orElseThrow(() ->
                                     new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                                            "Transaction '" + newTCopy.getID() + "' has an invalid account ID ("
-                                                    + newTCopy.getAccountID() + ")", null));
+                                            "Transaction '" + newT.getID() + "' has an invalid account ID ("
+                                                    + newT.getAccountID() + ")", null));
                     // compute security holdings
-                    final BigDecimal quantity = computeSecurityHoldings(transactions, newTCopy.getTDate(),
-                            newTCopy.getID())
-                            .stream().filter(sh -> sh.getSecurityName().equals(newTCopy.getSecurityName()))
+                    final BigDecimal quantity = computeSecurityHoldings(transactions, newT.getTDate(),
+                            newT.getID())
+                            .stream().filter(sh -> sh.getSecurityName().equals(newT.getSecurityName()))
                             .map(SecurityHolding::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
-                    if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newTCopy.getQuantity()) < 0)
-                            || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newTCopy.getQuantity()) < 0)) {
+                    if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newT.getQuantity()) < 0)
+                            || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newT.getQuantity()) < 0)) {
                         // existing quantity not enough for the new trade
                         throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                 "New " + newTTA + " transaction quantity exceeds existing quantity",
@@ -1103,31 +1113,31 @@ public class MainModel {
 
                 // check ADate for SHRSIN
                 if (newTTA == SHRSIN) {
-                    final LocalDate aDate = newTCopy.getADate();
-                    if (aDate == null || aDate.isAfter(newTCopy.getTDate())) {
+                    final LocalDate aDate = newT.getADate();
+                    if (aDate == null || aDate.isAfter(newT.getTDate())) {
                         throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                 "Acquisition date '" + aDate + "' should be on or before trade date '"
-                                        + newTCopy.getTDate() + "'", null);
+                                        + newT.getTDate() + "'", null);
                     }
                 }
 
                 // we need to save newT and newMatchInfoList to DB
-                if (newTCopy.getID() > 0) {
-                    transactionDao.update(newTCopy);
-                    updateTSet.add(newTCopy);
+                if (newT.getID() > 0) {
+                    transactionDao.update(newT);
+                    updateTSet.add(newT);
                 } else {
-                    newTCopy.setID(transactionDao.insert(newTCopy));
-                    insertTSet.add(newTCopy);
+                    newT.setID(transactionDao.insert(newT));
+                    insertTSet.add(newT);
                 }
-                pairTidMatchInfoListDao.insert(new Pair<>(newTCopy.getID(), newMatchInfoList));
+                pairTidMatchInfoListDao.insert(new Pair<>(newT.getID(), newMatchInfoList));
 
-                if (newTCopy.isSplit()) {
+                if (newT.isSplit()) {
                     // split transaction shouldn't have any match id and match split id.
-                    newTCopy.setMatchID(-1, -1);
+                    newT.setMatchID(-1, -1);
                     // check transfer in split transactions
-                    for (SplitTransaction st : newTCopy.getSplitTransactionList()) {
-                        if (st.isTransfer(newTCopy.getAccountID())) {
-                            if (st.getCategoryID() == -newTCopy.getAccountID()) {
+                    for (SplitTransaction st : newT.getSplitTransactionList()) {
+                        if (st.isTransfer(newT.getAccountID())) {
+                            if (st.getCategoryID() == -newT.getAccountID()) {
                                 throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                         "Split transaction transferring back to the same account. "
                                         + "Self transferring is not permitted.", null);
@@ -1140,7 +1150,7 @@ public class MainModel {
                                 stXferT = getTransaction(t -> t.getID() == st.getMatchID())
                                         .map(Transaction::new).orElseThrow(() ->
                                                 new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                                                        "Split Transaction (" + newTCopy.getID() + ", " + st.getID()
+                                                        "Split Transaction (" + newT.getID() + ", " + st.getID()
                                                                 + ") linked to null",
                                                         null));
 
@@ -1156,7 +1166,7 @@ public class MainModel {
                                     if (stXferT.getTradeAction() == SHRSIN) {
                                         // shares transferred in, need to check acquisition date
                                         final LocalDate aDate = stXferT.getADate();
-                                        if (aDate == null || newTCopy.getTDate().isBefore(aDate)) {
+                                        if (aDate == null || newT.getTDate().isBefore(aDate)) {
                                             throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                                     "Invalid acquisition date for shares transferred in", null);
                                         }
@@ -1165,21 +1175,21 @@ public class MainModel {
                                     }
                                     // for existing transfer transactions, we only update the minimum information
                                     stXferT.setAccountID(-st.getCategoryID());
-                                    stXferT.setCategoryID(-newTCopy.getAccountID());
-                                    stXferT.setTDate(newTCopy.getTDate());
+                                    stXferT.setCategoryID(-newT.getAccountID());
+                                    stXferT.setTDate(newT.getTDate());
                                     stXferT.setAmount(st.getAmount().abs());
                                 }
                             }
 
                             if (stXferT == null || stXferT.isCash()) {
                                 // we need to create new xfer transaction
-                                stXferT = new Transaction(-st.getCategoryID(), newTCopy.getTDate(),
+                                stXferT = new Transaction(-st.getCategoryID(), newT.getTDate(),
                                         (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ? WITHDRAW : DEPOSIT),
-                                        -newTCopy.getAccountID());
+                                        -newT.getAccountID());
                                 stXferT.setID(st.getMatchID());
-                                stXferT.setPayee(newTCopy.getPayee());
+                                stXferT.setPayee(newT.getPayee());
                                 stXferT.setMemo(st.getMemo());
-                                stXferT.setMatchID(newTCopy.getID(), st.getID());
+                                stXferT.setMatchID(newT.getID(), st.getID());
                                 stXferT.setAmount(st.getAmount().abs());
                             }
 
@@ -1203,31 +1213,31 @@ public class MainModel {
 
                     // match id and/or match split id in newT might have changed
                     // match id in split transactions might have changed
-                    transactionDao.update(newTCopy);
-                } else if (newTCopy.isTransfer()) {
-                    if (newTCopy.getCategoryID() == -newTCopy.getAccountID()) {
+                    transactionDao.update(newT);
+                } else if (newT.isTransfer()) {
+                    if (newT.getCategoryID() == -newT.getAccountID()) {
                         throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                 "Transaction is transferring back to the same account", null);
                     }
 
                     // non split, transfer
                     Transaction xferT = null;
-                    if (newTCopy.getMatchID() > 0) {
+                    if (newT.getMatchID() > 0) {
                         // newT linked to a split transaction
                         // xferT is a copy of the original
-                        xferT = getTransaction(t -> t.getID() == newTCopy.getMatchID())
+                        xferT = getTransaction(t -> t.getID() == newT.getMatchID())
                                 .map(Transaction::new).orElseThrow(() ->
                                         new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                                                "Transaction " + newTCopy.getID() + " is linked to null",
+                                                "Transaction " + newT.getID() + " is linked to null",
                                                 null));
                         if (xferT.isSplit()) {
-                            if (newTCopy.getMatchSplitID() <= 0) {
+                            if (newT.getMatchSplitID() <= 0) {
                                 throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                                        "Transaction (" + newTCopy.getMatchID() + ") missing match split id",
+                                        "Transaction (" + newT.getMatchID() + ") missing match split id",
                                         null);
                             }
-                            if (!newTCopy.getTDate().equals(xferT.getTDate())
-                                    || (-newTCopy.getCategoryID() != xferT.getAccountID())) {
+                            if (!newT.getTDate().equals(xferT.getTDate())
+                                    || (-newT.getCategoryID() != xferT.getAccountID())) {
                                 throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                         "Can't change date and/or transfer account to a transaction linked "
                                                 + "to a split transaction.",
@@ -1235,17 +1245,17 @@ public class MainModel {
                             }
                             final List<SplitTransaction> stList = xferT.getSplitTransactionList();
                             final SplitTransaction xferSt = stList.stream()
-                                    .filter(st -> st.getID() == newTCopy.getMatchSplitID())
+                                    .filter(st -> st.getID() == newT.getMatchSplitID())
                                     .findAny()
                                     .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                                            "Transaction (" + newTCopy.getID() + ") linked to null split transaction",
+                                            "Transaction (" + newT.getID() + ") linked to null split transaction",
                                             null));
-                            xferSt.setMatchID(newTCopy.getID());
-                            xferSt.setAmount(newTCopy.TransferTradeAction() == DEPOSIT ?
-                                    newTCopy.getAmount() : newTCopy.getAmount().negate());
-                            xferSt.getCategoryIDProperty().set(-newTCopy.getAccountID());
+                            xferSt.setMatchID(newT.getID());
+                            xferSt.setAmount(newT.TransferTradeAction() == DEPOSIT ?
+                                    newT.getAmount() : newT.getAmount().negate());
+                            xferSt.getCategoryIDProperty().set(-newT.getAccountID());
                             if (xferSt.getMemo().isEmpty())
-                                xferSt.setMemo(newTCopy.getMemo());
+                                xferSt.setMemo(newT.getMemo());
                             final BigDecimal amount = xferT.getSplitTransactionList().stream()
                                     .map(SplitTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
                             if (amount.compareTo(BigDecimal.ZERO) > 0) {
@@ -1257,16 +1267,16 @@ public class MainModel {
                             }
                         } else if (!xferT.isCash()) {
                             // non cash, check trade action compatibility
-                            if (xferT.TransferTradeAction() != newTCopy.getTradeAction()) {
+                            if (xferT.TransferTradeAction() != newT.getTradeAction()) {
                                 throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                         "Transfer transaction has an investment trade action not "
-                                                + "compatible with " + newTCopy.getTradeAction(),
+                                                + "compatible with " + newT.getTradeAction(),
                                         null);
                             }
                             if (xferT.getTradeAction() == SHRSIN) {
                                 // shares transferred in, need to check acquisition date
                                 final LocalDate aDate = xferT.getADate();
-                                if (aDate == null || newTCopy.getTDate().isBefore(aDate)) {
+                                if (aDate == null || newT.getTDate().isBefore(aDate)) {
                                     throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                             "Invalid acquisition date for shares transferred in",
                                             null);
@@ -1274,25 +1284,25 @@ public class MainModel {
                             } else {
                                 xferT.setADate(null);
                             }
-                            xferT.setAccountID(-newTCopy.getCategoryID());
-                            xferT.setCategoryID(-newTCopy.getAccountID());
-                            xferT.setTDate(newTCopy.getTDate());
-                            xferT.setAmount(newTCopy.getAmount());
+                            xferT.setAccountID(-newT.getCategoryID());
+                            xferT.setCategoryID(-newT.getAccountID());
+                            xferT.setTDate(newT.getTDate());
+                            xferT.setAmount(newT.getAmount());
                         }
                     }
 
                     if ((xferT == null) || (!xferT.isSplit() && xferT.isCash())) {
-                        xferT = new Transaction(-newTCopy.getCategoryID(), newTCopy.getTDate(),
-                                newTCopy.TransferTradeAction(), -newTCopy.getAccountID());
-                        xferT.setID(newTCopy.getMatchID());
-                        xferT.setPayee(newTCopy.getPayee());
-                        xferT.setMemo(newTCopy.getMemo());
-                        xferT.setAmount(newTCopy.getAmount());
+                        xferT = new Transaction(-newT.getCategoryID(), newT.getTDate(),
+                                newT.TransferTradeAction(), -newT.getAccountID());
+                        xferT.setID(newT.getMatchID());
+                        xferT.setPayee(newT.getPayee());
+                        xferT.setMemo(newT.getMemo());
+                        xferT.setAmount(newT.getAmount());
                     }
 
                     // setMatchID for xferT
                     if (!xferT.isSplit())
-                        xferT.setMatchID(newTCopy.getID(), -1);
+                        xferT.setMatchID(newT.getID(), -1);
 
                     // we might need to set matchID if xferT is newly created
                     // but we never create a new match split transaction
@@ -1304,24 +1314,24 @@ public class MainModel {
                         xferT.setID(transactionDao.insert(xferT));
                         insertTSet.add(xferT);
                     }
-                    newTCopy.setMatchID(xferT.getID(), newTCopy.getMatchSplitID());
+                    newT.setMatchID(xferT.getID(), newT.getMatchSplitID());
 
                     // update newT MatchID in DB
-                    transactionDao.update(newTCopy);
+                    transactionDao.update(newT);
 
                     // we need to update xfer account
-                    accountIDSet.add(-newTCopy.getCategoryID());
+                    accountIDSet.add(-newT.getCategoryID());
                 } else {
                     // non-split, non transfer, make sure set match id properly
-                    newTCopy.setMatchID(-1, -1);
-                    transactionDao.update(newTCopy);
+                    newT.setMatchID(-1, -1);
+                    transactionDao.update(newT);
                 }
 
                 final Security security;
                 final BigDecimal price;
-                if (!newTCopy.isCash()) {
-                    security = getSecurity(s -> s.getName().equals(newTCopy.getSecurityName())).orElse(null);
-                    price = security == null ? null : newTCopy.getPrice();
+                if (!newT.isCash()) {
+                    security = getSecurity(s -> s.getName().equals(newT.getSecurityName())).orElse(null);
+                    price = security == null ? null : newT.getPrice();
                 } else {
                     security = null;
                     price = null;
@@ -1329,14 +1339,14 @@ public class MainModel {
 
                 if (security != null && price != null && price.compareTo(BigDecimal.ZERO) > 0) {
                     // insert price if not currently present
-                    if (securityPriceDao.get(new Pair<>(security, newTCopy.getTDate())).isEmpty()) {
-                        securityPriceDao.insert(new Pair<>(security, new Price(newTCopy.getTDate(), price)));
+                    if (securityPriceDao.get(new Pair<>(security, newT.getTDate())).isEmpty()) {
+                        securityPriceDao.insert(new Pair<>(security, new Price(newT.getTDate(), price)));
                     }
                     getAccountList(Account.Type.Group.INVESTING, false, true).stream()
                             .filter(a -> a.hasSecurity(security)).forEach(a -> accountIDSet.add(a.getID()));
                 }
 
-                accountIDSet.add(newTCopy.getAccountID());
+                accountIDSet.add(newT.getAccountID());
             }
 
             if (oldT != null) {
@@ -1484,6 +1494,10 @@ public class MainModel {
 
             // we are done
         } catch (DaoException | ModelException e) {
+            if (newT != null) {
+                newT.setID(newTID);
+                newT.setMatchID(newTMatchID, newTMatchSplitID);
+            }
             try {
                 daoManager.rollback();
             } catch (DaoException e1) {

@@ -1055,6 +1055,7 @@ public class MainModel {
     // If oldT and newT both are not null, oldT is modified to newT.
     // return true for success and false for failure
     // this is the new one
+    // a copy of newT is inserted to the master list, newT itself is NOT inserted in the master list.
     void alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList)
             throws DaoException, ModelException {
         if (oldT == null && newT == null)
@@ -1477,7 +1478,7 @@ public class MainModel {
                 if (index < 0) {
                     throw new IllegalStateException("Transaction " + t + " should be, but not found in master list");
                 }
-                transactionList.set(index, t);
+                transactionList.set(index, new Transaction(t));
             }
 
             // insert these
@@ -1486,7 +1487,7 @@ public class MainModel {
                 if (index >= 0) {
                     throw new IllegalStateException("Transaction " + t + " should not be, but found in master list");
                 }
-                transactionList.add(-(1+index), t);
+                transactionList.add(-(1+index), new Transaction(t));
             }
 
             // update account balances

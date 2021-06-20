@@ -924,7 +924,7 @@ public class MainController {
         if (dbFile == null)
             return; // user cancelled
 
-        if (!dbFile.exists() || !dbFile.canExecute()) {
+        if (!dbFile.exists() || !dbFile.canRead()) {
             final String reason = !dbFile.exists() ? "not exist" : "not readable";
             DialogUtil.showWarningDialog(getStage(), "File " + reason,
                     dbFile.getAbsolutePath() + " " + reason, "Cannot continue");
@@ -944,6 +944,8 @@ public class MainController {
                 return; // user cancelled
 
             DaoManager.exportDBtoSQL(dbFile, sqlFile, passwords.get(1));
+            DialogUtil.showInformationDialog(getStage(), "Success!", "export DB to SQL success!",
+                    dbFile.getAbsolutePath() + " successfully exported to " + sqlFile.getAbsolutePath());
         } catch (IOException | DaoException e) {
             logAndDisplayException(e.getClass().getName(), e);
         }

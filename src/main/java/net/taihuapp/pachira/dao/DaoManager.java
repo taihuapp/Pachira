@@ -197,6 +197,7 @@ public class DaoManager {
         try {
             RunScript.execute(URL_PREFIX + dbName + ";" + CIPHER_CLAUSE,
                     DB_OWNER, password + " " + password, scriptFile.toString(), null, false);
+            Files.deleteIfExists(scriptFile);
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_RUN_SCRIPT,
                     "SQL file: '" + sqlFile.getAbsolutePath() + "', "

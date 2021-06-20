@@ -2171,7 +2171,9 @@ public class MainModel {
         try {
             final AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
             for (Account account : qifParser.getAccountList()) {
-                accountDao.insert(account);
+                if (getAccount(a -> a.getName().equals(account.getName())).isEmpty()) {
+                    accountDao.insert(account);
+                }
             }
             initAccountList();
 

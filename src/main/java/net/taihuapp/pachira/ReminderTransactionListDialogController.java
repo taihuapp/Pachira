@@ -44,6 +44,7 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 import static net.taihuapp.pachira.ReminderTransaction.*;
@@ -173,7 +174,9 @@ public class ReminderTransactionListDialogController {
 
         // get the list of reminder transactions
         try {
-            reminderTransactions.setAll(mainModel.getReminderTransactionList());
+            // skip those reminder transactions without a legit reminder (probably deleted before).
+            reminderTransactions.setAll(mainModel.getReminderTransactionList()
+                    .stream().filter(rt -> rt.getReminder() != null).collect(Collectors.toList()));
 
             // we need to call handleCheckBox here because setSelect don't trigger an event
             // and won't call the event handler

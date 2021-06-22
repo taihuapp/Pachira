@@ -296,7 +296,7 @@ public class MainModel {
     void mergeSecurity(Security security) throws DaoException {
         SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
         if (security.getID() <= 0) {
-            securityDao.insert(security);
+            security.setID(securityDao.insert(security));
             getSecurityList().add(security);
         } else {
             securityDao.update(security);
@@ -312,7 +312,9 @@ public class MainModel {
         initTransactionList();
 
         // update security holdings of accounts
-        initAccountList();
+        for (Account account : getAccountList(a -> a.hasSecurity(security))) {
+            initAccount(account);
+        }
     }
 
     /**

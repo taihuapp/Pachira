@@ -204,6 +204,12 @@ public class MainModel {
             currentDisplayOrder++;
         }
 
+        for (Account account : accountList) {
+            initAccount(account);
+        }
+    }
+
+    private void initAccount(Account account) throws DaoException {
         // transaction comparator for investing accounts
         final Comparator<Transaction> investingAccountTransactionComparator = Comparator
                 .comparing(Transaction::getTDate)
@@ -215,20 +221,18 @@ public class MainModel {
                 .thenComparing(Transaction::cashFlow, Comparator.reverseOrder())
                 .thenComparing(Transaction::getID);
 
-        for (Account account : accountList) {
-            final FilteredList<Transaction> filteredList = new FilteredList<>(transactionList,
-                    t -> t.getAccountID() == account.getID());
-            final SortedList<Transaction> sortedList = new SortedList<>(filteredList,
-                    account.getType().isGroup(Account.Type.Group.INVESTING) ?
-                            investingAccountTransactionComparator : spendingAccountTransactionComparator);
-            account.setTransactionList(sortedList);
+        final FilteredList<Transaction> filteredList = new FilteredList<>(transactionList,
+                t -> t.getAccountID() == account.getID());
+        final SortedList<Transaction> sortedList = new SortedList<>(filteredList,
+                account.getType().isGroup(Account.Type.Group.INVESTING) ?
+                investingAccountTransactionComparator : spendingAccountTransactionComparator);
+        account.setTransactionList(sortedList);
 
-            // computer security holding list and update account balance for each transaction
-            // and set account balance
-            List<SecurityHolding> shList = computeSecurityHoldings(sortedList, LocalDate.now(), -1);
-            account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
-            account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
-        }
+        // computer security holding list and update account balance for each transaction
+        // and set account balance
+        List<SecurityHolding> shList = computeSecurityHoldings(sortedList, LocalDate.now(), -1);
+        account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
+        account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
     }
 
     /**
@@ -836,9 +840,10 @@ public class MainModel {
         } else
             accountDao.update(account);
 
-        if (isInsert)
+        if (isInsert) {
+            initAccount(account);
             accountList.add(account);
-        else {
+        } else {
             for (int i = 0; i < accountList.size(); i++) {
                 final Account a = accountList.get(i);
                 if (a.getID() == account.getID()) {

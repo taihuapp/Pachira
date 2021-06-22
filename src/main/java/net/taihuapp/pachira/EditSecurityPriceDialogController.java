@@ -134,6 +134,7 @@ public class EditSecurityPriceDialogController {
             }
             try {
                 mainModel.mergeSecurityPrices(List.of(new Pair<>(this.security, new Price(date, newPrice))));
+                event.getRowValue().setPrice(newPrice);
                 mainModel.updateAccountBalance(a -> a.hasSecurity(this.security));
             } catch (DaoException e) {
                 final String msg = "Failed to merge price for '" + this.security.getTicker() + "'/("

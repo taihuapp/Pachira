@@ -42,6 +42,7 @@ public class Price {
     public LocalDate getDate() { return getDateProperty().get(); }
 
     ObjectProperty<BigDecimal> getPriceProperty() { return mPriceProperty; }
+    void setPrice(BigDecimal p) { getPriceProperty().set(p); }
     public BigDecimal getPrice() { return getPriceProperty().get(); }
 
     String toQIF(String ticker) {

@@ -1829,6 +1829,7 @@ public class MainModel {
                     BigDecimal.valueOf(statement.getLedgerBalance().getAmount())
                             .setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
             mergeAccountDC(adc);
+            daoManager.commit();
             return unTested;
         } catch (DaoException e) {
             try {

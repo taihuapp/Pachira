@@ -180,7 +180,12 @@ public class ExportQIFDialogController {
             if (transactionList.get(s-1).getTDate().isAfter(toDate))
                 toDate = transactionList.get(s-1).getTDate();
         }
-        mFromDatePicker.setValue(fromDate);
-        mToDatePicker.setValue(toDate);
+        if (fromDate == LocalDate.MAX) {
+            mFromDatePicker.setValue(LocalDate.now());
+            mToDatePicker.setValue(LocalDate.now());
+        } else {
+            mFromDatePicker.setValue(fromDate);
+            mToDatePicker.setValue(toDate);
+        }
     }
 }

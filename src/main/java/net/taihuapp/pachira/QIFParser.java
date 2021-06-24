@@ -960,12 +960,6 @@ class QIFParser {
         if (nLines == 0)
             return 0;
 
-        // last line should either be "^" or "!Clear:AutoSwitch"
-        String lastLine = allLines.get(nLines-1);
-        if (!lastLine.equals("^") && !lastLine.equals("!Clear:AutoSwitch")) {
-            throw new IOException("Bad formatted file");
-        }
-
         // trim off white spaces
         for (int i = 0; i < nLines; i++) {
             String s = allLines.get(i).trim();

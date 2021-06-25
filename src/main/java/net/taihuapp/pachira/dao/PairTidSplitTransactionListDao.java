@@ -168,7 +168,8 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
         try {
             daoManager.beginTransaction();
             delete(tid);  // clear everything for tid first
-            try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            try (PreparedStatement preparedStatement =
+                         connection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
                 for (SplitTransaction sp : integerListPair.getValue()) {
                     preparedStatement.setInt(1, tid);
                     preparedStatement.setInt(2, sp.getCategoryID());
@@ -178,6 +179,11 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
                     preparedStatement.setInt(6, sp.getTagID());
 
                     preparedStatement.executeUpdate();
+
+                    try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+                        if (resultSet.next())
+                            sp.setID(resultSet.getInt(1));
+                    }
                 }
             } catch (SQLException e) {
                 throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT,

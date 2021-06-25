@@ -76,7 +76,7 @@ public class SplitTransaction {
     public BigDecimal getAmount() { return getAmountProperty().get(); }
     public int getMatchID() { return mMatchID; }
 
-    void setID(int id) { mID = id; }
+    public void setID(int id) { mID = id; }
     void setMatchID(int mid) { mMatchID = mid; }
     void setMemo(String memo) { getMemoProperty().set(memo); }
     void setAmount(BigDecimal amount) { getAmountProperty().set(amount); }

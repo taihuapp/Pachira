@@ -65,7 +65,7 @@ public class SplitTransaction {
         mMatchID = matchTid;
     }
 
-    int getID() { return mID; }
+    public int getID() { return mID; }
     ObjectProperty<Integer> getCategoryIDProperty() { return mCategoryIDProperty; }
     ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
     public Integer getCategoryID() { return getCategoryIDProperty().get(); }

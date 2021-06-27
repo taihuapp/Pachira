@@ -25,10 +25,7 @@ import net.taihuapp.pachira.SplitTransaction;
 
 import java.math.BigDecimal;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * PairTidSplitTransactionListDao is a Dao class for the pair of transaction id and the list of split transactions
@@ -161,33 +158,97 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
     @Override
     public Integer insert(Pair<Integer, List<SplitTransaction>> integerListPair) throws DaoException {
         final int tid = integerListPair.getKey();
-        final String sqlCmd = "INSERT INTO SPLITTRANSACTIONS "
-                + "(TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, MATCHTRANSACTIONID, TAGID) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+        final List<SplitTransaction> splitTransactionList = integerListPair.getValue();
+        final List<SplitTransaction> updateList = new ArrayList<>();
+        final List<SplitTransaction> insertList = new ArrayList<>();
+        for (SplitTransaction splitTransaction : splitTransactionList) {
+            if (splitTransaction.getID() > 0) {
+                updateList.add(splitTransaction);
+            } else {
+                insertList.add(splitTransaction);
+            }
+        }
+
+        Set<Integer> oldIDSet = new HashSet<>();
+
         DaoManager daoManager = DaoManager.getInstance();
+        try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT ID FROM "
+                + "SPLITTRANSACTIONS WHERE TRANSACTIONID = ?")) {
+            preparedStatement.setInt(1, tid);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next())
+                    oldIDSet.add(resultSet.getInt(1));
+            }
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "Failed to select from SPLITTRANSACTIONS", e);
+        }
+
+        for (SplitTransaction splitTransaction : integerListPair.getValue()) {
+            final int id = splitTransaction.getID();
+            if (id <= 0)
+                continue;
+            if (!oldIDSet.remove(id)) {
+                throw new DaoException(DaoException.ErrorCode.FAIL_TO_UPDATE,
+                        "SplitTransaction " + id + " for " + tid + " does not exist", null);
+            }
+        }
+
+        daoManager.beginTransaction();
         try {
-            daoManager.beginTransaction();
-            delete(tid);  // clear everything for tid first
-            try (PreparedStatement preparedStatement =
-                         connection.prepareStatement(sqlCmd, Statement.RETURN_GENERATED_KEYS)) {
-                for (SplitTransaction sp : integerListPair.getValue()) {
-                    preparedStatement.setInt(1, tid);
-                    preparedStatement.setInt(2, sp.getCategoryID());
-                    preparedStatement.setString(3, sp.getMemo());
-                    preparedStatement.setBigDecimal(4, sp.getAmount());
-                    preparedStatement.setInt(5, sp.getMatchID());
-                    preparedStatement.setInt(6, sp.getTagID());
+            final String deleteCmd = "DELETE FROM SPLITTRANSACTIONS WHERE ID = ?";
+            try (PreparedStatement deleteStatement = connection.prepareStatement(deleteCmd)) {
+                for (int id : oldIDSet) {
+                    deleteStatement.setInt(1, id);
 
-                    preparedStatement.executeUpdate();
+                    deleteStatement.executeUpdate();
+                }
+            } catch (SQLException e) {
+                throw new DaoException(DaoException.ErrorCode.FAIL_TO_DELETE, "Delete SplitTransactions failed", e);
+            }
 
-                    try (ResultSet resultSet = preparedStatement.getGeneratedKeys()) {
+            final String updateCmd = "UPDATE SPLITTRANSACTIONS SET "
+                    + "TRANSACTIONID = ?, CATEGORYID = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ?, TAGID = ? "
+                    + "WHERE ID = ?";
+            try (PreparedStatement updateStatement = connection.prepareStatement(updateCmd)) {
+                for (SplitTransaction splitTransaction : updateList) {
+                    updateStatement.setInt(1, tid);
+                    updateStatement.setInt(2, splitTransaction.getCategoryID());
+                    updateStatement.setString(3, splitTransaction.getMemo());
+                    updateStatement.setBigDecimal(4, splitTransaction.getAmount());
+                    updateStatement.setInt(5, splitTransaction.getMatchID());
+                    updateStatement.setInt(6, splitTransaction.getTagID());
+                    updateStatement.setInt(7, splitTransaction.getID());
+
+                    updateStatement.executeUpdate();
+                }
+            } catch (SQLException e) {
+                throw new DaoException(DaoException.ErrorCode.FAIL_TO_UPDATE, "Update SplitTransactions failed", e);
+            }
+
+            final String insertCmd = "INSERT INTO SPLITTRANSACTIONS "
+                    + "(TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, MATCHTRANSACTIONID, TAGID) "
+                    + "VALUES (?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement insertStatement =
+                         connection.prepareStatement(insertCmd, Statement.RETURN_GENERATED_KEYS)) {
+                for (SplitTransaction splitTransaction : insertList) {
+                    insertStatement.setInt(1, tid);
+                    insertStatement.setInt(2, splitTransaction.getCategoryID());
+                    insertStatement.setString(3, splitTransaction.getMemo());
+                    insertStatement.setBigDecimal(4, splitTransaction.getAmount());
+                    insertStatement.setInt(5, splitTransaction.getMatchID());
+                    insertStatement.setInt(6, splitTransaction.getTagID());
+
+                    insertStatement.executeUpdate();
+
+                    try (ResultSet resultSet = insertStatement.getGeneratedKeys()) {
                         if (resultSet.next())
-                            sp.setID(resultSet.getInt(1));
+                            splitTransaction.setID(resultSet.getInt(1));
                     }
                 }
             } catch (SQLException e) {
-                throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT,
-                        "Failed to insert SplitTransaction for " + tid, e);
+                for (SplitTransaction splitTransaction : insertList)
+                    splitTransaction.setID(0); // put back the old id
+                throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "Insert to SplitTransactions failed", e);
             }
             daoManager.commit();
             return tid;

@@ -1449,9 +1449,9 @@ public class MainModel {
                             transactionDao.delete(oldT.getMatchID());
                             deleteTIDSet.add(oldT.getMatchID());
                         }
-
-                        accountIDSet.add(-oldT.getCategoryID());
                     }
+
+                    accountIDSet.add(-oldT.getCategoryID());
                 }
 
                 // now ready to delete oldT

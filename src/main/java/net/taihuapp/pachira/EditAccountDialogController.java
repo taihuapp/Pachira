@@ -23,14 +23,17 @@ package net.taihuapp.pachira;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 
 public class EditAccountDialogController {
 
-    private Stage mDialogStage;
-    private MainApp mMainApp;
-    private Account mAccount;
+    private static final Logger logger = Logger.getLogger(EditAccountDialogController.class);
+
+    private Account account;
+    private MainModel mainModel;
 
     @FXML
     private ChoiceBox<Account.Type> mTypeChoiceBox;
@@ -41,9 +44,9 @@ public class EditAccountDialogController {
     @FXML
     private CheckBox mHiddenFlagCheckBox;
 
-    void setAccount(MainApp mainApp, Account account, Account.Type.Group g) {
-        mMainApp = mainApp;
-        mAccount = account;
+    void setAccount(MainModel mainModel, Account account, Account.Type.Group g) {
+        this.mainModel = mainModel;
+        this.account = account;
 
         // todo more initialization
         if (account != null) {
@@ -67,8 +70,6 @@ public class EditAccountDialogController {
         mHiddenFlagCheckBox.setSelected(account != null && account.getHiddenFlag());
     }
 
-    void setDialogStage(Stage stage) { mDialogStage = stage; }
-
     @FXML
     private void handleOK() {
         String name = mNameTextField.getText();
@@ -87,25 +88,33 @@ public class EditAccountDialogController {
             return;
         }
 
-        if (mAccount == null) {
-            mAccount = new Account(0, mTypeChoiceBox.getValue(), name,
+        if (account == null) {
+            account = new Account(0, mTypeChoiceBox.getValue(), name,
                     mDescriptionTextArea.getText(), mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE,
                     null, BigDecimal.ZERO);
         } else {
-            mAccount.setName(name);
-            mAccount.setType(mTypeChoiceBox.getValue());
-            mAccount.setDescription(mDescriptionTextArea.getText());
-            mAccount.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
+            account.setName(name);
+            account.setType(mTypeChoiceBox.getValue());
+            account.setDescription(mDescriptionTextArea.getText());
+            account.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
         }
 
         // insert or update database
-        mMainApp.insertUpdateAccountToDB(mAccount);
-
-        mDialogStage.close();
+        try {
+            mainModel.insertUpdateAccount(account);
+            close();
+        } catch (DaoException e) {
+            final String msg = e.getErrorCode() + " DaoException when insertUpdateAccount";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog((Stage) mNameTextField.getScene().getWindow(),
+                    "DaoException", msg, e.toString(), e);
+        }
     }
 
     @FXML
     private void handleCancel() {
-        mDialogStage.close();
+        close();
     }
+
+    private void close() { ((Stage) mNameTextField.getScene().getWindow()).close(); }
 }

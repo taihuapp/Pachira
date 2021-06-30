@@ -50,7 +50,10 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.HPos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
@@ -58,8 +61,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import net.taihuapp.pachira.dc.AccountDC;
-import net.taihuapp.pachira.dc.Vault;
 import org.apache.log4j.Logger;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.RunScript;
@@ -80,7 +81,6 @@ import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.Date;
 import java.sql.*;
-import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -92,7 +92,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
@@ -116,10 +115,6 @@ public class MainApp extends Application {
 
     static final ObjectProperty<LocalDate> CURRENT_DATE_PROPERTY = new SimpleObjectProperty<>(LocalDate.now());
 
-    // minimum 2 decimal places, maximum 4 decimal places
-    static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
-
-    private static final String ACKNOWLEDGETIMESTAMP = "ACKDT";
     private static final int MAXOPENEDDBHIST = 5; // keep max 5 opened files
     private static String KEY_OPENEDDBPREFIX = "OPENEDDB#";
     private static final String DBOWNER = "ADMPACHIRA";
@@ -156,13 +151,9 @@ public class MainApp extends Application {
 
     private static final int PRICE_TOTAL_LEN = 20;
     static final int PRICE_FRACTION_LEN = 8;
-    static final int PRICE_FRACTION_DISP_LEN = 6;
 
     private static final int QUANTITY_TOTAL_LEN = 20;
     static final int QUANTITY_FRACTION_LEN = 8;
-    static final int QUANTITY_FRACTION_DISP_LEN = 6;
-
-    static final int SAVEDREPORTSNAMELEN = 32;
 
     private static final String HASHEDMASTERPASSWORDNAME = "HASHEDMASTERPASSWORD";
     private static final String CLIENTUIDNAME = "ClientUID";
@@ -183,7 +174,6 @@ public class MainApp extends Application {
     private final ObjectProperty<Connection> mConnectionProperty = new SimpleObjectProperty<>(null);
     ObjectProperty<Connection> getConnectionProperty() { return mConnectionProperty; }
     private Connection getConnection() { return getConnectionProperty().get(); }
-    private void setConnection(Connection c) { getConnectionProperty().set(c); }
 
     private Savepoint mSavepoint = null;
 
@@ -243,26 +233,6 @@ public class MainApp extends Application {
             }
         }
         return fileNameList;
-    }
-
-    LocalDateTime getAcknowledgeTimeStamp() {
-        String ldtStr = mPrefs.get(ACKNOWLEDGETIMESTAMP, null);
-        if (ldtStr == null)
-            return null;
-        try {
-            return LocalDateTime.parse(ldtStr);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    void putAcknowledgeTimeStamp(LocalDateTime ldt) {
-        mPrefs.put(ACKNOWLEDGETIMESTAMP, ldt.toString());
-        try {
-            mPrefs.flush();
-        } catch (BackingStoreException be) {
-            mLogger.error("BackingStoreException encountered when storing Acknowledge date time.", be);
-        }
     }
 
     // return accounts for given type t or all account if t is null
@@ -496,6 +466,7 @@ public class MainApp extends Application {
             getSecurityList().forEach(s -> stringBuilder.append(s.toQIF()));
         }
 
+/*
         if (exportTransaction) {
             stringBuilder.append("!Option:AutoSwitch").append(EOL);
             accountList.forEach(account -> {
@@ -507,6 +478,7 @@ public class MainApp extends Application {
                         .forEach(transaction -> stringBuilder.append(transaction.toQIF(this)));
             });
         }
+*/
 
         if (exportSecurity) {
             // need to export prices if securities are exported.
@@ -566,10 +538,7 @@ public class MainApp extends Application {
                 if (itemName != null)
                 switch (ReportDialogController.ItemName.valueOf(itemName)) {
                     case ACCOUNTID:
-                        int accountID = Integer.parseInt(itemValue);
-                        Account account = getAccountByID(accountID);
-                        if (account != null)
-                            setting.getSelectedAccountSet().add(account);
+                        setting.getSelectedAccountIDSet().add(Integer.parseInt(itemValue));
                         break;
                     case CATEGORYID:
                         setting.getSelectedCategoryIDSet().add(Integer.parseInt(itemValue));
@@ -669,10 +638,10 @@ public class MainApp extends Application {
                  PreparedStatement preparedStatement1 = connection.prepareStatement(sqlCmd1)) {
                 statement.execute("delete from SAVEDREPORTDETAILS where REPORTID = " + id);
                 // loop through account list
-                for (Account account : setting.getSelectedAccountSet()) {
+                for (int accountID : setting.getSelectedAccountIDSet()) {
                     preparedStatement1.setInt(1, id);
                     preparedStatement1.setString(2, ReportDialogController.ItemName.ACCOUNTID.name());
-                    preparedStatement1.setString(3, String.valueOf(account.getID()));
+                    preparedStatement1.setString(3, String.valueOf(accountID));
 
                     preparedStatement1.executeUpdate();
                 }
@@ -1405,6 +1374,7 @@ public class MainApp extends Application {
     // take a transaction id, and a list of split BT, insert the list of bt into database
     // return the number of splitBT inserted, which should be same as the length of
     // the input list
+/*
     private int insertSplitBTToDB(int btID, List<QIFParser.BankTransaction.SplitBT> splitBTList) {
         int cnt = 0;
 
@@ -1427,6 +1397,7 @@ public class MainApp extends Application {
         }
         return cnt;
     }
+*/
 
     // return the inserted rowID, -1 if error.
     private int insertAddressToDB(List<String> address) {
@@ -1500,6 +1471,7 @@ public class MainApp extends Application {
 
     // insert transaction to database and returns rowID
     // return -1 if failed
+/*
     private int insertTransactionToDB(QIFParser.BankTransaction bt) throws SQLException {
         int rowID = -1;
         String accountName = bt.getAccountName();
@@ -1599,9 +1571,11 @@ public class MainApp extends Application {
 
         return rowID;
     }
+*/
 
     // insert trade transaction to database and returns rowID
     // return -1 if failed
+/*
     private int insertTransactionToDB(QIFParser.TradeTransaction tt) throws SQLException {
         int rowID = -1;
         Account account = getAccountByName(tt.getAccountName());
@@ -1669,6 +1643,7 @@ public class MainApp extends Application {
         connection.setAutoCommit(true);
         return rowID;
     }
+*/
 
     private void insertCategoryToDB(Category category) {
         String sqlCmd;
@@ -2379,28 +2354,6 @@ public class MainApp extends Application {
         return openedDBNames;
     }
 
-    void showSplashScreen(boolean firstTime) {
-        try {
-            FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(MainApp.class.getResource("/view/SplashScreenDialog.fxml"));
-            Stage dialogStage = new Stage();
-            dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mPrimaryStage);
-            dialogStage.setScene(new Scene(loader.load()));
-            SplashScreenDialogController controller = loader.getController();
-            if (controller == null) {
-                mLogger.error("Null SpashScreenDialogController?");
-                Platform.exit();
-                System.exit(0);
-            }
-            controller.setMainApp(this, dialogStage, firstTime);
-            dialogStage.setOnCloseRequest(e -> controller.handleClose());
-            dialogStage.showAndWait();
-        } catch (IOException e) {
-            mLogger.error("IOException", e);
-        }
-    }
-
     void showReconcileDialog() {
         try {
             FXMLLoader loader = new FXMLLoader();
@@ -2412,7 +2365,7 @@ public class MainApp extends Application {
             dialogStage.setTitle("Reconcile Account: " + getCurrentAccount().getName());
             dialogStage.setScene(new Scene(loader.load()));
             ReconcileDialogController controller = loader.getController();
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(e -> controller.handleCancel());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2434,7 +2387,7 @@ public class MainApp extends Application {
                 mLogger.error("Null ReportDialogController");
                 return;
             }
-            controller.setMainApp(setting, this, dialogStage);
+            //controller.setMainApp(setting, this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2454,7 +2407,7 @@ public class MainApp extends Application {
             stage.setScene(new Scene(loader.load()));
 
             DirectConnectionListDialogController controller = loader.getController();
-            controller.setMainApp(this, stage);
+            //controller.setMainApp(this, stage);
             stage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException when open Direct Connection List dialog", e);
@@ -2473,7 +2426,7 @@ public class MainApp extends Application {
             stage.setScene(new Scene(loader.load()));
 
             FinancialInstitutionListDialogController controller = loader.getController();
-            controller.setMainApp(this, stage);
+            //controller.setMainApp(this, stage);
             stage.showAndWait();
 
         } catch (IOException e) {
@@ -2496,7 +2449,7 @@ public class MainApp extends Application {
                 mLogger.error("Null AccountListDialog controller?");
                 return;
             }
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2519,7 +2472,7 @@ public class MainApp extends Application {
                 mLogger.error("Null controller for ReminderTransactionListDialog");
                 return;
             }
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2538,7 +2491,7 @@ public class MainApp extends Application {
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
             TagListDialogController controller = loader.getController();
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2561,7 +2514,7 @@ public class MainApp extends Application {
             dialogStage.initOwner(mPrimaryStage);
             dialogStage.setScene(new Scene(loader.load()));
             CategoryListDialogController controller = loader.getController();
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2588,7 +2541,7 @@ public class MainApp extends Application {
                 mLogger.error("Null controller for SecurityListDialog");
                 return;
             }
-            controller.setMainApp(this, dialogStage);
+            //controller.setMainApp(this, dialogStage);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -2759,7 +2712,7 @@ public class MainApp extends Application {
              securityHoldingIterator.hasNext(); ) {
             SecurityHolding securityHolding = securityHoldingIterator.next();
 
-            if (securityHolding.getQuantity().setScale(QUANTITY_FRACTION_DISP_LEN,
+            if (securityHolding.getQuantity().setScale(MainModel.QUANTITY_FRACTION_DISPLAY_LEN,
                     RoundingMode.HALF_UP).signum() == 0) {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
@@ -2934,7 +2887,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
             dialogStage.setUserData(false);
             SplitTransactionsDialogController controller = loader.getController();
-            controller.setMainApp(this, accountID, dialogStage, stList, netAmount);
+            //controller.setMainApp(this, accountID, dialogStage, stList, netAmount);
             dialogStage.showAndWait();
             return controller.getSplitTransactionList();
         } catch (IOException e) {
@@ -2954,7 +2907,7 @@ public class MainApp extends Application {
             dialogStage.initOwner(parent);
             dialogStage.setScene(new Scene(loader.load()));
             SpecifyLotsDialogController controller = loader.getController();
-            controller.setMainApp(this, t, matchInfoList, dialogStage);
+//            controller.setMainApp(this, t, matchInfoList, dialogStage);
             dialogStage.showAndWait();
         } catch (IOException e) {
             mLogger.error("IOException", e);
@@ -2985,7 +2938,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             EditTransactionDialogControllerNew controller = loader.getController();
-            controller.setMainApp(this, transaction, dialogStage, accountList, defaultAccount, taList);
+//            controller.setMainApp(this, transaction, dialogStage, accountList, defaultAccount, taList);
             dialogStage.showAndWait();
             return controller.getTransactionID();
         } catch (IOException e) {
@@ -3015,7 +2968,7 @@ public class MainApp extends Application {
             dialogStage.setScene(new Scene(loader.load()));
 
             HoldingsDialogController controller = loader.getController();
-            controller.setMainApp(this);
+//            controller.setMainApp(this);
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
         } catch (IOException e) {
@@ -3398,6 +3351,7 @@ public class MainApp extends Application {
         }
     }
     // import data from QIF file
+/*
     void importQIF() {
         ChoiceDialog<String> accountChoiceDialog = new ChoiceDialog<>();
         accountChoiceDialog.getItems().add("");
@@ -3425,7 +3379,7 @@ public class MainApp extends Application {
             if (qifParser.parseFile(file) < 0) {
                 mLogger.error("Failed to parse " + file);
             }
-        } catch (IOException e) {
+        } catch (IOException | ModelException e) {
             mLogger.error("IOException", e);
         }
 
@@ -3488,6 +3442,7 @@ public class MainApp extends Application {
         // linkup transferring transactions
         fixDB();
     }
+*/
 
     // todo need to handle error gracefully
     String doBackup() {
@@ -5367,7 +5322,7 @@ public class MainApp extends Application {
         // SavedReports table
         sqlCmd = "create table SAVEDREPORTS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
-                + "NAME varchar (" + SAVEDREPORTSNAMELEN + ") UNIQUE NOT NULL, "       // name of the report
+                + "NAME varchar (" + MainModel.SAVEDREPORTS_NAME_LEN + ") UNIQUE NOT NULL, "       // name of the report
                 + "TYPE varchar (16) NOT NULL, "              // type of the report
                 + "DATEPERIOD varchar (16) NOT NULL, "        // enum for dateperiod
                 + "SDATE date NOT NULL, "                              // customized start date
@@ -5584,7 +5539,7 @@ public class MainApp extends Application {
             loader.setLocation(MainApp.class.getResource("/view/MainLayout.fxml"));
             mPrimaryStage.setScene(new Scene(loader.load()));
             mPrimaryStage.show();
-            ((MainController) loader.getController()).setMainApp(this);
+            //((MainController) loader.getController()).setMainApp(this);
         } catch (IOException e) {
             mLogger.error("IOException", e);
         }
@@ -5670,7 +5625,6 @@ public class MainApp extends Application {
 
     @Override
     public void stop() {
-        closeConnection();  // close database connection if any.
         mExecutorService.shutdown();
         Platform.exit(); // this shutdown JavaFX
         System.exit(0);  // this is needed to stop any timer tasks not otherwise stopped.
@@ -5679,7 +5633,7 @@ public class MainApp extends Application {
     @Override
     public void init() {
         mPrefs = Preferences.userNodeForPackage(MainApp.class);
-        DOLLAR_CENT_FORMAT.setParseBigDecimal(true);  // always parse BigDecimal
+        MainModel.DOLLAR_CENT_FORMAT.setParseBigDecimal(true);  // always parse BigDecimal
     }
 
     @Override

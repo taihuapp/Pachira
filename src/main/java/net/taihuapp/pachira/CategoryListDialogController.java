@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -32,8 +32,8 @@ import javafx.stage.Stage;
 import java.io.IOException;
 
 public class CategoryListDialogController {
-    private MainApp mMainApp;
-    private Stage mDialogStage;
+
+    private MainModel mainModel;
 
     @FXML
     private TableView<Category> mCategoryTableView;
@@ -46,21 +46,15 @@ public class CategoryListDialogController {
     @FXML
     private Button mDeleteButton;
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
-
-        mCategoryTableView.setItems(mainApp.getCategoryList());
-        mCategoryNameColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
-        mCategoryDescriptionColumn.setCellValueFactory(cd -> cd.getValue().getDescriptionProperty());
-
-        mEditButton.disableProperty().bind(mCategoryTableView.getSelectionModel().selectedItemProperty().isNull());
-        mDeleteButton.disableProperty().bind(mCategoryTableView.getSelectionModel().selectedItemProperty().isNull());
+    void setMainModel(MainModel mainModel) {
+        this.mainModel = mainModel;
+        mCategoryTableView.setItems(mainModel.getCategoryList());
     }
 
-    void close() { mDialogStage.close(); }
+    void close() { ((Stage) mCategoryTableView.getScene().getWindow()).close(); }
 
     private void showEditCategoryDialog(Category category) {
+        Stage stage = (Stage) mCategoryTableView.getScene().getWindow();
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/EditCategoryDialog.fxml"));
@@ -68,16 +62,16 @@ public class CategoryListDialogController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Edit Category");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(mDialogStage);
+            dialogStage.initOwner(stage);
             dialogStage.setScene(new Scene(loader.load()));
 
             EditCategoryDialogController controller = loader.getController();
-            controller.setMainApp(mMainApp, category, dialogStage);
+            controller.setMainModel(mainModel, category);
             dialogStage.showAndWait();
         } catch (IOException e) {
-            MainApp.showExceptionDialog(mDialogStage,"Exception", "IOException", "Edit Category Dialog IO Exception", e);
+            MainApp.showExceptionDialog(stage,"Exception", "IOException", "Edit Category Dialog IO Exception", e);
         } catch (NullPointerException e) {
-            MainApp.showExceptionDialog(mDialogStage,"Exception", "Null Pointer Exception",
+            MainApp.showExceptionDialog(stage,"Exception", "Null Pointer Exception",
                     "Edit Category Dialog Null Pointer Exception", e);
         }
     }
@@ -92,10 +86,20 @@ public class CategoryListDialogController {
 
     @FXML
     private void handleDelete() {
-        MainApp.showExceptionDialog(mDialogStage,"Exception", "Action Not Implemented",
+        Stage stage = (Stage) mCategoryTableView.getScene().getWindow();
+        DialogUtil.showExceptionDialog(stage,"Exception", "Action Not Implemented",
                 "Delete category action not implemented", null);
     }
 
     @FXML
-    private void handleClose() { mDialogStage.close(); }
+    private void handleClose() { close(); }
+
+    @FXML
+    private void initialize() {
+        mCategoryNameColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
+        mCategoryDescriptionColumn.setCellValueFactory(cd -> cd.getValue().getDescriptionProperty());
+
+        mEditButton.disableProperty().bind(mCategoryTableView.getSelectionModel().selectedItemProperty().isNull());
+        mDeleteButton.disableProperty().bind(mCategoryTableView.getSelectionModel().selectedItemProperty().isNull());
+    }
 }

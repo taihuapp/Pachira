@@ -25,7 +25,7 @@
 <?import javafx.scene.layout.*?>
 <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="60.0" minWidth="100.0" prefHeight="600.0" prefWidth="1000.0" stylesheets="@../css/Main.css" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.MainController">
    <center>
-      <VBox fx:id="mTransactionVBox" BorderPane.alignment="CENTER">
+      <VBox fx:id="mTransactionVBox" visible="false" BorderPane.alignment="CENTER">
          <children>
             <HBox alignment="CENTER_LEFT" prefHeight="24.0" prefWidth="600.0">
                <children>

@@ -53,7 +53,7 @@ public class Category {
     private final ObjectProperty<BigDecimal> mBudgetAmountProperty; // budget amount
 
     // constructor
-    Category(int id, String name, String description, boolean isIncome, int taxRefNum) {
+    public Category(int id, String name, String description, boolean isIncome, int taxRefNum) {
         mID = id;
         mNameProperty = new SimpleStringProperty(name);
         mDescriptionProperty = new SimpleStringProperty(description);
@@ -64,6 +64,7 @@ public class Category {
     }
 
     // copy Constructor
+    @SuppressWarnings("CopyConstructorMissesField")
     Category(Category c) { this(c.getID(), c.getName(), c.getDescription(), c.getIsIncome(), c.getTaxRefNum()); }
 
     // default constructor
@@ -71,19 +72,28 @@ public class Category {
         this(0, "", "", true, -1);
     }
 
+    public void copy(Category category) {
+        setID(category.getID());
+        setName(category.getName());
+        setDescription(category.getDescription());
+        setIsIncome(category.getIsIncome());
+        setTaxRefNum(category.getTaxRefNum());
+        setBudgetAmount(category.getBudgetAmount());
+    }
+
     void setID(int id) { mID = id; }
-    int getID() { return mID; }
+    public int getID() { return mID; }
 
     StringProperty getNameProperty() { return mNameProperty; }
-    String getName() { return getNameProperty().get(); }
+    public String getName() { return getNameProperty().get(); }
     void setName(String name) { getNameProperty().set(name); }
 
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
-    String getDescription() { return getDescriptionProperty().get(); }
+    public String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String des) { getDescriptionProperty().set(des); }
 
     private ObjectProperty<Boolean> getIsIncomeProperty() { return mIsIncomeProperty; }
-    Boolean getIsIncome() { return getIsIncomeProperty().get(); }
+    public Boolean getIsIncome() { return getIsIncomeProperty().get(); }
     void setIsIncome(boolean isIncome) { getIsIncomeProperty().set(isIncome); }
 
     void setIsTaxRelated(boolean t) {
@@ -97,12 +107,12 @@ public class Category {
     boolean isTaxRelated() { return getTaxRefNum() >= 0; }
 
     private IntegerProperty getTaxRefNumProperty() { return mTaxRefNumProperty; }
-    int getTaxRefNum() { return getTaxRefNumProperty().get(); }
+    public int getTaxRefNum() { return getTaxRefNumProperty().get(); }
     void setTaxRefNum(int r) { mTaxRefNumProperty.set(r); }
 
     private ObjectProperty<BigDecimal> getBudgetAmountProperty() { return mBudgetAmountProperty; }
-    BigDecimal getBudgetAmount() { return getBudgetAmountProperty().get(); }
-    void setBudgetAmount(BigDecimal b) { getBudgetAmountProperty().set(b); }
+    public BigDecimal getBudgetAmount() { return getBudgetAmountProperty().get(); }
+    public void setBudgetAmount(BigDecimal b) { getBudgetAmountProperty().set(b); }
 
     public String toString() { return "[" + getName() + "," + getDescription() + "]" ;}
 

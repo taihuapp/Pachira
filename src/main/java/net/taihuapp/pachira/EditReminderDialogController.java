@@ -24,46 +24,25 @@ import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import javafx.util.converter.NumberStringConverter;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 import org.controlsfx.control.textfield.TextFields;
 
+import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.SQLException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Callable;
 
 public class EditReminderDialogController {
 
-    private class TagIDConverter extends StringConverter<Integer> {
-        public Integer fromString(String tagName) {
-            Tag t = mMainApp.getTagByName(tagName);
-            return t == null ? 0 : t.getID();
-        }
-        public String toString(Integer tid) {
-            Tag t = (tid == null) ? null : mMainApp.getTagByID(tid);
-            return t == null ? "" : t.getName();
-        }
-    }
+    private static final Logger logger = Logger.getLogger(EditReminderDialogController.class);
 
-    // this converts account id to account name
-    // different from the converter in EditTransactions
-    private class AccountIDConverter extends StringConverter<Integer> {
-        public Integer fromString(String accountName) {
-            Account a = mMainApp.getAccountByName(accountName);
-            return a == null ? 0 : a.getID();
-        }
-        public String toString(Integer aid) {
-            Account a = (aid == null) ? null : mMainApp.getAccountByID(aid);
-            return a == null ? "" : a.getName();
-        }
-    }
-
-    private MainApp mMainApp;
+    private MainModel mainModel;
     private Reminder mReminder;
-    private Stage mDialogStage;
 
     @FXML
     private ChoiceBox<Reminder.Type> mTypeChoiceBox;
@@ -137,26 +116,27 @@ public class EditReminderDialogController {
         mTypeChoiceBox.getItems().setAll(Reminder.Type.values());
     }
 
-    void setMainApp(MainApp mainApp, Reminder reminder, Stage stage) {
-        mMainApp = mainApp;
-        mReminder = reminder;
-        mDialogStage = stage;
+    void setMainModel(MainModel mainModel, Reminder reminder) {
+        this.mainModel = mainModel;
+        this.mReminder = reminder;
 
-        // bind the properties now
-        // seems no need to do unbindBidirectional
         mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
-        TextFields.bindAutoCompletion(mPayeeTextField, mMainApp.getPayeeSet());
+        TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
 
         mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
                 new BigDecimalStringConverter());
         mEstimateNumOccurrenceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
                 new IntegerStringConverter());
 
-        mAccountIDComboBox.setConverter(new AccountIDConverter());
+        mAccountIDComboBox.setConverter(new ConverterUtil.AccountIDConverter(mainModel));
         mAccountIDComboBox.getItems().clear();
-        for (Account a : mMainApp.getAccountList(Account.Type.Group.SPENDING, false, true))
+        for (Account a : mainModel.getAccountList(account ->
+                    account.getType().isGroup(Account.Type.Group.SPENDING) && !account.getHiddenFlag()
+                    && !account.getName().equals(MainModel.DELETED_ACCOUNT_NAME),
+                Comparator.comparing(Account::getDisplayOrder)))
             mAccountIDComboBox.getItems().add(a.getID());
+
         Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
         if (mAccountIDComboBox.getSelectionModel().isEmpty())
             mAccountIDComboBox.getSelectionModel().selectFirst(); // if no account selected, default the first.
@@ -168,12 +148,12 @@ public class EditReminderDialogController {
 
         mCategoryTransferAccountIDComboBoxWrapper =
                 new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox,
-                        mainApp);
+                        mainModel);
         mCategoryIDComboBox.valueProperty().bindBidirectional(reminder.getCategoryIDProperty());
 
-        mTagIDComboBox.setConverter(new TagIDConverter());
+        mTagIDComboBox.setConverter(new ConverterUtil.TagIDConverter(mainModel));
         mTagIDComboBox.getItems().clear();
-        for (Tag t : mMainApp.getTagList())
+        for (Tag t : mainModel.getTagList())
             mTagIDComboBox.getItems().add(t.getID());
         Bindings.bindBidirectional(mTagIDComboBox.valueProperty(), mReminder.getTagIDProperty());
 
@@ -238,12 +218,19 @@ public class EditReminderDialogController {
                 netAmount = netAmount.negate();
         }
 
-        List<SplitTransaction> outputSplitTransactionList = mMainApp.showSplitTransactionsDialog(mDialogStage,
-                mAccountIDComboBox.getValue(), mReminder.getSplitTransactionList(), netAmount);
+        try {
+            List<SplitTransaction> outputSplitTransactionList = DialogUtil.showSplitTransactionsDialog(mainModel,
+                    (Stage) mPayeeTextField.getScene().getWindow(), mAccountIDComboBox.getValue(),
+                    mReminder.getSplitTransactionList(), netAmount);
 
-        if (outputSplitTransactionList != null) {
-            // splitTransactionList changed
-            mReminder.setSplitTransactionList(outputSplitTransactionList);
+            if (outputSplitTransactionList != null) {
+                // splitTransactionList changed
+                mReminder.setSplitTransactionList(outputSplitTransactionList);
+            }
+        } catch (IOException e) {
+            logger.error("ShowSplitTransactionsDialog IOException", e);
+            DialogUtil.showExceptionDialog((Stage) mPayeeTextField.getScene().getWindow(),
+                    "Exception", "IOException", "showSplitTransactionsDialog IOException", e);
         }
     }
 
@@ -261,11 +248,9 @@ public class EditReminderDialogController {
                 netAmount = netAmount.add(st.getAmount());
             }
             if (netAmount.compareTo(BigDecimal.ZERO) != 0) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning");
-                alert.setHeaderText("Split Transaction amount not match with total amount.");
-                alert.setContentText("Please check split");
-                alert.showAndWait();
+                DialogUtil.showWarningDialog((Stage) mPayeeTextField.getScene().getWindow(),
+                        "Warning", "SplitTransaction amount not match with total amount.",
+                        "Please recheck split");
                 return;
             }
         }
@@ -273,38 +258,20 @@ public class EditReminderDialogController {
         if (!mEstimateAmountRadioButton.isSelected())
             mReminder.setEstimateCount(0);
 
-        // enter
         try {
-            if (!mMainApp.setDBSavepoint()) {
-                MainApp.showExceptionDialog(mDialogStage, "Error", "Unable to set DB save point",
-                        "Something is wrong. Please restart.", null);
-                return;
-            }
-            mMainApp.insertUpdateReminderToDB(mReminder);
-            mMainApp.commitDB();
-        } catch (SQLException e) {
-            try {
-                MainApp.showExceptionDialog(mDialogStage,"Database Error",
-                        "insert or update Reminder failed",
-                        MainApp.SQLExceptionToString(e), e);
-                mMainApp.rollbackDB();
-            } catch (SQLException e1) {
-                MainApp.showExceptionDialog(mDialogStage,"Database Error",
-                        "Failed to rollback reminder database update",
-                        MainApp.SQLExceptionToString(e), e);
-            }
-        } finally {
-            try {
-                mMainApp.releaseDBSavepoint();
-            } catch (SQLException e) {
-                MainApp.showExceptionDialog(mDialogStage,"Database Error",
-                        "set autocommit failed after insert update reminder",
-                        MainApp.SQLExceptionToString(e), e);
-            }
+            if (mReminder.getID() > 0)
+                mainModel.updateReminder(mReminder);
+            else
+                mainModel.insertReminder(mReminder);
+
+            close();
+        } catch (DaoException e) {
+            final String action = mReminder.getID() > 0 ? "Update" : "Insert";
+            logger.error(action + " Reminder error", e);
+            DialogUtil.showExceptionDialog((Stage) mPayeeTextField.getScene().getWindow(),
+                    "Exception", "DaoException",
+                    "DaoException " + e.getErrorCode() + " on " + action + " reminder", e);
         }
-        mMainApp.initReminderMap();
-        mMainApp.initReminderTransactionList();
-        close();
     }
 
     @FXML
@@ -312,5 +279,5 @@ public class EditReminderDialogController {
         close();
     }
 
-    private void close() { mDialogStage.close(); }
+    private void close() { ((Stage) mPayeeTextField.getScene().getWindow()).close(); }
 }

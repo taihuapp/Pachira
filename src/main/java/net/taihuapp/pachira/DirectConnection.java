@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -25,8 +25,11 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-class DirectConnection {
-    static class FIData {
+public class DirectConnection {
+
+    public static final String HASHED_MASTER_PASSWORD_NAME = "HASHEDMASTERPASSWORD";
+
+    public static class FIData {
         private int mID;
         private final StringProperty mFIIDProperty = new SimpleStringProperty();
         private final StringProperty mSubIDProperty = new SimpleStringProperty();
@@ -50,7 +53,7 @@ class DirectConnection {
                     fiData.getORG(), fiData.getURL());
         }
 
-        FIData(int id, String fiid, String subId, String brokerId, String name, String  org, String url) {
+        public FIData(int id, String fiid, String subId, String brokerId, String name, String  org, String url) {
             mID = id;
             mFIIDProperty.set(fiid);
             mSubIDProperty.set(subId);
@@ -60,26 +63,26 @@ class DirectConnection {
             mURLProperty.set(url);
         }
 
-        int getID() { return mID; }
+        public int getID() { return mID; }
         void setID(int id) { mID = id; }
 
         StringProperty getFIIDProperty() { return mFIIDProperty; }
-        String getFIID() { return getFIIDProperty().get(); }
+        public String getFIID() { return getFIIDProperty().get(); }
 
         StringProperty getSubIDProperty() { return mSubIDProperty; }
-        String getSubID() { return getSubIDProperty().get(); }
+        public String getSubID() { return getSubIDProperty().get(); }
 
         StringProperty getBrokerIDProperty() { return mBrokerIDProperty; }
-        String getBrokerID() { return getBrokerIDProperty().get(); }
+        public String getBrokerID() { return getBrokerIDProperty().get(); }
 
         StringProperty getNameProperty() { return mNameProperty; }
-        String getName() { return getNameProperty().get(); }
+        public String getName() { return getNameProperty().get(); }
 
         StringProperty getORGProperty() { return mORGProperty; }
-        String getORG() { return getORGProperty().get(); }
+        public String getORG() { return getORGProperty().get(); }
 
         StringProperty getURLProperty() { return mURLProperty; }
-        String getURL() { return getURLProperty().get(); }
+        public String getURL() { return getURLProperty().get(); }
     }
 
     private int mID;
@@ -88,26 +91,26 @@ class DirectConnection {
     private String mEncryptedUserName;
     private String mEncryptedPassword;
 
-    int getFIID() { return mFIIDProperty.get(); }
-    int getID() { return mID; }
+    public int getFIID() { return mFIIDProperty.get(); }
+    public int getID() { return mID; }
     void setID(int id) { mID = id; }
     void setFIID(int id) { mFIIDProperty.set(id); }
     StringProperty getNameProperty() { return mNameProperty; }
-    String getName() { return getNameProperty().get(); }
+    public String getName() { return getNameProperty().get(); }
     void setName(String n) { mNameProperty.set(n); }
 
-    String getEncryptedUserName() { return mEncryptedUserName; }
-    String getEncryptedPassword() { return mEncryptedPassword; }
+    public String getEncryptedUserName() { return mEncryptedUserName; }
+    public String getEncryptedPassword() { return mEncryptedPassword; }
     void setEncryptedUserName(String eun) { mEncryptedUserName = eun; }
-    void setEncryptedPassword(String epwd) { mEncryptedPassword = epwd; }
+    public void setEncryptedPassword(String encryptedPassword) { mEncryptedPassword = encryptedPassword; }
 
     // constructor
-    // don't use null to initialize eun and epwd, if necessary, use empty string instead
-    DirectConnection(int id, String name, int fiID, String eun, String epwd) {
+    // don't use null to initialize eun and encryptedPassword, if necessary, use empty string instead
+    public DirectConnection(int id, String name, int fiID, String eun, String encryptedPassword) {
         mID = id;
         mNameProperty.set(name);
         mFIIDProperty.set(fiID);
         mEncryptedUserName = eun;
-        mEncryptedPassword = epwd;
+        mEncryptedPassword = encryptedPassword;
     }
 }

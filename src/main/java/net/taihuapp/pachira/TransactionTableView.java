@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
@@ -32,6 +33,7 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * A base class TableView for transactions.
@@ -40,7 +42,7 @@ import java.util.Arrays;
 
 abstract class TransactionTableView extends TableView<Transaction> {
 
-    protected static MainApp mMainApp;
+    MainModel mainModel;
 
     protected TableColumn<Transaction, Transaction.Status> mTransactionStatusColumn = new TableColumn<>("Clr");
     protected TableColumn<Transaction, LocalDate> mTransactionDateColumn = new TableColumn<>("Date");
@@ -62,8 +64,8 @@ abstract class TransactionTableView extends TableView<Transaction> {
     protected TableColumn<Transaction, BigDecimal> mTransactionAmountColumn = new TableColumn<>("Amount");
 
     // constructor
-    TransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) {
-        mMainApp = mainApp;
+    TransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
+        this.mainModel = mainModel;
 
         // add columns to TableView
         //setTableMenuButtonVisible(true);
@@ -110,7 +112,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
 
         // binding columns to Transaction members
         mTransactionStatusColumn.setCellValueFactory(cd -> cd.getValue().getStatusProperty());
-        mTransactionStatusColumn.setCellFactory(c -> new TableCell<Transaction, Transaction.Status>() {
+        mTransactionStatusColumn.setCellFactory(c -> new TableCell<>() {
             @Override
             protected void updateItem(Transaction.Status item, boolean empty) {
                 super.updateItem(item, empty);
@@ -125,12 +127,9 @@ abstract class TransactionTableView extends TableView<Transaction> {
         });
 
         mTransactionDateColumn.setCellValueFactory(cd -> cd.getValue().getTDateProperty());
-        mTransactionAccountColumn.setCellValueFactory(cd -> {
-            Account a = mMainApp.getAccountByID(cd.getValue().getAccountID());
-            if (a == null)
-                return new ReadOnlyStringWrapper(""); // no account found, blank it
-            return a.getNameProperty();
-        });
+        mTransactionAccountColumn.setCellValueFactory(cd ->
+                mainModel.getAccount(a -> a.getID() == cd.getValue().getAccountID())
+                        .map(Account::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
         mTransactionTradeActionColumn.setCellValueFactory(cd -> cd.getValue().getTradeActionProperty());
         mTransactionSecurityNameColumn.setCellValueFactory(cd -> cd.getValue().getSecurityNameProperty());
         mTransactionReferenceColumn.setCellValueFactory(cd -> cd.getValue().getReferenceProperty());
@@ -140,15 +139,20 @@ abstract class TransactionTableView extends TableView<Transaction> {
             Transaction t = cd.getValue();
             if (t.getSplitTransactionList().size() > 0)
                 return new ReadOnlyStringWrapper("--Split--");
-            return new ReadOnlyStringWrapper(mMainApp.mapCategoryOrAccountIDToName(t.getCategoryID()));
+            final int categoryID = t.getCategoryID();
+            final Optional<Category> categoryOptional = mainModel.getCategory(c -> c.getID() == categoryID);
+            final Optional<Account> accountOptional = mainModel.getAccount(a -> a.getID() == -categoryID);
+            if (categoryOptional.isPresent())
+                return categoryOptional.get().getNameProperty();
+
+            if (accountOptional.isPresent())
+                return Bindings.concat("[", accountOptional.get().getNameProperty(), "]");
+
+            return new ReadOnlyStringWrapper("");
         });
         mTransactionDescriptionColumn.setCellValueFactory(cd -> cd.getValue().getDescriptionProperty());
-        mTransactionTagColumn.setCellValueFactory(cd -> {
-            Tag tag = mMainApp.getTagByID(cd.getValue().getTagID());
-            if (tag == null)
-                return new ReadOnlyStringWrapper("");
-            return tag.getNameProperty();
-        });
+        mTransactionTagColumn.setCellValueFactory(cd -> mainModel.getTag(t -> t.getID() == cd.getValue().getTagID())
+                .map(Tag::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
         mTransactionQuantityColumn.setCellValueFactory(cd -> cd.getValue().getQuantityProperty());
         mTransactionInvestAmountColumn.setCellValueFactory(cd -> cd.getValue().getInvestAmountProperty());
         mTransactionCashAmountColumn.setCellValueFactory(cd -> cd.getValue().getCashAmountProperty());
@@ -161,10 +165,10 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionDateColumn.setStyle("-fx-alignment: CENTER;");
         mTransactionReferenceColumn.setStyle("-fx-alignment: CENTER;");
 
-        mTransactionQuantityColumn.setCellFactory(new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction,BigDecimal>>() {
+        mTransactionQuantityColumn.setCellFactory(new Callback<>() {
             @Override
             public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> param) {
-                return new TableCell<Transaction, BigDecimal>() {
+                return new TableCell<>() {
                     @Override
                     protected void updateItem(BigDecimal item, boolean empty) {
                         super.updateItem(item, empty);
@@ -173,7 +177,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                         } else {
                             // format
                             DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_DISP_LEN);
+                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
                             df.setMinimumFractionDigits(0);
                             setText(df.format(item));
                         }
@@ -184,10 +188,10 @@ abstract class TransactionTableView extends TableView<Transaction> {
         });
         
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
-                new Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>>() {
+                new Callback<>() {
                     @Override
                     public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> param) {
-                        return new TableCell<Transaction, BigDecimal>() {
+                        return new TableCell<>() {
                             @Override
                             protected void updateItem(BigDecimal item, boolean empty) {
                                 super.updateItem(item, empty);
@@ -196,7 +200,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(item.signum() == 0 ? "" : MainApp.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(item.signum() == 0 ? "" : MainModel.DOLLAR_CENT_FORMAT.format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }

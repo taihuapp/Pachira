@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -29,6 +29,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
@@ -42,8 +43,8 @@ public class SpecifyLotsDialogController {
 
     private static class SpecifyLotInfo extends SecurityHolding.LotInfo {
 
-        private ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-        private ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+        private final ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+        private final ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
         // constructor
         SpecifyLotInfo(SecurityHolding.LotInfo lotInfo) {
@@ -77,8 +78,7 @@ public class SpecifyLotsDialogController {
 
     private Transaction mTransaction;
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
-    private Stage mDialogStage;
-    private ObservableList<SpecifyLotInfo> mSpecifyLotInfoList = FXCollections.observableArrayList();
+    private final ObservableList<SpecifyLotInfo> mSpecifyLotInfoList = FXCollections.observableArrayList();
 
     @FXML
     private Button mResetButton;
@@ -174,19 +174,16 @@ public class SpecifyLotsDialogController {
                 mMatchInfoList.add(new SecurityHolding.MatchInfo(sli.getTransactionID(), sli.getSelectedShares()));
             }
         }
-        mDialogStage.close();
+        ((Stage) mLotInfoTableView.getScene().getWindow()).close();
     }
 
     @FXML
-    private void handleCancel() {
-        mDialogStage.close();
-    }
+    private void handleCancel() { ((Stage) mLotInfoTableView.getScene().getWindow()).close(); }
 
-    void setMainApp(MainApp mainApp, Transaction t,
-                    List<SecurityHolding.MatchInfo> matchInfoList, Stage stage) {
+    void setMainModel(MainModel mainModel, Transaction t, List<SecurityHolding.MatchInfo> matchInfoList)
+            throws DaoException {
         mMatchInfoList = matchInfoList;  // a link point to the input list
         mTransaction = t;
-        mDialogStage = stage;
 
         if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
             mMainLabel0.setText("" + mTransaction.getQuantity() + " shares of "
@@ -202,10 +199,15 @@ public class SpecifyLotsDialogController {
         }
         mTotalSharesLabel.setText(""+mTransaction.getQuantity());
 
-        mainApp.setCurrentAccountSecurityHoldingList(mTransaction.getTDate(), t.getID());
-
+        Account account = mainModel.getAccount(a -> a.getID() == t.getAccountID()).orElse(null);
+        if (account == null) {
+            mLogger.error("Invalid account ID " + t.getAccountID());
+            return;
+        }
+        List<SecurityHolding> shList = mainModel.computeSecurityHoldings(account.getTransactionList(),
+                t.getTDate(), t.getID());
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
-        for (SecurityHolding s : mainApp.getSecurityHoldingList()) {
+        for (SecurityHolding s : shList) {
             if (s.getSecurityName().equals(mTransaction.getSecurityName())) {
                 // we found the right security
                 for (SecurityHolding.LotInfo sl : s.getLotInfoList()) {
@@ -213,10 +215,6 @@ public class SpecifyLotsDialogController {
                 }
                 break;
             }
-        }
-        if (mSpecifyLotInfoList == null) {
-            mLogger.error("Null LotInfoList in SpecifyLots...");
-            return;
         }
 
         // pair off between mSpecifyLotInfoList and mMatchInfoList

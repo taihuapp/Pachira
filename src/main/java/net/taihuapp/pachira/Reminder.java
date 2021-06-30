@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,16 +20,19 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.*;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-class Reminder {
+public class Reminder {
 
-    enum Type { PAYMENT, DEPOSIT }
+    public enum Type { PAYMENT, DEPOSIT }
 
     private int mID = -1;
     private final ObjectProperty<Type> mTypeProperty = new SimpleObjectProperty<>(Type.PAYMENT);
@@ -41,10 +44,10 @@ class Reminder {
     private final ObjectProperty<Integer> mTagIDProperty = new SimpleObjectProperty<>(0);
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final List<SplitTransaction> mSplitTransactionList = new ArrayList<>();
-    private DateSchedule mDateSchedule;
+    private final DateSchedule mDateSchedule;
 
     // default constructor
-    Reminder() {
+    public Reminder() {
 
         // default monthly schedule, starting today, no end, counting day of month forward.
         mDateSchedule = new DateSchedule(DateSchedule.BaseUnit.MONTH, 1, LocalDate.now(), null,
@@ -57,8 +60,8 @@ class Reminder {
                 r.getCategoryID(), r.getTagID(), r.getMemo(), r.getDateSchedule(), r.getSplitTransactionList());
     }
 
-    Reminder(int id, Type type, String payee, BigDecimal amount, int estCnt, int accountID, int categoryID,
-             int tagID, String memo, DateSchedule ds, List<SplitTransaction> stList) {
+    public Reminder(int id, Type type, String payee, BigDecimal amount, int estCnt, int accountID, int categoryID,
+                    int tagID, String memo, DateSchedule ds, List<SplitTransaction> stList) {
         mID = id;
         mTypeProperty.set(type);
         mPayeeProperty.set(payee);
@@ -74,43 +77,36 @@ class Reminder {
             mSplitTransactionList.add(new SplitTransaction(st));
     }
 
-    DateSchedule getDateSchedule() { return mDateSchedule; }
-    void setDateSchedule(DateSchedule ds) { mDateSchedule = ds; }
+    public DateSchedule getDateSchedule() { return mDateSchedule; }
 
-    int getID() { return mID; }
+    public int getID() { return mID; }
     void setID(int id) { mID = id; }
 
     ObjectProperty<Type> getTypeProperty() { return mTypeProperty; }
-    Type getType() { return getTypeProperty().get(); }
-    void setTyp(Type t) { getTypeProperty().set(t); }
+    public Type getType() { return getTypeProperty().get(); }
 
     StringProperty getPayeeProperty() { return mPayeeProperty; }
-    String getPayee() { return getPayeeProperty().get(); }
-    void setPayee(String p) { getPayeeProperty().set(p); }
+    public String getPayee() { return getPayeeProperty().get(); }
 
     ObjectProperty<BigDecimal> getAmountProperty() { return mAmountProperty; }
-    BigDecimal getAmount() { return getAmountProperty().get(); }
+    public BigDecimal getAmount() { return getAmountProperty().get(); }
     void setAmount(BigDecimal a) { getAmountProperty().set(a); }
 
     ObjectProperty<Integer> getEstimateCountProperty() { return mEstimateCountProperty; }
-    Integer getEstimateCount() { return getEstimateCountProperty().get(); }
+    public Integer getEstimateCount() { return getEstimateCountProperty().get(); }
     void setEstimateCount(int c) { getEstimateCountProperty().set(c); }
 
     ObjectProperty<Integer> getAccountIDProperty() { return mAccountIDProperty; }
-    Integer getAccountID() { return getAccountIDProperty().get(); }
-    void setAccountID(int i) { getAccountIDProperty().set(i); }
+    public Integer getAccountID() { return getAccountIDProperty().get(); }
 
     ObjectProperty<Integer> getCategoryIDProperty() { return mCategoryIDProperty; }
-    Integer getCategoryID() { return getCategoryIDProperty().get(); }
-    void setCategoryID(int i) { getCategoryIDProperty().set(i); }
+    public Integer getCategoryID() { return getCategoryIDProperty().get(); }
 
     ObjectProperty<Integer> getTagIDProperty() { return mTagIDProperty; }
-    Integer getTagID() { return getTagIDProperty().get(); }
-    void setTagID(int i) { getTagIDProperty().set(i); }
+    public Integer getTagID() { return getTagIDProperty().get(); }
 
     StringProperty getMemoProperty() { return mMemoProperty; }
-    String getMemo() { return getMemoProperty().get(); }
-    void setMemo(String m) { getMemoProperty().set(m); }
+    public String getMemo() { return getMemoProperty().get(); }
 
     List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
     void setSplitTransactionList(List<SplitTransaction> stList) {

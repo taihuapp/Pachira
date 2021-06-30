@@ -57,13 +57,13 @@ public class Account {
      */
 
     // make sure the names are not longer than 16 characters, the type column in account table is varchar(16)
-    enum Type {
+    public enum Type {
         CHECKING(Group.SPENDING), SAVINGS(Group.SPENDING), CREDIT_CARD(Group.SPENDING), CASH(Group.SPENDING),
         BROKERAGE(Group.INVESTING), IRA(Group.INVESTING), PLAN401K(Group.INVESTING), PLAN529(Group.INVESTING),
         HOUSE(Group.PROPERTY), VEHICLE(Group.PROPERTY), OTHER_ASSET(Group.PROPERTY),
         LOAN(Group.DEBT), OTHER_LIABILITY(Group.DEBT);
 
-        enum Group {
+        public enum Group {
             SPENDING, INVESTING, PROPERTY, DEBT;
             @Override
             public String toString() {
@@ -78,7 +78,7 @@ public class Account {
         }
 
         Group getGroup() { return group; }
-        boolean isGroup(Group g) { return group.equals(g); }
+        public boolean isGroup(Group g) { return group.equals(g); }
 
         public String toString() {
             switch (this) {
@@ -181,8 +181,8 @@ public class Account {
     public Type getType() { return mTypeProperty.get(); }
     public void setType(Type type) { mTypeProperty.set(type); }
 
-    ObservableList<Security> getCurrentSecurityList() { return mCurrentSecurityList; }
-    boolean hasSecurity(Security security) {
+    public ObservableList<Security> getCurrentSecurityList() { return mCurrentSecurityList; }
+    public boolean hasSecurity(Security security) {
         for (Security s : getCurrentSecurityList()) {
             // test same ID instead of test s == security
             if (s.getID() == security.getID())
@@ -192,40 +192,41 @@ public class Account {
     }
 
     private IntegerProperty getIDProperty() { return mID; }
-    int getID() { return getIDProperty().get(); }
-    void setID(int id) { getIDProperty().set(id); }
+    public int getID() { return getIDProperty().get(); }
+    // AccountDao needs setID
+    public void setID(int id) { getIDProperty().set(id); }
 
-    BooleanProperty getHiddenFlagProperty() { return mHiddenFlag; }
-    Boolean getHiddenFlag() { return getHiddenFlagProperty().get(); }
+    public BooleanProperty getHiddenFlagProperty() { return mHiddenFlag; }
+    public Boolean getHiddenFlag() { return getHiddenFlagProperty().get(); }
     void setHiddenFlag(boolean h) { getHiddenFlagProperty().set(h); }
 
-    IntegerProperty getDisplayOrderProperty() { return mDisplayOrder; }
-    Integer getDisplayOrder() { return getDisplayOrderProperty().get(); }
+    public IntegerProperty getDisplayOrderProperty() { return mDisplayOrder; }
+    public Integer getDisplayOrder() { return getDisplayOrderProperty().get(); }
     void setDisplayOrder(int d) { mDisplayOrder.set(d); }
 
     StringProperty getNameProperty() { return mName; }
-    String getName() { return mName.get(); }
+    public String getName() { return mName.get(); }
     void setName(String name) { mName.set(name); }
 
     private StringProperty getDescriptionProperty() { return mDescription; }
-    String getDescription() { return getDescriptionProperty().get(); }
+    public String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String d) { mDescription.set(d); }
 
-    void setTransactionList(ObservableList<Transaction> tList) { mTransactionList = tList; }
+    public void setTransactionList(ObservableList<Transaction> tList) { mTransactionList = tList; }
 
-    ObservableList<Transaction> getTransactionList() { return mTransactionList; }
+    public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
 
-    ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
+    public ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
     BigDecimal getCurrentBalance() { return getCurrentBalanceProperty().get(); }
-    void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
+    public void setCurrentBalance(BigDecimal cb) { mCurrentBalance.set(cb); }
 
     private ObjectProperty<LocalDate> getLastReconcileDateProperty() { return mLastReconcileDateProperty; }
-    LocalDate getLastReconcileDate() { return getLastReconcileDateProperty().get();  }
+    public LocalDate getLastReconcileDate() { return getLastReconcileDateProperty().get();  }
     void setLastReconcileDate(LocalDate d) { getLastReconcileDateProperty().set(d); }
 
     // update balance field for each transaction for non INVESTING account
     // no-op for INVESTING accounts
-    void updateTransactionListBalance() {
+    public void updateTransactionListBalance() {
         BigDecimal b = new BigDecimal(0);
         boolean accountBalanceIsSet = false;
         for (Transaction t : getTransactionList()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2020.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -18,28 +18,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package net.taihuapp.pachira.dc;
+package net.taihuapp.pachira;
 
 import java.math.BigDecimal;
 import java.util.Date;
 
 public class AccountDC {
-    private int mAccountID;
-    private String mAccountType;
-    private int mDCID;
-    private String mRoutingNumber;  // encrypted
+    private final int mAccountID;
+    private final String mAccountType;
+    private final int mDCID;
+    private final String mRoutingNumber;
     private String mAccountNumber;  // encrypted
     private Date mLastDownloadDT;  // UTC Date time for last download
     private BigDecimal mLedgeBalance;
 
-    public AccountDC(int accountID, String accountType, int DCID, String rn, String an, Date lddt,
+    public AccountDC(int accountID, String accountType, int DCID, String rn, String an, Date lastDownloadDateTime,
                      BigDecimal ledgeBal) {
         mAccountID = accountID;
         mAccountType = accountType;
         mDCID = DCID;
         mRoutingNumber = rn;
         mAccountNumber = an;
-        mLastDownloadDT = lddt;
+        mLastDownloadDT = lastDownloadDateTime;
         mLedgeBalance = ledgeBal;
     }
 

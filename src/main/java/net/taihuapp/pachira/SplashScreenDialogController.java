@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -33,14 +33,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class SplashScreenDialogController {
 
     private static final Logger mLogger = Logger.getLogger(SplashScreenDialogController.class);
 
-    private Stage mStage;
-    private MainApp mMainApp;
+    private Instant acknowledgeInstant;
 
     @FXML
     private Label mApplicationNameLabel;
@@ -57,10 +56,7 @@ public class SplashScreenDialogController {
     @FXML
     private Button mStopButton;
 
-    void setMainApp(MainApp mainApp, Stage stage, boolean firstTime) {
-        mMainApp = mainApp;
-        mStage = stage;
-
+    void setFirstTime(boolean firstTime) {
         mAgreeCheckBox.setSelected(!firstTime);
         mAgreeCheckBox.setVisible(firstTime);
         mStopButton.setVisible(firstTime);
@@ -76,6 +72,8 @@ public class SplashScreenDialogController {
         showContactInfo();
     }
 
+    Instant getAcknowledgeDateTime() { return acknowledgeInstant; }
+
     private void delayedStop() {
         mAgreeCheckBox.setVisible(false);  // don't let user change the checkbox
         mAgreeCheckBox.setSelected(false);  // this will force stop the app when window close
@@ -85,15 +83,18 @@ public class SplashScreenDialogController {
 
     @FXML
     private void handleContinue() {
-        mMainApp.putAcknowledgeTimeStamp(LocalDateTime.now());
-        mStage.close();
+        acknowledgeInstant = Instant.now();
+        ((Stage) mContinueButton.getScene().getWindow()).close();
     }
 
     void handleClose() {
-        if (!mAgreeCheckBox.selectedProperty().get())
+        if (!mAgreeCheckBox.selectedProperty().get()) {
+            // did not agree, stop now.
             handleStop();
-        else
-            mStage.close();
+        } else {
+            // agreed, continue
+            handleContinue();
+        }
     }
 
     @FXML
@@ -139,7 +140,7 @@ public class SplashScreenDialogController {
     }
 
     private String readResourceTextFile2String(String fileName) {
-        final InputStream inputStream = getClass().getResourceAsStream(fileName);
+        final InputStream inputStream = MainApp.class.getResourceAsStream(fileName);
         if (inputStream == null) {
             // failed to open resource file name
             mLogger.error("Failed to open resource " + fileName);
@@ -152,7 +153,7 @@ public class SplashScreenDialogController {
         try {
             String line;
             while ((line = bufferedReader.readLine()) != null)
-                stringBuilder.append(line).append("\n");
+                stringBuilder.append(line).append(System.lineSeparator());
             return stringBuilder.toString();
         } catch (IOException e) {
             mLogger.error("IOException", e);

@@ -42,6 +42,18 @@ class QIFParser {
     // CLASS and TEMPLATE are not being used
     private enum RecordType { CLASS, CAT, MEMORIZED, SECURITY, PRICES, BANK, INVITEM, TEMPLATE, ACCOUNT, TAG }
 
+    private final Map<String, List<Transaction>> accountNameTransactionMap = new HashMap<>();
+    private final Map<String, List<Transaction>> categoryNameTransactionMap = new HashMap<>();
+    private final Map<String, List<Transaction>> tagNameTransactionMap = new HashMap<>();
+    private final Map<String, List<SplitTransaction>> categoryNameSplitTransactionMap = new HashMap<>();
+    private final Map<String, List<SplitTransaction>> tagNameSplitTransactionMap = new HashMap<>();
+
+    Map<String, List<Transaction>> getAccountNameTransactionMap() { return accountNameTransactionMap; }
+    Map<String, List<Transaction>> getCategoryNameTransactionMap() { return categoryNameTransactionMap; }
+    Map<String, List<Transaction>> getTagNameTransactionMap() { return tagNameTransactionMap; }
+    Map<String, List<SplitTransaction>> getCategoryNameSplitTransactionMap() { return categoryNameSplitTransactionMap; }
+    Map<String, List<SplitTransaction>> getTagNameSplitTransactionMap() { return tagNameSplitTransactionMap; }
+
     private static Tag parseTagFromQIFLines(List<String> lines)  {
         Tag tag = new Tag();
         for (String l : lines) {
@@ -94,9 +106,9 @@ class QIFParser {
     // starting from lines.get(startIdx) seek the line number of the next line
     // equals match
     // if not found, -1 is returned
-    private static int findNextMatch(List<String> lines, int startIdx, String match) {
+    private static int findNextMatch(List<String> lines, int startIdx) {
         for (int i = startIdx; i < lines.size(); i++) {
-            if (lines.get(i).equals(match)) {
+            if (lines.get(i).equals("^")) {
                 return i;
             }
         }
@@ -156,6 +168,219 @@ class QIFParser {
         return new Account(0, type, name, desc, false, Integer.MAX_VALUE, null, BigDecimal.ZERO);
     }
 
+    private static Transaction.Status mapCharToStatus(char c) {
+        switch (c) {
+            case 'c':
+            case '*':
+                return Transaction.Status.CLEARED;
+            case 'R':
+            case 'X':
+                return Transaction.Status.RECONCILED;
+            default:
+                return Transaction.Status.UNCLEARED;
+        }
+    }
+
+    Transaction parseTransactionFromBTLines(List<String> lines) throws ModelException {
+        Transaction t = new Transaction(-1, LocalDate.MIN, Transaction.TradeAction.WITHDRAW, 0);
+        SplitTransaction splitTransaction = null;
+        List<SplitTransaction> stList = new ArrayList<>();
+        BigDecimal tAmount;
+        for (String l : lines) {
+            switch (l.charAt(0)) {
+                case 'D':
+                    t.setTDate(parseDate(l.substring(1)));
+                    break;
+                case 'T':
+                case 'U':
+                    // T amount is always the same as U amount
+                    tAmount = new BigDecimal(l.substring(1).replace(",",""));
+                    t.setAmount(tAmount.abs());
+                    t.setTradeAction(tAmount.signum() >= 0 ?
+                            Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW );
+                    break;
+                case 'C':
+                    t.setStatus(mapCharToStatus(l.charAt(1)));
+                    break;
+                case 'N':
+                    t.setReference(l.substring(1));
+                    break;
+                case 'P':
+                    t.setPayee(l.substring(1));
+                    break;
+                case 'M':
+                    t.setMemo(l.substring(1));
+                    break;
+                case 'A':
+                    mLogger.warn("Address line ignored: " + l.substring(1));
+                    break;
+                case 'L':
+                    String[] names = l.substring(1).split("/");
+                    if (!names[0].isEmpty())
+                        categoryNameTransactionMap.computeIfAbsent(names[0], k -> new ArrayList<>()).add(t);
+                    if (names.length > 1 && !names[1].isEmpty())
+                        tagNameTransactionMap.computeIfAbsent(names[1], k -> new ArrayList<>()).add(t);
+                    break;
+                case 'S':
+                    splitTransaction = new SplitTransaction(-1, 0, -1, "", null, -1);
+                    stList.add(splitTransaction);
+                    String[] names0 = l.substring(1).split("/");
+                    if (!names0[0].isEmpty())
+                        categoryNameSplitTransactionMap.computeIfAbsent(names0[0], k -> new ArrayList<>())
+                                .add(splitTransaction);
+                    if (names0.length > 1 && !names0[1].isEmpty())
+                        tagNameSplitTransactionMap.computeIfAbsent(names0[1], k -> new ArrayList<>())
+                                .add(splitTransaction);
+                    break;
+                case 'E':
+                    if (splitTransaction == null) {
+                        throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION,
+                                "Bad formatted BankTransactionSplit " + lines.toString(), null);
+                    }
+                    splitTransaction.setMemo(l.substring(1));
+                    break;
+                case '$':
+                    if (splitTransaction == null) {
+                        throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION,
+                                "Bad formatted BankTransactionSplit " + lines.toString(), null);
+                    }
+                    splitTransaction.setAmount(new BigDecimal(l.substring(1).replace(",","")));
+                    break;
+                case 'F':
+                    mLogger.warn("F flag in BankTransaction not implemented " + lines.toString());
+                    break;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                    // 7 lines of amortization record, ignored for now
+                    mLogger.warn("Amortization ignored: " + l.substring(1));
+                    break;
+                default:
+                    mLogger.error("BankTransaction Offending line: " + l);
+                    return null;
+            }
+        }
+        if (!stList.isEmpty())
+            t.setSplitTransactionList(stList);
+        return t;
+    }
+
+    Transaction parseTransactionFromTTLines(List<String> lines) throws ModelException {
+        Transaction t = new Transaction(-1, LocalDate.MIN, Transaction.TradeAction.WITHDRAW, 0);
+        String actionStr = null;
+        String categoryName = null;
+        BigDecimal tAmount = null;
+        for (String l : lines) {
+            switch (l.charAt(0)) {
+                case 'D':
+                    t.setTDate(parseDate(l.substring(1)));
+                    break;
+                case 'N':
+                    actionStr = l.substring(1).toUpperCase();
+                    break;
+                case 'Y':
+                    t.setSecurityName(l.substring(1));
+                    break;
+                case 'I':
+                    // price is ignored
+                    break;
+                case 'Q':
+                    t.setQuantity(new BigDecimal(l.substring(1).replace(",", "")));
+                    break;
+                case 'C':
+                    t.setStatus(mapCharToStatus(l.charAt(1)));
+                    break;
+                case 'P':
+                    // transfer reminder text is ignored
+                    break;
+                case 'M':
+                    t.setMemo(l.substring(1));
+                    break;
+                case 'O':
+                    t.setCommission(new BigDecimal(l.substring(1).replace(",","")));
+                    break;
+                case 'L':
+                    String[] names = l.substring(1).split("/");
+                    if (!names[0].isEmpty()) {
+                        String[] tokens = names[0].split("\\|");
+                        if (tokens.length > 1) {
+                            mLogger.error(lines + "\nMultiple tokens seen at Category line: "
+                                    + l + ", importing as " + tokens[tokens.length - 1]);
+                        }
+                        categoryName = tokens[tokens.length-1];
+                    }
+                    if ((names.length > 1) && !names[1].isEmpty())
+                        tagNameTransactionMap.computeIfAbsent(names[1], k -> new ArrayList<>()).add(t);
+                    break;
+                case 'T':
+                    tAmount = new BigDecimal(l.substring(1).replace(",",""));
+                    t.setAmount(tAmount);
+                    break;
+                case 'U':
+                    // u amount is ignored
+                    break;
+                case '$':
+                    // amount transferred is ignored
+                    break;
+                default:
+                    throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION, "Bad line: " + l, null);
+            }
+        }
+        if (actionStr != null) {
+            switch (actionStr) {
+                case "BUYX":
+                case "BUYBONDX":
+                case "SELLX":
+                case "CGLONGX":
+                case "CGMIDX":
+                case "CGSHORTX":
+                case "CVTSHRTX":
+                case "DIVX":
+                case "INTINCX":
+                case "MISCINCX":
+                case "MISCEXPX":
+                case "MARGINTX":
+                case "RTRNCAPX":
+                case "SHTSELLX":
+                    actionStr = actionStr.substring(0, actionStr.length()-1);
+                    if (categoryName == null || !(categoryName.startsWith("[") && categoryName.endsWith("]"))) {
+                        // it's a transfer transaction, but transfer account is not set
+                        // set to DELETED_ACCOUNT_NAME
+                        categoryName = "[" + MainApp.DELETED_ACCOUNT_NAME + "]";
+                    }
+                    break;
+                case "CASH":
+                    if (tAmount != null && tAmount.signum() < 0) {
+                        actionStr = "WITHDRAW";
+                        t.setAmount(tAmount.negate());
+                    } else {
+                        actionStr = "DEPOSIT";
+                    }
+                    break;
+                case "CONTRIBX":
+                case "XIN":
+                    actionStr = "DEPOSIT";
+                    break;
+                case "WITHDRWX":
+                case "XOUT":
+                    actionStr = "WITHDRAW";
+                    break;
+            }
+            t.setTradeAction(Transaction.TradeAction.valueOf(actionStr));
+            if (actionStr.equals("STKSPLIT"))
+                t.setOldQuantity(BigDecimal.TEN);
+
+            if (categoryName != null)
+                categoryNameTransactionMap.computeIfAbsent(categoryName, k -> new ArrayList<>()).add(t);
+        }
+        return t;
+    }
+
+/*
     static class BankTransaction {
         // split bank transaction
         static class SplitBT {
@@ -545,7 +770,9 @@ class QIFParser {
             return tt;
         }
     }
+*/
 
+/*
     private static class MemorizedTransaction {
         enum Type { INVESTMENT, EPAYMENT, CHECK, PAYMENT, DEPOSIT }
 
@@ -622,6 +849,7 @@ class QIFParser {
             return mt;
         }
     }
+*/
 
     // parse ticker symbol and price from QIF lines
     Pair<String, Price> parsePriceFromQIFLines(List<String> lines) {
@@ -672,10 +900,13 @@ class QIFParser {
     private final Set<Tag> mTagSet;
     private final List<Security> mSecurityList;
     private final List<Pair<String, Price>> mPriceList;
+/*
     private final List<BankTransaction> mBankTransactionList;
     private final List<TradeTransaction> mTradeTransactionList;
     private final List<MemorizedTransaction> mMemorizedTransactionList;
+*/
 
+/*
     private void matchTransferTransaction() {
         // TODO: 4/6/16
         // seems more work is needed here
@@ -695,6 +926,7 @@ class QIFParser {
         //}
 
     }
+*/
 
     // public constructor
     QIFParser(String dan) {
@@ -703,9 +935,11 @@ class QIFParser {
         mCategorySet = new HashSet<>();
         mTagSet = new HashSet<>();
         mSecurityList = new ArrayList<>();
+/*
         mBankTransactionList = new ArrayList<>();
         mTradeTransactionList = new ArrayList<>();
         mMemorizedTransactionList = new ArrayList<>();
+*/
         mPriceList = new ArrayList<>();
     }
 
@@ -720,17 +954,11 @@ class QIFParser {
 
     // return -1 for some sort of failure
     //         0 for success
-    int parseFile(File qif) throws IOException {
+    int parseFile(File qif) throws IOException, ModelException {
         List<String> allLines = Files.readAllLines(qif.toPath());
         int nLines = allLines.size();
         if (nLines == 0)
             return 0;
-
-        // last line should either be "^" or "!Clear:AutoSwitch"
-        String lastLine = allLines.get(nLines-1);
-        if (!lastLine.equals("^") && !lastLine.equals("!Clear:AutoSwitch")) {
-            throw new IOException("Bad formatted file");
-        }
 
         // trim off white spaces
         for (int i = 0; i < nLines; i++) {
@@ -790,10 +1018,14 @@ class QIFParser {
                     break;
                 default:
                     // this is a content line, find the end of the record
-                    int j = findNextMatch(allLines, i, "^");
+                    int j = findNextMatch(allLines, i);
                     if (j == -1) {
                         mLogger.error("Bad formatted file.  Can't find '^'");
                         return -1;
+                    }
+                    if (currentRecordType == null) {
+                        throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION,
+                                "Bad RecordType at line " + i + " " + j, null);
                     }
                     switch (currentRecordType) {
                         case CAT:
@@ -838,38 +1070,22 @@ class QIFParser {
                             i = j;
                             break;
                         case BANK:
-                            BankTransaction bt = BankTransaction.fromQIFLines(allLines.subList(i,j));
-                            if (bt != null) {
-                                if (account != null) {
-                                    bt.setAccountName(account.getName());
-                                } else {
-                                    bt.setAccountName(getDefaultAccountName());
-                                }
-                                mBankTransactionList.add(bt);
-                            } else {
-                                mLogger.error("Bad formatted BankTransaction record: "
-                                        + allLines.subList(i,j));
-                            }
+                            Transaction bt = parseTransactionFromBTLines(allLines.subList(i,j));
+                            accountNameTransactionMap.computeIfAbsent(account == null ?
+                                    getDefaultAccountName() : account.getName(),k -> new ArrayList<>()).add(bt);
                             i = j;
                             break;
                         case INVITEM:
-                            TradeTransaction tt = TradeTransaction.fromQIFLines(allLines.subList(i,j));
-                            if (tt != null) {
-                                if (account != null) {
-                                    tt.setAccountName(account.getName());
-                                } else {
-                                    tt.setAccountName(getDefaultAccountName());
-                                }
-                                mTradeTransactionList.add(tt);
-                            } else {
-                                mLogger.error("Bad formatted TradeTransaction record: "
-                                        + allLines.subList(i,j));
-                            }
+                            Transaction tt = parseTransactionFromTTLines(allLines.subList(i,j));
+                            accountNameTransactionMap.computeIfAbsent(account == null ?
+                                    getDefaultAccountName() : account.getName(),k -> new ArrayList<>()).add(tt);
                             i = j;
                             break;
                         case MEMORIZED:
+/*
                             MemorizedTransaction mt = MemorizedTransaction.fromQIFLines(allLines.subList(i,j));
                             mMemorizedTransactionList.add(mt);
+*/
                             i = j;
                             break;
                         case PRICES:
@@ -892,7 +1108,7 @@ class QIFParser {
         }
 
         // done with the file, now match Transfer Transactions
-        matchTransferTransaction();
+        // matchTransferTransaction();
         return 0;
     }
 
@@ -901,7 +1117,9 @@ class QIFParser {
     Set<Category> getCategorySet() { return mCategorySet; }
     Set<Tag> getTagSet() { return mTagSet; }
     List<Pair<String, Price>> getPriceList() { return mPriceList; }
+/*
     List<BankTransaction> getBankTransactionList() { return mBankTransactionList; }
     List<TradeTransaction> getTradeTransactionList() { return mTradeTransactionList; }
+*/
     private String getDefaultAccountName() { return mDefaultAccountName; }
 }

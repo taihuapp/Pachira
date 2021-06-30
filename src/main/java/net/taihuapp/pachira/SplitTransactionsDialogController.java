@@ -37,16 +37,14 @@ public class SplitTransactionsDialogController {
 
     private class TagToStringConverter extends StringConverter<Integer> {
         public Integer fromString(String name) {
-            return mMainApp.mapTagNameToID(name);
+            return mainModel.getTag(tag -> tag.getName().equals(name)).map(Tag::getID).orElse(0);
         }
         public String toString(Integer tagId) {
-            Tag tag = mMainApp.getTagByID(tagId);
-            return tag == null ? "" : tag.getName();
+            return mainModel.getTag(tag -> tag.getID() == tagId).map(Tag::getName).orElse("");
         }
     }
 
-    private MainApp mMainApp;
-    private Stage mDialogStage;
+    private MainModel mainModel;
     private BigDecimal mNetAmount;
     private boolean mIsCanceled = true; // default to be true
 
@@ -76,19 +74,20 @@ public class SplitTransactionsDialogController {
     private Button mOKButton;
 
     // the content of stList is copied, the original content is unchanged.
-    void setMainApp(MainApp mainApp, int accountID, Stage stage, List<SplitTransaction> stList, BigDecimal netAmount) {
-        mMainApp = mainApp;
-        mDialogStage = stage;
+    void setMainModel(MainModel mainModel, int accountID, List<SplitTransaction> stList, BigDecimal netAmount) {
+
+        this.mainModel = mainModel;
+
         mNetAmount = netAmount;
 
-        (new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox, mainApp))
+        (new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox, mainModel))
                 .setFilter(false, accountID);
         mCategoryIDComboBox.getSelectionModel().selectFirst();
 
         mTagIDComboBox.setConverter(new TagToStringConverter());
         mTagIDComboBox.getItems().clear();
         mTagIDComboBox.getItems().add(0);
-        for (Tag tag : mMainApp.getTagList())
+        for (Tag tag : mainModel.getTagList())
             mTagIDComboBox.getItems().add(tag.getID());
         mTagIDComboBox.getSelectionModel().selectFirst();
 
@@ -169,13 +168,13 @@ public class SplitTransactionsDialogController {
     @FXML
     private void handleOK() {
         mIsCanceled = false;
-        mDialogStage.close();
+        ((Stage) mSplitTransactionsTableView.getScene().getWindow()).close();
     }
 
     @FXML
     private void handleCancel() {
         mIsCanceled = true;
-        mDialogStage.close();
+        ((Stage) mSplitTransactionsTableView.getScene().getWindow()).close();
     }
 
     @FXML
@@ -186,6 +185,7 @@ public class SplitTransactionsDialogController {
         mMemoTextField.setText("");
         updateRemainingAmount();
     }
+
     @FXML
     private void handleDelete() {
         SplitTransaction st = mSplitTransactionsTableView.getSelectionModel().getSelectedItem();

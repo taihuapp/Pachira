@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -26,20 +26,24 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 import javafx.util.StringConverter;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Optional;
+import java.util.List;
 
 public class EditSecurityPriceDialogController {
 
-    private MainApp mMainApp;
-    private Security mSecurity;
-    private Stage mDialogStage;
-    private ObservableList<Price> mPriceList = null;
+    private static final Logger logger = Logger.getLogger(EditSecurityPriceDialogController.class);
+
+    private MainModel mainModel;
+    private Security security;
+    private final ObservableList<Price> priceList = FXCollections.observableArrayList();
 
     @FXML
     private Label mNameLabel;
@@ -60,17 +64,25 @@ public class EditSecurityPriceDialogController {
     @FXML
     private Button mCloseButton;
 
-    void setMainApp(MainApp mainApp, Security security, Stage stage) {
-        mMainApp = mainApp;
-        mSecurity = security;
-        mDialogStage = stage;
-        mPriceList = FXCollections.observableList(mainApp.getSecurityPrice(security.getID(), security.getTicker()));
+    void setMainModel(MainModel mainModel, Security security) {
+
+        final Stage stage = (Stage) mPriceTableView.getScene().getWindow();
+
+        this.mainModel = mainModel;
+        this.security = security;
+        try {
+            priceList.setAll(mainModel.getSecurityPriceList(security));
+        } catch (DaoException e) {
+            final String msg = "Failed to get security prices for " + security;
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+        }
 
         mNameLabel.setText(security.getName());
 
         mTickerLabel.setText(security.getTicker());
 
-        mPriceTableView.setItems(mPriceList);
+        mPriceTableView.setItems(priceList);
         mPriceTableView.setEditable(true); // make it editable
         mPriceTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
                 -> mDeleteButton.setDisable(newValue == null));
@@ -97,65 +109,50 @@ public class EditSecurityPriceDialogController {
                 return result;
             }
         }));
-        mPricePriceTableColumn.setOnEditCommit(e -> {
-            int dbMode;
-            if (e.getOldValue() == null)
-                dbMode = 1; // new price, insert
-            else
-                dbMode = 2; // update
-            LocalDate date = e.getRowValue().getDate();
-            BigDecimal newPrice = e.getNewValue();
-            if (newPrice == null) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning!");
-                alert.setHeaderText("Bad Input Price, change discarded!");
-                alert.setContentText(""
-                        + "Security Name  : " + mSecurity.getName() + "\n"
-                        + "Security Ticker: " + mSecurity.getTicker() + "\n"
-                        + "Security ID    : " + mSecurity.getID() + "\n"
-                        + "Date           : " + date);
-                alert.showAndWait();
+        mPricePriceTableColumn.setOnEditCommit(event -> {
+            LocalDate date = event.getRowValue().getDate();
+            BigDecimal newPrice = event.getNewValue();
+            if (newPrice == null || newPrice.signum() < 0) {
+                DialogUtil.showWarningDialog(stage, "Warning!", "Bad input price, change discarded!",
+                        "Security Name  : " + this.security.getName() + System.lineSeparator() +
+                                "Security Ticker: " + this.security.getTicker() + System.lineSeparator() +
+                                "Security ID    : " + this.security.getID() + System.lineSeparator() +
+                                "Date           : " + date);
                 return;  // bad price, send user back
             }
-            if (newPrice.signum() < 0)
-                return; // we don't want to anything with bad input (negative price)
             if (newPrice.signum() == 0) {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Confirmation Dialog");
-                alert.setHeaderText("Do you want to save zero price to database?");
-                alert.setContentText(""
-                        + "Security Name  : " + mSecurity.getName() + "\n"
-                        + "Security Ticker: " + mSecurity.getTicker() + "\n"
-                        + "Security ID    : " + mSecurity.getID() + "\n"
-                        + "Date           : " + date + "\n"
-                        + "Price          : " + newPrice + "?");
-                Optional<ButtonType> result = alert.showAndWait();
-                if (result.isEmpty() || result.get() != ButtonType.OK)
-                    return; // don't save, go back
+                if (!DialogUtil.showConfirmationDialog(stage, "Confirmation",
+                        "Do you want to save zero price?",
+                        "Security Name  : " + this.security.getName() + System.lineSeparator() +
+                                "Security Ticker: " + this.security.getTicker() + System.lineSeparator() +
+                                "Security ID    : " + this.security.getID() + System.lineSeparator() +
+                                "Date           : " + date + System.lineSeparator() +
+                                "Price          : " + newPrice + "?" )) {
+                    // user didn't click OK, return now
+                    return;
+                }
             }
-            if (!mMainApp.insertUpdatePriceToDB(mSecurity.getID(), mSecurity.getTicker(), date, newPrice, dbMode)) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setHeaderText("Failed to insert/update price:");
-                alert.setContentText("Security Name: " + mSecurity.getName() + "\n"
-                        + "Security ID    : " + mSecurity.getID() + "\n"
-                        + "Security Ticker: " + mSecurity.getTicker() + "\n"
-                        + "Date           : " + date + "\n"
-                        + "Price          : " + newPrice);
-                alert.showAndWait();
-            } else {
-                mMainApp.updateAccountBalance(mSecurity);
+            try {
+                mainModel.mergeSecurityPrices(List.of(new Pair<>(this.security, new Price(date, newPrice))));
+                event.getRowValue().setPrice(newPrice);
+                mainModel.updateAccountBalance(a -> a.hasSecurity(this.security));
+            } catch (DaoException e) {
+                final String msg = "Failed to merge price for '" + this.security.getTicker() + "'/("
+                        + this.security.getID() + "), " + date + ", " + newPrice;
+                logger.error(msg, e);
+                DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
             }
         });
         // scroll to the last row
         // if size == 0, scrollTo(-1) will do nothing.
-        int sizeOfList = mPriceList.size();
+        int sizeOfList = priceList.size();
         mPriceTableView.scrollTo(sizeOfList-1);
 
         LocalDate defaultDate;
         if (sizeOfList == 0)
             defaultDate = LocalDate.now();
         else
-            defaultDate = mPriceList.get(sizeOfList-1).getDate().plusDays(1);
+            defaultDate = priceList.get(sizeOfList-1).getDate().plusDays(1);
         switch (defaultDate.getDayOfWeek()) {
             case SATURDAY:
                 defaultDate = defaultDate.plusDays(2);
@@ -174,10 +171,10 @@ public class EditSecurityPriceDialogController {
     @FXML
     private void handleAdd() {
         Price newPrice = new Price(mNewDateDatePicker.getValue(), null);
-        int index = Collections.binarySearch(mPriceList, newPrice, Comparator.comparing(Price::getDate));
+        int index = Collections.binarySearch(priceList, newPrice, Comparator.comparing(Price::getDate));
         if (index < 0) {
             index = -index - 1;
-            mPriceList.add(index, newPrice);
+            priceList.add(index, newPrice);
         }
         mPriceTableView.scrollTo(index);
     }
@@ -185,13 +182,21 @@ public class EditSecurityPriceDialogController {
     @FXML
     private void handleDelete() {
         int index = mPriceTableView.getSelectionModel().getSelectedIndex();
-        if (index >= 0 && mMainApp.deleteSecurityPriceFromDB(mSecurity.getID(), mSecurity.getTicker(),
-                mPriceList.get(index).getDate())) {
-            mPriceList.remove(index);
-            mMainApp.updateAccountBalance(mSecurity);
+        if (index < 0)
+            return; // how did we get here
+
+        try {
+            mainModel.deleteSecurityPrice(this.security, priceList.get(index).getDate());
+            priceList.remove(index);
+            mainModel.updateAccountBalance(a -> a.hasSecurity(this.security));
+        } catch (DaoException e) {
+            final Stage stage = (Stage) mPriceTableView.getScene().getWindow();
+            final String msg = "Failed delete security price or update account balance";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
     @FXML
-    private void handleClose() { mDialogStage.close(); }
+    private void handleClose() { ((Stage) mPriceTableView.getScene().getWindow()).close(); }
 }

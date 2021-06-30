@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -38,7 +38,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.BigDecimalStringConverter;
-import net.taihuapp.pachira.dc.AccountDC;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -70,8 +71,8 @@ public class ReconcileDialogController {
         @Override
         final void setColumnSortability() {}  // all columns remains sortable
 
-        ReconcileTransactionTableView(MainApp mainApp, ObservableList<Transaction> tList) {
-            super(mainApp, tList);
+        ReconcileTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
+            super(mainModel, tList);
         }
     }
 
@@ -87,11 +88,9 @@ public class ReconcileDialogController {
 
         ObjectProperty<BigDecimal> getOpeningBalanceProperty() { return mOpeningBalanceProperty; }
         BigDecimal getOpeningBalance() { return getOpeningBalanceProperty().get(); }
-        void setOpeningBalance(BigDecimal b) { getOpeningBalanceProperty().set(b); }
 
         ObjectProperty<BigDecimal> getClearedBalanceProperty() { return mClearedBalanceProperty; }
         BigDecimal getClearedBalance() { return getClearedBalanceProperty().get(); }
-        void setClearedBalance(BigDecimal b) { getClearedBalanceProperty().set(b); }
 
         ObjectProperty<BigDecimal> getEndingBalanceProperty() { return mEndingBalanceProperty; }
         BigDecimal getEndingBalance() { return getEndingBalanceProperty().get(); }
@@ -113,8 +112,9 @@ public class ReconcileDialogController {
         }
     }
 
-    private MainApp mMainApp;
-    private Stage mStage;
+    private static final Logger logger = Logger.getLogger(ReconcileDialogController.class);
+
+    private MainModel mainModel;
 
     @FXML
     private VBox mVBox;
@@ -152,33 +152,29 @@ public class ReconcileDialogController {
     }
 
     private void handleFinish() {
-        Account account = mMainApp.getCurrentAccount();
+        Stage stage = (Stage) mVBox.getScene().getWindow();
         LocalDate d = mEndDatePicker.getValue();
-        if (mMainApp.reconcileAccountToDB(account, d)) {
-            // successful update database, now update in memory.
-            // we can't loop through a filteredlist and change status, so we have to
-            // copy the elements over to a new list and loop through the new list
-            new ArrayList<>(account.getTransactionList().filtered(t -> t.getStatus()
-                    .equals(Transaction.Status.CLEARED)))
-                    .forEach(t -> t.setStatus(Transaction.Status.RECONCILED));
-            account.setLastReconcileDate(d);
-        } else {
-            MainApp.showWarningDialog("Database Error", "Failed to update transaction status in database",
-                    "Please check LOG for more details");
+        Account account = mainModel.getCurrentAccount();
+        try {
+            mainModel.reconcileAccount(account, d);
+        } catch (DaoException e) {
+            final String msg = "DaoException " + e.getErrorCode() + " when reconcile account " + account.getName();
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
         }
-        mStage.close();
+
+        stage.close();
     }
 
     void handleCancel() {
         mTransactionTableView.getItems().forEach(t -> t.setStatus(mOriginalStatusMap.get(t.getID())));
-        mStage.close();
+        ((Stage) mVBox.getScene().getWindow()).close();
     }
 
-    void setMainApp(MainApp mainApp, Stage stage) {
-        mMainApp = mainApp;
-        mStage = stage;
+    void setMainModel(MainModel mainModel) {
+        this.mainModel = mainModel;
 
-        Account account = mMainApp.getCurrentAccount();
+        Account account = mainModel.getCurrentAccount();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
         LocalDate lastReconcileDate = account.getLastReconcileDate();
         if (lastReconcileDate == null) {
@@ -240,7 +236,7 @@ public class ReconcileDialogController {
         mSecurityBalanceTableView.setItems(sbList);
 
 
-        mTransactionTableView = new ReconcileTransactionTableView(mainApp,
+        mTransactionTableView = new ReconcileTransactionTableView(mainModel,
                 transactionList.filtered(t -> !t.getStatus().equals(Transaction.Status.RECONCILED)));
         mTransactionTableView.setRowFactory(tv -> {
             final TableRow<Transaction> row = new TableRow<>();
@@ -280,17 +276,25 @@ public class ReconcileDialogController {
 
         mVBox.getChildren().addAll(mTransactionTableView, tilePane);
 
-        AccountDC adc = mMainApp.getAccountDC(account.getID());
-        mUseDownloadCheckBox.setDisable(true); // disable as default
-        if (adc != null && adc.getLastDownloadLedgeBalance() != null) {
-            // we have a good download here
-            mLastDownloadDate =
-                    adc.getLastDownloadDateTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            mDownloadedLedgeBalance = adc.getLastDownloadLedgeBalance();
-            if (lastReconcileDate == null || mLastDownloadDate.compareTo(lastReconcileDate) >= 0) {
-                mUseDownloadCheckBox.setDisable(false);
+        try {
+            AccountDC adc = mainModel.getAccountDC(account.getID()).orElse(null);
+            mUseDownloadCheckBox.setDisable(true); // disable as default
+            if (adc != null && adc.getLastDownloadLedgeBalance() != null) {
+                // we have a good download here
+                mLastDownloadDate =
+                        adc.getLastDownloadDateTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                mDownloadedLedgeBalance = adc.getLastDownloadLedgeBalance();
+                if (lastReconcileDate == null || mLastDownloadDate.compareTo(lastReconcileDate) >= 0) {
+                    mUseDownloadCheckBox.setDisable(false);
+                }
             }
+        } catch (DaoException e) {
+            Stage stage = (Stage) mVBox.getScene().getWindow();
+            final String msg = "DaoException " + e.getErrorCode() + " on getAccountDC(" + account.getID() + ")";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
         }
+
         mUseDownloadCheckBox.selectedProperty().addListener((obs, ov, nv) -> {
             if ((nv != null) && nv) {
                 mEndDatePicker.setValue(mLastDownloadDate);
@@ -324,7 +328,7 @@ public class ReconcileDialogController {
                         } else {
                             // format
                             DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainApp.QUANTITY_FRACTION_DISP_LEN);
+                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
                             df.setMinimumFractionDigits(0);
                             setText(df.format(item));
                         }

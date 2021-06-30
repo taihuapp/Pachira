@@ -28,12 +28,12 @@ import java.util.Objects;
 import static net.taihuapp.pachira.QIFUtil.EOL;
 import static net.taihuapp.pachira.QIFUtil.EOR;
 
-class Tag {
+public class Tag {
     private int mID;
     private final StringProperty mNameProperty;
     private final StringProperty mDescriptionProperty;
 
-    Tag(int id, String name, String desc) {
+    public Tag(int id, String name, String desc) {
         mID = id;
         mNameProperty = new SimpleStringProperty(name);
         mDescriptionProperty = new SimpleStringProperty(desc);
@@ -44,19 +44,26 @@ class Tag {
         this(-1, "", "");
     }
     // copy constructor
+    @SuppressWarnings("CopyConstructorMissesField")
     Tag(Tag tag) {
         this(tag.getID(), tag.getName(), tag.getDescription());
     }
 
-    int getID() { return mID; }
+    public void copy(Tag tag) {
+        setID(tag.getID());
+        setName(tag.getName());
+        setDescription(tag.getDescription());
+    }
+
+    public int getID() { return mID; }
     void setID(int i) { mID = i; }
 
     StringProperty getNameProperty() { return mNameProperty; }
-    String getName() { return getNameProperty().get(); }
+    public String getName() { return getNameProperty().get(); }
     void setName(String n) { getNameProperty().set(n); }
 
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
-    String getDescription() { return getDescriptionProperty().get(); }
+    public String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String desc) { getDescriptionProperty().set(desc); }
 
     String toQIF() {

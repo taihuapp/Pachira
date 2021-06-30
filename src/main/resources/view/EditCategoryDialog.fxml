@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -39,7 +39,7 @@
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </GridPane.margin>
       </Label>
-      <TextField fx:id="mNameTextField" GridPane.columnIndex="1">
+      <TextField fx:id="nameTextField" GridPane.columnIndex="1">
          <GridPane.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </GridPane.margin>
@@ -49,7 +49,7 @@
                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
            </GridPane.margin>
        </Label>
-       <TextField fx:id="mDescriptionTextField" GridPane.columnIndex="1" GridPane.rowIndex="1">
+       <TextField fx:id="descriptionTextField" GridPane.columnIndex="1" GridPane.rowIndex="1">
            <GridPane.margin>
                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
            </GridPane.margin>

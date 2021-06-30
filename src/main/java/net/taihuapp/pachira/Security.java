@@ -29,7 +29,7 @@ import static net.taihuapp.pachira.QIFUtil.EOL;
 import static net.taihuapp.pachira.QIFUtil.EOR;
 
 public class Security {
-    enum Type {
+    public enum Type {
         // make sure the name is not longer than 16 characters
         // or database structure needs to be changed.
         STOCK, BOND, MUTUALFUND, CD, INDEX, OTHER;
@@ -87,19 +87,19 @@ public class Security {
     }
 
     // getters and setters
-    int getID() { return mID; }
-    void setID(int id) { mID = id; }
+    public int getID() { return mID; }
+    public void setID(int id) { mID = id; }
 
     StringProperty getTickerProperty() { return mTickerProperty; }
-    String getTicker() { return getTickerProperty().get(); }
+    public String getTicker() { return getTickerProperty().get(); }
     void setTicker(String ticker) { getTickerProperty().set(ticker); }
 
     StringProperty getNameProperty() { return mNameProperty; }
-    String getName() { return getNameProperty().get(); }
+    public String getName() { return getNameProperty().get(); }
     void setName(String name) { getNameProperty().set(name); }
 
     ObjectProperty<Type> getTypeProperty() { return mTypeProperty; }
-    Type getType() { return getTypeProperty().get(); }
+    public Type getType() { return getTypeProperty().get(); }
     void setType(Type type) { getTypeProperty().set(type); }
 
     public String toString() {

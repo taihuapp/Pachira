@@ -950,8 +950,8 @@ public class MainModel {
         SecurityHolding cashHolding = new SecurityHolding("CASH");
         cashHolding.setPrice(null);
         cashHolding.setQuantity(null);
-        cashHolding.setCostBasis(totalCash);
-        cashHolding.setMarketValue(totalCash);
+        cashHolding.setCostBasis(totalCashNow);
+        cashHolding.setMarketValue(totalCashNow);
 
         SecurityHolding totalHolding = new SecurityHolding("TOTAL");
         totalHolding.setMarketValue(totalMarketValue);

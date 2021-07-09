@@ -196,6 +196,7 @@ public class Transaction {
         MISCEXP("Misc Expense"), MISCINC("Misc Income"), RTRNCAP("Return Capital"),
         SHTSELL("Short Sell"), CVTSHRT("Cover Short Sell"), MARGINT("Margin Interest"),
         SHRCLSCVN("Share Class Conversion"), // composite trade action.
+        CORPSPINOFF("Corporate Spin-Off"), // Corp spin off
         DEPOSIT("Deposit"), WITHDRAW("Withdraw");
 
         private final String mValue;
@@ -320,7 +321,7 @@ public class Transaction {
                 case WITHDRAW:
                     return getMemo();
                 case SHRSOUT:
-                    return getQuantity().stripTrailingZeros().toPlainString() + " shares";
+                    return getQuantity() == null ? "" : getQuantity().stripTrailingZeros().toPlainString() + " shares";
                 default:
                     return "description for [" + getTradeAction() + "] Transaction not implemented yet.";
             }
@@ -338,7 +339,7 @@ public class Transaction {
                 case SELL:
                 case SHTSELL:
                 case SHRSOUT:
-                    return getQuantity().negate();
+                    return getQuantity() == null ? BigDecimal.ZERO : getQuantity().negate();
                 case BUY:
                 case CVTSHRT:
                 case DEPOSIT:

@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import com.google.common.collect.ImmutableList;
 import com.opencsv.CSVReader;
 import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.client.AccountStatement;
@@ -276,6 +277,105 @@ public class MainModel {
             else {
                 throw new IllegalStateException("Transaction list and database out of sync");
             }
+        }
+    }
+
+    boolean enterCorpSpinOffTransaction(final LocalDate date, final Security security, final String newSecurityName,
+                                        final BigDecimal numOfShares, final BigDecimal sharePrice,
+                                        final BigDecimal newSharePrice, final String memo) throws DaoException {
+
+        final DaoManager daoManager = DaoManager.getInstance();
+        final SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
+        final TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
+
+        final boolean newSecurityCreated;
+        try {
+            daoManager.beginTransaction();
+
+            final Security newSecurity = getSecurity(s -> s.getName().equals(newSecurityName)).orElseGet(Security::new);
+            if (newSecurity.getID() <= 0) {
+                newSecurityCreated = true;
+                newSecurity.setName(newSecurityName);
+                newSecurity.setID(securityDao.insert(newSecurity));
+            } else {
+                newSecurityCreated = false;
+            }
+
+            List<Transaction> newTransactionList = new ArrayList<>();
+            for (Account account : getAccountList(a -> a.getType().isGroup(Account.Type.Group.INVESTING))) {
+                final List<SecurityHolding> shList = computeSecurityHoldings(account.getTransactionList(), date, -1);
+                SecurityHolding oldSH = null;
+                boolean hasNew = false;
+                for (SecurityHolding sh : shList) {
+                    if (sh.getSecurityName().equals(security.getName()))
+                        oldSH = sh;
+                    if (sh.getSecurityName().equals(newSecurityName))
+                        hasNew = true;
+                }
+                if (oldSH == null || hasNew)
+                    continue; // either the account doesn't have security, or already has new security, skip
+
+                final BigDecimal numOfOldShares = oldSH.getQuantity();
+                final BigDecimal numOfNewShares = numOfOldShares.multiply(numOfShares);
+                final BigDecimal totalOldAmount = numOfOldShares.multiply(sharePrice);
+                final BigDecimal totalNewAmount = numOfNewShares.multiply(newSharePrice);
+                final BigDecimal totalAmount = totalOldAmount.add(totalNewAmount);
+                final int aid = account.getID();
+                final Transaction t0 = new Transaction(aid, date, SHRSOUT, 0);
+                t0.setSecurityName(security.getName());
+                t0.setQuantity(numOfOldShares);
+                t0.setMemo(memo);
+                newTransactionList.add(t0);
+                for (SecurityHolding.LotInfo li : oldSH.getLotInfoList()) {
+                    final BigDecimal costBasis_i = li.getCostBasis();
+                    final BigDecimal newCostBasis_i = costBasis_i.multiply(totalNewAmount)
+                            .divide(totalAmount, 2, RoundingMode.HALF_UP);
+                    final BigDecimal newQuantity_i = li.getQuantity().multiply(numOfShares);
+
+                    // for each lot, create a pair of transactions
+                    // 1. move in old security with reduced cost basis
+                    // 2. move in new security with correct new cost basis
+                    final Transaction t1 = new Transaction(aid, date, SHRSIN, 0);
+                    t1.setSecurityName(security.getName());
+                    t1.setQuantity(li.getQuantity());
+                    t1.setAmount(costBasis_i.subtract(newCostBasis_i));
+                    t1.setADate(li.getDate());
+                    t1.setMemo(memo);
+                    newTransactionList.add(t1);
+
+                    final Transaction t2 = new Transaction(aid, date, SHRSIN, 0);
+                    t2.setSecurityName(newSecurityName);
+                    t2.setQuantity(newQuantity_i);
+                    t2.setAmount(newCostBasis_i);
+                    t2.setADate(li.getDate());
+                    t2.setMemo(memo);
+                    newTransactionList.add(t2);
+                }
+            }
+
+            // database work
+            for (Transaction t : newTransactionList)
+                t.setID(transactionDao.insert(t));
+
+            mergeSecurityPrices(ImmutableList.of(new Pair<>(newSecurity, new Price(date, newSharePrice)),
+                    new Pair<>(security, new Price(date, sharePrice))));
+
+            daoManager.commit();
+
+            if (newSecurityCreated)
+                securityList.add(newSecurity);
+            transactionList.addAll(newTransactionList);
+            FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
+
+            return true;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+                throw e;
+            }
+            return false;
         }
     }
 

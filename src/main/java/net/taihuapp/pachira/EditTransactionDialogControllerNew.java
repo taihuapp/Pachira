@@ -168,6 +168,10 @@ public class EditTransactionDialogControllerNew {
     @FXML
     private ComboBox<Security> mSecurityComboBox;
     @FXML
+    private Label mNewSecurityNameLabel;
+    @FXML
+    private TextField mNewSecurityNameTextField;
+    @FXML
     private Label mOldSecurityNameLabel;
     @FXML
     private ComboBox<Security> mOldSecurityComboBox;
@@ -222,6 +226,8 @@ public class EditTransactionDialogControllerNew {
     private Transaction mTransaction;  // working copy
     private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
     private boolean mSplitTransactionListChanged = false;
+
+    private Stage getStage() { return (Stage) mTradeActionChoiceBox.getScene().getWindow(); }
 
     // allows only numeric input in a textField
     private static void addEventFilterNumericInputOnly(TextField textField) {
@@ -376,7 +382,7 @@ public class EditTransactionDialogControllerNew {
         mCategoryComboBox.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta != STKSPLIT && ta != SHRSIN && ta != SHRSOUT && ta != REINVDIV && ta != REINVINT
-                    && ta != REINVLG && ta != REINVMD && ta != REINVSH && ta != SHRCLSCVN);
+                    && ta != REINVLG && ta != REINVMD && ta != REINVSH && ta != SHRCLSCVN && ta != CORPSPINOFF);
         }, mTradeActionChoiceBox.valueProperty()));
         mCategoryLabel.visibleProperty().bind(mCategoryComboBox.visibleProperty());
         mCategoryLabel.textProperty().bind(Bindings.createStringBinding(() -> {
@@ -446,6 +452,9 @@ public class EditTransactionDialogControllerNew {
                 mSecurityComboBox.getConverter());
         mSecurityComboBox.getSelectionModel().select(currentSecurity);
 
+        mNewSecurityNameTextField.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(CORPSPINOFF));
+        mNewSecurityNameLabel.visibleProperty().bind(mNewSecurityNameTextField.visibleProperty());
+
         // old security stuff for Share class conversion
         mOldSecurityComboBox.setConverter(securityConverter);
         mOldSecurityComboBox.getItems().addAll(mSecurityComboBox.getItems());
@@ -478,14 +487,17 @@ public class EditTransactionDialogControllerNew {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == BUY || ta == SELL || ta == REINVDIV || ta == REINVINT || ta == REINVLG
                     || ta == REINVMD || ta == REINVSH || ta == STKSPLIT || ta == SHRSIN || ta == SHRCLSCVN
-                    || ta == SHRSOUT || ta == SHTSELL || ta == CVTSHRT);
+                    || ta == SHRSOUT || ta == SHTSELL || ta == CVTSHRT || ta == CORPSPINOFF);
         }, mTradeActionChoiceBox.valueProperty()));
         mSharesLabel.visibleProperty().bind(mSharesTextField.visibleProperty());
-        mSharesLabel.textProperty().bind(Bindings.createStringBinding(() ->
-                        ((mTradeActionChoiceBox.getValue() == STKSPLIT)
-                                || (mTradeActionChoiceBox.getValue() == SHRCLSCVN)) ?
-                                "New Shares:" : "Number of Shares:",
-                mTradeActionChoiceBox.valueProperty()));
+        mSharesLabel.textProperty().bind(Bindings.createStringBinding(() -> {
+            final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
+            if (ta == STKSPLIT || ta == SHRCLSCVN)
+                return "New Shares:";
+            if (ta == CORPSPINOFF)
+                return "New Shares/Old Share:";
+            return "Number of Shares:";
+        }, mTradeActionChoiceBox.valueProperty()));
         mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),
                 BIGDECIMALSTRINGCONVERTER);
 
@@ -505,20 +517,29 @@ public class EditTransactionDialogControllerNew {
                 -> BIGDECIMALSTRINGCONVERTER.toString(mTransaction.getPrice()), mTransaction.getPriceProperty()));
         mPriceLabel.visibleProperty().bind(mPriceTextField.visibleProperty());
 
-        // commission, same visibility as price
+        // commission, same visibility as price, except in Share Class Conversion and Corp Spin Off
+        // For Corp Spin Off, this field is for input Old Share Price
         addEventFilterNumericInputOnly(mCommissionTextField);
         mCommissionTextField.visibleProperty().bind(mPriceTextField.visibleProperty()
-                .and(mTradeActionChoiceBox.valueProperty().isNotEqualTo(SHRCLSCVN)));
+                .and(mTradeActionChoiceBox.valueProperty().isNotEqualTo(SHRCLSCVN))
+                .or(mTradeActionChoiceBox.valueProperty().isEqualTo(CORPSPINOFF)));
         mCommissionLabel.visibleProperty().bind(mCommissionTextField.visibleProperty());
         mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
                 DOLLAR_CENT_STRING_CONVERTER);
+        mCommissionLabel.textProperty().bind(Bindings.createStringBinding(() ->
+                mTradeActionChoiceBox.getValue() == CORPSPINOFF ?
+                        "Old Share Price:" : "Commission:", mTradeActionChoiceBox.valueProperty()));
 
-        // accrued interest, same visibility as commission
+        // accrued interest, same visibility as commission, except corp spin off
+        // For Corp Spin Off, accrued interest field is for input New Share Price
         addEventFilterNumericInputOnly(mAccruedInterestTextField);
         mAccruedInterestTextField.visibleProperty().bind(mCommissionTextField.visibleProperty());
         mAccruedInterestLabel.visibleProperty().bind(mAccruedInterestTextField.visibleProperty());
         mAccruedInterestTextField.textProperty().bindBidirectional(mTransaction.getAccruedInterestProperty(),
                 DOLLAR_CENT_STRING_CONVERTER);
+        mAccruedInterestLabel.textProperty().bind(Bindings.createStringBinding(() ->
+                mTradeActionChoiceBox.getValue() == CORPSPINOFF ?
+                        "New Share Price:" : "Accrued Interest:", mTradeActionChoiceBox.valueProperty()));
 
         // specify lots button
         mSpecifyLotButton.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
@@ -562,6 +583,71 @@ public class EditTransactionDialogControllerNew {
         mEnterNewButton.setVisible(!defaultEnterDone);
 
         Platform.runLater(() -> mTradeActionChoiceBox.requestFocus());
+    }
+
+    private boolean enterCorpSpinOffTransaction() {
+        final Security oldSecurity = mSecurityComboBox.getValue();
+        if (oldSecurity == null) {
+            DialogUtil.showWarningDialog(getStage(), "Empty Security",
+                    "Corporate Spin-Off Needs A Security", "Please select a valid security.");
+            return false;
+        }
+
+        final LocalDate date = mTDatePicker.getValue();
+        final String newSecurityName = mNewSecurityNameTextField.getText().trim();
+        if (newSecurityName.isEmpty()) {
+            DialogUtil.showWarningDialog(getStage(), "Empty New Security Name",
+                    "Corporate spin-off needs a name for the new security",
+                    "Please enter a valid name");
+            return false;
+        }
+
+        final Optional<Security> newSecurity = mainModel.getSecurity(s -> s.getName().equals(newSecurityName));
+        if (newSecurity.isPresent()) {
+            final boolean isOK = DialogUtil.showConfirmationDialog(getStage(), "Spin-Off Security Exist",
+                    "The spin-off security already exist.",
+                    "    Security Name: " + newSecurityName + System.lineSeparator() +
+                            "    Ticker Symbol: " + newSecurity.get().getTicker() + System.lineSeparator() +
+                    "Is this correct?");
+            if (!isOK)
+                return false;
+        }
+
+        BigDecimal newShares = BIGDECIMALSTRINGCONVERTER.fromString(mSharesTextField.getText());
+        BigDecimal oldSharePrice = BIGDECIMALSTRINGCONVERTER.fromString(mCommissionTextField.getText());
+        BigDecimal newSharePrice = BIGDECIMALSTRINGCONVERTER.fromString(mAccruedInterestTextField.getText());
+
+        if (newShares.compareTo(BigDecimal.ZERO) <= 0) {
+            DialogUtil.showWarningDialog(getStage(), "Invalid New Share Quantity",
+                    "Number of new shares per old shares should be positive.",
+                    "Please enter correct number of new shares issued per old share.");
+            return false;
+        }
+
+        if (oldSharePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            DialogUtil.showWarningDialog(getStage(), "Invalid Price",
+                    "Price for old security should be positive",
+                    "Please enter correct price for the old security.");
+            return false;
+        }
+
+        if (newSharePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            DialogUtil.showWarningDialog(getStage(), "Invalid Price",
+                    "Price for new security should be positive",
+                    "Please enter correct price for the new security.");
+            return false;
+        }
+
+        final String memo = mMemoTextField.getText().trim();
+        try {
+            return mainModel.enterCorpSpinOffTransaction(date, oldSecurity, newSecurityName, newShares,
+                    oldSharePrice, newSharePrice, memo);
+        } catch (DaoException e) {
+            final String msg = "DaoException " + e.getErrorCode();
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+            return false;
+        }
     }
 
     // special code to handle entering Share Conversion transactions
@@ -680,9 +766,8 @@ public class EditTransactionDialogControllerNew {
                 e.addSuppressed(e1);
             }
 
-            Stage stage = (Stage) mTradeActionChoiceBox.getScene().getWindow();
             mLogger.error(e.getMessage(), e);
-            DialogUtil.showExceptionDialog(stage, "Exception", "Failed to insert transaction",
+            DialogUtil.showExceptionDialog(getStage(), "Exception", "Failed to insert transaction",
                     e.toString(), e);
         }
         return false;
@@ -693,6 +778,9 @@ public class EditTransactionDialogControllerNew {
     private boolean enterTransaction() {
         if (mTradeActionChoiceBox.getValue() == SHRCLSCVN)
             return enterShareClassConversionTransaction();
+
+        if (mTradeActionChoiceBox.getValue() == CORPSPINOFF)
+            return enterCorpSpinOffTransaction();
 
         // accountID is not automatically updated, update now
         mTransaction.setAccountID(mAccountComboBox.getSelectionModel().getSelectedItem().getID());
@@ -709,9 +797,8 @@ public class EditTransactionDialogControllerNew {
             mainModel.alterTransaction(mTransactionOrig, mTransaction, mMatchInfoList);
             return true;
         } catch (DaoException | ModelException e) {
-            Stage stage = (Stage) mTradeActionChoiceBox.getScene().getWindow();
             mLogger.error("Failed to enter transaction", e);
-            DialogUtil.showExceptionDialog(stage,"Exception", "Failed to enter transaction",
+            DialogUtil.showExceptionDialog(getStage(),"Exception", "Failed to enter transaction",
                     e.getMessage(), e);
             return false;
         }
@@ -803,8 +890,7 @@ public class EditTransactionDialogControllerNew {
                 }
             } catch (DaoException e) {
                 mLogger.error("DaoException " + e.getErrorCode(), e);
-                Stage stage = (Stage) mTradeActionChoiceBox.getScene().getWindow();
-                DialogUtil.showExceptionDialog(stage, "Exception", "DaoException " + e.getErrorCode(),
+                DialogUtil.showExceptionDialog(getStage(), "Exception", "DaoException " + e.getErrorCode(),
                         e.toString(), e);
                 return false;
             }
@@ -853,7 +939,7 @@ public class EditTransactionDialogControllerNew {
 
     @FXML
     private void handleSpecifyLots() {
-        Stage stage = (Stage) mTradeActionChoiceBox.getScene().getWindow();
+        Stage stage = getStage();
         try {
             DialogUtil.showSpecifyLotsDialog(mainModel, stage, mTransaction, mMatchInfoList);
         } catch (IOException e) {
@@ -871,7 +957,7 @@ public class EditTransactionDialogControllerNew {
     private void handleSplitTransactions() {
         final Account account = mAccountComboBox.getValue();
         final int accountID = account == null ? -1 : account.getID();
-        Stage stage = (Stage) mTradeActionChoiceBox.getScene().getWindow();
+        Stage stage = getStage();
         try {
             List<SplitTransaction> outSplitTransactionList = DialogUtil.showSplitTransactionsDialog(mainModel,
                     stage, accountID, mTransaction.getSplitTransactionList(),
@@ -924,7 +1010,7 @@ public class EditTransactionDialogControllerNew {
                 return; // do nothing
         }
 
-        ((Stage) mTradeActionChoiceBox.getScene().getWindow()).close();
+        getStage().close();
     }
 
     @FXML
@@ -943,7 +1029,7 @@ public class EditTransactionDialogControllerNew {
     @FXML
     private void handleEnterDone() {
         if (enterTransaction())
-            ((Stage) mTradeActionChoiceBox.getScene().getWindow()).close();
+            getStage().close();
     }
 
     @FXML

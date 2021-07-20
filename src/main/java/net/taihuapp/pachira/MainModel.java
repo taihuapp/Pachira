@@ -1104,6 +1104,13 @@ public class MainModel {
 
     public Optional<Tag> getTag(Predicate<Tag> predicate) { return tagList.stream().filter(predicate).findAny(); }
 
+    ObservableList<Loan> getLoanList() {
+        final Loan loan = new Loan();
+        loan.getNameProperty().set("Test");
+        loan.getDescriptionProperty().set("Test loan");
+        return FXCollections.observableArrayList(loan);
+    }
+
     /**
      * insert tag to the database and the master tag list
      * @param tag - input
@@ -1125,6 +1132,13 @@ public class MainModel {
         ((TagDao) daoManager.getDao(DaoManager.DaoType.TAG)).update(tag);
         // update master list
         getTag(t -> t.getID() == tag.getID()).ifPresent(t -> t.copy(tag));
+    }
+
+    void mergeLoan(Loan loan) {
+        if (loan.getID() <= 0)
+            System.err.println("Inserting loan");
+        else
+            System.err.println("Updating loan");
     }
 
     /**

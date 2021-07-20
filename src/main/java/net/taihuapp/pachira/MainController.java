@@ -1078,6 +1078,26 @@ public class MainController {
     }
 
     @FXML
+    private void handleEditLoanList() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource(("/view/LoanListDialog.fxml")));
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Loan List");
+            dialogStage.initOwner(getStage());
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.setScene(new Scene(loader.load()));
+            LoanListDialogController controller = loader.getController();
+            controller.setMainModel(getMainModel());
+            dialogStage.setOnCloseRequest(event -> controller.close());
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            logAndDisplayException("IOException on showLoanListDialog", e);
+        }
+    }
+
+    @FXML
     private void handleEditTagList() {
         try {
             FXMLLoader loader = new FXMLLoader();

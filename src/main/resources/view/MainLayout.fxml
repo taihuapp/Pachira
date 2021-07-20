@@ -129,6 +129,7 @@
                          <MenuItem mnemonicParsing="false" onAction="#handleEditSecurityList" text="Security List" />
                          <MenuItem mnemonicParsing="false" onAction="#handleEditCategoryList" text="Category List" />
                          <MenuItem mnemonicParsing="false" onAction="#handleEditTagList" text="Tag List" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleEditLoanList" text="Loan List" />
                      </items>
                 </Menu>
                   <Menu fx:id="mReportsMenu" mnemonicParsing="false" text="Reports">

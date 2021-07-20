@@ -251,11 +251,6 @@ public class MainApp extends Application {
     ObservableList<Tag> getTagList() { return mTagList; }
     ObservableList<Category> getCategoryList() { return mCategoryList; }
     ObservableList<Security> getSecurityList() { return mSecurityList; }
-    ObservableList<SecurityHolding> getSecurityHoldingList() { return mSecurityHoldingList; }
-    void setCurrentAccountSecurityHoldingList(LocalDate date, int exID) {
-        mSecurityHoldingList.setAll(updateAccountSecurityHoldingList(getCurrentAccount(), date, exID));
-    }
-    SecurityHolding getRootSecurityHolding() { return mRootSecurityHolding; }
 
     FilteredList<ReminderTransaction> getReminderTransactionList(boolean showCompleted) {
         return new FilteredList<>(mReminderTransactionList,

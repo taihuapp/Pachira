@@ -27,6 +27,8 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,11 +55,11 @@ public class Loan {
         // sequence id, from 1 to n
         private final ObjectProperty<Integer> sequenceIDProperty = new SimpleObjectProperty<>();
         private final ObjectProperty<LocalDate> dateProperty = new SimpleObjectProperty<>();
-        private final ObjectProperty<Double> principalAmountProperty = new SimpleObjectProperty<>();
-        private final ObjectProperty<Double> interestAmountProperty = new SimpleObjectProperty<>();
-        private final ObjectProperty<Double> balanceAmountProperty = new SimpleObjectProperty<>();
+        private final ObjectProperty<BigDecimal> principalAmountProperty = new SimpleObjectProperty<>();
+        private final ObjectProperty<BigDecimal> interestAmountProperty = new SimpleObjectProperty<>();
+        private final ObjectProperty<BigDecimal> balanceAmountProperty = new SimpleObjectProperty<>();
 
-        PaymentItem(Integer seq, LocalDate d, Double p, Double i, Double b) {
+        PaymentItem(Integer seq, LocalDate d, BigDecimal p, BigDecimal i, BigDecimal b) {
             sequenceIDProperty.set(seq);
             dateProperty.set(d);
             principalAmountProperty.set(p);
@@ -67,17 +69,17 @@ public class Loan {
 
         public ObjectProperty<Integer> getSequenceIDProperty() { return sequenceIDProperty; }
         public ObjectProperty<LocalDate> getDateProperty() { return dateProperty; }
-        public ObjectProperty<Double> getPrincipalAmountProperty() { return principalAmountProperty; }
-        public ObjectProperty<Double> getInterestAmountProperty() { return interestAmountProperty; }
-        public ObjectProperty<Double> getBalanceAmountProperty() { return balanceAmountProperty; }
+        public ObjectProperty<BigDecimal> getPrincipalAmountProperty() { return principalAmountProperty; }
+        public ObjectProperty<BigDecimal> getInterestAmountProperty() { return interestAmountProperty; }
+        public ObjectProperty<BigDecimal> getBalanceAmountProperty() { return balanceAmountProperty; }
     }
 
     private int id = -1;
     private final ObjectProperty<Integer> accountIDProperty = new SimpleObjectProperty<>(-1);
     private final StringProperty nameProperty = new SimpleStringProperty();
     private final StringProperty descriptionProperty = new SimpleStringProperty();
-    private final ObjectProperty<Double> originalAmountProperty = new SimpleObjectProperty<>(null);
-    private final ObjectProperty<Double> interestRateProperty = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<BigDecimal> originalAmountProperty = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<BigDecimal> interestRateProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<Period> compoundingPeriodProperty = new SimpleObjectProperty<>(Period.MONTHLY);
     private final ObjectProperty<Period> paymentPeriodProperty = new SimpleObjectProperty<>(Period.MONTHLY);
     private final ObjectProperty<Integer> numberOfPaymentsProperty = new SimpleObjectProperty<>(null);
@@ -105,7 +107,7 @@ public class Loan {
      * @return the interest rate per payment period
      */
     private double getEffectiveInterestRate() {
-        double r = getInterestRate()/100;
+        double r = getInterestRate().doubleValue()/100;
         int n = getCompoundingPeriod().getCountsPerYear();
         int m = getPaymentPeriod().getCountsPerYear();
         return (Math.pow(1+r/n, ((double) n)/((double) m))-1);
@@ -188,29 +190,31 @@ public class Loan {
             return;
 
         final int n = getNumberOfPayments();
-        final double y = getEffectiveInterestRate();
-        double balance = getOriginalAmount();
-        final double payment;
-        if (Math.abs(y) < 1e-10) {
-            // zero interest
-            payment = balance/n;
+        final BigDecimal y = BigDecimal.valueOf(getEffectiveInterestRate()); // interest rate per payment period
+        BigDecimal balance = getOriginalAmount().movePointRight(2); // balance in cents
+        final BigDecimal payment;
+        if (y.compareTo(BigDecimal.ZERO) == 0) {
+            // zero interest, divide to n payment and round to cents.
+            // the rounding error is absorbed in the last few payments.
+            payment = balance.divide(BigDecimal.valueOf(n), 0, RoundingMode.HALF_UP);
         } else {
-            final double onePlusYRaiseToN = Math.pow(1 + y, n);
-            payment = Math.round(100 * y * balance * onePlusYRaiseToN / (onePlusYRaiseToN - 1)) / 1e2; // round to cent
+            final BigDecimal onePlusYRaiseToN = y.add(BigDecimal.ONE).pow(n);
+            payment = y.multiply(balance).multiply(onePlusYRaiseToN)
+                    .divide(onePlusYRaiseToN.subtract(BigDecimal.ONE), 0, RoundingMode.HALF_UP);
         }
         List<LocalDate> paymentDates = getPaymentDates();
-        // calculate first n-1 payments according to the formula
         for (int i = 0; i < n; i++) {
-            double iPayment = Math.round(100*y*balance)/1e2; // round to nearest cent
-            double pPayment = (i == n-1) ? balance : Math.round(100*(payment-iPayment))/1e2;
-            if (balance > pPayment)
-                balance -= pPayment;
+            BigDecimal iPayment = y.multiply(balance).setScale(0, RoundingMode.HALF_UP);
+            BigDecimal pPayment = (i == n-1) ? balance : payment.subtract(iPayment);
+            if (balance.compareTo(pPayment) > 0)
+                balance = balance.subtract(pPayment);
             else {
                 pPayment = balance;
-                balance = 0;
+                balance = BigDecimal.ZERO;
             }
-            paymentSchedule.add(new PaymentItem(i+1, paymentDates.get(i), pPayment, iPayment, balance));
-            if (balance < 1e-6)
+            paymentSchedule.add(new PaymentItem(i+1, paymentDates.get(i), pPayment.movePointLeft(2),
+                    iPayment.movePointLeft(2), balance.movePointLeft(2)));
+            if (balance.compareTo(BigDecimal.ZERO) == 0)
                 break;
         }
     }
@@ -229,11 +233,11 @@ public class Loan {
     String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String description) { getDescriptionProperty().set(description); }
 
-    Double getOriginalAmount() { return getOriginalAmountProperty().get(); }
-    void setOriginalAmount(Double amount) { getOriginalAmountProperty().set(amount); }
+    BigDecimal getOriginalAmount() { return getOriginalAmountProperty().get(); }
+    void setOriginalAmount(BigDecimal amount) { getOriginalAmountProperty().set(amount); }
 
-    Double getInterestRate() { return getInterestRateProperty().get(); }
-    void setInterestRate(Double interestRateInPct) { getInterestRateProperty().set(interestRateInPct); }
+    BigDecimal getInterestRate() { return getInterestRateProperty().get(); }
+    void setInterestRate(BigDecimal interestRateInPct) { getInterestRateProperty().set(interestRateInPct); }
 
     Period getCompoundingPeriod() { return getCompoundingPeriodProperty().get(); }
     void setCompoundingPeriod(Period p) { getCompoundingPeriodProperty().set(p); }
@@ -250,8 +254,8 @@ public class Loan {
     ObjectProperty<Integer> getAccountIDProperty() { return accountIDProperty; }
     StringProperty getNameProperty() { return nameProperty; }
     StringProperty getDescriptionProperty() { return descriptionProperty; }
-    ObjectProperty<Double> getOriginalAmountProperty() { return originalAmountProperty; }
-    ObjectProperty<Double> getInterestRateProperty() { return interestRateProperty; }
+    ObjectProperty<BigDecimal> getOriginalAmountProperty() { return originalAmountProperty; }
+    ObjectProperty<BigDecimal> getInterestRateProperty() { return interestRateProperty; }
     ObjectProperty<Period> getCompoundingPeriodProperty() { return compoundingPeriodProperty; }
     ObjectProperty<Period> getPaymentPeriodProperty() { return paymentPeriodProperty; }
     ObjectProperty<Integer> getNumberOfPaymentsProperty() { return numberOfPaymentsProperty; }

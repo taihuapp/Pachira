@@ -23,21 +23,36 @@ package net.taihuapp.pachira;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
-import javafx.util.converter.DoubleStringConverter;
+import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 
-import java.text.DecimalFormat;
+import java.math.BigDecimal;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.regex.Pattern;
 
 
 public class EditLoanDialogController {
 
-    static final DecimalFormat DOLLAR_CENT_DECIMAL_FORMAT = new DecimalFormat("#,##0.00");
+    private static final Pattern DOLLAR_CENT_REG_EX = Pattern.compile("^(0|[1-9][,\\d]*)?(\\.\\d{0,2})?$");
+    private static final Pattern DECIMAL_REG_EX = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d*)?$");
+    private static final Pattern INTEGER_REG_EX = Pattern.compile("^([1-9]+\\d*)?$");
 
-    private static final Pattern dollarCentRegEx = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d{0,2})?$");
-    private static final Pattern doubleRegEx = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d*)?$");
-    private static final Pattern integerRegEx = Pattern.compile("^([1-9]+\\d*)?$");
+    private static final BigDecimalStringConverter DOLLAR_CENT_2_STRING_CONVERTER = new BigDecimalStringConverter() {
+        @Override
+        public BigDecimal fromString(String s) {
+            try {
+                return s == null ? null : (BigDecimal) MainModel.DOLLAR_CENT_2_FORMAT.parse(s);
+            } catch (ParseException e) {
+                return null;
+            }
+        }
+
+        @Override
+        public String toString(BigDecimal b) {
+            return b == null ? null : MainModel.DOLLAR_CENT_2_FORMAT.format(b);
+        }
+    };
 
     private MainModel mainModel;
     private Loan loan;
@@ -65,11 +80,11 @@ public class EditLoanDialogController {
     @FXML
     private TableColumn<Loan.PaymentItem, LocalDate> paymentDateTableColumn;
     @FXML
-    private TableColumn<Loan.PaymentItem, Double> principalPaymentTableColumn;
+    private TableColumn<Loan.PaymentItem, BigDecimal> principalPaymentTableColumn;
     @FXML
-    private TableColumn<Loan.PaymentItem, Double> interestPaymentTableColumn;
+    private TableColumn<Loan.PaymentItem, BigDecimal> interestPaymentTableColumn;
     @FXML
-    private TableColumn<Loan.PaymentItem, Double> balanceTableColumn;
+    private TableColumn<Loan.PaymentItem, BigDecimal> balanceTableColumn;
 
     void setMainModel(MainModel mainModel, Loan loan) {
         this.mainModel = mainModel;
@@ -78,14 +93,14 @@ public class EditLoanDialogController {
         nameTextField.textProperty().bindBidirectional(this.loan.getNameProperty());
         descriptionTextField.textProperty().bindBidirectional(this.loan.getDescriptionProperty());
 
-        // allow max 2 digits after decimal point
-        TextFormatter<Double> originalAmountFormatter = new TextFormatter<>(new DoubleStringConverter(), null,
-                c -> dollarCentRegEx.matcher(c.getControlNewText()).matches() ? c : null);
+        TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER,null,
+                c -> DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+
         originalAmountTextField.setTextFormatter(originalAmountFormatter);
         originalAmountFormatter.valueProperty().bindBidirectional(this.loan.getOriginalAmountProperty());
 
-        TextFormatter<Double> interestRateFormatter = new TextFormatter<>(new DoubleStringConverter(), null,
-                c -> doubleRegEx.matcher(c.getControlNewText()).matches() ? c : null);
+        TextFormatter<BigDecimal> interestRateFormatter = new TextFormatter<>(new BigDecimalStringConverter(), null,
+                c -> DECIMAL_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         interestRateTextField.setTextFormatter(interestRateFormatter);
         interestRateFormatter.valueProperty().bindBidirectional(this.loan.getInterestRateProperty());
 
@@ -95,7 +110,7 @@ public class EditLoanDialogController {
         paymentPeriodChoiceBox.valueProperty().bindBidirectional(this.loan.getPaymentPeriodProperty());
 
         TextFormatter<Integer> numberOfPaymentsFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
-                c -> integerRegEx.matcher(c.getControlNewText()).matches() ? c : null);
+                c -> INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         numberOfPaymentsTextField.setTextFormatter(numberOfPaymentsFormatter);
         numberOfPaymentsFormatter.valueProperty().bindBidirectional(this.loan.getNumberOfPaymentsProperty());
 
@@ -107,34 +122,34 @@ public class EditLoanDialogController {
         principalPaymentTableColumn.setCellValueFactory(cd -> cd.getValue().getPrincipalAmountProperty());
         principalPaymentTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override
-            protected void updateItem(Double item, boolean empty) {
+            protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(DOLLAR_CENT_DECIMAL_FORMAT.format(item));
+                    setText(MainModel.DOLLAR_CENT_2_FORMAT.format(item));
             }
         });
         interestPaymentTableColumn.setCellValueFactory(cd -> cd.getValue().getInterestAmountProperty());
         interestPaymentTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override
-            protected void updateItem(Double item, boolean empty) {
+            protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(DOLLAR_CENT_DECIMAL_FORMAT.format(item));
+                    setText(MainModel.DOLLAR_CENT_2_FORMAT.format(item));
             }
         });
         balanceTableColumn.setCellValueFactory(cd -> cd.getValue().getBalanceAmountProperty());
         balanceTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override
-            protected void updateItem(Double item, boolean empty) {
+            protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(DOLLAR_CENT_DECIMAL_FORMAT.format(item));
+                    setText(MainModel.DOLLAR_CENT_2_FORMAT.format(item));
             }
         });
 

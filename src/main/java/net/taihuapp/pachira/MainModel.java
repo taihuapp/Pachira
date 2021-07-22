@@ -83,6 +83,8 @@ public class MainModel {
     static final int PRICE_FRACTION_DISPLAY_LEN = 6;
     // minimum 2 decimal places, maximum 4 decimal places
     static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
+    static final DecimalFormat DOLLAR_CENT_2_FORMAT = new DecimalFormat("###,##0.00");
+
     static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
@@ -1108,6 +1110,8 @@ public class MainModel {
         final Loan loan = new Loan();
         loan.getNameProperty().set("Test");
         loan.getDescriptionProperty().set("Test loan");
+        loan.setOriginalAmount(new BigDecimal("50000"));
+        loan.setInterestRate(new BigDecimal("3.0"));
         return FXCollections.observableArrayList(loan);
     }
 

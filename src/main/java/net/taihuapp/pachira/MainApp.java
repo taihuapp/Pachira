@@ -5629,6 +5629,7 @@ public class MainApp extends Application {
     public void init() {
         mPrefs = Preferences.userNodeForPackage(MainApp.class);
         MainModel.DOLLAR_CENT_FORMAT.setParseBigDecimal(true);  // always parse BigDecimal
+        MainModel.DOLLAR_CENT_2_FORMAT.setParseBigDecimal(true);
     }
 
     @Override

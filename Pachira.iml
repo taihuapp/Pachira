@@ -18,11 +18,11 @@
     <orderEntry type="library" name="Maven: commons-collections:commons-collections:3.2.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-collections4:4.2" level="project" />
     <orderEntry type="library" name="Maven: org.openjfx:javafx-controls:11.0.2" level="project" />
-    <orderEntry type="library" name="Maven: org.openjfx:javafx-controls:linux:11.0.2" level="project" />
+    <orderEntry type="library" name="Maven: org.openjfx:javafx-controls:mac:11.0.2" level="project" />
     <orderEntry type="library" name="Maven: org.openjfx:javafx-graphics:11.0.2" level="project" />
-    <orderEntry type="library" name="Maven: org.openjfx:javafx-graphics:linux:11.0.2" level="project" />
+    <orderEntry type="library" name="Maven: org.openjfx:javafx-graphics:mac:11.0.2" level="project" />
     <orderEntry type="library" name="Maven: org.openjfx:javafx-fxml:11.0.2" level="project" />
-    <orderEntry type="library" name="Maven: org.openjfx:javafx-fxml:linux:11.0.2" level="project" />
+    <orderEntry type="library" name="Maven: org.openjfx:javafx-fxml:mac:11.0.2" level="project" />
     <orderEntry type="library" name="Maven: log4j:log4j:1.2.17" level="project" />
     <orderEntry type="library" name="Maven: com.h2database:h2:1.4.199" level="project" />
     <orderEntry type="library" name="Maven: com.webcohesion.ofx4j:ofx4j:1.28" level="project" />
@@ -38,12 +38,12 @@
     <orderEntry type="library" name="Maven: com.sun.xml.bind:jaxb-impl:2.3.2" level="project" />
     <orderEntry type="library" name="Maven: org.controlsfx:controlsfx:11.0.1" level="project" />
     <orderEntry type="library" name="Maven: org.openjfx:javafx-base:11.0.2" level="project" />
-    <orderEntry type="library" name="Maven: org.openjfx:javafx-base:linux:11.0.2" level="project" />
+    <orderEntry type="library" name="Maven: org.openjfx:javafx-base:mac:11.0.2" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-web:11.0.2" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-web:linux:11.0.2" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-web:mac:11.0.2" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-swing:11.0.2" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-swing:linux:11.0.2" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-swing:mac:11.0.2" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-media:11.0.2" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-media:linux:11.0.2" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="Maven: org.openjfx:javafx-media:mac:11.0.2" level="project" />
   </component>
 </module>

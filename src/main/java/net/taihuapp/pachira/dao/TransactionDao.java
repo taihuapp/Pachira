@@ -40,14 +40,14 @@ import java.util.Map;
 public class TransactionDao extends Dao<Transaction, Integer> {
 
     private final SecurityDao securityDao;
-    private final PairTidSplitTransactionListDao pairTidSplitTransactionListDao;
+    private final SplitTransactionListDao splitTransactionListDao;
     private final Map<Integer, List<SplitTransaction>> tidSplitTransactionListMap = new HashMap<>();
 
     TransactionDao(Connection connection, SecurityDao securityDao,
-                   PairTidSplitTransactionListDao pairTidSplitTransactionListDao) {
+                   SplitTransactionListDao splitTransactionListDao) {
         this.connection = connection;
         this.securityDao = securityDao;
-        this.pairTidSplitTransactionListDao = pairTidSplitTransactionListDao;
+        this.splitTransactionListDao = splitTransactionListDao;
 
     }
 
@@ -151,9 +151,10 @@ public class TransactionDao extends Dao<Transaction, Integer> {
     public List<Transaction> getAll() throws DaoException {
         // refresh tidSplitTransactionListMap
         tidSplitTransactionListMap.clear();
-        List<Pair<Integer, List<SplitTransaction>>> list = pairTidSplitTransactionListDao.getAll();
-        for (Pair<Integer, List<SplitTransaction>> integerListPair : list) {
-            tidSplitTransactionListMap.put(integerListPair.getKey(), integerListPair.getValue());
+        List<Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>>> list =
+                splitTransactionListDao.getAll(SplitTransaction.Type.TXN);
+        for (Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>> pair : list) {
+            tidSplitTransactionListMap.put(pair.getKey().getValue(), pair.getValue());
         }
 
         return super.getAll();
@@ -165,7 +166,8 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         try {
             daoManager.beginTransaction();
             int n = super.insert(t);
-            pairTidSplitTransactionListDao.insert(new Pair<>(n, t.getSplitTransactionList()));
+            splitTransactionListDao.insert(new Pair<>(new Pair<>(SplitTransaction.Type.TXN, n),
+                    t.getSplitTransactionList()));
             daoManager.commit();
             return n;
         } catch (DaoException e) {
@@ -183,7 +185,8 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         DaoManager daoManager = DaoManager.getInstance();
         try {
             daoManager.beginTransaction();
-            pairTidSplitTransactionListDao.update(new Pair<>(t.getID(), t.getSplitTransactionList()));
+            splitTransactionListDao.update(new Pair<>(new Pair<>(SplitTransaction.Type.TXN, t.getID()),
+                    t.getSplitTransactionList()));
             int n = super.update(t);
             daoManager.commit();
             return n;
@@ -203,7 +206,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         try {
             daoManager.beginTransaction();
             final int n = super.delete(tid);
-            pairTidSplitTransactionListDao.delete(tid);
+            splitTransactionListDao.delete(new Pair<>(SplitTransaction.Type.TXN, tid));
             daoManager.commit();
             return n;
         } catch (DaoException e) {

@@ -28,20 +28,21 @@ import java.sql.*;
 import java.util.*;
 
 /**
- * PairTidSplitTransactionListDao is a Dao class for the pair of transaction id and the list of split transactions
- * The split transactions are stored in SPLITTRANSACTIONS table, each transaction id can have a) 0 row or b) more
+ * SplitTransactionListDao is a Dao class for a pair of (type, typ_id) and a list of split transactions
+ * The split transactions are stored in SPLITTRANSACTIONS table, each transaction id can have (a) 0 row or (b) more
  * than 1 rows.  We will have multiple rows of split transactions make up a list and pair up with the transaction id
  * for the full object.  We need to override default Dao methods to achieve this.
  */
-public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<SplitTransaction>>, Integer> {
+public class SplitTransactionListDao extends Dao<Pair<Pair<SplitTransaction.Type, Integer>,
+        List<SplitTransaction>>, Pair<SplitTransaction.Type, Integer>> {
 
-    PairTidSplitTransactionListDao(Connection connection) { this.connection = connection; }
+    SplitTransactionListDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "SPLITTRANSACTIONS"; }
 
     @Override
-    String[] getKeyColumnNames() { return new String[]{"TRANSACTIONID"}; }
+    String[] getKeyColumnNames() { return new String[]{"TYPE", "TYPE_ID"}; }
 
     @Override
     String[] getColumnNames() {
@@ -52,8 +53,9 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
     boolean autoGenKey() { return false; }
 
     @Override
-    Integer getKeyValue(Pair<Integer, List<SplitTransaction>> integerListPair) {
-        return integerListPair.getKey();
+    Pair<SplitTransaction.Type, Integer> getKeyValue(Pair<Pair<SplitTransaction.Type, Integer>,
+            List<SplitTransaction>> pair) {
+        return pair.getKey();
     }
 
     @Override
@@ -78,17 +80,34 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
      * @throws SQLException from resultSet.get...
      */
     @Override
-    Pair<Integer, List<SplitTransaction>> fromResultSet(ResultSet resultSet) throws SQLException {
-        final int tid = resultSet.getInt("TRANSACTIONID");
+    Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>> fromResultSet(ResultSet resultSet)
+            throws SQLException {
+
+        final SplitTransaction.Type type = SplitTransaction.Type.valueOf(resultSet.getString("TYPE"));
+        final int tid = resultSet.getInt("TYPE_ID");
         final int id = resultSet.getInt("ID");
         final int cid = resultSet.getInt("CATEGORYID");
         final int tagId = resultSet.getInt("TAGID");
         final String memo = resultSet.getString("MEMO");
-        // // TODO: 5/2/21 make AMOUNT column not null
         BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
         final int matchID = resultSet.getInt("MATCHTRANSACTIONID");
 
-        return new Pair<>(tid, Collections.singletonList(new SplitTransaction(id, cid, tagId, memo, amount, matchID)));
+        return new Pair<>(new Pair<>(type, tid), Collections.singletonList(new SplitTransaction(id, cid,
+                tagId, memo, amount, matchID)));
+    }
+
+    /**
+     * properly set the preparedStatement for the given key.
+     * used in get/delete methods
+     * @param preparedStatement empty preparedStatement to be set
+     * @param pair a pair of type and id.
+     * @throws SQLException from database operations
+     */
+    @Override
+    void setPreparedStatement(PreparedStatement preparedStatement, Pair<SplitTransaction.Type, Integer> pair)
+            throws SQLException {
+        preparedStatement.setString(1, pair.getKey().name());
+        preparedStatement.setInt(2, pair.getValue());
     }
 
     /**
@@ -96,19 +115,20 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
      */
     @Override
     void setPreparedStatement(PreparedStatement preparedStatement,
-                              Pair<Integer, List<SplitTransaction>> integerListPair, boolean withKey) {
+                              Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>> integerListPair,
+                              boolean withKey) {
         throw new IllegalStateException("setPreparedStatement should not be called for " + getClass().getName());
     }
 
     @Override
-    public Optional<Pair<Integer, List<SplitTransaction>>> get(Integer key) throws DaoException {
+    public Optional<Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>>>
+    get(Pair<SplitTransaction.Type, Integer> key) throws DaoException {
         try (PreparedStatement preparedStatement = connection.prepareStatement(getSQLString(SQLCommand.GET))) {
             setPreparedStatement(preparedStatement, key);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 List<SplitTransaction> spList = new ArrayList<>();
                 while (resultSet.next()) {
-                    Pair<Integer, List<SplitTransaction>> integerListPair = fromResultSet(resultSet);
-                    spList.add(integerListPair.getValue().get(0));
+                    spList.add(fromResultSet(resultSet).getValue().get(0));
                 }
                 if (spList.isEmpty())
                     return Optional.empty();
@@ -119,46 +139,96 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
         }
     }
 
-    @Override
-    public List<Pair<Integer, List<SplitTransaction>>> getAll() throws DaoException {
-        try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(getSQLString(SQLCommand.GET_ALL))) {
-            int tid = -1;
-            List<SplitTransaction> spList = null;
-            List<Pair<Integer, List<SplitTransaction>>> fullList = new ArrayList<>();
-            while (resultSet.next()) {
-                Pair<Integer, List<SplitTransaction>> integerListPair = fromResultSet(resultSet);
-                int newTid = integerListPair.getKey();
-                if (newTid != tid) {
-                    tid = newTid;
-                    spList = new ArrayList<>();
-                    fullList.add(new Pair<>(tid, spList));
-                }
-                if (spList != null) // this check is not necessary, but stops intellij complaining
-                    spList.add(integerListPair.getValue().get(0));
+    /**
+     * get all records for the input type, get all records if type is null
+     * @param type the type of split transactions to get
+     * @return a list
+     * @throws DaoException from database operations
+     */
+    public List<Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>>> getAll(SplitTransaction.Type type)
+        throws DaoException {
+
+        String sqlCmd = getSQLString(SQLCommand.GET_ALL);
+        if (type != null) {
+            sqlCmd += " where TYPE = ?";
+        }
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            if (type != null) {
+                preparedStatement.setString(1, type.name());
             }
-            return fullList;
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                int tid = -1;
+                SplitTransaction.Type t = null;
+                List<SplitTransaction> spList = null;
+                List<Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>>> fullList = new ArrayList<>();
+                while (resultSet.next()) {
+                    Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>> pair = fromResultSet(resultSet);
+                    Pair<SplitTransaction.Type, Integer> key = pair.getKey();
+                    SplitTransaction.Type newType = key.getKey();
+                    int newTid = key.getValue();
+                    if (newTid != tid || newType != t) {
+                        if ((type != null) && (newType != type))
+                            continue; // we only care about type
+                        tid = newTid;
+                        t = newType;
+                        spList = new ArrayList<>();
+                        fullList.add(new Pair<>(new Pair<>(t, newTid), spList));
+                    }
+                    spList.add(pair.getValue().get(0));
+                }
+                return fullList;
+            }
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "Failed to getAll SplitTransaction.", e);
         }
     }
 
+    /**
+     * delete records match type, delete all records if type is null
+     * @param type input
+     * @throws DaoException from database operations
+     */
+    public void deleteAll(SplitTransaction.Type type) throws DaoException {
+
+        String sqlCmd = "DELETE FROM " + getTableName();
+        if (type != null) {
+            sqlCmd += " where TYPE = ?";
+        }
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            if (type != null)
+                preparedStatement.setString(1, type.name());
+
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_DELETE, "Delete all failed", e);
+        }
+    }
+
     @Override
-    public int update(Pair<Integer, List<SplitTransaction>> integerListPair) throws DaoException {
+    public List<Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>>> getAll() throws DaoException {
+        return getAll(null);
+    }
+
+    @Override
+    public int update(Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>> integerListPair)
+            throws DaoException {
         insert(integerListPair);
         return 1;
     }
 
     /**
      * first delete all rows with matching tid, then insert.
-     * @param integerListPair - the pair of tid and the list of splitTransaction
+     * @param pair - the pair of tid and the list of splitTransaction
      * @return - tid
      * @throws DaoException - from database operations
      */
     @Override
-    public Integer insert(Pair<Integer, List<SplitTransaction>> integerListPair) throws DaoException {
-        final int tid = integerListPair.getKey();
-        final List<SplitTransaction> splitTransactionList = integerListPair.getValue();
+    public Pair<SplitTransaction.Type, Integer> insert(Pair<Pair<SplitTransaction.Type, Integer>,
+            List<SplitTransaction>> pair) throws DaoException {
+
+        final SplitTransaction.Type type = pair.getKey().getKey();
+        final int tid = pair.getKey().getValue();
+        final List<SplitTransaction> splitTransactionList = pair.getValue();
         final List<SplitTransaction> updateList = new ArrayList<>();
         final List<SplitTransaction> insertList = new ArrayList<>();
         for (SplitTransaction splitTransaction : splitTransactionList) {
@@ -173,8 +243,9 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
 
         DaoManager daoManager = DaoManager.getInstance();
         try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT ID FROM "
-                + "SPLITTRANSACTIONS WHERE TRANSACTIONID = ?")) {
-            preparedStatement.setInt(1, tid);
+                + "SPLITTRANSACTIONS WHERE TYPE = ? and TYPE_ID = ?")) {
+            preparedStatement.setString(1, type.name());
+            preparedStatement.setInt(2, tid);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 while (resultSet.next())
                     oldIDSet.add(resultSet.getInt(1));
@@ -183,13 +254,14 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "Failed to select from SPLITTRANSACTIONS", e);
         }
 
-        for (SplitTransaction splitTransaction : integerListPair.getValue()) {
+        for (SplitTransaction splitTransaction : pair.getValue()) {
             final int id = splitTransaction.getID();
             if (id <= 0)
                 continue;
+            // this split transaction has a valid id, it should exist in the old id set.
             if (!oldIDSet.remove(id)) {
                 throw new DaoException(DaoException.ErrorCode.FAIL_TO_UPDATE,
-                        "SplitTransaction " + id + " for " + tid + " does not exist", null);
+                        type + " SplitTransaction " + id + " for " + tid + " does not exist", null);
             }
         }
 
@@ -207,17 +279,18 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
             }
 
             final String updateCmd = "UPDATE SPLITTRANSACTIONS SET "
-                    + "TRANSACTIONID = ?, CATEGORYID = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ?, TAGID = ? "
+                    + "TYPE = ?, TYPE_ID = ?, CATEGORYID = ?, MEMO = ?, AMOUNT = ?, MATCHTRANSACTIONID = ?, TAGID = ? "
                     + "WHERE ID = ?";
             try (PreparedStatement updateStatement = connection.prepareStatement(updateCmd)) {
                 for (SplitTransaction splitTransaction : updateList) {
-                    updateStatement.setInt(1, tid);
-                    updateStatement.setInt(2, splitTransaction.getCategoryID());
-                    updateStatement.setString(3, splitTransaction.getMemo());
-                    updateStatement.setBigDecimal(4, splitTransaction.getAmount());
-                    updateStatement.setInt(5, splitTransaction.getMatchID());
-                    updateStatement.setInt(6, splitTransaction.getTagID());
-                    updateStatement.setInt(7, splitTransaction.getID());
+                    updateStatement.setString(1, type.name());
+                    updateStatement.setInt(2, tid);
+                    updateStatement.setInt(3, splitTransaction.getCategoryID());
+                    updateStatement.setString(4, splitTransaction.getMemo());
+                    updateStatement.setBigDecimal(5, splitTransaction.getAmount());
+                    updateStatement.setInt(6, splitTransaction.getMatchID());
+                    updateStatement.setInt(7, splitTransaction.getTagID());
+                    updateStatement.setInt(8, splitTransaction.getID());
 
                     updateStatement.executeUpdate();
                 }
@@ -226,17 +299,18 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
             }
 
             final String insertCmd = "INSERT INTO SPLITTRANSACTIONS "
-                    + "(TRANSACTIONID, CATEGORYID, MEMO, AMOUNT, MATCHTRANSACTIONID, TAGID) "
-                    + "VALUES (?, ?, ?, ?, ?, ?)";
+                    + "(TYPE, TYPE_ID, CATEGORYID, MEMO, AMOUNT, MATCHTRANSACTIONID, TAGID) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement insertStatement =
                          connection.prepareStatement(insertCmd, Statement.RETURN_GENERATED_KEYS)) {
                 for (SplitTransaction splitTransaction : insertList) {
-                    insertStatement.setInt(1, tid);
-                    insertStatement.setInt(2, splitTransaction.getCategoryID());
-                    insertStatement.setString(3, splitTransaction.getMemo());
-                    insertStatement.setBigDecimal(4, splitTransaction.getAmount());
-                    insertStatement.setInt(5, splitTransaction.getMatchID());
-                    insertStatement.setInt(6, splitTransaction.getTagID());
+                    insertStatement.setString(1, type.name());
+                    insertStatement.setInt(2, tid);
+                    insertStatement.setInt(3, splitTransaction.getCategoryID());
+                    insertStatement.setString(4, splitTransaction.getMemo());
+                    insertStatement.setBigDecimal(5, splitTransaction.getAmount());
+                    insertStatement.setInt(6, splitTransaction.getMatchID());
+                    insertStatement.setInt(7, splitTransaction.getTagID());
 
                     insertStatement.executeUpdate();
 
@@ -251,7 +325,7 @@ public class PairTidSplitTransactionListDao extends Dao<Pair<Integer, List<Split
                 throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "Insert to SplitTransactions failed", e);
             }
             daoManager.commit();
-            return tid;
+            return new Pair<>(type, tid);
         } catch (DaoException e) {
             try {
                 // failed insert, rollback

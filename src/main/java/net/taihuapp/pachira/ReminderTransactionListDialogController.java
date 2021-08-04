@@ -41,6 +41,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -128,7 +129,13 @@ public class ReminderTransactionListDialogController {
         transaction.setAmount(reminder.getAmount());
         transaction.setPayee(reminder.getPayee());
         transaction.setMemo(reminder.getMemo());
-        transaction.setSplitTransactionList(reminder.getSplitTransactionList());
+        final List<SplitTransaction> stList = new ArrayList<>();
+        for (SplitTransaction st : reminder.getSplitTransactionList()) {
+            final SplitTransaction stCopy = new SplitTransaction(st);
+            stCopy.setID(0);
+            stList.add(stCopy);
+        }
+        transaction.setSplitTransactionList(stList);
         transaction.setTagID(reminder.getTagID());
         Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
         try {

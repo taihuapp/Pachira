@@ -60,7 +60,9 @@ public class DaoException extends Exception {
     public String toString() {
         String string = "DaoException " + getErrorCode() + System.lineSeparator();
         Throwable cause = getCause();
-        if (cause instanceof SQLException)
+        if (cause == null) {
+            string += "'null'";
+        } else if (cause instanceof SQLException)
             string += SQLExceptionToString((SQLException) cause);
         else
             string += cause.toString();

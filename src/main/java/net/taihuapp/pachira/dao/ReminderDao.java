@@ -23,6 +23,7 @@ package net.taihuapp.pachira.dao;
 import javafx.util.Pair;
 import net.taihuapp.pachira.DateSchedule;
 import net.taihuapp.pachira.Reminder;
+import net.taihuapp.pachira.SplitTransaction;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -34,11 +35,11 @@ import java.util.ArrayList;
 
 public class ReminderDao extends Dao<Reminder, Integer> {
 
-    private final PairTidSplitTransactionListDao pairTidSplitTransactionListDao;
+    private final SplitTransactionListDao splitTransactionListDao;
 
-    ReminderDao(Connection connection, PairTidSplitTransactionListDao pairTidSplitTransactionListDao) {
+    ReminderDao(Connection connection, SplitTransactionListDao splitTransactionListDao) {
         this.connection = connection;
-        this.pairTidSplitTransactionListDao = pairTidSplitTransactionListDao;
+        this.splitTransactionListDao = splitTransactionListDao;
     }
 
     @Override
@@ -82,7 +83,8 @@ public class ReminderDao extends Dao<Reminder, Integer> {
 
         DateSchedule dateSchedule = new DateSchedule(baseUnit, numPeriod, startDate, endDate, alertDays, isDOM, isFWD);
         return new Reminder(id, type, payee, amount, estCount, accountID, categoryID, tagID, memo, dateSchedule,
-                pairTidSplitTransactionListDao.get(-id).map(Pair::getValue).orElse(new ArrayList<>()));
+                splitTransactionListDao.get(new Pair<>(SplitTransaction.Type.REM, id)).map(Pair::getValue)
+                        .orElse(new ArrayList<>()));
     }
 
     @Override
@@ -104,5 +106,84 @@ public class ReminderDao extends Dao<Reminder, Integer> {
         preparedStatement.setBoolean(15, reminder.getDateSchedule().isForward());
         if (withKey)
             preparedStatement.setInt(16, reminder.getID());
+    }
+
+    @Override
+    public int delete(Integer id) throws DaoException {
+        final DaoManager daoManager = DaoManager.getInstance();
+        try {
+            daoManager.beginTransaction();
+            final int n = super.delete(id);
+            splitTransactionListDao.delete(new Pair<>(SplitTransaction.Type.REM, id));
+            daoManager.commit();
+            return n;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+
+            throw e;
+        }
+    }
+
+    @Override
+    public Integer insert(Reminder reminder) throws DaoException {
+        final DaoManager daoManager = DaoManager.getInstance();
+        try {
+            daoManager.beginTransaction();
+            int n = super.insert(reminder);
+            splitTransactionListDao.insert(new Pair<>(new Pair<>(SplitTransaction.Type.REM, n),
+                    reminder.getSplitTransactionList()));
+            daoManager.commit();
+            return n;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public int update(Reminder reminder) throws DaoException {
+        final DaoManager daoManager = DaoManager.getInstance();
+        try {
+            daoManager.beginTransaction();
+            splitTransactionListDao.update(new Pair<>(new Pair<>(SplitTransaction.Type.REM,
+                    reminder.getID()), reminder.getSplitTransactionList()));
+            final int n = super.update(reminder);
+            daoManager.commit();
+            return n;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public void deleteAll() throws DaoException {
+        final DaoManager daoManager = DaoManager.getInstance();
+
+        daoManager.beginTransaction();
+        try {
+            super.deleteAll();
+            splitTransactionListDao.deleteAll(SplitTransaction.Type.REM);
+            daoManager.commit();
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
     }
 }

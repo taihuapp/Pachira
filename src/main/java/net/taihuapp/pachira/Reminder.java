@@ -108,7 +108,7 @@ public class Reminder {
     StringProperty getMemoProperty() { return mMemoProperty; }
     public String getMemo() { return getMemoProperty().get(); }
 
-    List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
+    public List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
     void setSplitTransactionList(List<SplitTransaction> stList) {
         mSplitTransactionList.clear();
         for (SplitTransaction st : stList)

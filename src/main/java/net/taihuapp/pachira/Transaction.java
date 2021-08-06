@@ -45,7 +45,7 @@ public class Transaction {
 
         final Account account = mainModel.getAccount(a -> a.getID() == getAccountID())
                 .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                        "Transaction " + toString() + " has an invalid account ID", null));
+                        "Transaction " + this + " has an invalid account ID", null));
         final boolean isBanking = !account.getType().isGroup(Account.Type.Group.INVESTING);
         final ConverterUtil.CategoryIDConverter converter = new ConverterUtil.CategoryIDConverter(mainModel);
         final String categoryOrTransferAccountName = converter.toString(getCategoryID());
@@ -782,8 +782,7 @@ public class Transaction {
                 break;
         }
         if (!tradeActionCompatible)
-            throw new IllegalArgumentException("Incompatible TradeActions: "
-                    + taA.toString() + "/" + taB.toString());
+            throw new IllegalArgumentException("Incompatible TradeActions: " + taA + "/" + taB);
 
         // transactionB is downloaded one.
         // copy over everything from A

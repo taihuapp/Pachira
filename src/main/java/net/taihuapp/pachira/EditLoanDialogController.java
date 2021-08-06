@@ -35,6 +35,7 @@ import org.apache.log4j.Logger;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -303,6 +304,19 @@ public class EditLoanDialogController {
             final String msg = "insert loan failed";
             logger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(),"DaoException", msg, e.toString(), e);
+        }
+
+        // create a transaction of the loan initiation
+        final Transaction t = new Transaction(loan.getAccountID(), loan.getLoanDate(),
+                Transaction.TradeAction.WITHDRAW, 0);
+        t.setAmount(loan.getOriginalAmount());
+        t.setMemo("Loan initiation");
+        try {
+            mainModel.alterTransaction(null, t, new ArrayList<>());
+        } catch (DaoException | ModelException e) {
+            final String msg = "failed adding loan initiation transaction";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }
     }
 

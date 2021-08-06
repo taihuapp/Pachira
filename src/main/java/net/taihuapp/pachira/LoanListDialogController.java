@@ -57,7 +57,7 @@ public class LoanListDialogController {
     void setMainModel(MainModel mainModel) {
         this.mainModel = mainModel;
         try {
-            loanTableView.getItems().addAll(mainModel.getLoanList());
+            loanTableView.getItems().setAll(mainModel.getLoanList());
         } catch (DaoException e) {
             final String msg = "DaoException in getLoanList()";
             logger.error(msg, e);

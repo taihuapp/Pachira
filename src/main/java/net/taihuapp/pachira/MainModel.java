@@ -1137,15 +1137,22 @@ public class MainModel {
     void insertLoan(Loan loan, String name, String description) throws DaoException {
         final DaoManager daoManager = DaoManager.getInstance();
         final int aid = loan.getAccountID();
+        Account newAccount = null;
         try {
             daoManager.beginTransaction();
             if (loan.getAccountID() <= 0) {
-                final Account newAccount = new Account(-1, Account.Type.LOAN, name, description,
+                newAccount = new Account(-1, Account.Type.LOAN, name, description,
                         false, Integer.MAX_VALUE, null, BigDecimal.ZERO);
-                loan.setAccountID(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).insert(newAccount));
+                final int newAccountID = (((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).insert(newAccount));
+                newAccount.setID(newAccountID);
+                loan.setAccountID(newAccountID);
             }
             loan.setID(((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).insert(loan));
             daoManager.commit();
+            if (newAccount != null) {
+                initAccount(newAccount);
+                accountList.add(newAccount);
+            }
         } catch (DaoException e) {
             loan.setID(0);
             loan.setAccountID(aid);

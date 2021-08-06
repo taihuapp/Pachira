@@ -609,6 +609,8 @@ public class DaoManager {
                 + "DUEDATE date, "
                 + "TRANSACTIONID integer)";
         executeUpdateQuery(sqlCmd);
+
+        createLoanTables();
     }
 
     // bring database to the latest version
@@ -631,6 +633,7 @@ public class DaoManager {
             executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TYPE drop DEFAULT");
             executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TRANSACTIONID rename to TYPE_ID");
             executeUpdateQuery("alter table SPLITTRANSACTIONS modify AMOUNT decimal(20,4) not null");
+            createLoanTables();
         } else if (newV == 10) {
             // change account table type column size
             executeUpdateQuery("alter table ACCOUNTS alter column TYPE varchar(16) not null");
@@ -795,6 +798,32 @@ public class DaoManager {
         executeUpdateQuery(sqlCmd);
     }
 
+    private void createLoanTables() throws SQLException {
+        String sqlCmd;
+        sqlCmd = "create table LOANS ("
+                + "ID integer NOT NULL AUTO_INCREMENT (10), "
+                + "ACCOUNT_ID integer, "
+                + "AMOUNT decimal(20, 4) NOT NULL, "
+                + "INTEREST_RATE decimal(20, 4) NOT NULL, "
+                + "COMPOUND_PERIOD varchar(32) NOT NULL, "
+                + "PAYMENT_PERIOD varchar(32) NOT NULL, "
+                + "NUMBER_OF_PAYMENTS integer NOT NULL, "
+                + "LOAN_DATE date NOT NULL, "
+                + "FIRST_PAYMENT_DATE date NOT NULL, "
+                + "PAYMENT_AMOUNT decimal(20, 4) NOT NULL, "
+                + "primary key(ID));";
+        executeUpdateQuery(sqlCmd);
+
+        sqlCmd = "create table LOAN_TRANSACTIONS ("
+                + "ID integer NOT NULL auto_increment (10), "
+                + "DATE date NOT NULL, "
+                + "INTEREST_RATE decimal(20, 4), "
+                + "PAYMENT_AMOUNT decimal(20, 4), "
+                + "TRANSACTION_ID integer, "
+                + "primary key(ID));";
+        executeUpdateQuery(sqlCmd);
+    }
+
     // create settings table and populate database version
     private void createSettingsTable() throws SQLException {
         executeUpdateQuery("create table SETTINGS (" +
@@ -848,8 +877,9 @@ public class DaoManager {
 
     // getter for various Dao class objects
     public enum DaoType {
-        ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE, FIDATA,
-        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL
+        ACCOUNT, SECURITY, TRANSACTION, SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE, FIDATA,
+        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL,
+        LOAN
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -863,11 +893,11 @@ public class DaoManager {
             case TRANSACTION: {
                 final SecurityDao securityDao = (SecurityDao) getDao(DaoType.SECURITY);
                 final SplitTransactionListDao splitTransactionListDao =
-                        (SplitTransactionListDao) getDao(DaoType.PAIR_TID_SPLIT_TRANSACTION);
+                        (SplitTransactionListDao) getDao(DaoType.SPLIT_TRANSACTION);
                 return daoMap.computeIfAbsent(daoType,
                         o -> new TransactionDao(connection, securityDao, splitTransactionListDao));
             }
-            case PAIR_TID_SPLIT_TRANSACTION:
+            case SPLIT_TRANSACTION:
                 return daoMap.computeIfAbsent(daoType, o -> new SplitTransactionListDao(connection));
             case PAIR_TID_MATCH_INFO:
                 return daoMap.computeIfAbsent(daoType, o -> new PairTidMatchInfoListDao(connection));
@@ -885,7 +915,7 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new CategoryDao(connection));
             case REMINDER: {
                 final SplitTransactionListDao splitTransactionListDao =
-                        (SplitTransactionListDao) getDao(DaoType.PAIR_TID_SPLIT_TRANSACTION);
+                        (SplitTransactionListDao) getDao(DaoType.SPLIT_TRANSACTION);
                 return daoMap.computeIfAbsent(daoType, o -> new ReminderDao(connection,
                         splitTransactionListDao));
             }
@@ -897,6 +927,8 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new ReportSettingDao(connection, reportDetailDao));
             case REPORT_DETAIL:
                 return daoMap.computeIfAbsent(daoType, o -> new ReportDetailDao(connection));
+            case LOAN:
+                return daoMap.computeIfAbsent(daoType, o -> new LoanDao(connection));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

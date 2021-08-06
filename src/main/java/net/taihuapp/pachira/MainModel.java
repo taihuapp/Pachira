@@ -509,7 +509,7 @@ public class MainModel {
             directConnectionDao.deleteAll();
             accountDCDao.deleteAll();
 
-            // delete master password in the vault, this cannot be undo
+            // delete master password in the vault, this cannot be undone
             getVault().deleteMasterPassword();
 
             daoManager.commit();
@@ -653,7 +653,7 @@ public class MainModel {
 
     /**
      *
-     * @param pair input pair of security and date
+     * @param pair a pair of security and date input
      * @return the price of the security for the given date as an optional or an empty optional
      */
     Optional<Pair<Security, Price>> getSecurityPrice(Pair<Security, LocalDate> pair) throws DaoException {
@@ -1106,13 +1106,8 @@ public class MainModel {
 
     public Optional<Tag> getTag(Predicate<Tag> predicate) { return tagList.stream().filter(predicate).findAny(); }
 
-    ObservableList<Loan> getLoanList() {
-        final Loan loan = new Loan();
-        loan.getNameProperty().set("Test");
-        loan.getDescriptionProperty().set("Test loan");
-        loan.setOriginalAmount(new BigDecimal("50000"));
-        loan.setInterestRate(new BigDecimal("3.0"));
-        return FXCollections.observableArrayList(loan);
+    List<Loan> getLoanList() throws DaoException {
+        return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).getAll();
     }
 
     /**
@@ -1138,16 +1133,34 @@ public class MainModel {
         getTag(t -> t.getID() == tag.getID()).ifPresent(t -> t.copy(tag));
     }
 
-    void mergeLoan(Loan loan) {
-        if (loan.getID() <= 0)
-            System.err.println("Inserting loan");
-        else
-            System.err.println("Updating loan");
+    // loan is immutable, only insert, no update, unless delete
+    void insertLoan(Loan loan, String name, String description) throws DaoException {
+        final DaoManager daoManager = DaoManager.getInstance();
+        final int aid = loan.getAccountID();
+        try {
+            daoManager.beginTransaction();
+            if (loan.getAccountID() <= 0) {
+                final Account newAccount = new Account(-1, Account.Type.LOAN, name, description,
+                        false, Integer.MAX_VALUE, null, BigDecimal.ZERO);
+                loan.setAccountID(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).insert(newAccount));
+            }
+            loan.setID(((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).insert(loan));
+            daoManager.commit();
+        } catch (DaoException e) {
+            loan.setID(0);
+            loan.setAccountID(aid);
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
     }
 
     /**
      *
-     * @return all payees in a sorted set with case insensitive ordering.
+     * @return all payees in a sorted set with case-insensitive ordering.
      */
     public SortedSet<String> getPayeeSet() {
         SortedSet<String> payeeSet = new TreeSet<>(Comparator.comparing(String::toLowerCase));
@@ -1271,7 +1284,7 @@ public class MainModel {
                             // this split transaction is a transfer transaction
                             Transaction stXferT = null;
                             if (st.getMatchID() > 0) {
-                                // it is modify exist transfer transaction
+                                // it is a modified exist transfer transaction
                                 // stXferT is a copy of the original.
                                 stXferT = getTransaction(t -> t.getID() == st.getMatchID())
                                         .map(Transaction::new).orElseThrow(() ->
@@ -1281,7 +1294,7 @@ public class MainModel {
                                                         null));
 
                                 if (!stXferT.isCash()) {
-                                    // transfer transaction is an invest transaction, check trade action compatibility
+                                    // transfer transaction is an investment transaction, check trade action compatibility
                                     if (stXferT.TransferTradeAction() != (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
                                             Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW)) {
                                         throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
@@ -1392,7 +1405,7 @@ public class MainModel {
                                 xferT.setAmount(amount.negate());
                             }
                         } else if (!xferT.isCash()) {
-                            // non cash, check trade action compatibility
+                            // non-cash, check trade action compatibility
                             if (xferT.TransferTradeAction() != newT.getTradeAction()) {
                                 throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                         "Transfer transaction has an investment trade action not "
@@ -1430,8 +1443,8 @@ public class MainModel {
                     if (!xferT.isSplit())
                         xferT.setMatchID(newT.getID(), -1);
 
-                    // we might need to set matchID if xferT is newly created
-                    // but we never create a new match split transaction
+                    // we might need to set matchID if xferT is newly created,
+                    // but we never create a new match split transaction.
                     // so we keep the matchSplitID the same as before
                     if (xferT.getID() > 0) {
                         transactionDao.update(xferT);
@@ -1796,7 +1809,7 @@ public class MainModel {
         }
     }
 
-    // take a Transaction input (with SELL or CVTSHRT), compute the realize gain
+    // take a Transaction input (with SELL or CVTSHRT), compute the realized gain
     BigDecimal calcRealizedGain(Transaction transaction) throws DaoException, ModelException {
         BigDecimal realizedGain = BigDecimal.ZERO;
         for (CapitalGainItem cgi : getCapitalGainItemList(transaction)) {
@@ -2181,7 +2194,7 @@ public class MainModel {
         if (nTrans == 0)
             return; // nothing to do
 
-        final List<Transaction> updateList = new ArrayList<>();  // transactions needs to be updated in DB
+        final List<Transaction> updateList = new ArrayList<>();  // transactions need to be updated in DB
         final List<Transaction> unMatchedList = new ArrayList<>(); // (partially) unmatched transactions
 
         for (int i = 0; i < nTrans; i++) {
@@ -2392,7 +2405,7 @@ public class MainModel {
                     throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION, "Bad ticker " + ticker, null);
                 priceList.add(new Pair<>(security, p));
             }
-            securityPriceDao.mergePricesToDB(priceList);  // this may over write trade prices
+            securityPriceDao.mergePricesToDB(priceList);  // this may overwrite trade prices
 
             daoManager.commit();
 

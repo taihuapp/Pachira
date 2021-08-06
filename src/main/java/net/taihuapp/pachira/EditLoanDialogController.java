@@ -20,11 +20,15 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.binding.Bindings;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import net.taihuapp.pachira.dao.DaoException;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.text.ParseException;
@@ -33,6 +37,8 @@ import java.util.regex.Pattern;
 
 
 public class EditLoanDialogController {
+
+    private static final Logger logger = Logger.getLogger(EditLoanDialogController.class);
 
     private static final Pattern DOLLAR_CENT_REG_EX = Pattern.compile("^(0|[1-9][,\\d]*)?(\\.\\d{0,2})?$");
     private static final Pattern DECIMAL_REG_EX = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d*)?$");
@@ -58,7 +64,13 @@ public class EditLoanDialogController {
     private Loan loan;
 
     @FXML
-    private TextField nameTextField;
+    private RadioButton newAccountRadioButton;
+    @FXML
+    private RadioButton availableAccountRadioButton;
+    @FXML
+    private TextField newAccountNameTextField;
+    @FXML
+    private ComboBox<Account> availableAccountComboBox;
     @FXML
     private TextField descriptionTextField;
     @FXML
@@ -72,7 +84,15 @@ public class EditLoanDialogController {
     @FXML
     private TextField numberOfPaymentsTextField;
     @FXML
+    private DatePicker loanDateDatePicker;
+    @FXML
     private DatePicker firstPaymentDatePicker;
+    @FXML
+    private TextField paymentAmountTextField;
+    @FXML
+    private RadioButton calcPaymentRadioButton;
+    @FXML
+    private RadioButton setPaymentRadioButton;
     @FXML
     private TableView<Loan.PaymentItem> paymentScheduleTableView;
     @FXML
@@ -85,13 +105,27 @@ public class EditLoanDialogController {
     private TableColumn<Loan.PaymentItem, BigDecimal> interestPaymentTableColumn;
     @FXML
     private TableColumn<Loan.PaymentItem, BigDecimal> balanceTableColumn;
+    @FXML
+    private Button saveButton;
 
-    void setMainModel(MainModel mainModel, Loan loan) {
+    void setMainModel(MainModel mainModel, Loan loan, ObservableList<Account> availableAccounts) {
         this.mainModel = mainModel;
         this.loan = loan;
 
-        nameTextField.textProperty().bindBidirectional(this.loan.getNameProperty());
-        descriptionTextField.textProperty().bindBidirectional(this.loan.getDescriptionProperty());
+        newAccountNameTextField.editableProperty().bind(newAccountRadioButton.selectedProperty());
+        descriptionTextField.editableProperty().bind(newAccountRadioButton.selectedProperty());
+
+        availableAccountComboBox.setConverter(new ConverterUtil.AccountConverter(mainModel));
+        availableAccountComboBox.getItems().setAll(availableAccounts);
+        availableAccountComboBox.getSelectionModel().selectFirst();
+        availableAccountComboBox.disableProperty().bind(availableAccountRadioButton.selectedProperty().not());
+        availableAccountComboBox.valueProperty().addListener((obs, o, n) ->
+                descriptionTextField.setText(n.getDescription()));
+        if (availableAccounts.isEmpty()) {
+            availableAccountRadioButton.setDisable(true);
+        }
+        availableAccountRadioButton.selectedProperty().addListener((obs, o, n) ->
+            descriptionTextField.setText(n ? availableAccountComboBox.getValue().getDescription() : ""));
 
         TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER,null,
                 c -> DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
@@ -114,7 +148,19 @@ public class EditLoanDialogController {
         numberOfPaymentsTextField.setTextFormatter(numberOfPaymentsFormatter);
         numberOfPaymentsFormatter.valueProperty().bindBidirectional(this.loan.getNumberOfPaymentsProperty());
 
+        loanDateDatePicker.valueProperty().bindBidirectional(this.loan.getLoanDateProperty());
         firstPaymentDatePicker.valueProperty().bindBidirectional(this.loan.getFirstPaymentDateProperty());
+
+        TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER, null,
+                c -> DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        paymentAmountTextField.setTextFormatter(paymentAmountFormatter);
+        paymentAmountFormatter.valueProperty().bindBidirectional(this.loan.getPaymentAmountProperty());
+        paymentAmountTextField.editableProperty().bind(setPaymentRadioButton.selectedProperty());
+        calcPaymentRadioButton.selectedProperty().addListener((obs, o, n) -> {
+            if (n) {
+                this.loan.setPaymentAmount(null); // calculate payment amount
+            }
+        });
 
         paymentScheduleTableView.setItems(loan.getPaymentSchedule());
         seqNumTableColumn.setCellValueFactory(cd -> cd.getValue().getSequenceIDProperty());
@@ -153,20 +199,47 @@ public class EditLoanDialogController {
             }
         });
 
-        this.loan.getOriginalAmountProperty().addListener((obs, o, n) -> this.loan.updatePaymentSchedule());
-        this.loan.getInterestRateProperty().addListener((obs, o, n) -> this.loan.updatePaymentSchedule());
-        this.loan.getCompoundingPeriodProperty().addListener((obs, o, n) -> this.loan.updatePaymentSchedule());
-        this.loan.getPaymentPeriodProperty().addListener((obs, o, n) -> this.loan.updatePaymentSchedule());
-        this.loan.getNumberOfPaymentsProperty().addListener((obs, o, n) -> this.loan.updatePaymentSchedule());
-        this.loan.getFirstPaymentDateProperty().addListener((obs, o, n) -> this.loan.updatePaymentSchedule());
+        saveButton.disableProperty().bind(Bindings.createBooleanBinding( () ->
+                        (newAccountRadioButton.isSelected() && newAccountNameTextField.getText().isBlank())
+                                || paymentScheduleTableView.getItems().isEmpty(),
+                newAccountRadioButton.selectedProperty(), newAccountNameTextField.textProperty(),
+                Bindings.size(paymentScheduleTableView.getItems())));
+
+        this.loan.getOriginalAmountProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        this.loan.getInterestRateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        this.loan.getCompoundingPeriodProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        this.loan.getPaymentPeriodProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        this.loan.getNumberOfPaymentsProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        this.loan.getLoanDateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        this.loan.getFirstPaymentDateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        this.loan.getPaymentAmountProperty().addListener((obs, o, n) -> {
+            if (setPaymentRadioButton.isSelected()) updatePaymentSchedule();
+        });
+        calcPaymentRadioButton.selectedProperty().addListener((obs, o, n) -> updatePaymentSchedule());
     }
 
-    private Stage getStage() { return (Stage) nameTextField.getScene().getWindow(); }
+    private void updatePaymentSchedule() {
+        if (calcPaymentRadioButton.isSelected())
+            loan.setPaymentAmount(null);
+        loan.updatePaymentSchedule();
+    }
+
+    private Stage getStage() { return (Stage) newAccountNameTextField.getScene().getWindow(); }
 
     @FXML
     private void handleSave() {
-        mainModel.mergeLoan(loan);
-        getStage().close();
+        try {
+            if (availableAccountRadioButton.isSelected()) {
+                loan.setAccountID(availableAccountComboBox.getValue().getID());
+            }
+            mainModel.insertLoan(loan, newAccountNameTextField.getText().trim(),
+                        descriptionTextField.getText().trim());
+        } catch (DaoException e) {
+            final String msg = "insert loan failed";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog((Stage) newAccountRadioButton.getScene().getWindow(),
+                    "DaoException", msg, e.toString(), e);
+        }
     }
 
     @FXML

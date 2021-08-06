@@ -20,6 +20,8 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -28,9 +30,12 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class LoanListDialogController {
 
@@ -51,13 +56,21 @@ public class LoanListDialogController {
 
     void setMainModel(MainModel mainModel) {
         this.mainModel = mainModel;
-        loanTableView.setItems(mainModel.getLoanList());
+        try {
+            loanTableView.getItems().addAll(mainModel.getLoanList());
+        } catch (DaoException e) {
+            final String msg = "DaoException in getLoanList()";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+        }
     }
 
     void close() { ((Stage) loanTableView.getScene().getWindow()).close(); }
 
     @FXML
-    private void handleNew() { showEditLoanDialog(new Loan()); }
+    private void handleNew() {
+        showEditLoanDialog(new Loan());
+    }
 
     @FXML
     private void handleEdit() {
@@ -74,8 +87,13 @@ public class LoanListDialogController {
 
     @FXML
     private void initialize() {
-        loanNameColumn.setCellValueFactory(cd -> cd.getValue().getNameProperty());
-        loadDescriptionColumn.setCellValueFactory(cd -> cd.getValue().getDescriptionProperty());
+        loanNameColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper(mainModel.getAccount(a -> a.getID() == cd.getValue().getAccountID())
+                        .map(Account::getName).orElse("Deleted Account")));
+
+        loadDescriptionColumn.setCellValueFactory(cd ->
+                new ReadOnlyStringWrapper(mainModel.getAccount(a -> a.getID() == cd.getValue().getAccountID())
+                        .map(Account::getDescription).orElse("")));
 
         editButton.disableProperty().bind(loanTableView.getSelectionModel().selectedItemProperty().isNull());
         deleteButton.disableProperty().bind(loanTableView.getSelectionModel().selectedItemProperty().isNull());
@@ -96,13 +114,16 @@ public class LoanListDialogController {
             dialogStage.setScene(new Scene(loader.load()));
 
             EditLoanDialogController controller = loader.getController();
-            controller.setMainModel(mainModel, loan);
+            final Set<Integer> usedAccountIDSet = loanTableView.getItems().stream().map(Loan::getAccountID)
+                    .collect(Collectors.toSet());
+            ObservableList<Account> availableAccounts = mainModel.getAccountList(a -> (!a.getHiddenFlag())
+                            && (a.getType() == Account.Type.LOAN) && !usedAccountIDSet.contains(a.getID()));
+            controller.setMainModel(mainModel, loan, availableAccounts);
             dialogStage.showAndWait();
         } catch (IOException e) {
             final String msg = "showEditLoadDialogException";
             logger.error(msg, e);
-            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(),
-                    "showEditLoanDialog Exception", e.toString(), e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }
     }
 }

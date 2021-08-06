@@ -1165,6 +1165,10 @@ public class MainModel {
         }
     }
 
+    void deleteLoan(int loanId) throws DaoException {
+        ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).delete(loanId);
+    }
+    
     /**
      *
      * @return all payees in a sorted set with case-insensitive ordering.

@@ -24,6 +24,7 @@ import net.taihuapp.pachira.Account;
 import net.taihuapp.pachira.MainModel;
 import net.taihuapp.pachira.SplitTransaction;
 import net.taihuapp.pachira.Transaction;
+import org.apache.log4j.Logger;
 import org.h2.api.ErrorCode;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.RunScript;
@@ -87,6 +88,9 @@ public class DaoManager {
     private static final int QUANTITY_FRACTION_LEN = 8;
     private static final int QUANTITY_TOTAL_LEN = 20;
     public static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
+
+    // the logger
+    private static final Logger logger = Logger.getLogger(DaoManager.class);
 
     // the connection to the database
     private Connection connection = null;
@@ -283,10 +287,17 @@ public class DaoManager {
                     final int dbVersion = getSetting(DB_VERSION_NAME).map(Integer::valueOf)
                             .orElseThrow(() -> new DaoException(DaoException.ErrorCode.MISSING_DB_VERSION,
                                     "Failed to get DB VERSION"));
-                    updateDB(dbVersion, DB_VERSION_VALUE);
 
+                    if (dbVersion < DB_VERSION_VALUE) {
+                        logger.info("Start backup...");
+                        final String backupFileName = backup();
+                        logger.info("Backup to " + backupFileName + " complete.");
+                        updateDB(dbVersion, DB_VERSION_VALUE);
+                        logger.info("Update DB to " + DB_VERSION_VALUE + " from " + dbVersion + " complete");
+                    }
                     daoManager.commit();
                 } catch (DaoException e) {
+                    logger.error("Update to " + DB_VERSION_VALUE + " failed", e);
                     try {
                         daoManager.rollback();
                     } catch (DaoException e1) {
@@ -802,15 +813,15 @@ public class DaoManager {
         String sqlCmd;
         sqlCmd = "create table LOANS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (10), "
-                + "ACCOUNT_ID integer, "
-                + "AMOUNT decimal(20, 4) NOT NULL, "
-                + "INTEREST_RATE decimal(20, 4) NOT NULL, "
+                + "ACCOUNT_ID integer UNIQUE NOT NULL, "
+                + "AMOUNT decimal(20, 2) NOT NULL, "
+                + "INTEREST_RATE decimal(20, 6) NOT NULL, "
                 + "COMPOUND_PERIOD varchar(32) NOT NULL, "
                 + "PAYMENT_PERIOD varchar(32) NOT NULL, "
                 + "NUMBER_OF_PAYMENTS integer NOT NULL, "
                 + "LOAN_DATE date NOT NULL, "
                 + "FIRST_PAYMENT_DATE date NOT NULL, "
-                + "PAYMENT_AMOUNT decimal(20, 4) NOT NULL, "
+                + "PAYMENT_AMOUNT decimal(20, 2) NOT NULL, "
                 + "primary key(ID));";
         executeUpdateQuery(sqlCmd);
 

@@ -21,6 +21,8 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -33,7 +35,9 @@ import org.apache.log4j.Logger;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 public class EditLoanDialogController {
@@ -41,7 +45,7 @@ public class EditLoanDialogController {
     private static final Logger logger = Logger.getLogger(EditLoanDialogController.class);
 
     private static final Pattern DOLLAR_CENT_REG_EX = Pattern.compile("^(0|[1-9][,\\d]*)?(\\.\\d{0,2})?$");
-    private static final Pattern DECIMAL_REG_EX = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d*)?$");
+    private static final Pattern INTEREST_RATE_REG_EX = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d{0,6})?$");
     private static final Pattern INTEGER_REG_EX = Pattern.compile("^([1-9]+\\d*)?$");
 
     private static final BigDecimalStringConverter DOLLAR_CENT_2_STRING_CONVERTER = new BigDecimalStringConverter() {
@@ -62,6 +66,8 @@ public class EditLoanDialogController {
 
     private MainModel mainModel;
     private Loan loan;
+    private final BooleanProperty readOnlyProperty = new SimpleBooleanProperty(false);
+    private ObservableList<Loan> existingLoans;
 
     @FXML
     private RadioButton newAccountRadioButton;
@@ -108,59 +114,96 @@ public class EditLoanDialogController {
     @FXML
     private Button saveButton;
 
-    void setMainModel(MainModel mainModel, Loan loan, ObservableList<Account> availableAccounts) {
+    void setMainModel(MainModel mainModel, Loan loan, ObservableList<Loan> existingLoans) {
         this.mainModel = mainModel;
         this.loan = loan;
+        this.existingLoans = existingLoans;
 
-        newAccountNameTextField.editableProperty().bind(newAccountRadioButton.selectedProperty());
-        descriptionTextField.editableProperty().bind(newAccountRadioButton.selectedProperty());
+        // we can either create a new loan (loan.getAccountID() <= 0), or show details
+        // of an existing loan (loan.getAccountID() > 0).
+        readOnlyProperty.bind(Bindings.createBooleanBinding(() -> loan.getAccountID() > 0,
+                loan.getAccountIDProperty()));
+        if (readOnlyProperty.get())
+            loan.updatePaymentSchedule();
+
+        // these accounts are already linked with a loan.
+        final Set<Integer> occupiedLoanAccountIdList = existingLoans.stream().map(Loan::getAccountID)
+                .collect(Collectors.toSet());
+
+        // loan can be linked to these accounts
+        final ObservableList<Account> availableAccounts;
+        if (loan.getAccountID() > 0) {
+            availableAccounts = mainModel.getAccountList(a -> a.getID() == loan.getAccountID());
+        } else {
+            availableAccounts = mainModel.getAccountList(a -> a.getType() == Account.Type.LOAN
+                    && !a.getHiddenFlag() && !occupiedLoanAccountIdList.contains(a.getID()));
+        }
+
+        newAccountRadioButton.disableProperty().bind(readOnlyProperty);
+        newAccountNameTextField.editableProperty().bind(readOnlyProperty.not()
+                .and(newAccountRadioButton.selectedProperty()));
+        descriptionTextField.editableProperty().bind(newAccountNameTextField.editableProperty());
 
         availableAccountComboBox.setConverter(new ConverterUtil.AccountConverter(mainModel));
-        availableAccountComboBox.getItems().setAll(availableAccounts);
-        availableAccountComboBox.getSelectionModel().selectFirst();
         availableAccountComboBox.disableProperty().bind(availableAccountRadioButton.selectedProperty().not());
         availableAccountComboBox.valueProperty().addListener((obs, o, n) ->
-                descriptionTextField.setText(n.getDescription()));
-        if (availableAccounts.isEmpty()) {
-            availableAccountRadioButton.setDisable(true);
-        }
+                descriptionTextField.setText(n == null ? "" : n.getDescription()));
         availableAccountRadioButton.selectedProperty().addListener((obs, o, n) ->
-            descriptionTextField.setText(n ? availableAccountComboBox.getValue().getDescription() : ""));
+                descriptionTextField.setText(n && (availableAccountComboBox.getValue() != null) ?
+                        availableAccountComboBox.getValue().getDescription() : ""));
+        availableAccountRadioButton.selectedProperty().bind(readOnlyProperty);
+        availableAccountRadioButton.disableProperty().bind(Bindings.createBooleanBinding(() ->
+                        readOnlyProperty.get() || availableAccounts.isEmpty(),
+                readOnlyProperty, Bindings.size(availableAccounts)));
+        setupAccountSection();
 
         TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER,null,
                 c -> DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
-
         originalAmountTextField.setTextFormatter(originalAmountFormatter);
         originalAmountFormatter.valueProperty().bindBidirectional(this.loan.getOriginalAmountProperty());
+        originalAmountTextField.editableProperty().bind(readOnlyProperty.not());
 
         TextFormatter<BigDecimal> interestRateFormatter = new TextFormatter<>(new BigDecimalStringConverter(), null,
-                c -> DECIMAL_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+                c -> INTEREST_RATE_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         interestRateTextField.setTextFormatter(interestRateFormatter);
         interestRateFormatter.valueProperty().bindBidirectional(this.loan.getInterestRateProperty());
+        interestRateTextField.editableProperty().bind(readOnlyProperty.not());
 
         compoundingPeriodChoiceBox.getItems().setAll(Loan.Period.values());
         compoundingPeriodChoiceBox.valueProperty().bindBidirectional(this.loan.getCompoundingPeriodProperty());
+        compoundingPeriodChoiceBox.disableProperty().bind(readOnlyProperty);
+
         paymentPeriodChoiceBox.getItems().setAll(Loan.Period.values());
         paymentPeriodChoiceBox.valueProperty().bindBidirectional(this.loan.getPaymentPeriodProperty());
+        paymentPeriodChoiceBox.disableProperty().bind(readOnlyProperty);
 
         TextFormatter<Integer> numberOfPaymentsFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
                 c -> INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         numberOfPaymentsTextField.setTextFormatter(numberOfPaymentsFormatter);
         numberOfPaymentsFormatter.valueProperty().bindBidirectional(this.loan.getNumberOfPaymentsProperty());
+        numberOfPaymentsTextField.editableProperty().bind(readOnlyProperty.not());
 
         loanDateDatePicker.valueProperty().bindBidirectional(this.loan.getLoanDateProperty());
+        loanDateDatePicker.disableProperty().bind(readOnlyProperty);
+
         firstPaymentDatePicker.valueProperty().bindBidirectional(this.loan.getFirstPaymentDateProperty());
+        firstPaymentDatePicker.disableProperty().bind(readOnlyProperty);
 
         TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER, null,
                 c -> DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         paymentAmountTextField.setTextFormatter(paymentAmountFormatter);
         paymentAmountFormatter.valueProperty().bindBidirectional(this.loan.getPaymentAmountProperty());
-        paymentAmountTextField.editableProperty().bind(setPaymentRadioButton.selectedProperty());
+        paymentAmountTextField.editableProperty().bind(setPaymentRadioButton.selectedProperty()
+                .and(readOnlyProperty.not()));
+
         calcPaymentRadioButton.selectedProperty().addListener((obs, o, n) -> {
             if (n) {
                 this.loan.setPaymentAmount(null); // calculate payment amount
             }
         });
+        calcPaymentRadioButton.disableProperty().bind(readOnlyProperty);
+
+        setPaymentRadioButton.disableProperty().bind(readOnlyProperty);
 
         paymentScheduleTableView.setItems(loan.getPaymentSchedule());
         seqNumTableColumn.setCellValueFactory(cd -> cd.getValue().getSequenceIDProperty());
@@ -199,11 +242,11 @@ public class EditLoanDialogController {
             }
         });
 
-        saveButton.disableProperty().bind(Bindings.createBooleanBinding( () ->
-                        (newAccountRadioButton.isSelected() && newAccountNameTextField.getText().isBlank())
-                                || paymentScheduleTableView.getItems().isEmpty(),
+        saveButton.disableProperty().bind(Bindings.createBooleanBinding(() ->
+                        ((newAccountRadioButton.isSelected() && newAccountNameTextField.getText().isBlank())
+                                || paymentScheduleTableView.getItems().isEmpty()) || readOnlyProperty.get(),
                 newAccountRadioButton.selectedProperty(), newAccountNameTextField.textProperty(),
-                Bindings.size(paymentScheduleTableView.getItems())));
+                Bindings.size(paymentScheduleTableView.getItems()), readOnlyProperty));
 
         this.loan.getOriginalAmountProperty().addListener((obs, o, n) -> updatePaymentSchedule());
         this.loan.getInterestRateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
@@ -216,6 +259,26 @@ public class EditLoanDialogController {
             if (setPaymentRadioButton.isSelected()) updatePaymentSchedule();
         });
         calcPaymentRadioButton.selectedProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+    }
+
+    // set up the section for either new account or existing account
+    private void setupAccountSection() {
+        // these accounts are already linked with a loan.
+        final Set<Integer> occupiedLoanAccountIdList = existingLoans.stream().map(Loan::getAccountID)
+                .collect(Collectors.toSet());
+
+        final ObservableList<Account> availableAccounts;
+        if (loan.getAccountID() > 0) {
+            availableAccounts = mainModel.getAccountList(a -> a.getID() == loan.getAccountID());
+            newAccountNameTextField.setText("");
+        } else {
+            availableAccounts = mainModel.getAccountList(a -> a.getType() == Account.Type.LOAN
+                    && !a.getHiddenFlag() && !occupiedLoanAccountIdList.contains(a.getID()));
+        }
+        availableAccountComboBox.getItems().setAll(availableAccounts);
+
+        if (!availableAccountComboBox.getItems().isEmpty())
+            availableAccountComboBox.getSelectionModel().selectFirst();
     }
 
     private void updatePaymentSchedule() {
@@ -234,14 +297,15 @@ public class EditLoanDialogController {
             }
             mainModel.insertLoan(loan, newAccountNameTextField.getText().trim(),
                         descriptionTextField.getText().trim());
+            existingLoans.add(loan);
+            setupAccountSection();
         } catch (DaoException e) {
             final String msg = "insert loan failed";
             logger.error(msg, e);
-            DialogUtil.showExceptionDialog((Stage) newAccountRadioButton.getScene().getWindow(),
-                    "DaoException", msg, e.toString(), e);
+            DialogUtil.showExceptionDialog(getStage(),"DaoException", msg, e.toString(), e);
         }
     }
 
     @FXML
-    private void handleCancel() { getStage().close(); }
+    private void handleClose() { getStage().close(); }
 }

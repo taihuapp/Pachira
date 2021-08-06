@@ -21,7 +21,6 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -34,8 +33,6 @@ import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class LoanListDialogController {
 
@@ -50,7 +47,7 @@ public class LoanListDialogController {
     @FXML
     private TableColumn<Loan, String> loadDescriptionColumn;
     @FXML
-    private Button editButton;
+    private Button showButton;
     @FXML
     private Button deleteButton;
 
@@ -73,13 +70,23 @@ public class LoanListDialogController {
     }
 
     @FXML
-    private void handleEdit() {
-        showEditLoanDialog(new Loan(loanTableView.getSelectionModel().getSelectedItem()));
+    private void handleShow() {
+        // for existing loan, the 'edit' dialog is read only, no need to make a copy here
+        showEditLoanDialog(loanTableView.getSelectionModel().getSelectedItem());
     }
 
     @FXML
     private void handleDelete() {
-        System.out.println("Delete");
+        final Loan loan = loanTableView.getSelectionModel().getSelectedItem();
+        try {
+            mainModel.deleteLoan(loan.getID());
+            loanTableView.getItems().remove(loan);
+        } catch (DaoException e) {
+            final String msg = "DaoException when delete a loan " + loan.getID();
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog((Stage) loanTableView.getScene().getWindow(), "DaoException",
+                    msg, e.toString(), e);
+        }
     }
 
     @FXML
@@ -95,7 +102,7 @@ public class LoanListDialogController {
                 new ReadOnlyStringWrapper(mainModel.getAccount(a -> a.getID() == cd.getValue().getAccountID())
                         .map(Account::getDescription).orElse("")));
 
-        editButton.disableProperty().bind(loanTableView.getSelectionModel().selectedItemProperty().isNull());
+        showButton.disableProperty().bind(loanTableView.getSelectionModel().selectedItemProperty().isNull());
         deleteButton.disableProperty().bind(loanTableView.getSelectionModel().selectedItemProperty().isNull());
     }
 
@@ -114,11 +121,7 @@ public class LoanListDialogController {
             dialogStage.setScene(new Scene(loader.load()));
 
             EditLoanDialogController controller = loader.getController();
-            final Set<Integer> usedAccountIDSet = loanTableView.getItems().stream().map(Loan::getAccountID)
-                    .collect(Collectors.toSet());
-            ObservableList<Account> availableAccounts = mainModel.getAccountList(a -> (!a.getHiddenFlag())
-                            && (a.getType() == Account.Type.LOAN) && !usedAccountIDSet.contains(a.getID()));
-            controller.setMainModel(mainModel, loan, availableAccounts);
+            controller.setMainModel(mainModel, loan, loanTableView.getItems());
             dialogStage.showAndWait();
         } catch (IOException e) {
             final String msg = "showEditLoadDialogException";

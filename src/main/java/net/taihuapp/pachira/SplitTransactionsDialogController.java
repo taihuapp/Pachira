@@ -20,6 +20,9 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.Observable;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -83,10 +86,14 @@ public class SplitTransactionsDialogController {
 
         mSplitTransactionsTableView.setEditable(true);
         mSplitTransactionsTableView.getItems().clear();
+        mSplitTransactionsTableView.setItems(FXCollections.observableArrayList(st ->
+                new Observable[]{ st.getAmountProperty()})); // expose amount field
         for (SplitTransaction st : stList) {
             mSplitTransactionsTableView.getItems().add(new SplitTransaction(st.getID(), st.getCategoryID(),
                     st.getTagID(), st.getMemo(), st.getAmount(), st.getMatchID()));
         }
+        mSplitTransactionsTableView.getItems().addListener((ListChangeListener<SplitTransaction>) change ->
+                updateRemainingAmount());
 
         mCategoryTableColumn.setCellValueFactory(cd -> cd.getValue().getCategoryIDProperty());
         mCategoryTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(mCategoryIDComboBox.getConverter(),
@@ -103,10 +110,7 @@ public class SplitTransactionsDialogController {
 
         mAmountTableColumn.setCellValueFactory(cd->cd.getValue().getAmountProperty());
         mAmountTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new BigDecimalStringConverter()));
-        mAmountTableColumn.setOnEditCommit(e -> {
-            e.getTableView().getItems().get(e.getTablePosition().getRow()).setAmount(e.getNewValue());
-            updateRemainingAmount();
-        });
+        mAmountTableColumn.setOnEditCommit(e -> e.getRowValue().setAmount(e.getNewValue()));
         mAmountTableColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
 
         if (!message.isBlank()) {
@@ -124,8 +128,6 @@ public class SplitTransactionsDialogController {
         // disable delete button if nothing is selected
         mDeleteButton.disableProperty().bind(mSplitTransactionsTableView.getSelectionModel()
                 .selectedItemProperty().isNull());
-
-        updateRemainingAmount();
     }
 
     List<SplitTransaction> getSplitTransactionList() {
@@ -181,13 +183,11 @@ public class SplitTransactionsDialogController {
                 mTagIDComboBox.getValue(), mMemoTextField.getText(),
                 new BigDecimal(mAmountTextField.getText()), -1));
         mMemoTextField.setText("");
-        updateRemainingAmount();
     }
 
     @FXML
     private void handleDelete() {
         SplitTransaction st = mSplitTransactionsTableView.getSelectionModel().getSelectedItem();
         mSplitTransactionsTableView.getItems().remove(st);
-        updateRemainingAmount();
     }
 }

@@ -23,9 +23,9 @@
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.SplitTransactionsDialogController">
+<BorderPane fx:id="borderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.SplitTransactionsDialogController">
    <center>
-      <TableView fx:id="mSplitTransactionsTableView" editable="true" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+      <TableView fx:id="mSplitTransactionsTableView" editable="true" BorderPane.alignment="CENTER">
         <columns>
           <TableColumn fx:id="mCategoryTableColumn" prefWidth="75.0" sortable="false" text="Category/Transfer" />
             <TableColumn fx:id="mTagTableColumn" prefWidth="75.0" text="Tag" />

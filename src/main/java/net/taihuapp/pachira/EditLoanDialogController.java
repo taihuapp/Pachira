@@ -114,6 +114,12 @@ public class EditLoanDialogController {
     private TableColumn<Loan.PaymentItem, BigDecimal> balanceTableColumn;
     @FXML
     private Button saveButton;
+    @FXML
+    private Button editPaymentButton;
+    @FXML
+    private Button rateChangeButton;
+    @FXML
+    private Button makePaymentButton;
 
     void setMainModel(MainModel mainModel, Loan loan, ObservableList<Loan> existingLoans) {
         this.mainModel = mainModel;
@@ -260,6 +266,10 @@ public class EditLoanDialogController {
             if (setPaymentRadioButton.isSelected()) updatePaymentSchedule();
         });
         calcPaymentRadioButton.selectedProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+
+        editPaymentButton.disableProperty().bind(readOnlyProperty.not());
+        rateChangeButton.disableProperty().bind(readOnlyProperty.not());
+        makePaymentButton.disableProperty().bind(readOnlyProperty.not());
     }
 
     // set up the section for either new account or existing account
@@ -289,6 +299,21 @@ public class EditLoanDialogController {
     }
 
     private Stage getStage() { return (Stage) newAccountNameTextField.getScene().getWindow(); }
+
+    @FXML
+    private void handleEditPayment() {
+        System.err.println("edit payment");
+    }
+
+    @FXML
+    private void handleRateChange() {
+        System.err.println("rate change");
+    }
+
+    @FXML
+    private void handleMakePayment() {
+        System.err.println("make payment");
+    }
 
     @FXML
     private void handleSave() {

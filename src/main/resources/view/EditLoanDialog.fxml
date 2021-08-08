@@ -149,7 +149,7 @@
          </GridPane.margin>
       </TextField>
       <Label text="Payment Schedule" GridPane.columnIndex="3" />
-      <TableView fx:id="paymentScheduleTableView" prefHeight="200.0" prefWidth="200.0" GridPane.columnIndex="3" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" GridPane.rowSpan="2147483647">
+      <TableView fx:id="paymentScheduleTableView" prefHeight="200.0" prefWidth="200.0" GridPane.columnIndex="3" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" GridPane.rowSpan="12">
         <columns>
           <TableColumn fx:id="seqNumTableColumn" maxWidth="200.0" prefWidth="30.0" style="-fx-alignment: BOTTOM_CENTER;" text="#" />
           <TableColumn fx:id="paymentDateTableColumn" maxWidth="500.0" prefWidth="118.0" style="-fx-alignment: BOTTOM_CENTER;" text="Date" />
@@ -209,5 +209,20 @@
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </GridPane.margin>
       </RadioButton>
+      <HBox alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="13">
+         <children>
+            <Button fx:id="editPaymentButton" mnemonicParsing="false" onAction="#handleEditPayment" text="Edit Payment">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="rateChangeButton" mnemonicParsing="false" onAction="#handleRateChange" text="Rate Change" />
+            <Button fx:id="makePaymentButton" mnemonicParsing="false" onAction="#handleMakePayment" text="Make Payment">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+         </children>
+      </HBox>
    </children>
 </GridPane>

@@ -165,7 +165,7 @@ public class DialogUtil {
     }
 
     static List<SplitTransaction> showSplitTransactionsDialog(MainModel mainModel, Stage parent, int accountID,
-                                                              List<SplitTransaction> stList,
+                                                              List<SplitTransaction> stList, String message,
                                                               BigDecimal netAmount) throws IOException {
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(MainApp.class.getResource("/view/SplitTransactionsDialog.fxml"));
@@ -177,7 +177,7 @@ public class DialogUtil {
         dialogStage.setScene(new Scene(loader.load()));
         dialogStage.setUserData(false);
         SplitTransactionsDialogController controller = loader.getController();
-        controller.setMainModel(mainModel, accountID, stList, netAmount);
+        controller.setMainModel(mainModel, accountID, stList, message, netAmount);
         dialogStage.showAndWait();
         return controller.getSplitTransactionList();
     }

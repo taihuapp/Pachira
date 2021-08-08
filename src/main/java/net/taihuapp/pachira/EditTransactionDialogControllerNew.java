@@ -273,7 +273,7 @@ public class EditTransactionDialogControllerNew {
         if (!mSpecifyLotButton.isVisible())
             mMatchInfoList.clear();
         else {
-            // even if specify lot button is visible, but if the lot info is not
+            // even if specify lot button is visible, but if the lotInfo is not
             // valid, still clear is.
             boolean isOK = true;
             BigDecimal totalQuantity = BigDecimal.ZERO;
@@ -436,7 +436,7 @@ public class EditTransactionDialogControllerNew {
         mSecurityComboBox.setConverter(securityConverter);
         TreeSet<Security> allSecuritySet = new TreeSet<>(Comparator.comparing(Security::getName));
         allSecuritySet.addAll(mainModel.getSecurityList());
-        allSecuritySet.removeAll(defaultAccount.getCurrentSecurityList()); // remove account security list
+        defaultAccount.getCurrentSecurityList().forEach(allSecuritySet::remove); // remove account security list
         mSecurityComboBox.getItems().add(null); // add a blank one first
         mSecurityComboBox.getItems().addAll(defaultAccount.getCurrentSecurityList());
         mSecurityComboBox.getItems().addAll(allSecuritySet);
@@ -576,7 +576,7 @@ public class EditTransactionDialogControllerNew {
         // or entering a reminder transaction, in this case, set default
         // to enter-done, don't even show enter-new button.
         // either we are editing an existing transaction or
-        // enter an reminder transaction, don't do enter-new
+        // enter a reminder transaction, don't do enter-new
         boolean defaultEnterDone = transaction != null;
         mEnterDoneButton.setDefaultButton(defaultEnterDone);
         mEnterNewButton.setDefaultButton(!defaultEnterDone);
@@ -960,7 +960,7 @@ public class EditTransactionDialogControllerNew {
         Stage stage = getStage();
         try {
             List<SplitTransaction> outSplitTransactionList = DialogUtil.showSplitTransactionsDialog(mainModel,
-                    stage, accountID, mTransaction.getSplitTransactionList(),
+                    stage, accountID, mTransaction.getSplitTransactionList(), "",
                     mTransaction.getPayment().subtract(mTransaction.getDeposit()));
 
             if (outSplitTransactionList == null) {

@@ -20,14 +20,13 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 
 import java.math.BigDecimal;
@@ -35,19 +34,11 @@ import java.util.List;
 
 public class SplitTransactionsDialogController {
 
-    private class TagToStringConverter extends StringConverter<Integer> {
-        public Integer fromString(String name) {
-            return mainModel.getTag(tag -> tag.getName().equals(name)).map(Tag::getID).orElse(0);
-        }
-        public String toString(Integer tagId) {
-            return mainModel.getTag(tag -> tag.getID() == tagId).map(Tag::getName).orElse("");
-        }
-    }
-
-    private MainModel mainModel;
     private BigDecimal mNetAmount;
     private boolean mIsCanceled = true; // default to be true
 
+    @FXML
+    BorderPane borderPane;
     @FXML
     private TableView<SplitTransaction> mSplitTransactionsTableView;
     @FXML
@@ -74,9 +65,8 @@ public class SplitTransactionsDialogController {
     private Button mOKButton;
 
     // the content of stList is copied, the original content is unchanged.
-    void setMainModel(MainModel mainModel, int accountID, List<SplitTransaction> stList, BigDecimal netAmount) {
-
-        this.mainModel = mainModel;
+    void setMainModel(MainModel mainModel, int accountID, List<SplitTransaction> stList, String message,
+                      BigDecimal netAmount) {
 
         mNetAmount = netAmount;
 
@@ -84,7 +74,7 @@ public class SplitTransactionsDialogController {
                 .setFilter(false, accountID);
         mCategoryIDComboBox.getSelectionModel().selectFirst();
 
-        mTagIDComboBox.setConverter(new TagToStringConverter());
+        mTagIDComboBox.setConverter(new ConverterUtil.TagIDConverter(mainModel));
         mTagIDComboBox.getItems().clear();
         mTagIDComboBox.getItems().add(0);
         for (Tag tag : mainModel.getTagList())
@@ -119,6 +109,22 @@ public class SplitTransactionsDialogController {
         });
         mAmountTableColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
 
+        if (!message.isBlank()) {
+            // added textarea to show message
+            System.err.println(message.length());
+            TextArea textArea = new TextArea(message);
+            textArea.setEditable(false); // no editing
+            textArea.setWrapText(true); // wrapping text
+            textArea.setPrefRowCount(1+message.length()/100); // roughly 100 char per line.
+
+            borderPane.setTop(textArea);
+            BorderPane.setMargin(textArea, new Insets(5,5,5,5));
+        }
+
+        // disable delete button if nothing is selected
+        mDeleteButton.disableProperty().bind(mSplitTransactionsTableView.getSelectionModel()
+                .selectedItemProperty().isNull());
+
         updateRemainingAmount();
     }
 
@@ -128,13 +134,20 @@ public class SplitTransactionsDialogController {
         return mSplitTransactionsTableView.getItems();
     }
 
+    // update remaining amount and set up the buttons
     private void updateRemainingAmount() {
-        BigDecimal remainingAmount = mNetAmount;
-        for (SplitTransaction st : mSplitTransactionsTableView.getItems()) {
-            remainingAmount = remainingAmount.add(st.getAmount());
+        final BigDecimal remainingAmount;
+        if (mNetAmount == null) {
+            // we are not restricted by total amount
+            mAmountTextField.setText("0.00");
+        } else {
+            // remaining amount = -(netAmount + sum(st.Amount))
+            remainingAmount = mSplitTransactionsTableView.getItems().stream().map(SplitTransaction::getAmount)
+                    .reduce(mNetAmount, BigDecimal::add).negate();
+            mAmountTextField.setText(remainingAmount.toPlainString());
+            mOKButton.setDisable(remainingAmount.compareTo(BigDecimal.ZERO) != 0);
+            mAddButton.setDisable(remainingAmount.compareTo(BigDecimal.ZERO) == 0);
         }
-        remainingAmount = remainingAmount.negate();
-        mAmountTextField.setText(remainingAmount.toPlainString());
     }
 
     @FXML
@@ -148,21 +161,6 @@ public class SplitTransactionsDialogController {
         mTagTableColumn.widthProperty().addListener((ob, o, n) -> mTagIDComboBox.setPrefWidth(n.doubleValue()));
         mMemoTableColumn.widthProperty().addListener((ob, o, n) -> mMemoTextField.setPrefWidth(n.doubleValue()));
         mAmountTableColumn.widthProperty().addListener((ob, o, n) -> mAmountTextField.setPrefWidth(n.doubleValue()));
-
-        BooleanBinding remaining = Bindings.createBooleanBinding(() -> {
-            try {
-                return (new BigDecimal(mAmountTextField.getText())).compareTo(BigDecimal.ZERO) != 0;
-            } catch (NumberFormatException e) {
-                return true;
-            }
-        }, mAmountTextField.textProperty());
-
-        mAddButton.disableProperty().bind(remaining.not());
-        mOKButton.disableProperty().bind(remaining.and(Bindings.isEmpty(mSplitTransactionsTableView.getItems()).not()));
-
-        mDeleteButton.disableProperty().bind(Bindings.createBooleanBinding(()
-                        -> (mSplitTransactionsTableView.getSelectionModel().getSelectedItem() == null),
-                mSplitTransactionsTableView.getSelectionModel().getSelectedItems()));
     }
 
     @FXML

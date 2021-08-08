@@ -211,17 +211,18 @@ public class EditReminderDialogController {
 
     @FXML
     private void handleSplit() {
-        BigDecimal netAmount = BigDecimal.ZERO;
+        final BigDecimal netAmount;
         if (mFixedAmountRadioButton.isSelected()) {
-            netAmount = mReminder.getAmount();
-            if (mReminder.getType() == Reminder.Type.DEPOSIT)
-                netAmount = netAmount.negate();
+            netAmount = mReminder.getType() == Reminder.Type.DEPOSIT ?
+                    mReminder.getAmount().negate() : mReminder.getAmount();
+        } else {
+            netAmount = null;
         }
 
         try {
             List<SplitTransaction> outputSplitTransactionList = DialogUtil.showSplitTransactionsDialog(mainModel,
                     (Stage) mPayeeTextField.getScene().getWindow(), mAccountIDComboBox.getValue(),
-                    mReminder.getSplitTransactionList(), netAmount);
+                    mReminder.getSplitTransactionList(), "", netAmount);
 
             if (outputSplitTransactionList != null) {
                 // splitTransactionList changed

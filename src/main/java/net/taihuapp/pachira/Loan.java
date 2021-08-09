@@ -103,13 +103,6 @@ public class Loan {
         setPaymentAmount(paymentAmount);
     }
 
-    // copy constructor
-    Loan(Loan loan) {
-        this(loan.getID(), loan.getAccountID(), loan.getOriginalAmount(), loan.getInterestRate(),
-                loan.getCompoundingPeriod(), loan.getPaymentPeriod(), loan.getNumberOfPayments(),
-                loan.getLoanDate(), loan.getFirstPaymentDate(), loan.getPaymentAmount());
-    }
-
     /**
      *
      * @param apr annual percentage rate, 1% == BigDecimal.ONE
@@ -355,7 +348,7 @@ public class Loan {
     public LocalDate getFirstPaymentDate() { return getFirstPaymentDateProperty().get(); }
     void setFirstPaymentDate(LocalDate date) { getFirstPaymentDateProperty().set(date); }
 
-    public BigDecimal getPaymentAmount() { return paymentAmountProperty.get(); }
+    public BigDecimal getPaymentAmount() { return getPaymentAmountProperty().get(); }
     void setPaymentAmount(BigDecimal paymentAmount) { getPaymentAmountProperty().set(paymentAmount); }
 
     ObjectProperty<Integer> getAccountIDProperty() { return accountIDProperty; }

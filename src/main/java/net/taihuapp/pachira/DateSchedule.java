@@ -306,7 +306,7 @@ public class DateSchedule {
                         if (isForward()) {
                             return "The " + dwCount + nth(dwCount) + " " + dow + " of every " + np + " " + buLowerCase;
                         } else {
-                            return (dwCount == 1 ? "The last " : (dwCount + nth(dwCount))) + dow
+                            return (dwCount == 1 ? "The last " : (dwCount + nth(dwCount))) + " last " + dow
                                     + " of every " + np + " " + buLowerCase + (np > 1 ? "s" : "");
                         }
                     }

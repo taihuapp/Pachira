@@ -32,7 +32,7 @@ import java.util.List;
 
 public class Reminder {
 
-    public enum Type { PAYMENT, DEPOSIT }
+    public enum Type { PAYMENT, DEPOSIT, LOAN_PAYMENT }
 
     private int mID = -1;
     private final ObjectProperty<Type> mTypeProperty = new SimpleObjectProperty<>(Type.PAYMENT);

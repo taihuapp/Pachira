@@ -930,6 +930,10 @@ public class MainModel {
         ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).update(reminder);
     }
 
+    List<Reminder> getReminderList() throws DaoException {
+        return ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).getAll();
+    }
+
     /**
      * insert or update account to database and master list
      * @param account - the account to be inserted or updated

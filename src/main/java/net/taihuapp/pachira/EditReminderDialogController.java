@@ -23,6 +23,7 @@ package net.taihuapp.pachira;
 import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
@@ -33,9 +34,10 @@ import org.controlsfx.control.textfield.TextFields;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 public class EditReminderDialogController {
 
@@ -49,9 +51,17 @@ public class EditReminderDialogController {
     @FXML
     private TextField mPayeeTextField;
     @FXML
+    private Label amountLabel;
+    @FXML
+    private HBox fixedAmountHBox;
+    @FXML
     private TextField mAmountTextField;
     @FXML
+    private HBox estimateHBox;
+    @FXML
     private TextField mEstimateNumOccurrenceTextField;
+    @FXML
+    private Label occurrenceLabel;
     @FXML
     private Label mAccountIDLabel;
     @FXML
@@ -91,25 +101,12 @@ public class EditReminderDialogController {
     @FXML
     private RadioButton mEstimateAmountRadioButton;
 
-    private final ToggleGroup mDOMGroup = new ToggleGroup();
-    private final ToggleGroup mFWDGroup = new ToggleGroup();
-    private final ToggleGroup mAmountGroup = new ToggleGroup();
+    private Stage getStage() { return (Stage) mPayeeTextField.getScene().getWindow(); }
 
     @FXML
     private void initialize() {
         mBaseUnitChoiceBox.getItems().setAll(DateSchedule.BaseUnit.values());
 
-        mDOMToggleButton.setToggleGroup(mDOMGroup);
-        mDOWToggleButton.setToggleGroup(mDOMGroup);
-
-        mFWDToggleButton.setToggleGroup(mFWDGroup);
-        mREVToggleButton.setToggleGroup(mFWDGroup);
-
-        mFixedAmountRadioButton.setToggleGroup(mAmountGroup);
-        mEstimateAmountRadioButton.setToggleGroup(mAmountGroup);
-
-        mAmountTextField.visibleProperty().bindBidirectional(mFixedAmountRadioButton.selectedProperty());
-        mEstimateNumOccurrenceTextField.visibleProperty().bindBidirectional(mEstimateAmountRadioButton.selectedProperty());
 
         // todo need a ChangeListener for mCountBeforeEndTextField
 
@@ -119,6 +116,40 @@ public class EditReminderDialogController {
     void setMainModel(MainModel mainModel, Reminder reminder) {
         this.mainModel = mainModel;
         this.mReminder = reminder;
+
+        // visibility
+        amountLabel.visibleProperty().bind(mTypeChoiceBox.valueProperty()
+                .isEqualTo(Reminder.Type.LOAN_PAYMENT).not());
+        fixedAmountHBox.visibleProperty().bind(amountLabel.visibleProperty());
+        estimateHBox.visibleProperty().bind(fixedAmountHBox.visibleProperty());
+        mAmountTextField.visibleProperty().bind(mFixedAmountRadioButton.selectedProperty());
+        mEstimateNumOccurrenceTextField.visibleProperty().bind(mEstimateAmountRadioButton.selectedProperty());
+
+        mStartDatePicker.disableProperty().bind(fixedAmountHBox.visibleProperty().not());
+        mEndDatePicker.disableProperty().bind(fixedAmountHBox.visibleProperty().not());
+
+        final Callable<Boolean> converter = () -> {
+            if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT)
+                return false;
+            switch (mReminder.getDateSchedule().getBaseUnit()) {
+                case DAY:
+                case WEEK:
+                    return false;
+                case MONTH:
+                case QUARTER:
+                case YEAR:
+                default:
+                    return true;
+            }
+        };
+        mDOMToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
+        mDOWToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
+        mFWDToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
+        mREVToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
 
         mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
@@ -133,8 +164,7 @@ public class EditReminderDialogController {
         mAccountIDComboBox.getItems().clear();
         for (Account a : mainModel.getAccountList(account ->
                     account.getType().isGroup(Account.Type.Group.SPENDING) && !account.getHiddenFlag()
-                    && !account.getName().equals(MainModel.DELETED_ACCOUNT_NAME),
-                Comparator.comparing(Account::getDisplayOrder)))
+                    && !account.getName().equals(MainModel.DELETED_ACCOUNT_NAME)))
             mAccountIDComboBox.getItems().add(a.getID());
 
         Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
@@ -183,30 +213,33 @@ public class EditReminderDialogController {
 
         mDOMToggleButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsDOMBasedProperty());
         mFWDToggleButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsForwardProperty());
-        final Callable<Boolean> converter = () -> {
-            switch (mReminder.getDateSchedule().getBaseUnit()) {
-                case DAY:
-                case WEEK:
-                    return false;
-                case MONTH:
-                case QUARTER:
-                case YEAR:
-                default:
-                    return true;
-            }
-        };
-        mDOMToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty()));
-        mDOWToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty()));
-        mFWDToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty()));
-        mREVToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty()));
-
         mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
 
         mEstimateAmountRadioButton.setSelected(mReminder.getEstimateCount() > 0);
+
+        mTypeChoiceBox.valueProperty().addListener((obs, o, n) -> {
+            if (n == Reminder.Type.LOAN_PAYMENT) {
+
+                try {
+                    // the set of negative account numbers of loans already have a reminder
+                    Set<Integer> excludeAccountIDSet = mainModel.getReminderList().stream()
+                            .filter(r -> r.getType()== Reminder.Type.LOAN_PAYMENT)
+                            .map(Reminder::getCategoryID).collect(Collectors.toSet());
+                    // the set of loans not included in excludeAccountIDSet.
+                    Set<Integer> loanAccountIDSet = mainModel.getLoanList().stream().map(l -> -l.getAccountID())
+                            .filter(i -> !excludeAccountIDSet.contains(i)).collect(Collectors.toSet());
+                    mCategoryTransferAccountIDComboBoxWrapper.setFilter(loanAccountIDSet::contains);
+                    mCategoryIDLabel.setText("Loan Account");
+                } catch (DaoException e) {
+                    final String msg = "DaoException when get reminder/loan";
+                    logger.error(msg, e);
+                    DialogUtil.showExceptionDialog(getStage(), "DaoException", msg, e.toString(), e);
+                }
+            } else {
+                mCategoryTransferAccountIDComboBoxWrapper.setFilter(i -> true);
+                mCategoryIDLabel.setText("Category");
+            }
+        });
     }
 
     @FXML
@@ -221,8 +254,7 @@ public class EditReminderDialogController {
 
         try {
             List<SplitTransaction> outputSplitTransactionList = DialogUtil.showSplitTransactionsDialog(mainModel,
-                    (Stage) mPayeeTextField.getScene().getWindow(), mAccountIDComboBox.getValue(),
-                    mReminder.getSplitTransactionList(), "", netAmount);
+                    getStage(), mAccountIDComboBox.getValue(), mReminder.getSplitTransactionList(), "", netAmount);
 
             if (outputSplitTransactionList != null) {
                 // splitTransactionList changed
@@ -230,7 +262,7 @@ public class EditReminderDialogController {
             }
         } catch (IOException e) {
             logger.error("ShowSplitTransactionsDialog IOException", e);
-            DialogUtil.showExceptionDialog((Stage) mPayeeTextField.getScene().getWindow(),
+            DialogUtil.showExceptionDialog(getStage(),
                     "Exception", "IOException", "showSplitTransactionsDialog IOException", e);
         }
     }
@@ -249,7 +281,7 @@ public class EditReminderDialogController {
                 netAmount = netAmount.add(st.getAmount());
             }
             if (netAmount.compareTo(BigDecimal.ZERO) != 0) {
-                DialogUtil.showWarningDialog((Stage) mPayeeTextField.getScene().getWindow(),
+                DialogUtil.showWarningDialog(getStage(),
                         "Warning", "SplitTransaction amount not match with total amount.",
                         "Please recheck split");
                 return;
@@ -269,7 +301,7 @@ public class EditReminderDialogController {
         } catch (DaoException e) {
             final String action = mReminder.getID() > 0 ? "Update" : "Insert";
             logger.error(action + " Reminder error", e);
-            DialogUtil.showExceptionDialog((Stage) mPayeeTextField.getScene().getWindow(),
+            DialogUtil.showExceptionDialog(getStage(),
                     "Exception", "DaoException",
                     "DaoException " + e.getErrorCode() + " on " + action + " reminder", e);
         }
@@ -280,5 +312,5 @@ public class EditReminderDialogController {
         close();
     }
 
-    private void close() { ((Stage) mPayeeTextField.getScene().getWindow()).close(); }
+    private void close() { getStage().close(); }
 }

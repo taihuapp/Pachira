@@ -98,7 +98,7 @@ public class EditTransactionDialogControllerNew {
                 idList.add(-account.getID());
 
             mFilteredCTIDList = new FilteredList<>(idList);
-            mComboBox.getItems().setAll(mFilteredCTIDList);
+            mComboBox.setItems(mFilteredCTIDList);
 
             // set autocompletion
             mComboBox.setEditable(true);
@@ -112,8 +112,22 @@ public class EditTransactionDialogControllerNew {
             new AutoCompletionTextFieldBinding<>(comboBox.getEditor(), mProvider);
         }
 
-        void setFilter(boolean excludeCategory, int excludeAID) {
+        void setFilter(Predicate<Integer> predicate) {
             Integer selectedValue = mComboBox.getSelectionModel().getSelectedItem();
+
+            mFilteredCTIDList.setPredicate(predicate);
+            mProvider.clearSuggestions();
+            mProvider.addPossibleSuggestions(mFilteredCTIDList.stream()
+                    .map(i -> mComboBox.getConverter().toString(i)).collect(Collectors.toList()));
+
+            if (selectedValue != null && predicate.test(selectedValue)) {
+                mComboBox.getSelectionModel().select(selectedValue);
+            } else
+                mComboBox.getSelectionModel().selectFirst();
+        }
+
+        void setFilter(boolean excludeCategory, int excludeAID) {
+
             Predicate<Integer> p;
             if (excludeCategory) {
                 if (excludeAID < 0)
@@ -126,19 +140,8 @@ public class EditTransactionDialogControllerNew {
                 else
                     p = i -> i != -excludeAID;
             }
-            mFilteredCTIDList.setPredicate(p);
-            mComboBox.getItems().setAll(mFilteredCTIDList);
-            List<String> strList = new ArrayList<>();
-            for (Integer integer : mFilteredCTIDList) {
-                strList.add(mComboBox.getConverter().toString(integer));
-            }
-            mProvider.clearSuggestions();
-            mProvider.addPossibleSuggestions(strList);
 
-            if (selectedValue == null || !p.test(selectedValue) )
-                mComboBox.getSelectionModel().select(Integer.valueOf(0));
-            else
-                mComboBox.getSelectionModel().select(selectedValue);
+            setFilter(p);
         }
     }
 

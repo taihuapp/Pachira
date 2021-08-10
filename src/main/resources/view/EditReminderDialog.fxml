@@ -126,7 +126,7 @@
         <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="4" GridPane.columnSpan="2" GridPane.rowIndex="2">
             <children>
                 <Label text="Every " />
-                <TextField fx:id="mNumPeriodTextField" prefHeight="25.0" prefWidth="50.0" />
+                <TextField fx:id="mNumPeriodTextField" prefWidth="40.0" />
                 <ChoiceBox fx:id="mBaseUnitChoiceBox" prefWidth="150.0" />
             </children>
         </HBox>
@@ -143,29 +143,19 @@
                </HBox.margin></Button>
             </children>
         </HBox>
-        <ToggleButton fx:id="mDOMToggleButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Count days of the quarter" GridPane.columnIndex="4" GridPane.rowIndex="4">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin>
+      <RadioButton fx:id="domRadioButton" mnemonicParsing="false" selected="true" text="Count days of the quarter" GridPane.columnIndex="4" GridPane.rowIndex="4">
          <toggleGroup>
             <ToggleGroup fx:id="m_w_group" />
-         </toggleGroup></ToggleButton>
-        <ToggleButton fx:id="mDOWToggleButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Count day of the week" toggleGroup="$m_w_group" GridPane.columnIndex="4" GridPane.rowIndex="5">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin></ToggleButton>
-        <ToggleButton fx:id="mFWDToggleButton" mnemonicParsing="false" text="Forward" GridPane.columnIndex="5" GridPane.rowIndex="4">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin>
+         </toggleGroup>
+      </RadioButton>
+      <RadioButton fx:id="fwdRadioButton" mnemonicParsing="false" selected="true" text="Forward" GridPane.columnIndex="5" GridPane.rowIndex="4">
          <toggleGroup>
             <ToggleGroup fx:id="fwd_rev_group" />
-         </toggleGroup></ToggleButton>
-        <ToggleButton fx:id="mREVToggleButton" mnemonicParsing="false" text="Reverse" toggleGroup="$fwd_rev_group" GridPane.columnIndex="5" GridPane.rowIndex="5">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin></ToggleButton>
-        <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="4" GridPane.columnSpan="2" GridPane.rowIndex="3" />
+         </toggleGroup>
+      </RadioButton>
+      <RadioButton fx:id="dowRadioButton" mnemonicParsing="false" text="Count day of the week" toggleGroup="$m_w_group" GridPane.columnIndex="4" GridPane.rowIndex="5" />
+      <RadioButton fx:id="revRadioButton" mnemonicParsing="false" text="Reverse" toggleGroup="$fwd_rev_group" GridPane.columnIndex="5" GridPane.rowIndex="5" />
+        <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="3" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="3" />
         <DatePicker fx:id="mEndDatePicker" GridPane.columnIndex="4" GridPane.rowIndex="6" />
       <Button mnemonicParsing="false" onAction="#handleSplit" text="Split" GridPane.columnIndex="3" GridPane.rowIndex="7" />
     </children>

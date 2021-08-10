@@ -606,7 +606,7 @@ public class DaoManager {
                 + "MEMO varchar(" + TRANSACTION_MEMO_LEN + "), "
                 + "STARTDATE date NOT NULL, "
                 + "ENDDATE date, "
-                + "BASEUNIT varchar(8) NOT NULL, "
+                + "BASEUNIT varchar(16) NOT NULL, "
                 + "NUMPERIOD integer NOT NULL, "
                 + "ALERTDAYS integer NOT NULL, "
                 + "ISDOM boolean NOT NULL, "
@@ -644,6 +644,7 @@ public class DaoManager {
             executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TYPE drop DEFAULT");
             executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TRANSACTIONID rename to TYPE_ID");
             executeUpdateQuery("alter table SPLITTRANSACTIONS modify AMOUNT decimal(20,4) not null");
+            executeUpdateQuery("alter table REMINDERS alter column BASEUNIT varchar(16)");
             createLoanTables();
         } else if (newV == 10) {
             // change account table type column size

@@ -87,13 +87,13 @@ public class EditReminderDialogController {
     @FXML
     private TextField mAlertDayTextField;
     @FXML
-    private ToggleButton mDOMToggleButton;
+    private RadioButton domRadioButton;
     @FXML
-    private ToggleButton mDOWToggleButton;
+    private RadioButton dowRadioButton;
     @FXML
-    private ToggleButton mFWDToggleButton;
+    private RadioButton fwdRadioButton;
     @FXML
-    private ToggleButton mREVToggleButton;
+    private RadioButton revRadioButton;
     @FXML
     private Label mDSDescriptionLabel;
     @FXML
@@ -142,13 +142,13 @@ public class EditReminderDialogController {
                     return true;
             }
         };
-        mDOMToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+        domRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
                 mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
-        mDOWToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+        dowRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
                 mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
-        mFWDToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+        fwdRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
                 mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
-        mREVToggleButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
+        revRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
                 mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
 
         mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
@@ -203,7 +203,7 @@ public class EditReminderDialogController {
         mAlertDayTextField.textProperty().bindBidirectional(mReminder.getDateSchedule().getAlertDayProperty(),
                 new NumberStringConverter("#"));
 
-        mDOMToggleButton.textProperty().bind(Bindings.createStringBinding(
+        domRadioButton.textProperty().bind(Bindings.createStringBinding(
                 () -> "Count days of " + mBaseUnitChoiceBox.valueProperty().get().toString().toLowerCase(),
                 mBaseUnitChoiceBox.valueProperty()));
 
@@ -211,8 +211,8 @@ public class EditReminderDialogController {
         // we don't have anything to bind mCountBeforeEndTextField, but we have a TextChangeListener for it
         // set in initialization
 
-        mDOMToggleButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsDOMBasedProperty());
-        mFWDToggleButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsForwardProperty());
+        domRadioButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsDOMBasedProperty());
+        fwdRadioButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsForwardProperty());
         mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
 
         mEstimateAmountRadioButton.setSelected(mReminder.getEstimateCount() > 0);

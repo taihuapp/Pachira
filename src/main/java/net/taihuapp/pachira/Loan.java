@@ -20,7 +20,9 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -33,22 +35,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Loan {
-
-    public enum Period {
-        ANNUALLY(1), SEMI_ANNUALLY(2), QUARTERLY(4), BI_MONTHLY(6), MONTHLY(12),
-        SEMI_MONTHLY(24), BI_WEEKLY(26), WEEKLY(52), DAILY(365);
-
-        private final int countsPerYear;
-
-        Period(int n) { countsPerYear = n; }
-        int getCountsPerYear() { return countsPerYear; }
-
-        @Override
-        public String toString() {
-            return (name().charAt(0) + name().substring(1).toLowerCase()).replace("_", "-")
-                    + " (" + countsPerYear + "/Yr)";
-        }
-    }
 
     static class PaymentItem {
         // sequence id, from 1 to n
@@ -77,30 +63,70 @@ public class Loan {
     private final ObjectProperty<Integer> accountIDProperty = new SimpleObjectProperty<>(-1);
     private final ObjectProperty<BigDecimal> originalAmountProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<BigDecimal> interestRateProperty = new SimpleObjectProperty<>(null);
-    private final ObjectProperty<Period> compoundingPeriodProperty = new SimpleObjectProperty<>(Period.MONTHLY);
-    private final ObjectProperty<Period> paymentPeriodProperty = new SimpleObjectProperty<>(Period.MONTHLY);
-    private final ObjectProperty<Integer> numberOfPaymentsProperty = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<DateSchedule.BaseUnit> compoundBaseUnitProperty =
+            new SimpleObjectProperty<>(DateSchedule.BaseUnit.MONTH);
+    private final ObjectProperty<Integer> compoundBURepeatProperty = new SimpleObjectProperty<>(1);
+    private final DateSchedule paymentDateSchedule = new DateSchedule(DateSchedule.BaseUnit.MONTH, 1,
+            LocalDate.now().plusMonths(1),null, 3, true, true);
     private final ObjectProperty<LocalDate> loanDateProperty = new SimpleObjectProperty<>(LocalDate.now());
-    private final ObjectProperty<LocalDate> firstPaymentDateProperty = new SimpleObjectProperty<>(LocalDate.now()
-            .plusMonths(1));
+    private final ObjectProperty<Integer> numberOfPaymentsProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<BigDecimal> paymentAmountProperty = new SimpleObjectProperty<>(null);
     private final ObservableList<PaymentItem> paymentSchedule = FXCollections.observableArrayList();
+    private final BooleanProperty calcPaymentAmountProperty = new SimpleBooleanProperty(true);
 
-    Loan() {}
+    private void setupBindings() {
+        // these properties will affect payment amounts but not payment dates
+        getOriginalAmountProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        getInterestRateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        getCompoundBaseUnitProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        getCompoundBURepeatProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        getLoanDateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        getPaymentAmountProperty().addListener((obs, o, n) -> updatePaymentSchedule());
 
-    public Loan(int id, int accountId, BigDecimal originalAmount, BigDecimal interestRate, Period compoundingPeriod,
-                Period paymentPeriod, int numberOfPayments, LocalDate loanDate, LocalDate firstPaymentDate,
+        // these properties will affect both payment amounts and payment dates
+        paymentDateSchedule.getStartDateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        paymentDateSchedule.getBaseUnitProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        paymentDateSchedule.getNumPeriodProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+        getNumberOfPaymentsProperty().addListener((obs, o, n) -> updatePaymentSchedule());
+    }
+
+    Loan() { setupBindings(); }
+
+    /**
+     *
+     * @param id: unique loan id
+     * @param accountId: the account id associated with the loan
+     * @param compoundBaseUnit: compound base unit
+     * @param compoundBURepeat: compound base unit repeat
+     *
+     * @param originalAmount: original amount
+     * @param interestRate: original interest rate, in %, 1% = 1
+     * @param loanDate: loan initiation date
+     * @param paymentAmount: regular payment amount for principal+interest
+     */
+    public Loan(int id, int accountId, DateSchedule.BaseUnit compoundBaseUnit, int compoundBURepeat,
+                DateSchedule.BaseUnit paymentBaseUnit, int paymentBURepeat, LocalDate firstPaymentDate,
+                int numberOfPayments, BigDecimal originalAmount, BigDecimal interestRate, LocalDate loanDate,
                 BigDecimal paymentAmount) {
+
+        setupBindings();
+
         setID(id);
         setAccountID(accountId);
+        setCompoundBaseUnit(compoundBaseUnit);
+        setCompoundBURepeat(compoundBURepeat);
+
         setOriginalAmount(originalAmount);
         setInterestRate(interestRate);
-        setCompoundingPeriod(compoundingPeriod);
-        setPaymentPeriod(paymentPeriod);
-        setNumberOfPayments(numberOfPayments);
         setLoanDate(loanDate);
-        setFirstPaymentDate(firstPaymentDate);
         setPaymentAmount(paymentAmount);
+        setCalcPaymentAmount(paymentAmount == null);
+
+        // setup payment DateSchedule
+        setPaymentBaseUnit(paymentBaseUnit);
+        setPaymentBURepeat(paymentBURepeat);
+        setFirstPaymentDate(firstPaymentDate);
+        setNumberOfPayments(numberOfPayments);
     }
 
     /**
@@ -110,91 +136,25 @@ public class Loan {
      */
     private BigDecimal getEffectiveInterestRate(BigDecimal apr) {
         double r = apr.doubleValue()/100;
-        int n = getCompoundingPeriod().getCountsPerYear();
-        int m = getPaymentPeriod().getCountsPerYear();
+        int n = DateSchedule.numberOfPeriodsPerYear(getCompoundBaseUnit())*getCompoundBURepeat();
+        int m = DateSchedule.numberOfPeriodsPerYear(getPaymentDateSchedule().getBaseUnit())
+                *getPaymentDateSchedule().getNumPeriod();
         return BigDecimal.valueOf(Math.pow(1+r/n, ((double) n)/((double) m))-1).movePointRight(2);
     }
 
     /**
-     *
-     * @return a list of dates.  The first element is the regular interest accruing date.  The
-     *         next is the first payment date, and so on.
+     * @return a list of LocalDates (getNumberOfPayments()+1 elements)
+     * element 0 is the date exactly one full period before start date.
+     * element 1 to getNumberOfPayments() are the due dates.
      */
     private List<LocalDate> getPaymentDates() {
-        final List<LocalDate> paymentDates = new ArrayList<>();
-        final LocalDate firstPaymentDate = getFirstPaymentDate();
-        paymentDates.add(firstPaymentDate);
-        final Period period = getPaymentPeriod();
-        final int n = period.getCountsPerYear();
-
-        switch (period) {
-            case ANNUALLY:
-            case SEMI_ANNUALLY:
-            case QUARTERLY:
-            case BI_MONTHLY:
-            case MONTHLY:
-                for (int i = 1; i < getNumberOfPayments(); i++) {
-                    paymentDates.add(firstPaymentDate.plusMonths((12L * i / n)));
-                }
-                paymentDates.add(0, firstPaymentDate.minusMonths(1));
-                break;
-            case SEMI_MONTHLY:
-                final int dom1 = firstPaymentDate.getDayOfMonth();
-                final boolean isEOM1 = firstPaymentDate.lengthOfMonth() == dom1;
-                final LocalDate d2;
-                final LocalDate d0;
-                if (isEOM1) {
-                    // dom1 is end of month
-                    d2 = firstPaymentDate.plusDays(15);
-                    d0 = d2.minusMonths(1);
-                } else if (dom1 > 15) {
-                    d0 = firstPaymentDate.minusDays(15);
-                    d2 = d0.plusMonths(1);
-                } else if (dom1 == 15) {
-                    d0 = firstPaymentDate.minusDays(dom1);
-                    d2 = d0.plusMonths(1);
-                } else {
-                    // dom1 < 15
-                    if (dom1 + 15 > firstPaymentDate.lengthOfMonth()) {
-                        d0 = firstPaymentDate.minusDays(dom1 + 1);
-                        d2 = d0.plusMonths(1);
-                    } else {
-                        d2 = firstPaymentDate.plusDays(15);
-                        d0 = d2.minusMonths(1);
-                    }
-                }
-                paymentDates.add(d2); // paymentDates has the first 2 payment days.
-                paymentDates.add(0, d0);
-
-                for (int i = 2; i < getNumberOfPayments(); i++) {
-                    if (i % 2 == 0) {  // even
-                        paymentDates.add(firstPaymentDate.plusMonths(i/2));
-                    } else { // odd, 3, 5, ...
-                        LocalDate day_i;
-                        if (dom1 <= 13 || dom1 == 15) {
-                            day_i = d2.plusMonths(i/2);
-                        } else if (isEOM1) { // month end
-                            day_i = paymentDates.get(paymentDates.size()-1).plusDays(15);
-                        } else { // dom1 is between 16 and EOM-1
-                            day_i = paymentDates.get(paymentDates.size()-1).minusDays(15).plusMonths(1);
-                        }
-                        paymentDates.add(day_i);
-                    }
-                }
-                break;
-            case BI_WEEKLY:
-            case WEEKLY:
-                for (int i = 1; i < getNumberOfPayments(); i++) {
-                    paymentDates.add(firstPaymentDate.plusDays(i*7L*52/n));
-                }
-                paymentDates.add(0, firstPaymentDate.minusDays(7*52/n));
-                break;
-            case DAILY:
-                for (int i = 1; i < getNumberOfPayments(); i++) {
-                    paymentDates.add(firstPaymentDate.plusDays(i));
-                }
-                paymentDates.add(0, firstPaymentDate.minusDays(1));
-                break;
+        DateSchedule dateSchedule = getPaymentDateSchedule();
+        List<LocalDate> paymentDates = new ArrayList<>();
+        LocalDate d = dateSchedule.getStartDate();
+        paymentDates.add(dateSchedule.getPrevDueDate(d));
+        for (int i = 0; i < getNumberOfPayments(); i++) {
+            paymentDates.add(d);
+            d = dateSchedule.getNextDueDate(d);
         }
         return paymentDates;
     }
@@ -216,7 +176,7 @@ public class Loan {
                                            BigDecimal paymentAmount) {
         List<PaymentItem> paymentItems = new ArrayList<>();
         final List<LocalDate> paymentDates = getPaymentDates();
-        final int n = getNumberOfPayments();
+        final int n = paymentDates.size();
         int i;
         for (i = 0; i < n; i++) {
             if (paymentDates.get(i).isAfter(date))
@@ -241,7 +201,7 @@ public class Loan {
         paymentItems.add(new PaymentItem(i, paymentDates.get(i), pPayment.max(BigDecimal.ZERO), iPayment, balance));
 
         // now finish the remaining paymentItem
-        while (i < n) {
+        while (i < n-1) {
             i++;
             iPayment = y.multiply(balance).setScale(0, RoundingMode.HALF_UP).movePointLeft(2);
             if (i == n)
@@ -279,12 +239,16 @@ public class Loan {
         // empty the list first
         paymentSchedule.clear();
 
-        if (getFirstPaymentDate() == null || getOriginalAmount() == null
-                || getInterestRate() == null || getNumberOfPayments() == null)
+        if (paymentDateSchedule.getStartDate() == null || getOriginalAmount() == null
+                || getInterestRate() == null || getNumberOfPayments() == null
+                || getCompoundBURepeat() == null || getPaymentBURepeat() == null)
             return; // don't have enough input, return now.
 
-        if (getPaymentAmount() == null)
+        if (getCalcPaymentAmount())
             setPaymentAmount(calcPaymentAmount());
+
+        if (getPaymentAmount() == null)
+            return;
 
         final List<LocalDate> paymentDates = getPaymentDates();
         // calculate the regular payments (P+I)
@@ -333,11 +297,19 @@ public class Loan {
     public BigDecimal getInterestRate() { return getInterestRateProperty().get(); }
     void setInterestRate(BigDecimal interestRateInPct) { getInterestRateProperty().set(interestRateInPct); }
 
-    public Period getCompoundingPeriod() { return getCompoundingPeriodProperty().get(); }
-    void setCompoundingPeriod(Period p) { getCompoundingPeriodProperty().set(p); }
+    public DateSchedule.BaseUnit getCompoundBaseUnit() { return getCompoundBaseUnitProperty().get(); }
+    void setCompoundBaseUnit(DateSchedule.BaseUnit bu) { getCompoundBaseUnitProperty().set(bu); }
 
-    public Period getPaymentPeriod() { return getPaymentPeriodProperty().get(); }
-    void setPaymentPeriod(Period pp) { getPaymentPeriodProperty().set(pp); }
+    public Integer getCompoundBURepeat() { return getCompoundBURepeatProperty().get(); }
+    void setCompoundBURepeat(int repeat) { getCompoundBURepeatProperty().set(repeat); }
+
+    private DateSchedule getPaymentDateSchedule() { return paymentDateSchedule; }
+
+    public DateSchedule.BaseUnit getPaymentBaseUnit() { return getPaymentBaseUnitProperty().get(); }
+    void setPaymentBaseUnit(DateSchedule.BaseUnit bu) { getPaymentBaseUnitProperty().set(bu); }
+
+    public Integer getPaymentBURepeat() { return getPaymentBURepeatProperty().get(); }
+    void setPaymentBURepeat(int repeat) { getPaymentBURepeatProperty().set(repeat); }
 
     public Integer getNumberOfPayments() { return getNumberOfPaymentsProperty().get(); }
     void setNumberOfPayments(Integer n) { getNumberOfPaymentsProperty().set(n); }
@@ -351,13 +323,21 @@ public class Loan {
     public BigDecimal getPaymentAmount() { return getPaymentAmountProperty().get(); }
     void setPaymentAmount(BigDecimal paymentAmount) { getPaymentAmountProperty().set(paymentAmount); }
 
+    public Boolean getCalcPaymentAmount() { return getCalcPaymentAmountProperty().get(); }
+    void setCalcPaymentAmount(boolean b) { getCalcPaymentAmountProperty().set(b); }
+
     ObjectProperty<Integer> getAccountIDProperty() { return accountIDProperty; }
     ObjectProperty<BigDecimal> getOriginalAmountProperty() { return originalAmountProperty; }
     ObjectProperty<BigDecimal> getInterestRateProperty() { return interestRateProperty; }
-    ObjectProperty<Period> getCompoundingPeriodProperty() { return compoundingPeriodProperty; }
-    ObjectProperty<Period> getPaymentPeriodProperty() { return paymentPeriodProperty; }
+    ObjectProperty<DateSchedule.BaseUnit> getCompoundBaseUnitProperty() { return compoundBaseUnitProperty; }
+    ObjectProperty<Integer> getCompoundBURepeatProperty() { return compoundBURepeatProperty; }
+    ObjectProperty<DateSchedule.BaseUnit> getPaymentBaseUnitProperty() {
+        return getPaymentDateSchedule().getBaseUnitProperty();
+    }
+    ObjectProperty<Integer> getPaymentBURepeatProperty() { return getPaymentDateSchedule().getNumPeriodProperty(); }
     ObjectProperty<Integer> getNumberOfPaymentsProperty() { return numberOfPaymentsProperty; }
     ObjectProperty<LocalDate> getLoanDateProperty() { return loanDateProperty; }
-    ObjectProperty<LocalDate> getFirstPaymentDateProperty() { return firstPaymentDateProperty; }
+    ObjectProperty<LocalDate> getFirstPaymentDateProperty() { return getPaymentDateSchedule().getStartDateProperty(); }
     ObjectProperty<BigDecimal> getPaymentAmountProperty() { return paymentAmountProperty; }
+    BooleanProperty getCalcPaymentAmountProperty() { return calcPaymentAmountProperty; }
 }

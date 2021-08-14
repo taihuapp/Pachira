@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira.dao;
 
+import net.taihuapp.pachira.DateSchedule;
 import net.taihuapp.pachira.Loan;
 
 import java.sql.Connection;
@@ -40,8 +41,9 @@ public class LoanDao extends Dao<Loan, Integer> {
 
     @Override
     String[] getColumnNames() {
-        return new String[]{ "ACCOUNT_ID", "AMOUNT", "INTEREST_RATE", "COMPOUND_PERIOD", "PAYMENT_PERIOD",
-                "NUMBER_OF_PAYMENTS", "LOAN_DATE", "FIRST_PAYMENT_DATE", "PAYMENT_AMOUNT" };
+        return new String[]{ "ACCOUNT_ID", "AMOUNT", "INTEREST_RATE", "COMPOUND_BASE_UNIT", "COMPOUND_BU_REPEAT",
+                "PAYMENT_BASE_UNIT", "PAYMENT_BU_REPEAT", "NUMBER_OF_PAYMENTS", "LOAN_DATE", "FIRST_PAYMENT_DATE",
+                "PAYMENT_AMOUNT" };
     }
 
     @Override
@@ -54,13 +56,15 @@ public class LoanDao extends Dao<Loan, Integer> {
     Loan fromResultSet(ResultSet resultSet) throws SQLException, DaoException {
         return new Loan(resultSet.getInt("ID"),
                 resultSet.getInt("ACCOUNT_ID"),
+                DateSchedule.BaseUnit.valueOf(resultSet.getString("COMPOUND_BASE_UNIT")),
+                resultSet.getInt("COMPOUND_BU_REPEAT"),
+                DateSchedule.BaseUnit.valueOf(resultSet.getString("PAYMENT_BASE_UNIT")),
+                resultSet.getInt("PAYMENT_BU_REPEAT"),
+                resultSet.getObject("FIRST_PAYMENT_DATE", LocalDate.class),
+                resultSet.getInt("NUMBER_OF_PAYMENTS"),
                 resultSet.getBigDecimal("AMOUNT"),
                 resultSet.getBigDecimal("INTEREST_RATE"),
-                Loan.Period.valueOf(resultSet.getString("COMPOUND_PERIOD")),
-                Loan.Period.valueOf(resultSet.getString("PAYMENT_PERIOD")),
-                resultSet.getInt("NUMBER_OF_PAYMENTS"),
                 resultSet.getObject("LOAN_DATE", LocalDate.class),
-                resultSet.getObject("FIRST_PAYMENT_DATE", LocalDate.class),
                 resultSet.getBigDecimal("PAYMENT_AMOUNT"));
     }
 
@@ -69,13 +73,15 @@ public class LoanDao extends Dao<Loan, Integer> {
         preparedStatement.setInt(1, loan.getAccountID());
         preparedStatement.setBigDecimal(2, loan.getOriginalAmount());
         preparedStatement.setBigDecimal(3, loan.getInterestRate());
-        preparedStatement.setString(4, loan.getCompoundingPeriod().name());
-        preparedStatement.setString(5, loan.getPaymentPeriod().name());
-        preparedStatement.setInt(6, loan.getNumberOfPayments());
-        preparedStatement.setObject(7, loan.getLoanDate());
-        preparedStatement.setObject(8, loan.getFirstPaymentDate());
-        preparedStatement.setBigDecimal(9, loan.getPaymentAmount());
+        preparedStatement.setString(4, loan.getCompoundBaseUnit().name());
+        preparedStatement.setInt(5, loan.getCompoundBURepeat());
+        preparedStatement.setString(6, loan.getPaymentBaseUnit().name());
+        preparedStatement.setInt(7, loan.getPaymentBURepeat());
+        preparedStatement.setInt(8, loan.getNumberOfPayments());
+        preparedStatement.setObject(9, loan.getLoanDate());
+        preparedStatement.setObject(10, loan.getFirstPaymentDate());
+        preparedStatement.setBigDecimal(11, loan.getPaymentAmount());
         if (withKey)
-            preparedStatement.setInt(10, loan.getID());
+            preparedStatement.setInt(12, loan.getID());
     }
 }

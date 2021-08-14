@@ -198,8 +198,11 @@ public class EditReminderDialogController {
         mBaseUnitChoiceBox.valueProperty().bindBidirectional(mReminder.getDateSchedule().getBaseUnitProperty());
         mStartDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getStartDateProperty());
         mEndDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getEndDateProperty());
-        mNumPeriodTextField.textProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty(),
-                new NumberStringConverter("#"));
+
+        TextFormatter<Integer> numPeriodFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
+                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        mNumPeriodTextField.setTextFormatter(numPeriodFormatter);
+        numPeriodFormatter.valueProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty());
         mAlertDayTextField.textProperty().bindBidirectional(mReminder.getDateSchedule().getAlertDayProperty(),
                 new NumberStringConverter("#"));
 

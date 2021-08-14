@@ -37,17 +37,12 @@ import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
 public class EditLoanDialogController {
 
     private static final Logger logger = Logger.getLogger(EditLoanDialogController.class);
-
-    private static final Pattern DOLLAR_CENT_REG_EX = Pattern.compile("^(0|[1-9][,\\d]*)?(\\.\\d{0,2})?$");
-    private static final Pattern INTEREST_RATE_REG_EX = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d{0,6})?$");
-    private static final Pattern INTEGER_REG_EX = Pattern.compile("^([1-9]+\\d*)?$");
 
     private static final BigDecimalStringConverter DOLLAR_CENT_2_STRING_CONVERTER = new BigDecimalStringConverter() {
         @Override
@@ -85,9 +80,13 @@ public class EditLoanDialogController {
     @FXML
     private TextField interestRateTextField;
     @FXML
-    private ChoiceBox<Loan.Period> compoundingPeriodChoiceBox;
+    private ChoiceBox<DateSchedule.BaseUnit> compoundingBaseUnitChoiceBox;
     @FXML
-    private ChoiceBox<Loan.Period> paymentPeriodChoiceBox;
+    private TextField compoundingBaseUnitRepeatTextField;
+    @FXML
+    private ChoiceBox<DateSchedule.BaseUnit> paymentBaseUnitChoiceBox;
+    @FXML
+    private TextField paymentBaseUnitRepeatTextField;
     @FXML
     private TextField numberOfPaymentsTextField;
     @FXML
@@ -165,27 +164,42 @@ public class EditLoanDialogController {
         setupAccountSection();
 
         TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER,null,
-                c -> DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         originalAmountTextField.setTextFormatter(originalAmountFormatter);
         originalAmountFormatter.valueProperty().bindBidirectional(this.loan.getOriginalAmountProperty());
         originalAmountTextField.editableProperty().bind(readOnlyProperty.not());
 
         TextFormatter<BigDecimal> interestRateFormatter = new TextFormatter<>(new BigDecimalStringConverter(), null,
-                c -> INTEREST_RATE_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.INTEREST_RATE_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         interestRateTextField.setTextFormatter(interestRateFormatter);
         interestRateFormatter.valueProperty().bindBidirectional(this.loan.getInterestRateProperty());
         interestRateTextField.editableProperty().bind(readOnlyProperty.not());
 
-        compoundingPeriodChoiceBox.getItems().setAll(Loan.Period.values());
-        compoundingPeriodChoiceBox.valueProperty().bindBidirectional(this.loan.getCompoundingPeriodProperty());
-        compoundingPeriodChoiceBox.disableProperty().bind(readOnlyProperty);
+        compoundingBaseUnitChoiceBox.getItems().setAll(DateSchedule.BaseUnit.values());
+        compoundingBaseUnitChoiceBox.valueProperty().bindBidirectional(this.loan.getCompoundBaseUnitProperty());
+        compoundingBaseUnitChoiceBox.disableProperty().bind(readOnlyProperty);
 
-        paymentPeriodChoiceBox.getItems().setAll(Loan.Period.values());
-        paymentPeriodChoiceBox.valueProperty().bindBidirectional(this.loan.getPaymentPeriodProperty());
-        paymentPeriodChoiceBox.disableProperty().bind(readOnlyProperty);
+        TextFormatter<Integer> compoundingBaseUnitRepeatFormatter =
+                new TextFormatter<>(new IntegerStringConverter(), null,
+                        c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        compoundingBaseUnitRepeatTextField.setTextFormatter(compoundingBaseUnitRepeatFormatter);
+        compoundingBaseUnitRepeatFormatter.valueProperty().bindBidirectional(this.loan
+                .getCompoundBURepeatProperty());
+        compoundingBaseUnitRepeatTextField.editableProperty().bind(readOnlyProperty.not());
+
+        paymentBaseUnitChoiceBox.getItems().setAll(DateSchedule.BaseUnit.values());
+        paymentBaseUnitChoiceBox.valueProperty().bindBidirectional(this.loan.getPaymentBaseUnitProperty());
+        paymentBaseUnitChoiceBox.disableProperty().bind(readOnlyProperty);
+
+        TextFormatter<Integer> paymentBaseUnitRepeatFormatter =
+                new TextFormatter<>(new IntegerStringConverter(), null,
+                        c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        paymentBaseUnitRepeatTextField.setTextFormatter(paymentBaseUnitRepeatFormatter);
+        paymentBaseUnitRepeatFormatter.valueProperty().bindBidirectional(this.loan.getPaymentBURepeatProperty());
+        paymentBaseUnitRepeatTextField.editableProperty().bind(readOnlyProperty.not());
 
         TextFormatter<Integer> numberOfPaymentsFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
-                c -> INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         numberOfPaymentsTextField.setTextFormatter(numberOfPaymentsFormatter);
         numberOfPaymentsFormatter.valueProperty().bindBidirectional(this.loan.getNumberOfPaymentsProperty());
         numberOfPaymentsTextField.editableProperty().bind(readOnlyProperty.not());
@@ -197,19 +211,14 @@ public class EditLoanDialogController {
         firstPaymentDatePicker.disableProperty().bind(readOnlyProperty);
 
         TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER, null,
-                c -> DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         paymentAmountTextField.setTextFormatter(paymentAmountFormatter);
         paymentAmountFormatter.valueProperty().bindBidirectional(this.loan.getPaymentAmountProperty());
         paymentAmountTextField.editableProperty().bind(setPaymentRadioButton.selectedProperty()
                 .and(readOnlyProperty.not()));
 
-        calcPaymentRadioButton.selectedProperty().addListener((obs, o, n) -> {
-            if (n) {
-                this.loan.setPaymentAmount(null); // calculate payment amount
-            }
-        });
+        calcPaymentRadioButton.selectedProperty().bindBidirectional(this.loan.getCalcPaymentAmountProperty());
         calcPaymentRadioButton.disableProperty().bind(readOnlyProperty);
-
         setPaymentRadioButton.disableProperty().bind(readOnlyProperty);
 
         paymentScheduleTableView.setItems(loan.getPaymentSchedule());
@@ -255,17 +264,6 @@ public class EditLoanDialogController {
                 newAccountRadioButton.selectedProperty(), newAccountNameTextField.textProperty(),
                 Bindings.size(paymentScheduleTableView.getItems()), readOnlyProperty));
 
-        this.loan.getOriginalAmountProperty().addListener((obs, o, n) -> updatePaymentSchedule());
-        this.loan.getInterestRateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
-        this.loan.getCompoundingPeriodProperty().addListener((obs, o, n) -> updatePaymentSchedule());
-        this.loan.getPaymentPeriodProperty().addListener((obs, o, n) -> updatePaymentSchedule());
-        this.loan.getNumberOfPaymentsProperty().addListener((obs, o, n) -> updatePaymentSchedule());
-        this.loan.getLoanDateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
-        this.loan.getFirstPaymentDateProperty().addListener((obs, o, n) -> updatePaymentSchedule());
-        this.loan.getPaymentAmountProperty().addListener((obs, o, n) -> {
-            if (setPaymentRadioButton.isSelected()) updatePaymentSchedule();
-        });
-        calcPaymentRadioButton.selectedProperty().addListener((obs, o, n) -> updatePaymentSchedule());
 
         editPaymentButton.disableProperty().bind(readOnlyProperty.not());
         rateChangeButton.disableProperty().bind(readOnlyProperty.not());
@@ -290,12 +288,6 @@ public class EditLoanDialogController {
 
         if (!availableAccountComboBox.getItems().isEmpty())
             availableAccountComboBox.getSelectionModel().selectFirst();
-    }
-
-    private void updatePaymentSchedule() {
-        if (calcPaymentRadioButton.isSelected())
-            loan.setPaymentAmount(null);
-        loan.updatePaymentSchedule();
     }
 
     private Stage getStage() { return (Stage) newAccountNameTextField.getScene().getWindow(); }

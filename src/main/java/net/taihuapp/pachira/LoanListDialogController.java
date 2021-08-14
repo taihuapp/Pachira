@@ -115,7 +115,7 @@ public class LoanListDialogController {
             loader.setLocation(MainApp.class.getResource("/view/EditLoanDialog.fxml"));
 
             Stage dialogStage = new Stage();
-            dialogStage.setTitle("Edit Loan");
+            dialogStage.setTitle("Loan Details");
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));

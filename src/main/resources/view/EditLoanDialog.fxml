@@ -26,8 +26,8 @@
 <GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditLoanDialogController">
   <columnConstraints>
     <ColumnConstraints hgrow="SOMETIMES" maxWidth="150.0" minWidth="10.0" />
-    <ColumnConstraints hgrow="SOMETIMES" maxWidth="330.0" minWidth="10.0" prefWidth="157.0" />
-      <ColumnConstraints hgrow="SOMETIMES" maxWidth="454.0" minWidth="0.0" prefWidth="15.0" />
+    <ColumnConstraints hgrow="SOMETIMES" maxWidth="330.0" minWidth="10.0" prefWidth="167.0" />
+      <ColumnConstraints hgrow="SOMETIMES" maxWidth="454.0" minWidth="0.0" prefWidth="5.0" />
       <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" maxWidth="500.0" minWidth="10.0" prefWidth="450.0" />
   </columnConstraints>
   <rowConstraints>
@@ -118,16 +118,20 @@
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
          </GridPane.margin>
       </TextField>
-      <ChoiceBox fx:id="compoundingPeriodChoiceBox" GridPane.columnIndex="1" GridPane.rowIndex="6">
-         <GridPane.margin>
-            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-         </GridPane.margin>
-      </ChoiceBox>
-      <ChoiceBox fx:id="paymentPeriodChoiceBox" GridPane.columnIndex="1" GridPane.rowIndex="7">
-         <GridPane.margin>
-            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-         </GridPane.margin>
-      </ChoiceBox>
+      <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="6">
+         <children>
+            <Label text="Every" />
+            <TextField fx:id="compoundingBaseUnitRepeatTextField" prefWidth="40.0" />
+            <ChoiceBox fx:id="compoundingBaseUnitChoiceBox" />
+         </children>
+      </HBox>
+      <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="7">
+         <children>
+            <Label text="Every" />
+            <TextField fx:id="paymentBaseUnitRepeatTextField" prefWidth="40.0" />
+            <ChoiceBox fx:id="paymentBaseUnitChoiceBox" />
+         </children>
+      </HBox>
       <TextField fx:id="numberOfPaymentsTextField" alignment="BOTTOM_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="8">
          <GridPane.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />

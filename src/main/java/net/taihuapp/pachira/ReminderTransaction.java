@@ -57,7 +57,7 @@ public class ReminderTransaction {
             if (dueDate.isBefore(today))
                 return OVERDUE;
 
-            if (!dueDate.isAfter(today.plusDays(mReminder.getDateSchedule().getAlertDay())))
+            if (!dueDate.isAfter(today.plusDays(mReminder.getAlertDays())))
                 return DUE_SOON;
 
             return "";

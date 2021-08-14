@@ -81,10 +81,10 @@ public class ReminderDao extends Dao<Reminder, Integer> {
         final boolean isDOM = resultSet.getBoolean("ISDOM");
         final boolean isFWD = resultSet.getBoolean("ISFWD");
 
-        DateSchedule dateSchedule = new DateSchedule(baseUnit, numPeriod, startDate, endDate, alertDays, isDOM, isFWD);
-        return new Reminder(id, type, payee, amount, estCount, accountID, categoryID, tagID, memo, dateSchedule,
-                splitTransactionListDao.get(new Pair<>(SplitTransaction.Type.REM, id)).map(Pair::getValue)
-                        .orElse(new ArrayList<>()));
+        DateSchedule dateSchedule = new DateSchedule(baseUnit, numPeriod, startDate, endDate, isDOM, isFWD);
+        return new Reminder(id, type, payee, amount, estCount, accountID, categoryID, tagID, memo, alertDays,
+                dateSchedule, splitTransactionListDao.get(new Pair<>(SplitTransaction.Type.REM, id))
+                .map(Pair::getValue).orElse(new ArrayList<>()));
     }
 
     @Override
@@ -101,7 +101,7 @@ public class ReminderDao extends Dao<Reminder, Integer> {
         preparedStatement.setObject(10, reminder.getDateSchedule().getEndDate());
         preparedStatement.setString(11, reminder.getDateSchedule().getBaseUnit().name());
         preparedStatement.setInt(12, reminder.getDateSchedule().getNumPeriod());
-        preparedStatement.setInt(13, reminder.getDateSchedule().getAlertDay());
+        preparedStatement.setInt(13, reminder.getAlertDays());
         preparedStatement.setBoolean(14, reminder.getDateSchedule().isDOMBased());
         preparedStatement.setBoolean(15, reminder.getDateSchedule().isForward());
         if (withKey)

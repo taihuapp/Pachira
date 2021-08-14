@@ -56,9 +56,6 @@ public class DateSchedule {
     private final ObjectProperty<LocalDate> mStartDateProperty = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDate> mEndDateProperty = new SimpleObjectProperty<>();
 
-    // number of days of advance alert
-    private final IntegerProperty mAlertDayProperty = new SimpleIntegerProperty();
-
     // used in MONTH/QUARTER/YEAR schedules
     // if true, count day of the month
     // otherwise, count day of the week
@@ -254,7 +251,6 @@ public class DateSchedule {
     ObjectProperty<LocalDate> getStartDateProperty() { return mStartDateProperty; }
     ObjectProperty<LocalDate> getEndDateProperty() { return mEndDateProperty; }
     ObjectProperty<Integer> getNumPeriodProperty() { return mNumPeriodProperty; }
-    IntegerProperty getAlertDayProperty() { return mAlertDayProperty; }
     BooleanProperty getIsDOMBasedProperty() { return mIsDOMBasedProperty; }
     BooleanProperty getIsForwardProperty() { return mIsForwardProperty; }
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
@@ -264,7 +260,6 @@ public class DateSchedule {
     public LocalDate getStartDate() { return getStartDateProperty().get(); }
     public LocalDate getEndDate() { return getEndDateProperty().get(); }
     public Integer getNumPeriod() { return getNumPeriodProperty().get(); }
-    public Integer getAlertDay() { return getAlertDayProperty().get(); }
     public Boolean isDOMBased() { return getIsDOMBasedProperty().get(); }
     public Boolean isForward() { return getIsForwardProperty().get(); }
 
@@ -275,12 +270,11 @@ public class DateSchedule {
     // np > 0.
     // e should be after s
     // isDOM and isFwd are not used for DAY and WEEK
-    public DateSchedule(BaseUnit bu, int np, LocalDate s, LocalDate e, int ad, boolean isDOM, boolean isFwd) {
+    public DateSchedule(BaseUnit bu, int np, LocalDate s, LocalDate e, boolean isDOM, boolean isFwd) {
         mBaseUnitProperty.set(bu);
         mNumPeriodProperty.set(np);
         mStartDateProperty.set(s);
         mEndDateProperty.set(e);
-        mAlertDayProperty.set(ad);
         mIsDOMBasedProperty.set(isDOM);
         mIsForwardProperty.set(isFwd);
 
@@ -444,7 +438,7 @@ public class DateSchedule {
                 for (int d = 0; d < 60; d++) {
                     for (boolean isDOM : tfArray) {
                         for (boolean isFwd : tfArray) {
-                            DateSchedule dateSchedule = new DateSchedule(bu, np, s.plusDays(d), e, 3, isDOM, isFwd);
+                            DateSchedule dateSchedule = new DateSchedule(bu, np, s.plusDays(d), e, isDOM, isFwd);
 
                             List<LocalDate> dueDates = dateSchedule.getDueDates(e);
                             for (int i = 1; i < dueDates.size(); i++) {

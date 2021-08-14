@@ -747,7 +747,7 @@ public class MainApp extends Application {
                     null : Date.valueOf(reminder.getDateSchedule().getEndDate()));
             preparedStatement.setString(10, reminder.getDateSchedule().getBaseUnit().name());
             preparedStatement.setInt(11, reminder.getDateSchedule().getNumPeriod());
-            preparedStatement.setInt(12, reminder.getDateSchedule().getAlertDay());
+            preparedStatement.setInt(12, reminder.getAlertDays());
             preparedStatement.setBoolean(13, reminder.getDateSchedule().isDOMBased());
             preparedStatement.setBoolean(14, reminder.getDateSchedule().isForward());
             preparedStatement.setInt(15, reminder.getEstimateCount());
@@ -1776,9 +1776,9 @@ public class MainApp extends Application {
                 boolean isDOM = resultSet.getBoolean("ISDOM");
                 boolean isFWD = resultSet.getBoolean("ISFWD");
 
-                DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, ad, isDOM, isFWD);
+                DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, isDOM, isFWD);
                 mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount, estCnt,
-                        accountID, categoryID, tagID, memo, ds,
+                        accountID, categoryID, tagID, memo, ad, ds,
                         loadSplitTransactions(-id).getOrDefault(-id, new ArrayList<>())));
             }
         } catch (SQLException e) {
@@ -1911,21 +1911,6 @@ public class MainApp extends Application {
                 if (resultSet != null) resultSet.close();
             } catch (SQLException e) {
                 mLogger.error("SQLException " + e.getSQLState(), e);
-            }
-        }
-    }
-
-    void updateAccountBalance() {
-        for (Account account : getAccountList(null, false, true)) {
-            updateAccountBalance(account);
-        }
-    }
-
-    void updateAccountBalance(Security security) {
-        // update account balance for all non-hidden accounts contains security in currentsecuritylist
-        for (Account account : getAccountList(Account.Type.Group.INVESTING, false, true)) {
-            if (account.hasSecurity(security)) {
-                updateAccountBalance(account.getID());
             }
         }
     }

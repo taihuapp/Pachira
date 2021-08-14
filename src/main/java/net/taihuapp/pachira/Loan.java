@@ -67,7 +67,7 @@ public class Loan {
             new SimpleObjectProperty<>(DateSchedule.BaseUnit.MONTH);
     private final ObjectProperty<Integer> compoundBURepeatProperty = new SimpleObjectProperty<>(1);
     private final DateSchedule paymentDateSchedule = new DateSchedule(DateSchedule.BaseUnit.MONTH, 1,
-            LocalDate.now().plusMonths(1),null, 3, true, true);
+            LocalDate.now().plusMonths(1),null,true, true);
     private final ObjectProperty<LocalDate> loanDateProperty = new SimpleObjectProperty<>(LocalDate.now());
     private final ObjectProperty<Integer> numberOfPaymentsProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<BigDecimal> paymentAmountProperty = new SimpleObjectProperty<>(null);

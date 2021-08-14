@@ -27,7 +27,6 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
-import javafx.util.converter.NumberStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 import org.controlsfx.control.textfield.TextFields;
@@ -203,8 +202,11 @@ public class EditReminderDialogController {
                 c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         mNumPeriodTextField.setTextFormatter(numPeriodFormatter);
         numPeriodFormatter.valueProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty());
-        mAlertDayTextField.textProperty().bindBidirectional(mReminder.getDateSchedule().getAlertDayProperty(),
-                new NumberStringConverter("#"));
+
+        TextFormatter<Integer> alertDaysFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
+                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        mAlertDayTextField.setTextFormatter(alertDaysFormatter);
+        alertDaysFormatter.valueProperty().bindBidirectional(mReminder.getAlertDaysProperty());
 
         domRadioButton.textProperty().bind(Bindings.createStringBinding(
                 () -> "Count days of " + mBaseUnitChoiceBox.valueProperty().get().toString().toLowerCase(),

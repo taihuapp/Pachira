@@ -115,7 +115,6 @@ public class SplitTransactionsDialogController {
 
         if (!message.isBlank()) {
             // added textarea to show message
-            System.err.println(message.length());
             TextArea textArea = new TextArea(message);
             textArea.setEditable(false); // no editing
             textArea.setWrapText(true); // wrapping text

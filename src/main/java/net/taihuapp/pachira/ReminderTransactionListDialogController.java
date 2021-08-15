@@ -113,7 +113,7 @@ public class ReminderTransactionListDialogController {
         }
 
         List<ReminderTransaction> toBeRemoved = new FilteredList<>(reminderTransactions,
-                rt -> rt.getReminder().getID() == reminder.getID());
+                rt -> rt.getReminder() != null && rt.getReminder().getID() == reminder.getID());
         reminderTransactions.removeAll(toBeRemoved);
     }
 
@@ -121,8 +121,18 @@ public class ReminderTransactionListDialogController {
     private void handleEnter() {
         ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
         Reminder reminder = rt.getReminder();
-        Transaction.TradeAction ta = reminder.getType() == Reminder.Type.PAYMENT ?
-                Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT;
+        final Transaction.TradeAction ta;
+        switch (reminder.getType()) {
+            case DEPOSIT:
+                ta = Transaction.TradeAction.DEPOSIT;
+                break;
+            case PAYMENT:
+            case LOAN_PAYMENT:
+                ta = Transaction.TradeAction.WITHDRAW;
+                break;
+            default:
+                throw new IllegalStateException(reminder.getType() + " not implemented");
+        }
 
         int accountID = reminder.getAccountID();
         Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta, reminder.getCategoryID());
@@ -140,7 +150,8 @@ public class ReminderTransactionListDialogController {
         Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
         try {
             int tid = DialogUtil.showEditTransactionDialog(mainModel, stage, transaction,
-                    mainModel.getAccountList(a -> a.getType().isGroup(Account.Type.Group.SPENDING)),
+                    mainModel.getAccountList(a ->
+                            (!a.getHiddenFlag() && a.getType().isGroup(Account.Type.Group.SPENDING))),
                     mainModel.getAccount(a -> a.getID() == reminder.getAccountID()).orElse(null),
                     Collections.singletonList(ta));
             if (tid >= 0) {

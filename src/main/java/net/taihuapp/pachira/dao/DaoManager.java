@@ -830,9 +830,12 @@ public class DaoManager {
 
         sqlCmd = "create table LOAN_TRANSACTIONS ("
                 + "ID integer NOT NULL auto_increment (10), "
+                + "LOAN_ID integer NOT NULL, "
+                + "TYPE varchar(16) NOT NULL, "
+                + "SEQ_NUMBER integer NOT NULL, "
                 + "DATE date NOT NULL, "
-                + "INTEREST_RATE decimal(20, 4), "
-                + "PAYMENT_AMOUNT decimal(20, 4), "
+                + "INTEREST_RATE decimal(20, 6), "
+                + "PAYMENT_AMOUNT decimal(20, 2), "
                 + "TRANSACTION_ID integer, "
                 + "primary key(ID));";
         executeUpdateQuery(sqlCmd);

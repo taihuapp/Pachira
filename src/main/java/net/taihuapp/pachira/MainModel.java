@@ -1114,6 +1114,11 @@ public class MainModel {
         return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).getAll();
     }
 
+    // get the loan by the loan account id.
+    Optional<Loan> getLoanByLoanAccountId(int id) throws DaoException {
+        return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).getByAccountID(id);
+    }
+
     /**
      * insert tag to the database and the master tag list
      * @param tag - input

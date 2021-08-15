@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.Optional;
 
 public class LoanDao extends Dao<Loan, Integer> {
 
@@ -83,5 +84,21 @@ public class LoanDao extends Dao<Loan, Integer> {
         preparedStatement.setBigDecimal(11, loan.getPaymentAmount());
         if (withKey)
             preparedStatement.setInt(12, loan.getID());
+    }
+
+    // get the loan by its loan account id
+    public Optional<Loan> getByAccountID(int accountID) throws DaoException {
+        final String sqlCmd = "select * from " + getTableName() + " where ACCOUNT_ID = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            setPreparedStatement(preparedStatement, accountID);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    return Optional.of(fromResultSet(resultSet));
+                }
+                return Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "", e);
+        }
     }
 }

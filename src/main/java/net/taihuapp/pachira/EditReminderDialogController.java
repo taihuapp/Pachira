@@ -34,8 +34,10 @@ import org.controlsfx.control.textfield.TextFields;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class EditReminderDialogController {
@@ -117,8 +119,6 @@ public class EditReminderDialogController {
         this.mReminder = reminder;
 
         // visibility
-        amountLabel.visibleProperty().bind(mTypeChoiceBox.valueProperty()
-                .isEqualTo(Reminder.Type.LOAN_PAYMENT).not());
         fixedAmountHBox.visibleProperty().bind(amountLabel.visibleProperty());
         estimateHBox.visibleProperty().bind(fixedAmountHBox.visibleProperty());
         mAmountTextField.visibleProperty().bind(mFixedAmountRadioButton.selectedProperty());
@@ -127,18 +127,22 @@ public class EditReminderDialogController {
         mStartDatePicker.disableProperty().bind(fixedAmountHBox.visibleProperty().not());
         mEndDatePicker.disableProperty().bind(fixedAmountHBox.visibleProperty().not());
 
+        // domRadioButton, dowRadioButton, fwdRadioButton, revRadioButton
+        // are only visible for MONTH/QUARTER/YEAR for PAYMENT and DEPOSIT type.
         final Callable<Boolean> converter = () -> {
             if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT)
                 return false;
             switch (mReminder.getDateSchedule().getBaseUnit()) {
                 case DAY:
                 case WEEK:
+                case HALF_MONTH:
                     return false;
                 case MONTH:
                 case QUARTER:
                 case YEAR:
-                default:
                     return true;
+                default:
+                    throw new IllegalArgumentException(mReminder.getDateSchedule().getBaseUnit() + " not implemented");
             }
         };
         domRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
@@ -172,7 +176,7 @@ public class EditReminderDialogController {
         mAccountIDComboBox.valueProperty().addListener((obs, ov, nv) -> {
             if (nv == null || mCategoryTransferAccountIDComboBoxWrapper == null)
                 return;
-            mCategoryTransferAccountIDComboBoxWrapper.setFilter(false, nv);
+            mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate());
         });
 
         mCategoryTransferAccountIDComboBoxWrapper =
@@ -223,43 +227,95 @@ public class EditReminderDialogController {
         mEstimateAmountRadioButton.setSelected(mReminder.getEstimateCount() > 0);
 
         mTypeChoiceBox.valueProperty().addListener((obs, o, n) -> {
-            if (n == Reminder.Type.LOAN_PAYMENT) {
+            mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate());
+            amountLabel.setVisible(n != Reminder.Type.LOAN_PAYMENT);
+            mCategoryIDLabel.setText(n == Reminder.Type.LOAN_PAYMENT ? "Loan Account" : "Category");
+        });
+        mCategoryIDComboBox.valueProperty().addListener((obs, o, n) -> {
+            if (n == null)
+                return;
 
+            // setup principal/interest payment in split transactions
+            if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT) {
                 try {
-                    // the set of negative account numbers of loans already have a reminder
-                    Set<Integer> excludeAccountIDSet = mainModel.getReminderList().stream()
-                            .filter(r -> r.getType()== Reminder.Type.LOAN_PAYMENT)
-                            .map(Reminder::getCategoryID).collect(Collectors.toSet());
-                    // the set of loans not included in excludeAccountIDSet.
-                    Set<Integer> loanAccountIDSet = mainModel.getLoanList().stream().map(l -> -l.getAccountID())
-                            .filter(i -> !excludeAccountIDSet.contains(i)).collect(Collectors.toSet());
-                    mCategoryTransferAccountIDComboBoxWrapper.setFilter(loanAccountIDSet::contains);
-                    mCategoryIDLabel.setText("Loan Account");
+                    Optional<Loan> loanOptional = mainModel.getLoanByLoanAccountId(-mCategoryIDComboBox.getValue());
+                    if (loanOptional.isPresent()) {
+                        List<Loan.PaymentItem> paymentItemList = loanOptional.get().getPaymentSchedule();
+                        BigDecimal principal = BigDecimal.ZERO;
+                        BigDecimal interest = BigDecimal.ZERO;
+                        if (!paymentItemList.isEmpty()) {
+                            principal = paymentItemList.get(0).getPrincipalAmountProperty().get().negate();
+                            interest = paymentItemList.get(0).getInterestAmountProperty().get().negate();
+                        }
+                        List<SplitTransaction> stList = mReminder.getSplitTransactionList();
+                        stList.clear();
+                        // add the principal payment first
+                        stList.add(new SplitTransaction(-1, mReminder.getCategoryID(), 0, "principal payment",
+                                principal, 0));
+                        // add the interest payment
+                        int cid = mainModel.getCategory(c -> c.getName().equals("Interest Exp")).map(Category::getID)
+                                .orElse(0);
+                        stList.add(new SplitTransaction(-1, cid, 0, "interest payment",
+                                interest, 0));
+                    }
                 } catch (DaoException e) {
-                    final String msg = "DaoException when get reminder/loan";
+                    final String msg = "DaoException when get loan";
                     logger.error(msg, e);
                     DialogUtil.showExceptionDialog(getStage(), "DaoException", msg, e.toString(), e);
                 }
-            } else {
-                mCategoryTransferAccountIDComboBoxWrapper.setFilter(i -> true);
-                mCategoryIDLabel.setText("Category");
             }
         });
+    }
+
+    private Predicate<Integer> categoryIDPredicate() {
+        if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT) {
+            try {
+                // the set of negative account numbers of loans already have a reminder
+                Set<Integer> excludeAccountIDSet = mainModel.getReminderList().stream()
+                        .filter(r -> r.getType() == Reminder.Type.LOAN_PAYMENT)
+                        .map(Reminder::getCategoryID).collect(Collectors.toSet());
+                // the set of loans not included in excludeAccountIDSet.
+                Set<Integer> loanAccountIDSet = mainModel.getLoanList().stream().map(l -> -l.getAccountID())
+                        .filter(i -> !excludeAccountIDSet.contains(i)).collect(Collectors.toSet());
+
+                mCategoryTransferAccountIDComboBoxWrapper.setFilter(loanAccountIDSet::contains);
+
+                // only show Loan type accounts in loanAccountIDSet.
+                return loanAccountIDSet::contains;
+            } catch (DaoException e) {
+                final String msg = "DaoException when get reminder/loan";
+                logger.error(msg, e);
+                DialogUtil.showExceptionDialog(getStage(), "DaoException", msg, e.toString(), e);
+            }
+        }
+        // show all categories and accounts, except the account in AccountID combobox.
+        return i -> i != -mAccountIDComboBox.getValue();
     }
 
     @FXML
     private void handleSplit() {
         final BigDecimal netAmount;
-        if (mFixedAmountRadioButton.isSelected()) {
+        if (!mFixedAmountRadioButton.isSelected() || mReminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+            netAmount = null;
+        } else {
             netAmount = mReminder.getType() == Reminder.Type.DEPOSIT ?
                     mReminder.getAmount().negate() : mReminder.getAmount();
-        } else {
-            netAmount = null;
         }
 
         try {
+            final String message;
+            final List<SplitTransaction> stList = mReminder.getSplitTransactionList();
+            if (mReminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+                message = "The 1st split transaction should always be the principal payment. "
+                        + "The second should always be the interest payment. "
+                        + "The principal and interest payment amount will be automatically updated. "
+                        + "Choose the desired category for the interest payment. "
+                        + "Add any other payment below.";
+            } else {
+                message = "";
+            }
             List<SplitTransaction> outputSplitTransactionList = DialogUtil.showSplitTransactionsDialog(mainModel,
-                    getStage(), mAccountIDComboBox.getValue(), mReminder.getSplitTransactionList(), "", netAmount);
+                    getStage(), mAccountIDComboBox.getValue(), stList, message, netAmount);
 
             if (outputSplitTransactionList != null) {
                 // splitTransactionList changed
@@ -278,6 +334,20 @@ public class EditReminderDialogController {
         // todo
 
         List<SplitTransaction> stList = mReminder.getSplitTransactionList();
+        if (mReminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+            if (stList.size() < 2 || !stList.get(0).getCategoryID().equals(mReminder.getCategoryID())) {
+                final String title = "Warning";
+                final String header = "Split transaction list not properly setup for loan payment";
+                final String content = "Need at least two split transactions, the 1st for principal payment "
+                        + "and the 2nd for interest payment.";
+                DialogUtil.showWarningDialog(getStage(), title, header, content);
+                return;
+            } else {
+                // amount is always positive
+                mReminder.setAmount(stList.stream().map(SplitTransaction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add).abs());
+            }
+        }
         if (!stList.isEmpty()) {
             BigDecimal netAmount = mReminder.getAmount();
             if (mReminder.getType() == Reminder.Type.DEPOSIT)

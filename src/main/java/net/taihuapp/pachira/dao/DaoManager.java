@@ -829,14 +829,13 @@ public class DaoManager {
         executeUpdateQuery(sqlCmd);
 
         sqlCmd = "create table LOAN_TRANSACTIONS ("
-                + "ID integer NOT NULL auto_increment (10), "
-                + "LOAN_ID integer NOT NULL, "
+                + "ID integer NOT NULL auto_increment (1), "
                 + "TYPE varchar(16) NOT NULL, "
-                + "SEQ_NUMBER integer NOT NULL, "
+                + "LOAN_ID integer NOT NULL, "
+                + "TRANSACTION_ID integer NOT NULL, "
                 + "DATE date NOT NULL, "
                 + "INTEREST_RATE decimal(20, 6), "
-                + "PAYMENT_AMOUNT decimal(20, 2), "
-                + "TRANSACTION_ID integer, "
+                + "AMOUNT decimal(20, 2), "
                 + "primary key(ID));";
         executeUpdateQuery(sqlCmd);
     }
@@ -896,7 +895,7 @@ public class DaoManager {
     public enum DaoType {
         ACCOUNT, SECURITY, TRANSACTION, SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE, FIDATA,
         ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL,
-        LOAN
+        LOAN, LOAN_TRANSACTION
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -946,6 +945,8 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new ReportDetailDao(connection));
             case LOAN:
                 return daoMap.computeIfAbsent(daoType, o -> new LoanDao(connection));
+            case LOAN_TRANSACTION:
+                return daoMap.computeIfAbsent(daoType, o -> new LoanTransactionDao(connection));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

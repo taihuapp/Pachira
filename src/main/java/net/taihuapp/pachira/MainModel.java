@@ -910,9 +910,8 @@ public class MainModel {
             }
 
             // calculate next due date
-            final LocalDate lastDueDate = sortedList.isEmpty() ?
-                    reminder.getDateSchedule().getStartDate() : sortedList.get(0).getDueDate().plusDays(1);
-            final LocalDate nextDueDate = reminder.getDateSchedule().getNextDueDate(lastDueDate);
+            final LocalDate nextDueDate = sortedList.isEmpty() ? reminder.getDateSchedule().getStartDate()
+                    : reminder.getDateSchedule().getNextDueDate(sortedList.get(0).getDueDate());
             reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
         }
         return reminderTransactions;
@@ -1117,6 +1116,10 @@ public class MainModel {
     // get the loan by the loan account id.
     Optional<Loan> getLoanByLoanAccountId(int id) throws DaoException {
         return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).getByAccountID(id);
+    }
+
+    void insertLoanTransaction(LoanTransaction loanTransaction) throws DaoException {
+        ((LoanTransactionDao) daoManager.getDao(DaoManager.DaoType.LOAN_TRANSACTION)).insert(loanTransaction);
     }
 
     /**

@@ -34,7 +34,7 @@ public class ModelException extends Exception {
          */
         INVALID_TRANSACTION,
         /**
-         * the lot info is not valid
+         * the lotInfo is not valid
          */
         INVALID_LOT_INFO,
         /**
@@ -56,7 +56,15 @@ public class ModelException extends Exception {
         /**
          * QIF parse exception
          */
-        QIF_PARSE_EXCEPTION
+        QIF_PARSE_EXCEPTION,
+        /**
+         * not finding the loan
+         */
+        LOAN_NOT_FOUND,
+        /**
+         * not find payment item on date
+         */
+        LOAN_PAYMENT_NOT_FOUND
     }
 
     private final ErrorCode errorCode;

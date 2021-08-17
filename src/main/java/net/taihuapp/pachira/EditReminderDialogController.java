@@ -230,6 +230,8 @@ public class EditReminderDialogController {
             mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate());
             amountLabel.setVisible(n != Reminder.Type.LOAN_PAYMENT);
             mCategoryIDLabel.setText(n == Reminder.Type.LOAN_PAYMENT ? "Loan Account" : "Category");
+            mNumPeriodTextField.setEditable(n != Reminder.Type.LOAN_PAYMENT);
+            mBaseUnitChoiceBox.setDisable(n == Reminder.Type.LOAN_PAYMENT);
         });
         mCategoryIDComboBox.valueProperty().addListener((obs, o, n) -> {
             if (n == null)
@@ -241,6 +243,7 @@ public class EditReminderDialogController {
                     Optional<Loan> loanOptional = mainModel.getLoanByLoanAccountId(-mCategoryIDComboBox.getValue());
                     if (loanOptional.isPresent()) {
                         List<Loan.PaymentItem> paymentItemList = loanOptional.get().getPaymentSchedule();
+                        mStartDatePicker.setValue(paymentItemList.get(0).getDate());
                         BigDecimal principal = BigDecimal.ZERO;
                         BigDecimal interest = BigDecimal.ZERO;
                         if (!paymentItemList.isEmpty()) {

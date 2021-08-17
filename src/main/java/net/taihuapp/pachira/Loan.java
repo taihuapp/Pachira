@@ -33,6 +33,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Loan {
 
@@ -53,10 +54,14 @@ public class Loan {
         }
 
         public ObjectProperty<Integer> getSequenceIDProperty() { return sequenceIDProperty; }
-        public ObjectProperty<LocalDate> getDateProperty() { return dateProperty; }
-        public ObjectProperty<BigDecimal> getPrincipalAmountProperty() { return principalAmountProperty; }
-        public ObjectProperty<BigDecimal> getInterestAmountProperty() { return interestAmountProperty; }
+        ObjectProperty<LocalDate> getDateProperty() { return dateProperty; }
+        ObjectProperty<BigDecimal> getPrincipalAmountProperty() { return principalAmountProperty; }
+        ObjectProperty<BigDecimal> getInterestAmountProperty() { return interestAmountProperty; }
         public ObjectProperty<BigDecimal> getBalanceAmountProperty() { return balanceAmountProperty; }
+
+        LocalDate getDate() { return getDateProperty().get(); }
+        BigDecimal getPrincipalAmount() { return getPrincipalAmountProperty().get(); }
+        BigDecimal getInterestAmount() { return getInterestAmountProperty().get(); }
     }
 
     private int id = -1;
@@ -204,7 +209,7 @@ public class Loan {
         while (i < n-1) {
             i++;
             iPayment = y.multiply(balance).setScale(0, RoundingMode.HALF_UP).movePointLeft(2);
-            if (i == n)
+            if (i == n-1)
                 pPayment = balance; // we have to pay everything off
             else
                 pPayment = paymentAmount.subtract(iPayment);
@@ -284,6 +289,10 @@ public class Loan {
     }
 
     ObservableList<PaymentItem> getPaymentSchedule() { return paymentSchedule; }
+
+    Optional<PaymentItem> getPaymentItem(LocalDate dueDate) {
+        return getPaymentSchedule().stream().filter(paymentItem -> paymentItem.getDate().isEqual(dueDate)).findAny();
+    }
 
     public int getID() { return id; }
     void setID(int id) { this.id = id; }

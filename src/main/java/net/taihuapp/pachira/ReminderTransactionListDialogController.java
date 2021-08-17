@@ -148,6 +148,33 @@ public class ReminderTransactionListDialogController {
         transaction.setSplitTransactionList(stList);
         transaction.setTagID(reminder.getTagID());
         Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
+
+        // a few more things to take care of in case of loan payment
+        final LoanTransaction loanTransaction;
+        if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+            try {
+                final int loanId = -reminder.getCategoryID();
+                final Loan loan = mainModel.getLoanByLoanAccountId(loanId)
+                        .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_NOT_FOUND,
+                                "Missing loan with id = " + loanId, null));
+                final Loan.PaymentItem paymentItem = loan.getPaymentItem(rt.getDueDate())
+                        .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_PAYMENT_NOT_FOUND,
+                                "Missing payment item on " + rt.getDueDate(), null));
+                transaction.getSplitTransactionList().get(0).setAmount(paymentItem.getPrincipalAmount().negate());
+                transaction.getSplitTransactionList().get(1).setAmount(paymentItem.getInterestAmount().negate());
+                loanTransaction = new LoanTransaction(-1, LoanTransaction.Type.REGULAR_PAYMENT,
+                        loanId, -1, rt.getDueDate(), BigDecimal.ZERO, BigDecimal.ZERO);
+            } catch (DaoException | ModelException  e) {
+                final String msg = "Problem with Loan " + (-reminder.getCategoryID()) + " or payment item on "
+                        + rt.getDueDate();
+                logger.error(msg, e);
+                DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+                return;
+            }
+        } else {
+            loanTransaction = null;
+        }
+
         try {
             int tid = DialogUtil.showEditTransactionDialog(mainModel, stage, transaction,
                     mainModel.getAccountList(a ->
@@ -155,6 +182,10 @@ public class ReminderTransactionListDialogController {
                     mainModel.getAccount(a -> a.getID() == reminder.getAccountID()).orElse(null),
                     Collections.singletonList(ta));
             if (tid >= 0) {
+                if (loanTransaction != null) {
+                    loanTransaction.setTransactionId(tid);
+                    mainModel.insertLoanTransaction(loanTransaction);
+                }
                 rt.setTransactionID(tid);
                 mainModel.insertReminderTransaction(rt);
                 reminderTransactions.setAll(mainModel.getReminderTransactionList());

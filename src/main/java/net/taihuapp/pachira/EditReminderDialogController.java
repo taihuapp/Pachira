@@ -21,6 +21,7 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
@@ -36,7 +37,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -104,135 +104,42 @@ public class EditReminderDialogController {
 
     private Stage getStage() { return (Stage) mPayeeTextField.getScene().getWindow(); }
 
-    @FXML
-    private void initialize() {
-        mBaseUnitChoiceBox.getItems().setAll(DateSchedule.BaseUnit.values());
-
-
-        // todo need a ChangeListener for mCountBeforeEndTextField
-
-        mTypeChoiceBox.getItems().setAll(Reminder.Type.values());
-    }
-
     void setMainModel(MainModel mainModel, Reminder reminder) {
         this.mainModel = mainModel;
         this.mReminder = reminder;
 
-        // visibility
-        fixedAmountHBox.visibleProperty().bind(amountLabel.visibleProperty());
-        estimateHBox.visibleProperty().bind(fixedAmountHBox.visibleProperty());
-        mAmountTextField.visibleProperty().bind(mFixedAmountRadioButton.selectedProperty());
-        mEstimateNumOccurrenceTextField.visibleProperty().bind(mEstimateAmountRadioButton.selectedProperty());
+        // setup visibility/editable/disable update rules and populate choice boxes
+        mTypeChoiceBox.getItems().setAll(Reminder.Type.values());
+        mTypeChoiceBox.getSelectionModel().selectFirst();
+        mTypeChoiceBox.valueProperty().addListener((obs, o, n) ->
+                mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate()));
 
-        mStartDatePicker.disableProperty().bind(fixedAmountHBox.visibleProperty().not());
-        mEndDatePicker.disableProperty().bind(fixedAmountHBox.visibleProperty().not());
+        mFixedAmountRadioButton.disableProperty().bind(mTypeChoiceBox.valueProperty()
+                .isEqualTo(Reminder.Type.LOAN_PAYMENT));
 
-        // domRadioButton, dowRadioButton, fwdRadioButton, revRadioButton
-        // are only visible for MONTH/QUARTER/YEAR for PAYMENT and DEPOSIT type.
-        final Callable<Boolean> converter = () -> {
-            if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT)
-                return false;
-            switch (mReminder.getDateSchedule().getBaseUnit()) {
-                case DAY:
-                case WEEK:
-                case HALF_MONTH:
-                    return false;
-                case MONTH:
-                case QUARTER:
-                case YEAR:
-                    return true;
-                default:
-                    throw new IllegalArgumentException(mReminder.getDateSchedule().getBaseUnit() + " not implemented");
-            }
-        };
-        domRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
-        dowRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
-        fwdRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
-        revRadioButton.visibleProperty().bind(Bindings.createBooleanBinding(converter,
-                mReminder.getDateSchedule().getBaseUnitProperty(), mTypeChoiceBox.valueProperty()));
+        mAmountTextField.editableProperty().bind(mFixedAmountRadioButton.selectedProperty()
+                        .and(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT)));
+        estimateHBox.visibleProperty().bind(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT));
 
-        mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
-        mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
-        TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
-
-        mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
-                new BigDecimalStringConverter());
-        mEstimateNumOccurrenceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
-                new IntegerStringConverter());
+        mEstimateNumOccurrenceTextField.editableProperty().bind(mEstimateAmountRadioButton.selectedProperty()
+                        .and(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT)));
 
         mAccountIDComboBox.setConverter(new ConverterUtil.AccountIDConverter(mainModel));
-        mAccountIDComboBox.getItems().clear();
-        for (Account a : mainModel.getAccountList(account ->
-                    account.getType().isGroup(Account.Type.Group.SPENDING) && !account.getHiddenFlag()
-                    && !account.getName().equals(MainModel.DELETED_ACCOUNT_NAME)))
-            mAccountIDComboBox.getItems().add(a.getID());
-
-        Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
-        if (mAccountIDComboBox.getSelectionModel().isEmpty())
-            mAccountIDComboBox.getSelectionModel().selectFirst(); // if no account selected, default the first.
+        mAccountIDComboBox.getItems().setAll(mainModel.getAccountList(a -> !a.getHiddenFlag()
+                && a.getType().isGroup(Account.Type.Group.SPENDING)
+                && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME)).stream()
+                .map(Account::getID).collect(Collectors.toList()));
         mAccountIDComboBox.valueProperty().addListener((obs, ov, nv) -> {
             if (nv == null || mCategoryTransferAccountIDComboBoxWrapper == null)
                 return;
             mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate());
         });
 
-        mCategoryTransferAccountIDComboBoxWrapper =
-                new EditTransactionDialogControllerNew.CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox,
-                        mainModel);
-        mCategoryIDComboBox.valueProperty().bindBidirectional(reminder.getCategoryIDProperty());
-
-        mTagIDComboBox.setConverter(new ConverterUtil.TagIDConverter(mainModel));
-        mTagIDComboBox.getItems().clear();
-        for (Tag t : mainModel.getTagList())
-            mTagIDComboBox.getItems().add(t.getID());
-        Bindings.bindBidirectional(mTagIDComboBox.valueProperty(), mReminder.getTagIDProperty());
-
-        mMemoTextField.textProperty().bindBidirectional(mReminder.getMemoProperty());
-
-        // javafx DatePicker control doesn't aware of the edited value in its TextField
-        // this is a work around
-        DatePickerUtil.captureEditedDate(mStartDatePicker);
-        DatePickerUtil.captureEditedDate(mEndDatePicker);
-
-        // bind properties for DateSchedule fields
-        mBaseUnitChoiceBox.valueProperty().bindBidirectional(mReminder.getDateSchedule().getBaseUnitProperty());
-        mStartDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getStartDateProperty());
-        mEndDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getEndDateProperty());
-
-        TextFormatter<Integer> numPeriodFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
-                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
-        mNumPeriodTextField.setTextFormatter(numPeriodFormatter);
-        numPeriodFormatter.valueProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty());
-
-        TextFormatter<Integer> alertDaysFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
-                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
-        mAlertDayTextField.setTextFormatter(alertDaysFormatter);
-        alertDaysFormatter.valueProperty().bindBidirectional(mReminder.getAlertDaysProperty());
-
-        domRadioButton.textProperty().bind(Bindings.createStringBinding(
-                () -> "Count days of " + mBaseUnitChoiceBox.valueProperty().get().toString().toLowerCase(),
-                mBaseUnitChoiceBox.valueProperty()));
-
-
-        // we don't have anything to bind mCountBeforeEndTextField, but we have a TextChangeListener for it
-        // set in initialization
-
-        domRadioButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsDOMBasedProperty());
-        fwdRadioButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsForwardProperty());
-        mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
-
-        mEstimateAmountRadioButton.setSelected(mReminder.getEstimateCount() > 0);
-
-        mTypeChoiceBox.valueProperty().addListener((obs, o, n) -> {
-            mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate());
-            amountLabel.setVisible(n != Reminder.Type.LOAN_PAYMENT);
-            mCategoryIDLabel.setText(n == Reminder.Type.LOAN_PAYMENT ? "Loan Account" : "Category");
-            mNumPeriodTextField.setEditable(n != Reminder.Type.LOAN_PAYMENT);
-            mBaseUnitChoiceBox.setDisable(n == Reminder.Type.LOAN_PAYMENT);
-        });
+        mCategoryIDLabel.textProperty().bind(Bindings.createStringBinding(() ->
+                        mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT ? "Loan Account" : "Category",
+                mTypeChoiceBox.valueProperty()));
+        mCategoryTransferAccountIDComboBoxWrapper = new EditTransactionDialogControllerNew
+                .CategoryTransferAccountIDComboBoxWrapper(mCategoryIDComboBox, mainModel);
         mCategoryIDComboBox.valueProperty().addListener((obs, o, n) -> {
             if (n == null)
                 return;
@@ -268,6 +175,92 @@ public class EditReminderDialogController {
                 }
             }
         });
+
+        mTagIDComboBox.setConverter(new ConverterUtil.TagIDConverter(mainModel));
+        mTagIDComboBox.getItems().setAll(mainModel.getTagList().stream().map(Tag::getID).collect(Collectors.toList()));
+
+        mStartDatePicker.disableProperty().bind(mTypeChoiceBox.valueProperty().isEqualTo(Reminder.Type.LOAN_PAYMENT));
+        // javafx DatePicker control doesn't aware of the edited value in its TextField, this is a work around
+        DatePickerUtil.captureEditedDate(mStartDatePicker);
+
+        mNumPeriodTextField.editableProperty().bind(mTypeChoiceBox.valueProperty()
+                .isNotEqualTo(Reminder.Type.LOAN_PAYMENT));
+
+        mBaseUnitChoiceBox.disableProperty().bind(mTypeChoiceBox.valueProperty().isEqualTo(Reminder.Type.LOAN_PAYMENT));
+        mBaseUnitChoiceBox.getItems().setAll(DateSchedule.BaseUnit.values());
+        mBaseUnitChoiceBox.getSelectionModel().selectFirst();
+
+        // domRadioButton, dowRadioButton, fwdRadioButton, revRadioButton
+        // are only visible for MONTH/QUARTER/YEAR for PAYMENT and DEPOSIT type.
+        BooleanBinding booleanBinding = Bindings.createBooleanBinding(() -> {
+            if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT)
+                return false;
+            switch (mBaseUnitChoiceBox.getValue()) {
+                case DAY:
+                case WEEK:
+                case HALF_MONTH:
+                    return false;
+                case MONTH:
+                case QUARTER:
+                case YEAR:
+                    return true;
+                default:
+                    throw new IllegalArgumentException(mReminder.getDateSchedule().getBaseUnit() + " not implemented");
+            }
+        }, mTypeChoiceBox.valueProperty(), mBaseUnitChoiceBox.valueProperty());
+        domRadioButton.visibleProperty().bind(booleanBinding);
+        dowRadioButton.visibleProperty().bind(booleanBinding);
+        fwdRadioButton.visibleProperty().bind(booleanBinding);
+        revRadioButton.visibleProperty().bind(booleanBinding);
+
+        domRadioButton.textProperty().bind(Bindings.createStringBinding(
+                () -> "Count days of " + mBaseUnitChoiceBox.valueProperty().get().toString().toLowerCase(),
+                mBaseUnitChoiceBox.valueProperty()));
+
+        mEndDatePicker.disableProperty().bind(mTypeChoiceBox.valueProperty().isEqualTo(Reminder.Type.LOAN_PAYMENT));
+        // javafx DatePicker control doesn't aware of the edited value in its TextField, this is a work around
+        DatePickerUtil.captureEditedDate(mEndDatePicker);
+
+        // bind the values of the controls to reminder fields
+        mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
+        mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
+        TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
+
+        mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
+                new BigDecimalStringConverter());
+        mEstimateNumOccurrenceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
+                new IntegerStringConverter());
+
+        Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
+        if (mAccountIDComboBox.getSelectionModel().isEmpty())
+            mAccountIDComboBox.getSelectionModel().selectFirst(); // if no account selected, default the first.
+
+        mCategoryIDComboBox.valueProperty().bindBidirectional(reminder.getCategoryIDProperty());
+
+        mTagIDComboBox.valueProperty().bindBidirectional(mReminder.getTagIDProperty());
+
+        mMemoTextField.textProperty().bindBidirectional(mReminder.getMemoProperty());
+
+        // bind properties for DateSchedule fields
+        mBaseUnitChoiceBox.valueProperty().bindBidirectional(mReminder.getDateSchedule().getBaseUnitProperty());
+        mStartDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getStartDateProperty());
+        mEndDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getEndDateProperty());
+
+        TextFormatter<Integer> numPeriodFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
+                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        mNumPeriodTextField.setTextFormatter(numPeriodFormatter);
+        numPeriodFormatter.valueProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty());
+
+        TextFormatter<Integer> alertDaysFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
+                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        mAlertDayTextField.setTextFormatter(alertDaysFormatter);
+        alertDaysFormatter.valueProperty().bindBidirectional(mReminder.getAlertDaysProperty());
+
+        domRadioButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsDOMBasedProperty());
+        fwdRadioButton.selectedProperty().bindBidirectional(mReminder.getDateSchedule().getIsForwardProperty());
+        mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
+
+        mEstimateAmountRadioButton.setSelected(mReminder.getEstimateCount() > 0);
     }
 
     private Predicate<Integer> categoryIDPredicate() {

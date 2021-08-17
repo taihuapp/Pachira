@@ -151,6 +151,7 @@ public class EditReminderDialogController {
                     if (loanOptional.isPresent()) {
                         List<Loan.PaymentItem> paymentItemList = loanOptional.get().getPaymentSchedule();
                         mStartDatePicker.setValue(paymentItemList.get(0).getDate());
+                        mEndDatePicker.setValue(paymentItemList.get(paymentItemList.size()-1).getDate());
                         BigDecimal principal = BigDecimal.ZERO;
                         BigDecimal interest = BigDecimal.ZERO;
                         if (!paymentItemList.isEmpty()) {

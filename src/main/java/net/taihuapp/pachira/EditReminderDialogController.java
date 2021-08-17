@@ -160,7 +160,7 @@ public class EditReminderDialogController {
                         List<SplitTransaction> stList = mReminder.getSplitTransactionList();
                         stList.clear();
                         // add the principal payment first
-                        stList.add(new SplitTransaction(-1, mReminder.getCategoryID(), 0, "principal payment",
+                        stList.add(new SplitTransaction(-1, n, 0, "principal payment",
                                 principal, 0));
                         // add the interest payment
                         int cid = mainModel.getCategory(c -> c.getName().equals("Interest Exp")).map(Category::getID)

@@ -912,7 +912,9 @@ public class MainModel {
             // calculate next due date
             final LocalDate nextDueDate = sortedList.isEmpty() ? reminder.getDateSchedule().getStartDate()
                     : reminder.getDateSchedule().getNextDueDate(sortedList.get(0).getDueDate());
-            reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
+            final LocalDate endDate = reminder.getDateSchedule().getEndDate();
+            if (endDate == null || !nextDueDate.isAfter(reminder.getDateSchedule().getEndDate()))
+                reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
         }
         return reminderTransactions;
     }

@@ -155,11 +155,11 @@ public class EditLoanDialogController {
         availableAccountComboBox.setConverter(new ConverterUtil.AccountConverter(mainModel));
         availableAccountComboBox.disableProperty().bind(availableAccountRadioButton.selectedProperty().not());
         availableAccountComboBox.valueProperty().addListener((obs, o, n) ->
-                descriptionTextField.setText(n == null ? "" : n.getDescription()));
+                descriptionTextField.setText(n != null && availableAccountRadioButton.isSelected() ?
+                        n.getDescription() : ""));
         availableAccountRadioButton.selectedProperty().addListener((obs, o, n) ->
                 descriptionTextField.setText(n && (availableAccountComboBox.getValue() != null) ?
                         availableAccountComboBox.getValue().getDescription() : ""));
-        availableAccountRadioButton.selectedProperty().bind(readOnlyProperty);
         availableAccountRadioButton.disableProperty().bind(Bindings.createBooleanBinding(() ->
                         readOnlyProperty.get() || availableAccounts.isEmpty(),
                 readOnlyProperty, Bindings.size(availableAccounts)));
@@ -307,6 +307,7 @@ public class EditLoanDialogController {
         if (loan.getAccountID() > 0) {
             availableAccounts = mainModel.getAccountList(a -> a.getID() == loan.getAccountID());
             newAccountNameTextField.setText("");
+            availableAccountRadioButton.setSelected(true);
         } else {
             availableAccounts = mainModel.getAccountList(a -> a.getType() == Account.Type.LOAN
                     && !a.getHiddenFlag() && !occupiedLoanAccountIdList.contains(a.getID()));

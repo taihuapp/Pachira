@@ -1114,8 +1114,8 @@ public class MainModel {
     }
 
     // get the loan by the loan account id.
-    Optional<Loan> getLoanByLoanAccountId(int id) throws DaoException {
-        return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).getByAccountID(id);
+    Optional<Loan> getLoan(int loanAccountId) throws DaoException {
+        return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).get(loanAccountId);
     }
 
     void insertLoanTransaction(LoanTransaction loanTransaction) throws DaoException {
@@ -1159,14 +1159,13 @@ public class MainModel {
                 newAccount.setID(newAccountID);
                 loan.setAccountID(newAccountID);
             }
-            loan.setID(((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).insert(loan));
+            ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).insert(loan);
             daoManager.commit();
             if (newAccount != null) {
                 initAccount(newAccount);
                 accountList.add(newAccount);
             }
         } catch (DaoException e) {
-            loan.setID(0);
             loan.setAccountID(aid);
             try {
                 daoManager.rollback();
@@ -1177,8 +1176,8 @@ public class MainModel {
         }
     }
 
-    void deleteLoan(int loanId) throws DaoException {
-        ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).delete(loanId);
+    void deleteLoan(int loanAccountId) throws DaoException {
+        ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).delete(loanAccountId);
     }
     
     /**

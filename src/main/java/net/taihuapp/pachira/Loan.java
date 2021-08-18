@@ -64,7 +64,6 @@ public class Loan {
         BigDecimal getInterestAmount() { return getInterestAmountProperty().get(); }
     }
 
-    private int id = -1;
     private final ObjectProperty<Integer> accountIDProperty = new SimpleObjectProperty<>(-1);
     private final ObjectProperty<BigDecimal> originalAmountProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<BigDecimal> interestRateProperty = new SimpleObjectProperty<>(null);
@@ -100,7 +99,6 @@ public class Loan {
 
     /**
      *
-     * @param id: unique loan id
      * @param accountId: the account id associated with the loan
      * @param compoundBaseUnit: compound base unit
      * @param compoundBURepeat: compound base unit repeat
@@ -110,14 +108,13 @@ public class Loan {
      * @param loanDate: loan initiation date
      * @param paymentAmount: regular payment amount for principal+interest
      */
-    public Loan(int id, int accountId, DateSchedule.BaseUnit compoundBaseUnit, int compoundBURepeat,
+    public Loan(int accountId, DateSchedule.BaseUnit compoundBaseUnit, int compoundBURepeat,
                 DateSchedule.BaseUnit paymentBaseUnit, int paymentBURepeat, LocalDate firstPaymentDate,
                 int numberOfPayments, BigDecimal originalAmount, BigDecimal interestRate, LocalDate loanDate,
                 BigDecimal paymentAmount) {
 
         setupBindings();
 
-        setID(id);
         setAccountID(accountId);
         setCompoundBaseUnit(compoundBaseUnit);
         setCompoundBURepeat(compoundBURepeat);
@@ -294,9 +291,6 @@ public class Loan {
     Optional<PaymentItem> getPaymentItem(LocalDate dueDate) {
         return getPaymentSchedule().stream().filter(paymentItem -> paymentItem.getDate().isEqual(dueDate)).findAny();
     }
-
-    public int getID() { return id; }
-    void setID(int id) { this.id = id; }
 
     public Integer getAccountID() { return getAccountIDProperty().get(); }
     void setAccountID(Integer i) { getAccountIDProperty().set(i); }

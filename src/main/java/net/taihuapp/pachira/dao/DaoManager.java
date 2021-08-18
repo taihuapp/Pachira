@@ -813,7 +813,6 @@ public class DaoManager {
     private void createLoanTables() throws SQLException {
         String sqlCmd;
         sqlCmd = "create table LOANS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (10), "
                 + "ACCOUNT_ID integer UNIQUE NOT NULL, "
                 + "AMOUNT decimal(20, 2) NOT NULL, "
                 + "INTEREST_RATE decimal(20, 6) NOT NULL, "
@@ -825,13 +824,13 @@ public class DaoManager {
                 + "LOAN_DATE date NOT NULL, "
                 + "FIRST_PAYMENT_DATE date NOT NULL, "
                 + "PAYMENT_AMOUNT decimal(20, 2) NOT NULL, "
-                + "primary key(ID));";
+                + "primary key(ACCOUNT_ID));";
         executeUpdateQuery(sqlCmd);
 
         sqlCmd = "create table LOAN_TRANSACTIONS ("
                 + "ID integer NOT NULL auto_increment (1), "
                 + "TYPE varchar(16) NOT NULL, "
-                + "LOAN_ID integer NOT NULL, "
+                + "LOAN_ACCOUNT_ID integer NOT NULL, "
                 + "TRANSACTION_ID integer NOT NULL, "
                 + "DATE date NOT NULL, "
                 + "INTEREST_RATE decimal(20, 6), "

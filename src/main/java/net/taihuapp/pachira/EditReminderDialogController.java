@@ -147,7 +147,7 @@ public class EditReminderDialogController {
             // setup principal/interest payment in split transactions
             if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT) {
                 try {
-                    Optional<Loan> loanOptional = mainModel.getLoanByLoanAccountId(-mCategoryIDComboBox.getValue());
+                    Optional<Loan> loanOptional = mainModel.getLoan(-mCategoryIDComboBox.getValue());
                     if (loanOptional.isPresent()) {
                         List<Loan.PaymentItem> paymentItemList = loanOptional.get().getPaymentSchedule();
                         mStartDatePicker.setValue(paymentItemList.get(0).getDate());
@@ -267,18 +267,18 @@ public class EditReminderDialogController {
     private Predicate<Integer> categoryIDPredicate() {
         if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT) {
             try {
-                // the set of negative account numbers of loans already have a reminder
+                // the set of negative loan account numbers already have a reminder
                 Set<Integer> excludeAccountIDSet = mainModel.getReminderList().stream()
                         .filter(r -> r.getType() == Reminder.Type.LOAN_PAYMENT)
                         .map(Reminder::getCategoryID).collect(Collectors.toSet());
-                // the set of loans not included in excludeAccountIDSet.
-                Set<Integer> loanAccountIDSet = mainModel.getLoanList().stream().map(l -> -l.getAccountID())
-                        .filter(i -> !excludeAccountIDSet.contains(i)).collect(Collectors.toSet());
 
-                mCategoryTransferAccountIDComboBoxWrapper.setFilter(loanAccountIDSet::contains);
+                // the set negative loan account numbers not included in excludeAccountIDSet.
+                Set<Integer> loanAccountIdSet = mainModel.getAccountList(a -> !a.getHiddenFlag()
+                        && a.getType() == Account.Type.LOAN).stream().map(a -> -a.getID()).collect(Collectors.toSet());
+                loanAccountIdSet.removeAll(excludeAccountIDSet);
 
-                // only show Loan type accounts in loanAccountIDSet.
-                return loanAccountIDSet::contains;
+                // only show Loan type accounts in loanAccountIDSet. Add i < 0 should improve performance
+                return i -> i < 0 && loanAccountIdSet.contains(i);
             } catch (DaoException e) {
                 final String msg = "DaoException when get reminder/loan";
                 logger.error(msg, e);

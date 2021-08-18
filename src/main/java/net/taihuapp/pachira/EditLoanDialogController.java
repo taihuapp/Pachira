@@ -207,9 +207,13 @@ public class EditLoanDialogController {
         numberOfPaymentsTextField.editableProperty().bind(readOnlyProperty.not());
 
         loanDateDatePicker.valueProperty().bindBidirectional(this.loan.getLoanDateProperty());
+        // javafx DatePicker control doesn't aware of the edited value in its TextField, this is a work around
+        DatePickerUtil.captureEditedDate(loanDateDatePicker);
         loanDateDatePicker.disableProperty().bind(readOnlyProperty);
 
         firstPaymentDatePicker.valueProperty().bindBidirectional(this.loan.getFirstPaymentDateProperty());
+        // javafx DatePicker control doesn't aware of the edited value in its TextField, this is a work around
+        DatePickerUtil.captureEditedDate(firstPaymentDatePicker);
         firstPaymentDatePicker.disableProperty().bind(readOnlyProperty);
 
         TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER, null,

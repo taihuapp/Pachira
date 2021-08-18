@@ -153,17 +153,17 @@ public class ReminderTransactionListDialogController {
         final LoanTransaction loanTransaction;
         if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
             try {
-                final int loanId = -reminder.getCategoryID();
-                final Loan loan = mainModel.getLoanByLoanAccountId(loanId)
+                final int loanAccountId = -reminder.getCategoryID();
+                final Loan loan = mainModel.getLoan(loanAccountId)
                         .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_NOT_FOUND,
-                                "Missing loan with id = " + loanId, null));
+                                "Missing loan with account id = " + loanAccountId, null));
                 final Loan.PaymentItem paymentItem = loan.getPaymentItem(rt.getDueDate())
                         .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_PAYMENT_NOT_FOUND,
                                 "Missing payment item on " + rt.getDueDate(), null));
                 transaction.getSplitTransactionList().get(0).setAmount(paymentItem.getPrincipalAmount().negate());
                 transaction.getSplitTransactionList().get(1).setAmount(paymentItem.getInterestAmount().negate());
                 loanTransaction = new LoanTransaction(-1, LoanTransaction.Type.REGULAR_PAYMENT,
-                        loanId, -1, rt.getDueDate(), BigDecimal.ZERO, BigDecimal.ZERO);
+                        loanAccountId, -1, rt.getDueDate(), BigDecimal.ZERO, BigDecimal.ZERO);
             } catch (DaoException | ModelException  e) {
                 final String msg = "Problem with Loan " + (-reminder.getCategoryID()) + " or payment item on "
                         + rt.getDueDate();

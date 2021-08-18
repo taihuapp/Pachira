@@ -31,19 +31,19 @@ public class LoanTransaction {
         RATE_CHANGE // interest rate change
     }
 
-    private int id; // loan transaction id
-    private Type type; // the type
-    private int loanId; // the loan id
+    private final int id; // loan transaction id
+    private final Type type; // the type
+    private final int loanAccountId; // the loan account id
     private int transactionId; // the corresponding transaction id in the transaction table, 0 for RATE_CHANGE type.
-    private LocalDate date; // the transaction date for rate change type.
-    private BigDecimal interestRate; // the new rate in percentage for rate change type, null for payment type
-    private BigDecimal amount; // the new payment amount for rate change type, round to cents, $1 = 1.00
+    private final LocalDate date; // the transaction date for rate change type.
+    private final BigDecimal interestRate; // the new rate in percentage for rate change type, null for payment type
+    private final BigDecimal amount; // the new payment amount for rate change type, round to cents, $1 = 1.00
 
     public LoanTransaction(int id, Type type, int loanId, int transactionId, LocalDate date,
                     BigDecimal interestRate, BigDecimal amount) {
         this.id = id;
         this.type = type;
-        this.loanId = loanId;
+        this.loanAccountId = loanId;
         this.transactionId = transactionId;
         this.date = date;
         this.interestRate = interestRate;
@@ -52,7 +52,7 @@ public class LoanTransaction {
 
     public int getId() { return id; }
     public Type getType() { return type; }
-    public int getLoanId() { return loanId; }
+    public int getLoanAccountId() { return loanAccountId; }
     public int getTransactionId() { return transactionId; }
     public LocalDate getDate() { return date; }
     public BigDecimal getInterestRate() { return interestRate; }

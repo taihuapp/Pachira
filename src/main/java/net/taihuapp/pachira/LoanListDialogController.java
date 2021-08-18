@@ -79,10 +79,10 @@ public class LoanListDialogController {
     private void handleDelete() {
         final Loan loan = loanTableView.getSelectionModel().getSelectedItem();
         try {
-            mainModel.deleteLoan(loan.getID());
+            mainModel.deleteLoan(loan.getAccountID());
             loanTableView.getItems().remove(loan);
         } catch (DaoException e) {
-            final String msg = "DaoException when delete a loan " + loan.getID();
+            final String msg = "DaoException when delete a loan with account id" + loan.getAccountID();
             logger.error(msg, e);
             DialogUtil.showExceptionDialog((Stage) loanTableView.getScene().getWindow(), "DaoException",
                     msg, e.toString(), e);

@@ -44,25 +44,24 @@ public class LoanDao extends Dao<Loan, Integer> {
     String getTableName() { return "LOANS"; }
 
     @Override
-    String[] getKeyColumnNames() { return new String[]{ "ID" }; }
+    String[] getKeyColumnNames() { return new String[]{ "ACCOUNT_ID" }; }
 
     @Override
     String[] getColumnNames() {
-        return new String[]{ "ACCOUNT_ID", "AMOUNT", "INTEREST_RATE", "COMPOUND_BASE_UNIT", "COMPOUND_BU_REPEAT",
+        return new String[]{ "AMOUNT", "INTEREST_RATE", "COMPOUND_BASE_UNIT", "COMPOUND_BU_REPEAT",
                 "PAYMENT_BASE_UNIT", "PAYMENT_BU_REPEAT", "NUMBER_OF_PAYMENTS", "LOAN_DATE", "FIRST_PAYMENT_DATE",
                 "PAYMENT_AMOUNT" };
     }
 
     @Override
-    boolean autoGenKey() { return true; }
+    boolean autoGenKey() { return false; }
 
     @Override
-    Integer getKeyValue(Loan loan) { return loan.getID(); }
+    Integer getKeyValue(Loan loan) { return loan.getAccountID(); }
 
     @Override
     Loan fromResultSet(ResultSet resultSet) throws SQLException, DaoException {
-        return new Loan(resultSet.getInt("ID"),
-                resultSet.getInt("ACCOUNT_ID"),
+        return new Loan(resultSet.getInt("ACCOUNT_ID"),
                 DateSchedule.BaseUnit.valueOf(resultSet.getString("COMPOUND_BASE_UNIT")),
                 resultSet.getInt("COMPOUND_BU_REPEAT"),
                 DateSchedule.BaseUnit.valueOf(resultSet.getString("PAYMENT_BASE_UNIT")),
@@ -77,39 +76,38 @@ public class LoanDao extends Dao<Loan, Integer> {
 
     @Override
     void setPreparedStatement(PreparedStatement preparedStatement, Loan loan, boolean withKey) throws SQLException {
-        preparedStatement.setInt(1, loan.getAccountID());
-        preparedStatement.setBigDecimal(2, loan.getOriginalAmount());
-        preparedStatement.setBigDecimal(3, loan.getInterestRate());
-        preparedStatement.setString(4, loan.getCompoundBaseUnit().name());
-        preparedStatement.setInt(5, loan.getCompoundBURepeat());
-        preparedStatement.setString(6, loan.getPaymentBaseUnit().name());
-        preparedStatement.setInt(7, loan.getPaymentBURepeat());
-        preparedStatement.setInt(8, loan.getNumberOfPayments());
-        preparedStatement.setObject(9, loan.getLoanDate());
-        preparedStatement.setObject(10, loan.getFirstPaymentDate());
-        preparedStatement.setBigDecimal(11, loan.getPaymentAmount());
+        preparedStatement.setBigDecimal(1, loan.getOriginalAmount());
+        preparedStatement.setBigDecimal(2, loan.getInterestRate());
+        preparedStatement.setString(3, loan.getCompoundBaseUnit().name());
+        preparedStatement.setInt(4, loan.getCompoundBURepeat());
+        preparedStatement.setString(5, loan.getPaymentBaseUnit().name());
+        preparedStatement.setInt(6, loan.getPaymentBURepeat());
+        preparedStatement.setInt(7, loan.getNumberOfPayments());
+        preparedStatement.setObject(8, loan.getLoanDate());
+        preparedStatement.setObject(9, loan.getFirstPaymentDate());
+        preparedStatement.setBigDecimal(10, loan.getPaymentAmount());
         if (withKey)
-            preparedStatement.setInt(12, loan.getID());
+            preparedStatement.setInt(11, loan.getAccountID());
     }
 
     @Override
-    public Optional<Loan> get(Integer loadId) throws DaoException {
-        final Optional<Loan> loanOptional = super.get(loadId);
+    public Optional<Loan> get(Integer accountId) throws DaoException {
+        final Optional<Loan> loanOptional = super.get(accountId);
         if (loanOptional.isEmpty())
             return loanOptional;
 
         final Loan loan = loanOptional.get();
-        loan.setLoanTransactionList(loanTransactionDao.getByLoanId(loadId));
+        loan.setLoanTransactionList(loanTransactionDao.getByLoanAccountId(accountId));
         return Optional.of(loan);
     }
 
     @Override
-    public int delete(Integer loanId) throws DaoException {
+    public int delete(Integer loanAccountId) throws DaoException {
         DaoManager daoManager = DaoManager.getInstance();
         try {
             daoManager.beginTransaction();
-            loanTransactionDao.deleteByLoanId(loanId);
-            int n = super.delete(loanId);
+            loanTransactionDao.deleteByLoanAccountId(loanAccountId);
+            int n = super.delete(loanAccountId);
             daoManager.commit();
             return n;
         } catch (DaoException e) {
@@ -128,29 +126,11 @@ public class LoanDao extends Dao<Loan, Integer> {
         final List<LoanTransaction> loanTransactions = loanTransactionDao.getAll();
         final Map<Integer, List<LoanTransaction>> ltMap = new HashMap<>();
         for (LoanTransaction lt : loanTransactions) {
-            ltMap.computeIfAbsent(lt.getLoanId(), o -> new ArrayList<>()).add(lt);
+            ltMap.computeIfAbsent(lt.getLoanAccountId(), o -> new ArrayList<>()).add(lt);
         }
         for (Loan loan : loanList) {
-            loan.setLoanTransactionList(ltMap.computeIfAbsent(loan.getID(), o -> new ArrayList<>()));
+            loan.setLoanTransactionList(ltMap.computeIfAbsent(loan.getAccountID(), o -> new ArrayList<>()));
         }
         return loanList;
-    }
-
-    // get the loan by its loan account id
-    public Optional<Loan> getByAccountID(int accountID) throws DaoException {
-        final String sqlCmd = "select * from " + getTableName() + " where ACCOUNT_ID = ?";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
-            setPreparedStatement(preparedStatement, accountID);
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    final Loan loan = fromResultSet(resultSet);
-                    loan.setLoanTransactionList(loanTransactionDao.getByLoanId(loan.getID()));
-                    return Optional.of(loan);
-                }
-                return Optional.empty();
-            }
-        } catch (SQLException e) {
-            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "", e);
-        }
     }
 }

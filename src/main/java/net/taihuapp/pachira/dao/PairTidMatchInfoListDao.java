@@ -153,7 +153,7 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<SecurityHold
         DaoManager daoManager = DaoManager.getInstance();
         try {
             // we need to delete first before we can add
-            // need to be an Dao transaction
+            // need to be a Dao transaction
             daoManager.beginTransaction();
             delete(tid);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {

@@ -24,6 +24,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -36,6 +37,7 @@ import java.math.BigDecimal;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -221,9 +223,30 @@ public class EditLoanDialogController {
         calcPaymentRadioButton.disableProperty().bind(readOnlyProperty);
         setPaymentRadioButton.disableProperty().bind(readOnlyProperty);
 
+        paymentScheduleTableView.getStylesheets().add(
+                Objects.requireNonNull(MainApp.class.getResource("/css/TransactionTableView.css"))
+                .toExternalForm());
         paymentScheduleTableView.setItems(loan.getPaymentSchedule());
         seqNumTableColumn.setCellValueFactory(cd -> cd.getValue().getSequenceIDProperty());
         paymentDateTableColumn.setCellValueFactory(cd -> cd.getValue().getDateProperty());
+        paymentDateTableColumn.setCellFactory(c -> new TableCell<>() {
+            @Override
+            protected void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item.toString());
+                    setStyle("-fx-alignment: CENTER;");
+                    TableRow<Loan.PaymentItem> row = getTableRow();
+                    if (row != null) {
+                        row.pseudoClassStateChanged(PseudoClass.getPseudoClass("future"),
+                                !loan.isPaid(item));
+                    }
+                }
+            }
+        });
         principalPaymentTableColumn.setCellValueFactory(cd -> cd.getValue().getPrincipalAmountProperty());
         principalPaymentTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override

@@ -944,7 +944,8 @@ public class DaoManager {
             case REPORT_DETAIL:
                 return daoMap.computeIfAbsent(daoType, o -> new ReportDetailDao(connection));
             case LOAN:
-                return daoMap.computeIfAbsent(daoType, o -> new LoanDao(connection));
+                final LoanTransactionDao loanTransactionDao = (LoanTransactionDao) getDao(DaoType.LOAN_TRANSACTION);
+                return daoMap.computeIfAbsent(daoType, o -> new LoanDao(connection, loanTransactionDao));
             case LOAN_TRANSACTION:
                 return daoMap.computeIfAbsent(daoType, o -> new LoanTransactionDao(connection));
             default:

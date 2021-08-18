@@ -78,6 +78,7 @@ public class Loan {
     private final ObjectProperty<BigDecimal> paymentAmountProperty = new SimpleObjectProperty<>(null);
     private final ObservableList<PaymentItem> paymentSchedule = FXCollections.observableArrayList();
     private final BooleanProperty calcPaymentAmountProperty = new SimpleBooleanProperty(true);
+    private final ObservableList<LoanTransaction> loanTransactionList = FXCollections.observableArrayList();
 
     private void setupBindings() {
         // these properties will affect payment amounts but not payment dates
@@ -334,6 +335,13 @@ public class Loan {
 
     public Boolean getCalcPaymentAmount() { return getCalcPaymentAmountProperty().get(); }
     void setCalcPaymentAmount(boolean b) { getCalcPaymentAmountProperty().set(b); }
+
+    public void setLoanTransactionList(List<LoanTransaction> list) { loanTransactionList.setAll(list); }
+
+    public boolean isPaid(LocalDate dueDate) {
+        return loanTransactionList.stream().anyMatch(lt -> lt.getType() == LoanTransaction.Type.REGULAR_PAYMENT
+                && lt.getDate().isEqual(dueDate));
+    }
 
     ObjectProperty<Integer> getAccountIDProperty() { return accountIDProperty; }
     ObjectProperty<BigDecimal> getOriginalAmountProperty() { return originalAmountProperty; }

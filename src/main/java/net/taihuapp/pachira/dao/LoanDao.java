@@ -22,17 +22,23 @@ package net.taihuapp.pachira.dao;
 
 import net.taihuapp.pachira.DateSchedule;
 import net.taihuapp.pachira.Loan;
+import net.taihuapp.pachira.LoanTransaction;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.Optional;
+import java.util.*;
 
 public class LoanDao extends Dao<Loan, Integer> {
 
-    LoanDao(Connection connection) { this.connection = connection; }
+    private final LoanTransactionDao loanTransactionDao;
+
+    LoanDao(Connection connection, LoanTransactionDao loanTransactionDao) {
+        this.connection = connection;
+        this.loanTransactionDao = loanTransactionDao;
+    }
 
     @Override
     String getTableName() { return "LOANS"; }
@@ -86,6 +92,50 @@ public class LoanDao extends Dao<Loan, Integer> {
             preparedStatement.setInt(12, loan.getID());
     }
 
+    @Override
+    public Optional<Loan> get(Integer loadId) throws DaoException {
+        final Optional<Loan> loanOptional = super.get(loadId);
+        if (loanOptional.isEmpty())
+            return loanOptional;
+
+        final Loan loan = loanOptional.get();
+        loan.setLoanTransactionList(loanTransactionDao.getByLoanId(loadId));
+        return Optional.of(loan);
+    }
+
+    @Override
+    public int delete(Integer loanId) throws DaoException {
+        DaoManager daoManager = DaoManager.getInstance();
+        try {
+            daoManager.beginTransaction();
+            loanTransactionDao.deleteByLoanId(loanId);
+            int n = super.delete(loanId);
+            daoManager.commit();
+            return n;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public List<Loan> getAll() throws DaoException {
+        final List<Loan> loanList = super.getAll();
+        final List<LoanTransaction> loanTransactions = loanTransactionDao.getAll();
+        final Map<Integer, List<LoanTransaction>> ltMap = new HashMap<>();
+        for (LoanTransaction lt : loanTransactions) {
+            ltMap.computeIfAbsent(lt.getLoanId(), o -> new ArrayList<>()).add(lt);
+        }
+        for (Loan loan : loanList) {
+            loan.setLoanTransactionList(ltMap.computeIfAbsent(loan.getID(), o -> new ArrayList<>()));
+        }
+        return loanList;
+    }
+
     // get the loan by its loan account id
     public Optional<Loan> getByAccountID(int accountID) throws DaoException {
         final String sqlCmd = "select * from " + getTableName() + " where ACCOUNT_ID = ?";
@@ -93,7 +143,9 @@ public class LoanDao extends Dao<Loan, Integer> {
             setPreparedStatement(preparedStatement, accountID);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
-                    return Optional.of(fromResultSet(resultSet));
+                    final Loan loan = fromResultSet(resultSet);
+                    loan.setLoanTransactionList(loanTransactionDao.getByLoanId(loan.getID()));
+                    return Optional.of(loan);
                 }
                 return Optional.empty();
             }

@@ -27,6 +27,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class LoanTransactionDao extends Dao<LoanTransaction, Integer> {
 
@@ -73,5 +75,34 @@ public class LoanTransactionDao extends Dao<LoanTransaction, Integer> {
         preparedStatement.setBigDecimal(6, loanTransaction.getAmount());
         if (withKey)
             preparedStatement.setInt(7, loanTransaction.getId());
+    }
+
+    List<LoanTransaction> getByLoanId(int loanId) throws DaoException {
+        final String sqlCmd = "select * from " + getTableName() + " where LOAN_ID = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, loanId);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                final List<LoanTransaction> loanTransactions = new ArrayList<>();
+                while (resultSet.next()) {
+                    loanTransactions.add(fromResultSet(resultSet));
+                }
+                return loanTransactions;
+            }
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET,
+                    "Failed to get loan transactions for loan " + loanId, e);
+        }
+    }
+
+    int deleteByLoanId(int loanId) throws DaoException {
+        final String sqlCmd = "delete from " + getTableName() + " where LOAN_ID = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, loanId);
+            return preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_DELETE,
+                    "Failed to delete loan transactions for loan " + loanId, e);
+        }
     }
 }

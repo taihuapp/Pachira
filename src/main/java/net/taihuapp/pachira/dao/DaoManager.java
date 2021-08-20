@@ -22,7 +22,9 @@ package net.taihuapp.pachira.dao;
 
 import net.taihuapp.pachira.Account;
 import net.taihuapp.pachira.MainModel;
+import net.taihuapp.pachira.SplitTransaction;
 import net.taihuapp.pachira.Transaction;
+import org.apache.log4j.Logger;
 import org.h2.api.ErrorCode;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.RunScript;
@@ -45,7 +47,7 @@ public class DaoManager {
 
     // constants
     private static final String DB_VERSION_NAME = "DBVERSION";
-    private static final int DB_VERSION_VALUE = 10; // required DB_VERSION
+    private static final int DB_VERSION_VALUE = 11; // required DB_VERSION
     private static final String DB_OWNER = "ADMPACHIRA";
     private static final String DB_POSTFIX = ".mv.db";
     private static final String URL_PREFIX = "jdbc:h2:";
@@ -86,6 +88,9 @@ public class DaoManager {
     private static final int QUANTITY_FRACTION_LEN = 8;
     private static final int QUANTITY_TOTAL_LEN = 20;
     public static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
+
+    // the logger
+    private static final Logger logger = Logger.getLogger(DaoManager.class);
 
     // the connection to the database
     private Connection connection = null;
@@ -161,7 +166,7 @@ public class DaoManager {
     }
 
     /**
-     * create a brand new DB file from scripts in a SQL file
+     * create a brand-new DB file from scripts in an SQL file
      * @param sqlFile - input SQL file
      * @param dbFile - output DB file (with full postfix)
      * @param password - password for the new DB
@@ -169,7 +174,7 @@ public class DaoManager {
     public static void importSQLtoDB(final File sqlFile, final File dbFile, final String password)
             throws IOException, DaoException {
 
-        // We want to create a brand new DB file, remove it if it is there.
+        // We want to create a brand-new DB file, remove it if it is there.
         Files.deleteIfExists(dbFile.toPath());
 
         final String dbName = dbFile.getAbsolutePath().substring(0,
@@ -245,7 +250,7 @@ public class DaoManager {
 
     /**
      *
-     * open an database connection
+     * open a database connection
      * @param fileName the file name for the database WITHOUT postfix
      * @param password the password to the database
      * @param isNew if true, open a connection to the newly created database,
@@ -282,10 +287,17 @@ public class DaoManager {
                     final int dbVersion = getSetting(DB_VERSION_NAME).map(Integer::valueOf)
                             .orElseThrow(() -> new DaoException(DaoException.ErrorCode.MISSING_DB_VERSION,
                                     "Failed to get DB VERSION"));
-                    updateDB(dbVersion, DB_VERSION_VALUE);
 
+                    if (dbVersion < DB_VERSION_VALUE) {
+                        logger.info("Start backup...");
+                        final String backupFileName = backup();
+                        logger.info("Backup to " + backupFileName + " complete.");
+                        updateDB(dbVersion, DB_VERSION_VALUE);
+                        logger.info("Update DB to " + DB_VERSION_VALUE + " from " + dbVersion + " complete");
+                    }
                     daoManager.commit();
                 } catch (DaoException e) {
+                    logger.error("Update to " + DB_VERSION_VALUE + " failed", e);
                     try {
                         daoManager.rollback();
                     } catch (DaoException e1) {
@@ -471,7 +483,8 @@ public class DaoManager {
         // ID starts from 1
         sqlCmd = "create table SPLITTRANSACTIONS ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "
-                + "TRANSACTIONID integer NOT NULL, "
+                + "TYPE varchar (16), "
+                + "TYPE_ID integer NOT NULL, "
                 + "CATEGORYID integer, "
                 + "TAGID integer, "
                 + "MEMO varchar (" + TRANSACTION_MEMO_LEN + "), "
@@ -593,7 +606,7 @@ public class DaoManager {
                 + "MEMO varchar(" + TRANSACTION_MEMO_LEN + "), "
                 + "STARTDATE date NOT NULL, "
                 + "ENDDATE date, "
-                + "BASEUNIT varchar(8) NOT NULL, "
+                + "BASEUNIT varchar(16) NOT NULL, "
                 + "NUMPERIOD integer NOT NULL, "
                 + "ALERTDAYS integer NOT NULL, "
                 + "ISDOM boolean NOT NULL, "
@@ -607,6 +620,8 @@ public class DaoManager {
                 + "DUEDATE date, "
                 + "TRANSACTIONID integer)";
         executeUpdateQuery(sqlCmd);
+
+        createLoanTables();
     }
 
     // bring database to the latest version
@@ -623,7 +638,15 @@ public class DaoManager {
             updateDB(oldV, newV-1); // recursively bring from oldV up.
 
         // need to run this to update DBVERSION
-        if (newV == 10) {
+        if (newV == 11) {
+            executeUpdateQuery("alter table SPLITTRANSACTIONS add column TYPE varchar(16) default '"
+                    + SplitTransaction.Type.TXN.name() + "' not null");
+            executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TYPE drop DEFAULT");
+            executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TRANSACTIONID rename to TYPE_ID");
+            executeUpdateQuery("alter table SPLITTRANSACTIONS modify AMOUNT decimal(20,4) not null");
+            executeUpdateQuery("alter table REMINDERS alter column BASEUNIT varchar(16)");
+            createLoanTables();
+        } else if (newV == 10) {
             // change account table type column size
             executeUpdateQuery("alter table ACCOUNTS alter column TYPE varchar(16) not null");
             executeUpdateQuery("update ACCOUNTS set TYPE = 'CHECKING' where TYPE = 'SPENDING'");
@@ -725,7 +748,7 @@ public class DaoManager {
             executeUpdateQuery(alterSQL);
         } else if (newV == 1) {
             // converting self transferring transaction to DEPOSIT or WITHDRAW
-            // and set categoryid to 1 (in invalid category.
+            // and set categoryid to 1 in invalid category.
             final String updateSQL0 = "update TRANSACTIONS " +
                     "set TRADEACTION = casewhen(tradeaction = 'XIN', 'DEPOSIT', 'WITHDRAW'), " +
                     "categoryid = 1 where categoryid = -accountid and (tradeaction = 'XIN' or tradeaction = 'XOUT')";
@@ -769,7 +792,7 @@ public class DaoManager {
                 + "ID integer NOT NULL AUTO_INCREMENT (10), "
                 + "NAME varchar(128) UNIQUE NOT NULL, "
                 + "FIID integer NOT NULL, "
-                + "USERNAME varchar(256), "   // encrypted user name
+                + "USERNAME varchar(256), "   // encrypted username
                 + "PASSWORD varchar(256), "   // encrypted password
                 + "primary key (ID))";
         executeUpdateQuery(sqlCmd);
@@ -784,6 +807,35 @@ public class DaoManager {
                 + "URL varchar(2084) UNIQUE NOT NULL, "
                 + "primary key (ID), "
                 + "CONSTRAINT FIID_SUBID UNIQUE(FIID, SUBID))";
+        executeUpdateQuery(sqlCmd);
+    }
+
+    private void createLoanTables() throws SQLException {
+        String sqlCmd;
+        sqlCmd = "create table LOANS ("
+                + "ACCOUNT_ID integer UNIQUE NOT NULL, "
+                + "AMOUNT decimal(20, 2) NOT NULL, "
+                + "INTEREST_RATE decimal(20, 6) NOT NULL, "
+                + "COMPOUND_BASE_UNIT varchar(16) NOT NULL, "
+                + "COMPOUND_BU_REPEAT integer NOT NULL, "
+                + "PAYMENT_BASE_UNIT varchar(16) NOT NULL, "
+                + "PAYMENT_BU_REPEAT integer NOT NULL, "
+                + "NUMBER_OF_PAYMENTS integer NOT NULL, "
+                + "LOAN_DATE date NOT NULL, "
+                + "FIRST_PAYMENT_DATE date NOT NULL, "
+                + "PAYMENT_AMOUNT decimal(20, 2) NOT NULL, "
+                + "primary key(ACCOUNT_ID));";
+        executeUpdateQuery(sqlCmd);
+
+        sqlCmd = "create table LOAN_TRANSACTIONS ("
+                + "ID integer NOT NULL auto_increment (1), "
+                + "TYPE varchar(16) NOT NULL, "
+                + "LOAN_ACCOUNT_ID integer NOT NULL, "
+                + "TRANSACTION_ID integer NOT NULL, "
+                + "DATE date NOT NULL, "
+                + "INTEREST_RATE decimal(20, 6), "
+                + "AMOUNT decimal(20, 2), "
+                + "primary key(ID));";
         executeUpdateQuery(sqlCmd);
     }
 
@@ -840,8 +892,9 @@ public class DaoManager {
 
     // getter for various Dao class objects
     public enum DaoType {
-        ACCOUNT, SECURITY, TRANSACTION, PAIR_TID_SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE, FIDATA,
-        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL
+        ACCOUNT, SECURITY, TRANSACTION, SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE, FIDATA,
+        ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL,
+        LOAN, LOAN_TRANSACTION
     }
 
     private final Map<DaoType, Dao<?,?>> daoMap = new HashMap<>();
@@ -854,13 +907,13 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new SecurityDao(connection));
             case TRANSACTION: {
                 final SecurityDao securityDao = (SecurityDao) getDao(DaoType.SECURITY);
-                final PairTidSplitTransactionListDao pairTidSplitTransactionListDao =
-                        (PairTidSplitTransactionListDao) getDao(DaoType.PAIR_TID_SPLIT_TRANSACTION);
+                final SplitTransactionListDao splitTransactionListDao =
+                        (SplitTransactionListDao) getDao(DaoType.SPLIT_TRANSACTION);
                 return daoMap.computeIfAbsent(daoType,
-                        o -> new TransactionDao(connection, securityDao, pairTidSplitTransactionListDao));
+                        o -> new TransactionDao(connection, securityDao, splitTransactionListDao));
             }
-            case PAIR_TID_SPLIT_TRANSACTION:
-                return daoMap.computeIfAbsent(daoType, o -> new PairTidSplitTransactionListDao(connection));
+            case SPLIT_TRANSACTION:
+                return daoMap.computeIfAbsent(daoType, o -> new SplitTransactionListDao(connection));
             case PAIR_TID_MATCH_INFO:
                 return daoMap.computeIfAbsent(daoType, o -> new PairTidMatchInfoListDao(connection));
             case SECURITY_PRICE:
@@ -876,10 +929,10 @@ public class DaoManager {
             case CATEGORY:
                 return daoMap.computeIfAbsent(daoType, o -> new CategoryDao(connection));
             case REMINDER: {
-                final PairTidSplitTransactionListDao pairTidSplitTransactionListDao =
-                        (PairTidSplitTransactionListDao) getDao(DaoType.PAIR_TID_SPLIT_TRANSACTION);
+                final SplitTransactionListDao splitTransactionListDao =
+                        (SplitTransactionListDao) getDao(DaoType.SPLIT_TRANSACTION);
                 return daoMap.computeIfAbsent(daoType, o -> new ReminderDao(connection,
-                        pairTidSplitTransactionListDao));
+                        splitTransactionListDao));
             }
             case REMINDER_TRANSACTION:
                 ReminderDao reminderDao = (ReminderDao) getDao(DaoType.REMINDER);
@@ -889,6 +942,11 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new ReportSettingDao(connection, reportDetailDao));
             case REPORT_DETAIL:
                 return daoMap.computeIfAbsent(daoType, o -> new ReportDetailDao(connection));
+            case LOAN:
+                final LoanTransactionDao loanTransactionDao = (LoanTransactionDao) getDao(DaoType.LOAN_TRANSACTION);
+                return daoMap.computeIfAbsent(daoType, o -> new LoanDao(connection, loanTransactionDao));
+            case LOAN_TRANSACTION:
+                return daoMap.computeIfAbsent(daoType, o -> new LoanTransactionDao(connection));
             default:
                 throw new IllegalArgumentException("DaoType " + daoType + " not implemented");
         }

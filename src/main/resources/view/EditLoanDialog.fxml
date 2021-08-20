@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+  ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  ~
+  ~ This file is part of Pachira.
+  ~
+  ~ Pachira is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or any
+  ~ later version.
+  ~
+  ~ Pachira is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditLoanDialogController">
+  <columnConstraints>
+    <ColumnConstraints hgrow="SOMETIMES" maxWidth="150.0" minWidth="10.0" />
+    <ColumnConstraints hgrow="SOMETIMES" maxWidth="330.0" minWidth="10.0" prefWidth="167.0" />
+      <ColumnConstraints hgrow="SOMETIMES" maxWidth="454.0" minWidth="0.0" prefWidth="5.0" />
+      <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" maxWidth="500.0" minWidth="10.0" prefWidth="450.0" />
+  </columnConstraints>
+  <rowConstraints>
+    <RowConstraints vgrow="SOMETIMES" />
+    <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+    <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+      <RowConstraints vgrow="SOMETIMES" />
+  </rowConstraints>
+   <children>
+      <Label text="Description" GridPane.rowIndex="2">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Separator prefWidth="200.0" GridPane.columnSpan="2" GridPane.rowIndex="3" />
+      <Label text="Original Amount" GridPane.rowIndex="4">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Label text="Interest Rate (%)" GridPane.rowIndex="5">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Label text="Compounding" GridPane.rowIndex="6">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Label text="Payment Period" GridPane.rowIndex="7">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Label text="Number of Payments" GridPane.rowIndex="8">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Label text="Loan Date" GridPane.rowIndex="9">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Label text="First Payment Date" GridPane.rowIndex="10">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <Label text="Payment Amount" GridPane.rowIndex="11">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </Label>
+      <TextField fx:id="newAccountNameTextField" GridPane.columnIndex="1">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </TextField>
+      <ComboBox fx:id="availableAccountComboBox" GridPane.columnIndex="1" GridPane.rowIndex="1">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </ComboBox>
+      <TextField fx:id="descriptionTextField" GridPane.columnIndex="1" GridPane.rowIndex="2">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </TextField>
+      <TextField fx:id="originalAmountTextField" alignment="BOTTOM_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="4">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </TextField>
+      <TextField fx:id="interestRateTextField" alignment="BOTTOM_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="5">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </TextField>
+      <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="6">
+         <children>
+            <Label text="Every" />
+            <TextField fx:id="compoundingBaseUnitRepeatTextField" prefWidth="40.0" />
+            <ChoiceBox fx:id="compoundingBaseUnitChoiceBox" />
+         </children>
+      </HBox>
+      <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="7">
+         <children>
+            <Label text="Every" />
+            <TextField fx:id="paymentBaseUnitRepeatTextField" prefWidth="40.0" />
+            <ChoiceBox fx:id="paymentBaseUnitChoiceBox" />
+         </children>
+      </HBox>
+      <TextField fx:id="numberOfPaymentsTextField" alignment="BOTTOM_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="8">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </TextField>
+      <DatePicker fx:id="loanDateDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="9">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </DatePicker>
+      <DatePicker fx:id="firstPaymentDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="10">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </DatePicker>
+      <TextField fx:id="paymentAmountTextField" alignment="BOTTOM_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="11">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </TextField>
+      <Label text="Payment Schedule" GridPane.columnIndex="3" />
+      <TableView fx:id="paymentScheduleTableView" prefHeight="200.0" prefWidth="200.0" GridPane.columnIndex="3" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" GridPane.rowSpan="12">
+        <columns>
+          <TableColumn fx:id="seqNumTableColumn" maxWidth="200.0" prefWidth="30.0" style="-fx-alignment: BOTTOM_CENTER;" text="#" />
+          <TableColumn fx:id="paymentDateTableColumn" maxWidth="500.0" prefWidth="118.0" style="-fx-alignment: BOTTOM_CENTER;" text="Date" />
+            <TableColumn fx:id="principalPaymentTableColumn" maxWidth="500.0" prefWidth="75.0" style="-fx-alignment: BOTTOM_RIGHT;" text="Principal" />
+            <TableColumn fx:id="interestPaymentTableColumn" maxWidth="500.0" prefWidth="75.0" style="-fx-alignment: BOTTOM_RIGHT;" text="Interest" />
+            <TableColumn fx:id="balanceTableColumn" maxWidth="500.0" prefWidth="75.0" style="-fx-alignment: BOTTOM_RIGHT;" text="Balance" />
+        </columns>
+         <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+         </columnResizePolicy>
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </TableView>
+      <HBox alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="12">
+         <children>
+            <RadioButton fx:id="calcPaymentRadioButton" mnemonicParsing="false" selected="true" text="Calc">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+               <toggleGroup>
+                  <ToggleGroup fx:id="paymentAmountMethod" />
+               </toggleGroup>
+            </RadioButton>
+            <Label maxWidth="1.7976931348623157E308" visible="false" HBox.hgrow="ALWAYS" />
+            <RadioButton fx:id="setPaymentRadioButton" mnemonicParsing="false" text="Set" toggleGroup="$paymentAmountMethod">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </RadioButton>
+         </children>
+      </HBox>
+      <HBox alignment="CENTER_LEFT" GridPane.columnSpan="2" GridPane.rowIndex="13">
+         <children>
+            <Button mnemonicParsing="false" onAction="#handleClose" text="Close">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="saveButton" mnemonicParsing="false" onAction="#handleSave" text="Save">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+         </children>
+      </HBox>
+      <RadioButton fx:id="newAccountRadioButton" mnemonicParsing="false" selected="true" text="New Account">
+         <toggleGroup>
+            <ToggleGroup fx:id="accountChoice" />
+         </toggleGroup>
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </RadioButton>
+      <RadioButton fx:id="availableAccountRadioButton" mnemonicParsing="false" text="Available Account" toggleGroup="$accountChoice" GridPane.rowIndex="1">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin>
+      </RadioButton>
+      <HBox alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="13">
+         <children>
+            <Button fx:id="editPaymentButton" mnemonicParsing="false" onAction="#handleEditPayment" text="Edit Payment">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="rateChangeButton" mnemonicParsing="false" onAction="#handleRateChange" text="Rate Change" />
+            <Button fx:id="makePaymentButton" mnemonicParsing="false" onAction="#handleMakePayment" text="Make Payment">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin>
+            </Button>
+         </children>
+      </HBox>
+   </children>
+</GridPane>

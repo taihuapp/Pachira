@@ -34,9 +34,11 @@
       <w>fidata</w>
       <w>fiid</w>
       <w>fitid</w>
+      <w>guangliang</w>
       <w>hashedmasterpassword</w>
       <w>hiddenflag</w>
       <w>hmac</w>
+      <w>ifexists</w>
       <w>incomeflag</w>
       <w>intinc</w>
       <w>invitem</w>
@@ -90,6 +92,7 @@
       <w>startdate</w>
       <w>subid</w>
       <w>tagid</w>
+      <w>taihuapp</w>
       <w>taxrefnum</w>
       <w>tradeaction</w>
       <w>transactionid</w>

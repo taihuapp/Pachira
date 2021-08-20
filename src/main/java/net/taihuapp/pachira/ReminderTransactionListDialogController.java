@@ -41,6 +41,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -112,7 +113,7 @@ public class ReminderTransactionListDialogController {
         }
 
         List<ReminderTransaction> toBeRemoved = new FilteredList<>(reminderTransactions,
-                rt -> rt.getReminder().getID() == reminder.getID());
+                rt -> rt.getReminder() != null && rt.getReminder().getID() == reminder.getID());
         reminderTransactions.removeAll(toBeRemoved);
     }
 
@@ -120,23 +121,71 @@ public class ReminderTransactionListDialogController {
     private void handleEnter() {
         ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
         Reminder reminder = rt.getReminder();
-        Transaction.TradeAction ta = reminder.getType() == Reminder.Type.PAYMENT ?
-                Transaction.TradeAction.WITHDRAW : Transaction.TradeAction.DEPOSIT;
+        final Transaction.TradeAction ta;
+        switch (reminder.getType()) {
+            case DEPOSIT:
+                ta = Transaction.TradeAction.DEPOSIT;
+                break;
+            case PAYMENT:
+            case LOAN_PAYMENT:
+                ta = Transaction.TradeAction.WITHDRAW;
+                break;
+            default:
+                throw new IllegalStateException(reminder.getType() + " not implemented");
+        }
 
         int accountID = reminder.getAccountID();
         Transaction transaction = new Transaction(accountID, rt.getDueDate(), ta, reminder.getCategoryID());
         transaction.setAmount(reminder.getAmount());
         transaction.setPayee(reminder.getPayee());
         transaction.setMemo(reminder.getMemo());
-        transaction.setSplitTransactionList(reminder.getSplitTransactionList());
+        final List<SplitTransaction> stList = new ArrayList<>();
+        for (SplitTransaction st : reminder.getSplitTransactionList()) {
+            final SplitTransaction stCopy = new SplitTransaction(st);
+            stCopy.setID(0);
+            stList.add(stCopy);
+        }
+        transaction.setSplitTransactionList(stList);
         transaction.setTagID(reminder.getTagID());
         Stage stage = (Stage) mReminderTransactionTableView.getScene().getWindow();
+
+        // a few more things to take care of in case of loan payment
+        final LoanTransaction loanTransaction;
+        if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+            try {
+                final int loanAccountId = -reminder.getCategoryID();
+                final Loan loan = mainModel.getLoan(loanAccountId)
+                        .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_NOT_FOUND,
+                                "Missing loan with account id = " + loanAccountId, null));
+                final Loan.PaymentItem paymentItem = loan.getPaymentItem(rt.getDueDate())
+                        .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_PAYMENT_NOT_FOUND,
+                                "Missing payment item on " + rt.getDueDate(), null));
+                transaction.getSplitTransactionList().get(0).setAmount(paymentItem.getPrincipalAmount().negate());
+                transaction.getSplitTransactionList().get(1).setAmount(paymentItem.getInterestAmount().negate());
+                loanTransaction = new LoanTransaction(-1, LoanTransaction.Type.REGULAR_PAYMENT,
+                        loanAccountId, -1, rt.getDueDate(), BigDecimal.ZERO, BigDecimal.ZERO);
+            } catch (DaoException | ModelException  e) {
+                final String msg = "Problem with Loan " + (-reminder.getCategoryID()) + " or payment item on "
+                        + rt.getDueDate();
+                logger.error(msg, e);
+                DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+                return;
+            }
+        } else {
+            loanTransaction = null;
+        }
+
         try {
             int tid = DialogUtil.showEditTransactionDialog(mainModel, stage, transaction,
-                    mainModel.getAccountList(a -> a.getType().isGroup(Account.Type.Group.SPENDING)),
+                    mainModel.getAccountList(a ->
+                            (!a.getHiddenFlag() && a.getType().isGroup(Account.Type.Group.SPENDING))),
                     mainModel.getAccount(a -> a.getID() == reminder.getAccountID()).orElse(null),
                     Collections.singletonList(ta));
             if (tid >= 0) {
+                if (loanTransaction != null) {
+                    loanTransaction.setTransactionId(tid);
+                    mainModel.insertLoanTransaction(loanTransaction);
+                }
                 rt.setTransactionID(tid);
                 mainModel.insertReminderTransaction(rt);
                 reminderTransactions.setAll(mainModel.getReminderTransactionList());

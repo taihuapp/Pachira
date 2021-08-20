@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.binding.Bindings;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -60,6 +61,8 @@ public class AccountListDialogController {
     private Button mMoveUpButton;
     @FXML
     private Button mMoveDownButton;
+    @FXML
+    private Button hideButton;
 
     @FXML
     private void handleNew() {
@@ -199,6 +202,14 @@ public class AccountListDialogController {
             mMoveDownButton.setDisable((nv == null) || (nv.intValue() == (numberOfRows-1))  || (newAccount == null)
                     || (newAccount.getType() != mAccountTableView.getItems().get(nv.intValue()+1).getType()));
         });
+
+        hideButton.textProperty().bind(Bindings.createStringBinding(() -> {
+            final Account account = mAccountTableView.getSelectionModel().selectedItemProperty().get();
+            if (account != null && account.getHiddenFlag())
+                return "Unhide";
+            return "Hide";
+        }, mAccountTableView.getSelectionModel().selectedItemProperty()));
+        hideButton.disableProperty().bind(mAccountTableView.getSelectionModel().selectedItemProperty().isNull());
 
         mAccountNameTableColumn.setCellValueFactory(cellData -> cellData.getValue().getNameProperty());
         mAccountTypeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getTypeProperty());

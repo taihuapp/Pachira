@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import com.google.common.collect.ImmutableList;
 import com.opencsv.CSVReader;
 import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.client.AccountStatement;
@@ -82,6 +83,8 @@ public class MainModel {
     static final int PRICE_FRACTION_DISPLAY_LEN = 6;
     // minimum 2 decimal places, maximum 4 decimal places
     static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
+    static final DecimalFormat DOLLAR_CENT_2_FORMAT = new DecimalFormat("###,##0.00");
+
     static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
@@ -279,6 +282,105 @@ public class MainModel {
         }
     }
 
+    boolean enterCorpSpinOffTransaction(final LocalDate date, final Security security, final String newSecurityName,
+                                        final BigDecimal numOfShares, final BigDecimal sharePrice,
+                                        final BigDecimal newSharePrice, final String memo) throws DaoException {
+
+        final DaoManager daoManager = DaoManager.getInstance();
+        final SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
+        final TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
+
+        final boolean newSecurityCreated;
+        try {
+            daoManager.beginTransaction();
+
+            final Security newSecurity = getSecurity(s -> s.getName().equals(newSecurityName)).orElseGet(Security::new);
+            if (newSecurity.getID() <= 0) {
+                newSecurityCreated = true;
+                newSecurity.setName(newSecurityName);
+                newSecurity.setID(securityDao.insert(newSecurity));
+            } else {
+                newSecurityCreated = false;
+            }
+
+            List<Transaction> newTransactionList = new ArrayList<>();
+            for (Account account : getAccountList(a -> a.getType().isGroup(Account.Type.Group.INVESTING))) {
+                final List<SecurityHolding> shList = computeSecurityHoldings(account.getTransactionList(), date, -1);
+                SecurityHolding oldSH = null;
+                boolean hasNew = false;
+                for (SecurityHolding sh : shList) {
+                    if (sh.getSecurityName().equals(security.getName()))
+                        oldSH = sh;
+                    if (sh.getSecurityName().equals(newSecurityName))
+                        hasNew = true;
+                }
+                if (oldSH == null || hasNew)
+                    continue; // either the account doesn't have security, or already has new security, skip
+
+                final BigDecimal numOfOldShares = oldSH.getQuantity();
+                final BigDecimal numOfNewShares = numOfOldShares.multiply(numOfShares);
+                final BigDecimal totalOldAmount = numOfOldShares.multiply(sharePrice);
+                final BigDecimal totalNewAmount = numOfNewShares.multiply(newSharePrice);
+                final BigDecimal totalAmount = totalOldAmount.add(totalNewAmount);
+                final int aid = account.getID();
+                final Transaction t0 = new Transaction(aid, date, SHRSOUT, 0);
+                t0.setSecurityName(security.getName());
+                t0.setQuantity(numOfOldShares);
+                t0.setMemo(memo);
+                newTransactionList.add(t0);
+                for (SecurityHolding.LotInfo li : oldSH.getLotInfoList()) {
+                    final BigDecimal costBasis_i = li.getCostBasis();
+                    final BigDecimal newCostBasis_i = costBasis_i.multiply(totalNewAmount)
+                            .divide(totalAmount, 2, RoundingMode.HALF_UP);
+                    final BigDecimal newQuantity_i = li.getQuantity().multiply(numOfShares);
+
+                    // for each lot, create a pair of transactions
+                    // 1. move in old security with reduced cost basis
+                    // 2. move in new security with correct new cost basis
+                    final Transaction t1 = new Transaction(aid, date, SHRSIN, 0);
+                    t1.setSecurityName(security.getName());
+                    t1.setQuantity(li.getQuantity());
+                    t1.setAmount(costBasis_i.subtract(newCostBasis_i));
+                    t1.setADate(li.getDate());
+                    t1.setMemo(memo);
+                    newTransactionList.add(t1);
+
+                    final Transaction t2 = new Transaction(aid, date, SHRSIN, 0);
+                    t2.setSecurityName(newSecurityName);
+                    t2.setQuantity(newQuantity_i);
+                    t2.setAmount(newCostBasis_i);
+                    t2.setADate(li.getDate());
+                    t2.setMemo(memo);
+                    newTransactionList.add(t2);
+                }
+            }
+
+            // database work
+            for (Transaction t : newTransactionList)
+                t.setID(transactionDao.insert(t));
+
+            mergeSecurityPrices(ImmutableList.of(new Pair<>(newSecurity, new Price(date, newSharePrice)),
+                    new Pair<>(security, new Price(date, sharePrice))));
+
+            daoManager.commit();
+
+            if (newSecurityCreated)
+                securityList.add(newSecurity);
+            transactionList.addAll(newTransactionList);
+            FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
+
+            return true;
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+                throw e;
+            }
+            return false;
+        }
+    }
+
     /**
      * find the first security matches the predicate
      * @param predicate - search criteria
@@ -407,7 +509,7 @@ public class MainModel {
             directConnectionDao.deleteAll();
             accountDCDao.deleteAll();
 
-            // delete master password in the vault, this cannot be undo
+            // delete master password in the vault, this cannot be undone
             getVault().deleteMasterPassword();
 
             daoManager.commit();
@@ -551,7 +653,7 @@ public class MainModel {
 
     /**
      *
-     * @param pair input pair of security and date
+     * @param pair a pair of security and date input
      * @return the price of the security for the given date as an optional or an empty optional
      */
     Optional<Pair<Security, Price>> getSecurityPrice(Pair<Security, LocalDate> pair) throws DaoException {
@@ -808,10 +910,11 @@ public class MainModel {
             }
 
             // calculate next due date
-            final LocalDate lastDueDate = sortedList.isEmpty() ?
-                    reminder.getDateSchedule().getStartDate() : sortedList.get(0).getDueDate().plusDays(1);
-            final LocalDate nextDueDate = reminder.getDateSchedule().getNextDueDate(lastDueDate);
-            reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
+            final LocalDate nextDueDate = sortedList.isEmpty() ? reminder.getDateSchedule().getStartDate()
+                    : reminder.getDateSchedule().getNextDueDate(sortedList.get(0).getDueDate());
+            final LocalDate endDate = reminder.getDateSchedule().getEndDate();
+            if (endDate == null || !nextDueDate.isAfter(reminder.getDateSchedule().getEndDate()))
+                reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
         }
         return reminderTransactions;
     }
@@ -826,6 +929,10 @@ public class MainModel {
 
     void updateReminder(Reminder reminder) throws DaoException {
         ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).update(reminder);
+    }
+
+    List<Reminder> getReminderList() throws DaoException {
+        return ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).getAll();
     }
 
     /**
@@ -950,8 +1057,8 @@ public class MainModel {
         SecurityHolding cashHolding = new SecurityHolding("CASH");
         cashHolding.setPrice(null);
         cashHolding.setQuantity(null);
-        cashHolding.setCostBasis(totalCash);
-        cashHolding.setMarketValue(totalCash);
+        cashHolding.setCostBasis(totalCashNow);
+        cashHolding.setMarketValue(totalCashNow);
 
         SecurityHolding totalHolding = new SecurityHolding("TOTAL");
         totalHolding.setMarketValue(totalMarketValue);
@@ -1004,6 +1111,19 @@ public class MainModel {
 
     public Optional<Tag> getTag(Predicate<Tag> predicate) { return tagList.stream().filter(predicate).findAny(); }
 
+    List<Loan> getLoanList() throws DaoException {
+        return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).getAll();
+    }
+
+    // get the loan by the loan account id.
+    Optional<Loan> getLoan(int loanAccountId) throws DaoException {
+        return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).get(loanAccountId);
+    }
+
+    void insertLoanTransaction(LoanTransaction loanTransaction) throws DaoException {
+        ((LoanTransactionDao) daoManager.getDao(DaoManager.DaoType.LOAN_TRANSACTION)).insert(loanTransaction);
+    }
+
     /**
      * insert tag to the database and the master tag list
      * @param tag - input
@@ -1027,9 +1147,44 @@ public class MainModel {
         getTag(t -> t.getID() == tag.getID()).ifPresent(t -> t.copy(tag));
     }
 
+    // loan is immutable, only insert, no update, unless delete
+    void insertLoan(Loan loan, String name, String description) throws DaoException {
+        final DaoManager daoManager = DaoManager.getInstance();
+        final int aid = loan.getAccountID();
+        Account newAccount = null;
+        try {
+            daoManager.beginTransaction();
+            if (loan.getAccountID() <= 0) {
+                newAccount = new Account(-1, Account.Type.LOAN, name, description,
+                        false, Integer.MAX_VALUE, null, BigDecimal.ZERO);
+                final int newAccountID = (((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).insert(newAccount));
+                newAccount.setID(newAccountID);
+                loan.setAccountID(newAccountID);
+            }
+            ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).insert(loan);
+            daoManager.commit();
+            if (newAccount != null) {
+                initAccount(newAccount);
+                accountList.add(newAccount);
+            }
+        } catch (DaoException e) {
+            loan.setAccountID(aid);
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    void deleteLoan(int loanAccountId) throws DaoException {
+        ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).delete(loanAccountId);
+    }
+    
     /**
      *
-     * @return all payees in a sorted set with case insensitive ordering.
+     * @return all payees in a sorted set with case-insensitive ordering.
      */
     public SortedSet<String> getPayeeSet() {
         SortedSet<String> payeeSet = new TreeSet<>(Comparator.comparing(String::toLowerCase));
@@ -1153,7 +1308,7 @@ public class MainModel {
                             // this split transaction is a transfer transaction
                             Transaction stXferT = null;
                             if (st.getMatchID() > 0) {
-                                // it is modify exist transfer transaction
+                                // it is a modified exist transfer transaction
                                 // stXferT is a copy of the original.
                                 stXferT = getTransaction(t -> t.getID() == st.getMatchID())
                                         .map(Transaction::new).orElseThrow(() ->
@@ -1163,7 +1318,7 @@ public class MainModel {
                                                         null));
 
                                 if (!stXferT.isCash()) {
-                                    // transfer transaction is an invest transaction, check trade action compatibility
+                                    // transfer transaction is an investment transaction, check trade action compatibility
                                     if (stXferT.TransferTradeAction() != (st.getAmount().compareTo(BigDecimal.ZERO) >= 0 ?
                                             Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW)) {
                                         throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
@@ -1274,7 +1429,7 @@ public class MainModel {
                                 xferT.setAmount(amount.negate());
                             }
                         } else if (!xferT.isCash()) {
-                            // non cash, check trade action compatibility
+                            // non-cash, check trade action compatibility
                             if (xferT.TransferTradeAction() != newT.getTradeAction()) {
                                 throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                         "Transfer transaction has an investment trade action not "
@@ -1312,8 +1467,8 @@ public class MainModel {
                     if (!xferT.isSplit())
                         xferT.setMatchID(newT.getID(), -1);
 
-                    // we might need to set matchID if xferT is newly created
-                    // but we never create a new match split transaction
+                    // we might need to set matchID if xferT is newly created,
+                    // but we never create a new match split transaction.
                     // so we keep the matchSplitID the same as before
                     if (xferT.getID() > 0) {
                         transactionDao.update(xferT);
@@ -1678,7 +1833,7 @@ public class MainModel {
         }
     }
 
-    // take a Transaction input (with SELL or CVTSHRT), compute the realize gain
+    // take a Transaction input (with SELL or CVTSHRT), compute the realized gain
     BigDecimal calcRealizedGain(Transaction transaction) throws DaoException, ModelException {
         BigDecimal realizedGain = BigDecimal.ZERO;
         for (CapitalGainItem cgi : getCapitalGainItemList(transaction)) {
@@ -2063,7 +2218,7 @@ public class MainModel {
         if (nTrans == 0)
             return; // nothing to do
 
-        final List<Transaction> updateList = new ArrayList<>();  // transactions needs to be updated in DB
+        final List<Transaction> updateList = new ArrayList<>();  // transactions need to be updated in DB
         final List<Transaction> unMatchedList = new ArrayList<>(); // (partially) unmatched transactions
 
         for (int i = 0; i < nTrans; i++) {
@@ -2274,7 +2429,7 @@ public class MainModel {
                     throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION, "Bad ticker " + ticker, null);
                 priceList.add(new Pair<>(security, p));
             }
-            securityPriceDao.mergePricesToDB(priceList);  // this may over write trade prices
+            securityPriceDao.mergePricesToDB(priceList);  // this may overwrite trade prices
 
             daoManager.commit();
 

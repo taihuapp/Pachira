@@ -68,8 +68,8 @@ public class ReportDialogController {
 
     public enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
 
-    private static final String NOSECURITY = "(No Security)";
-    private static final String NOCATEGORY = "(No Category)";
+    private static final String NO_SECURITY = "(No Security)";
+    private static final String NO_CATEGORY = "(No Category)";
 
     public static class Setting {
         private int mID;
@@ -244,28 +244,35 @@ public class ReportDialogController {
 
     private MainModel mainModel;
 
+    private Stage getStage() { return (Stage) mTabPane.getScene().getWindow(); }
+
     void setMainModel(MainModel mainModel, Setting setting) {
 
         mSetting = setting;
         this.mainModel = mainModel;
 
         // set window title
-        ((Stage) mTabPane.getScene().getWindow()).setTitle(mSetting.getType() + " Report");
+        Stage stage = getStage();
 
         switch (mSetting.getType()) {
             case NAV:
+                stage.setTitle("NAV Report");
                 setupNAVReport();
                 break;
             case INVESTINCOME:
+                stage.setTitle("Investment Income Report");
                 setupInvestIncomeReport();
                 break;
             case INVESTTRANS:
+                stage.setTitle("Investment Transaction Report");
                 setupInvestTransactionReport();
                 break;
             case BANKTRANS:
+                stage.setTitle("Banking Transaction Report");
                 setupBankTransactionReport();
                 break;
             case CAPITALGAINS:
+                stage.setTitle("Capital Gains Report");
                 setupCapitalGainsReport();
                 break;
             default:
@@ -275,7 +282,7 @@ public class ReportDialogController {
 
     private Set<String> mapSecurityIDSetToNameSet(Set<Integer> idSet) {
         return idSet.stream().map(id -> mainModel.getSecurity(s -> s.getID() == id)
-                .map(Security::getName).orElse(NOSECURITY)).collect(Collectors.toSet());
+                .map(Security::getName).orElse(NO_SECURITY)).collect(Collectors.toSet());
     }
 
     private void setupCapitalGainsReport() {
@@ -377,7 +384,7 @@ public class ReportDialogController {
     private void setupCategoriesTab() {
         ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
         boolean newSetting = mSetting.getID() < 0;  // we pre-select all categories for new setting
-        sibList.add(new Pair<>(new Pair<>(NOCATEGORY, 0),
+        sibList.add(new Pair<>(new Pair<>(NO_CATEGORY, 0),
                 new SimpleBooleanProperty(newSetting
                         || mSetting.getSelectedCategoryIDSet().contains(0))));
         for (Category c : mainModel.getCategoryList()) {
@@ -402,7 +409,7 @@ public class ReportDialogController {
     private void setupSecuritiesTab() {
         ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
         boolean newSetting = mSetting.getID() < 0;
-        sibList.add(new Pair<>(new Pair<>(NOSECURITY, 0),
+        sibList.add(new Pair<>(new Pair<>(NO_SECURITY, 0),
                 new SimpleBooleanProperty(newSetting || mSetting.getSelectedSecurityIDSet().contains(0))));
         for (Security s : mainModel.getSecurityList()) {
             sibList.add(new Pair<>(new Pair<>(s.getNameProperty().get(), s.getID()),
@@ -495,8 +502,7 @@ public class ReportDialogController {
         } catch (DaoException | ModelException e) {
             final String msg =  e.getClass().getName() + " when showing report";
             mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog((Stage) mTabPane.getScene().getWindow(), e.getClass().getName(),
-                    msg, e.toString(), e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
@@ -581,12 +587,11 @@ public class ReportDialogController {
             tiDialog.setHeaderText("Overwrite existing report setting, or input a new name to save under:");
         }
 
-        Stage stage = (Stage) mTabPane.getScene().getWindow();
         Optional<String> result = tiDialog.showAndWait();
         if (result.isPresent()) {
             String settingName = result.get();
             if (settingName.length() == 0 || settingName.length() > MainModel.SAVEDREPORTS_NAME_LEN) {
-                DialogUtil.showWarningDialog(stage, "Warning", "Bad Report Setting Name",
+                DialogUtil.showWarningDialog(getStage(), "Warning", "Bad Report Setting Name",
                         "Name length should be between 1 and " + MainModel.SAVEDREPORTS_NAME_LEN);
             } else {
                 if (!result.get().equals(mSetting.getName())) {
@@ -600,14 +605,13 @@ public class ReportDialogController {
                 } catch (DaoException e) {
                     final String msg = e.getErrorCode() + " when saving report setting";
                     mLogger.error(msg, e);
-                    DialogUtil.showExceptionDialog((Stage) mTabPane.getScene().getWindow(), e.getClass().getName(),
-                            msg, e.toString(), e);
+                    DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
                 }
             }
         }
     }
 
-    void close() { ((Stage) mTabPane.getScene().getWindow()).close(); }
+    void close() { getStage().close(); }
 
     private String InvestIncomeReport() throws DaoException, ModelException {
         StringBuilder reportStr = new StringBuilder("Investment Income Report from "
@@ -661,7 +665,7 @@ public class ReportDialogController {
                     break; // we are done with this account
 
                 final String sName = (t.getSecurityName() == null || t.getSecurityName().isEmpty()) ?
-                    NOSECURITY : t.getSecurityName();
+                        NO_SECURITY : t.getSecurityName();
                 final int sID = mainModel.getSecurity(security -> security.getName().equals(t.getSecurityName()))
                             .map(Security::getID).orElse(0);
                 if (!mSetting.getSelectedSecurityIDSet().contains(sID))
@@ -936,7 +940,7 @@ public class ReportDialogController {
                 if(tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                String sName = t.getSecurityName().isEmpty() ? NOSECURITY : t.getSecurityName();
+                String sName = t.getSecurityName().isEmpty() ? NO_SECURITY : t.getSecurityName();
                 if (securityNameSet.contains(sName)
                         && mSetting.getSelectedTradeActionSet().contains(t.getTradeAction())) {
                     Line line = new Line();
@@ -1076,7 +1080,7 @@ public class ReportDialogController {
             if (account == null)
                 continue;
             for (Transaction t : new FilteredList<>(account.getTransactionList(), p -> {
-                final String sName = p.getSecurityName().isEmpty() ? NOSECURITY : p.getSecurityName();
+                final String sName = p.getSecurityName().isEmpty() ? NO_SECURITY : p.getSecurityName();
                 return (securityNameSet.contains(sName) &&
                         (p.getTradeAction() == Transaction.TradeAction.SELL ||
                                 p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
@@ -1356,6 +1360,8 @@ public class ReportDialogController {
         title.amount = "Amount";
         lineList.add(title);
 
+        ConverterUtil.CategoryIDConverter categoryIDConverter = new ConverterUtil.CategoryIDConverter(mainModel);
+
         BigDecimal totalAmount = BigDecimal.ZERO;
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final Pattern payeePattern = mSetting.getPayeeContains().isEmpty() ?
@@ -1367,15 +1373,33 @@ public class ReportDialogController {
         for (Account account : mSetting.getSelectedAccountList(mainModel)) {
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
-                if (tDate.isBefore(mSetting.getStartDate()))
-                    continue;
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                final String sName = t.getSecurityName().isEmpty() ? NOSECURITY : t.getSecurityName();
-                if (mSetting.getSelectedCategoryIDSet().contains(t.getCategoryID())
-                        && securityNameSet.contains(sName)
-                        && ((payeePattern == null) || payeePattern.matcher(t.getPayee()).find())
+                if (tDate.isBefore(mSetting.getStartDate()))
+                    continue;
+
+                final String sName = t.getSecurityName().isEmpty() ? NO_SECURITY : t.getSecurityName();
+                if (!securityNameSet.contains(sName))
+                    continue;
+                if (payeePattern != null && !payeePattern.matcher(t.getPayee()).find())
+                    continue;
+
+                if (t.isSplit()) {
+                    for (SplitTransaction st : t.getSplitTransactionList()) {
+                        if (mSetting.getSelectedCategoryIDSet().contains(st.getCategoryID())
+                            && ((memoPattern == null) || memoPattern.matcher(st.getMemo()).find())) {
+                            Line line = new Line();
+                            line.date = tDate.toString();
+                            line.aName = account.getName();
+                            line.memo = st.getMemo() == null ? "" : st.getMemo();
+                            line.category = categoryIDConverter.toString(st.getCategoryID());
+                            line.amount = dcFormat.format(st.getAmount());
+                            totalAmount = totalAmount.add(st.getAmount());
+                            lineList.add(line);
+                        }
+                    }
+                } else if (mSetting.getSelectedCategoryIDSet().contains(t.getCategoryID())
                         && ((memoPattern == null) || memoPattern.matcher(t.getMemo()).find())) {
                     Line line = new Line();
                     line.date = tDate.toString();
@@ -1385,9 +1409,7 @@ public class ReportDialogController {
                     else
                         line.num = t.getReference() == null ? "" : t.getReference();
                     line.memo = t.getMemo() == null ? "" : t.getMemo();
-                    line.category = mainModel.getCategory(c -> c.getID() == t.getCategoryID()).map(Category::getName)
-                            .orElse(mainModel.getAccount(a -> a.getID() == -t.getCategoryID())
-                                    .map(a -> "[" + a.getName() + "]").orElse(""));
+                    line.category = categoryIDConverter.toString(t.getCategoryID());
                     BigDecimal amount;
                     if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
                         line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
@@ -1637,7 +1659,7 @@ public class ReportDialogController {
                 mTabPane.getSelectionModel().selectedItemProperty()));
 
         // the javafx DatePicker isn't aware of the edited value of its own text field.
-        // DatePickerUtil.CaptureEditedDate is a work around for it.
+        // DatePickerUtil.CaptureEditedDate is a workaround for it.
         DatePickerUtil.captureEditedDate(mStartDatePicker);
         DatePickerUtil.captureEditedDate(mEndDatePicker);
     }

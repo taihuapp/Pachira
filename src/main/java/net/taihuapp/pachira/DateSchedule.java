@@ -26,13 +26,8 @@ import javafx.beans.property.*;
 import java.time.LocalDate;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Callable;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
 
 public class DateSchedule {
     public enum BaseUnit {
@@ -99,94 +94,6 @@ public class DateSchedule {
             case QUARTER: return 4;
             case YEAR: return 1;
             default: throw new IllegalArgumentException(bu + " not implemented");
-        }
-    }
-
-    /**
-     * get all the due dates from getStartDate to end (inclusive, ignoring getEndDate)
-     * end can not be null, end may not be a due date
-     */
-    List<LocalDate> getDueDates(LocalDate end) {
-        List<LocalDate> dueDates;
-        final long sLong = getStartDate().toEpochDay();
-        final long eLong = end.toEpochDay();
-        switch (getBaseUnit()) {
-            case DAY:
-            case WEEK:
-                // spacing between due dates
-                final long baseCnt = getNumPeriod() * (getBaseUnit() == BaseUnit.DAY ? 1L : 7L);
-                // due dates in epoch
-                LongStream epochDayStream = LongStream.iterate(sLong, l -> l <= eLong, l -> l + baseCnt);
-                // convert to list of LocalDate and return.
-                return epochDayStream.mapToObj(LocalDate::ofEpochDay).collect(Collectors.toList());
-            case HALF_MONTH:
-                final int[] dom01 = getHalfMonthDates(getStartDate());
-                final int min;
-                final int max;
-                if (dom01[0] < dom01[1]) {
-                    min = dom01[0];
-                    max = dom01[1];
-                } else {
-                    min = dom01[1];
-                    max = dom01[0];
-                }
-                dueDates = new ArrayList<>();
-                for (LocalDate d0 = getStartDate().minusDays(dom01[0] - 1); !d0.isAfter(end); d0 = d0.plusMonths(1)) {
-                    // first day of same month as getStartDate
-                    dueDates.add(d0.withDayOfMonth(min));
-                    dueDates.add(d0.withDayOfMonth(Math.min(max, d0.lengthOfMonth())));
-                }
-                // remove the ones outside getStartDate and e
-                dueDates = dueDates.stream().filter(d -> !d.isBefore(getStartDate()) && !d.isAfter(end))
-                        .collect(Collectors.toList());
-                // skip numOfPeriod
-                return IntStream.range(0, dueDates.size()).filter(n -> n % getNumPeriod() == 0)
-                        .mapToObj(dueDates::get).collect(Collectors.toList());
-            case MONTH:
-            case QUARTER:
-            case YEAR:
-                // num of months for each period
-                final int numMonths = getNumPeriod() * (getBaseUnit() == BaseUnit.MONTH ?
-                        1 : (getBaseUnit() == BaseUnit.QUARTER ? 3 : 12));
-                // from first day of the period to getStartDate
-                long fd2s = firstDayOfPeriod(getBaseUnit(), getStartDate()).until(getStartDate(), ChronoUnit.DAYS);
-                // from getStartDate to last day of the period
-                long s2ld = getStartDate().until(lastDayOfPeriod(getBaseUnit(), getStartDate()), ChronoUnit.DAYS);
-                // day of the week for getStartDate
-                int dow = getStartDate().getDayOfWeek().getValue(); // Monday to Sunday, 1 to 7
-                long nthFwd = fd2s/7 + 1;
-                long nthRev = s2ld/7 + 1;
-                dueDates = new ArrayList<>();
-                for (LocalDate fdOfPeriod = firstDayOfPeriod(getBaseUnit(), getStartDate());
-                     !fdOfPeriod.isAfter(end); fdOfPeriod = fdOfPeriod.plusMonths(numMonths)) {
-                    LocalDate ldOfPeriod = lastDayOfPeriod(getBaseUnit(), fdOfPeriod);
-                    long daysInPeriod = fdOfPeriod.until(ldOfPeriod, ChronoUnit.DAYS)+1;
-                    final LocalDate d;
-                    if (isDOMBased()) { // count day of the month
-                        if (isForward()) // count forward
-                            d = fdOfPeriod.plusDays(Math.min(daysInPeriod-1, fd2s));
-                        else // count backward
-                            d = ldOfPeriod.minusDays(Math.min(daysInPeriod-1, s2ld));
-                    } else { // count day of the week
-                        if (isForward()) { // count forward
-                            int dowFd = fdOfPeriod.getDayOfWeek().getValue();
-                            long daysToAdd = (dow >= dowFd ? (dow-dowFd) : (dow-dowFd+7)) + 7*(nthFwd-1);
-                            if (daysToAdd > daysInPeriod-1)
-                                daysToAdd = daysInPeriod-1;  // can't find that day in period, choose end of period
-                            d = fdOfPeriod.plusDays(daysToAdd);
-                        } else { // count backward
-                            int dowLd = ldOfPeriod.getDayOfWeek().getValue();
-                            long daysToSubtract = ((dow <= dowLd) ? dowLd-dow : dowLd-dow+7) + (nthRev-1)*7;
-                            if (daysToSubtract > daysInPeriod-1)
-                                daysToSubtract = daysInPeriod-1;
-                            d = ldOfPeriod.minusDays(daysToSubtract);
-                        }
-                    }
-                    dueDates.add(d);
-                }
-                return dueDates;
-            default:
-                throw new IllegalStateException(getBaseUnit() + " not implemented");
         }
     }
 
@@ -425,38 +332,6 @@ public class DateSchedule {
                 return getDueDateInPeriod(d);
             default:
                 throw new IllegalStateException(getBaseUnit() + " not implemented");
-        }
-    }
-
-    public static void main(String[] args) {
-        LocalDate s = LocalDate.of(2021, 1, 1);
-        LocalDate e = LocalDate.of(2035, 12, 31);
-        Boolean[] tfArray = new Boolean[]{ true, false };
-
-        for (BaseUnit bu : BaseUnit.values()) {
-            for (int np = 1; np < 4; np++) {
-                for (int d = 0; d < 60; d++) {
-                    for (boolean isDOM : tfArray) {
-                        for (boolean isFwd : tfArray) {
-                            DateSchedule dateSchedule = new DateSchedule(bu, np, s.plusDays(d), e, isDOM, isFwd);
-
-                            List<LocalDate> dueDates = dateSchedule.getDueDates(e);
-                            for (int i = 1; i < dueDates.size(); i++) {
-                                if (!dateSchedule.getNextDueDate(dueDates.get(i - 1)).isEqual(dueDates.get(i))) {
-                                    System.out.println(np + " " + dateSchedule.getBaseUnit() + " " + dateSchedule.getStartDate() + " " + e + " " + isDOM + " " + isFwd);
-                                    System.out.println("Next of " + dueDates.get(i - 1) + " is " + dateSchedule.getNextDueDate(dueDates.get(i - 1))
-                                            + " expecting " + dueDates.get(i));
-                                }
-                                if (!dateSchedule.getPrevDueDate(dueDates.get(i)).isEqual(dueDates.get(i - 1))) {
-                                    System.out.println(np + " " + dateSchedule.getBaseUnit() + " " + dateSchedule.getStartDate() + " " + e + " " + isDOM + " " + isFwd);
-                                    System.out.println("Prev of " + dueDates.get(i) + " is " + dateSchedule.getPrevDueDate(dueDates.get(i))
-                                            + " expecting " + dueDates.get(i - 1));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }

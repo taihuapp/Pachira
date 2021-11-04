@@ -47,6 +47,8 @@ public class EditReminderDialogController {
     private MainModel mainModel;
     private Reminder mReminder;
 
+    private boolean updated = false;
+
     @FXML
     private ChoiceBox<Reminder.Type> mTypeChoiceBox;
     @FXML
@@ -103,6 +105,9 @@ public class EditReminderDialogController {
     private RadioButton mEstimateAmountRadioButton;
 
     private Stage getStage() { return (Stage) mPayeeTextField.getScene().getWindow(); }
+
+    // return true if the reminder is updated
+    boolean isUpdated() { return updated; }
 
     void setMainModel(MainModel mainModel, Reminder reminder) {
         this.mainModel = mainModel;
@@ -368,7 +373,7 @@ public class EditReminderDialogController {
                 mainModel.updateReminder(mReminder);
             else
                 mainModel.insertReminder(mReminder);
-
+            updated = true;
             close();
         } catch (DaoException e) {
             final String action = mReminder.getID() > 0 ? "Update" : "Insert";

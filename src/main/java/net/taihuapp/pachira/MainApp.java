@@ -796,6 +796,7 @@ public class MainApp extends Application {
         }
     }
 
+/*
     void insertReminderTransactions(ReminderTransaction rt, int tid) {
         rt.setTransactionID(tid);
         String sqlCmd = "insert into REMINDERTRANSACTIONS (REMINDERID, DUEDATE, TRANSACTIONID) "
@@ -812,6 +813,7 @@ public class MainApp extends Application {
                     SQLExceptionToString(e), e);
         }
     }
+*/
 
     // insert or update transaction in the master list.
     void insertUpdateTransactionToMasterList(Transaction t) {
@@ -1786,6 +1788,7 @@ public class MainApp extends Application {
         }
     }
 
+/*
     void initReminderTransactionList() {
         if (getConnection() == null) return;
 
@@ -1858,6 +1861,7 @@ public class MainApp extends Application {
             mLogger.error("SQLException " + e.getSQLState(), e);
         }
     }
+*/
 
     void initTagList() {
         if (getConnection() == null) return;
@@ -3678,6 +3682,7 @@ public class MainApp extends Application {
     }
 
     // create a new database
+/*
     void openDatabase(boolean isNew, String dbName, String password) {
         File file;
         if (dbName != null) {
@@ -3855,6 +3860,7 @@ public class MainApp extends Application {
 
         mPrimaryStage.setTitle(appName+ " " + dbName);
     }
+*/
 
     // When oldV < newV, update database from version oldV to version newV.
     // when oldV == newV, no-op
@@ -4036,6 +4042,7 @@ public class MainApp extends Application {
         return allPayees;
     }
 
+/*
     void initializeLists() {
         // initialize
         initCategoryList();
@@ -4050,6 +4057,7 @@ public class MainApp extends Application {
         initVault();
         initAccountDCList();
     }
+*/
 
     // encrypt a char array using master password in the vault, return encrypted and encoded
     String encrypt(final char[] secret) throws NoSuchAlgorithmException, InvalidKeySpecException,

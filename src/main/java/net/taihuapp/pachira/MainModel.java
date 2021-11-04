@@ -893,20 +893,21 @@ public class MainModel {
 
         for (Reminder reminder : reminders) {
             FilteredList<ReminderTransaction> filteredList = new FilteredList<>(reminderTransactions,
-                    rt -> rt.getReminder() != null && rt.getReminder().getID() == reminder.getID());
+                    rt -> rt.getReminderId() == reminder.getID());
             SortedList<ReminderTransaction> sortedList = new SortedList<>(filteredList,
                     Comparator.comparing(ReminderTransaction::getDueDate).reversed());
 
             // let estimate the amount
             final int n = Math.min(reminder.getEstimateCount(), sortedList.size());
             BigDecimal amt = BigDecimal.ZERO;
-            for (int i = 0; i < n; i++) {
-                final int tid = sortedList.get(i).getTransactionID();
-                amt = amt.add(getTransactionByID(tid).map(Transaction::getAmount).orElse(BigDecimal.ZERO));
-            }
             if (n > 0) {
+                for (int i = 0; i < n; i++) {
+                    final int tid = sortedList.get(i).getTransactionID();
+                    amt = amt.add(getTransactionByID(tid).map(Transaction::getAmount).orElse(BigDecimal.ZERO));
+                }
                 amt = amt.divide(BigDecimal.valueOf(n), DaoManager.AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
-                reminder.setAmount(amt);
+            } else {
+                amt = reminder.getAmount();
             }
 
             // calculate next due date
@@ -914,13 +915,14 @@ public class MainModel {
                     : reminder.getDateSchedule().getNextDueDate(sortedList.get(0).getDueDate());
             final LocalDate endDate = reminder.getDateSchedule().getEndDate();
             if (endDate == null || !nextDueDate.isAfter(reminder.getDateSchedule().getEndDate()))
-                reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
+                reminderTransactions.add(new ReminderTransaction(reminder.getID(), nextDueDate, -1,
+                        reminder.getAlertDays(), amt));
         }
         return reminderTransactions;
     }
 
-    void deleteReminder(Reminder reminder) throws DaoException {
-        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).delete(reminder.getID());
+    void deleteReminder(int rId) throws DaoException {
+        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).delete(rId);
     }
 
     void insertReminder(Reminder reminder) throws DaoException {

@@ -22,7 +22,6 @@ package net.taihuapp.pachira.dao;
 
 import net.taihuapp.pachira.ReminderTransaction;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -57,7 +56,7 @@ public class ReminderTransactionDao extends Dao<ReminderTransaction, Integer> {
         final int transactionID = resultSet.getInt("TRANSACTIONID");
 
         // these reminder transactions are either entered or skipped, the alert days is not used, enter 0
-        return new ReminderTransaction(reminderID, dueDate, transactionID, 0, BigDecimal.ZERO);
+        return new ReminderTransaction(reminderID, dueDate, transactionID);
     }
 
     @Override
@@ -67,5 +66,16 @@ public class ReminderTransactionDao extends Dao<ReminderTransaction, Integer> {
         preparedStatement.setInt(2, reminderTransaction.getTransactionID());
         if (withKey)
             preparedStatement.setInt(3, reminderTransaction.getReminderId());
+    }
+
+    public void deleteByReminderId(int rId) throws DaoException {
+        final String sqlCmd = "DELETE FROM " + getTableName() + " WHERE REMINDERID = ?";
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, rId);
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_DELETE, "", e);
+        }
     }
 }

@@ -44,10 +44,8 @@ public class EditReminderDialogController {
 
     private static final Logger logger = Logger.getLogger(EditReminderDialogController.class);
 
-    private MainModel mainModel;
+    private ReminderModel reminderModel;
     private Reminder mReminder;
-
-    private boolean updated = false;
 
     @FXML
     private ChoiceBox<Reminder.Type> mTypeChoiceBox;
@@ -106,11 +104,8 @@ public class EditReminderDialogController {
 
     private Stage getStage() { return (Stage) mPayeeTextField.getScene().getWindow(); }
 
-    // return true if the reminder is updated
-    boolean isUpdated() { return updated; }
-
-    void setMainModel(MainModel mainModel, Reminder reminder) {
-        this.mainModel = mainModel;
+    void setMainModel(ReminderModel reminderModel, Reminder reminder) {
+        this.reminderModel = reminderModel;
         this.mReminder = reminder;
 
         // setup visibility/editable/disable update rules and populate choice boxes
@@ -129,6 +124,7 @@ public class EditReminderDialogController {
         mEstimateNumOccurrenceTextField.editableProperty().bind(mEstimateAmountRadioButton.selectedProperty()
                         .and(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT)));
 
+        final MainModel mainModel = reminderModel.getMainModel();
         mAccountIDComboBox.setConverter(new ConverterUtil.AccountIDConverter(mainModel));
         mAccountIDComboBox.getItems().setAll(mainModel.getAccountList(a -> !a.getHiddenFlag()
                 && a.getType().isGroup(Account.Type.Group.SPENDING)
@@ -271,27 +267,22 @@ public class EditReminderDialogController {
 
     private Predicate<Integer> categoryIDPredicate() {
         if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT) {
-            try {
-                // the set of negative loan account numbers already have a reminder
-                Set<Integer> excludeAccountIDSet = mainModel.getReminderList().stream()
-                        .filter(r -> r.getType() == Reminder.Type.LOAN_PAYMENT)
-                        .map(Reminder::getCategoryID).collect(Collectors.toSet());
+            // the set of negative loan account numbers already have a reminder
+            MainModel mainModel = reminderModel.getMainModel();
 
-                // the set negative loan account numbers not included in excludeAccountIDSet.
-                Set<Integer> loanAccountIdSet = mainModel.getAccountList(a -> !a.getHiddenFlag()
-                        && a.getType() == Account.Type.LOAN).stream().map(a -> -a.getID()).collect(Collectors.toSet());
-                loanAccountIdSet.removeAll(excludeAccountIDSet);
+            // negative ID set for all loan accounts
+            final Set<Integer> loanAccountIdSet = mainModel.getAccountList(a -> !a.getHiddenFlag()
+                    && a.getType() == Account.Type.LOAN).stream().map(a -> -a.getID()).collect(Collectors.toSet());
+            // remove the ids for loan accounts already has a reminder
+            loanAccountIdSet.removeAll(reminderModel.getLoanReminderLoanAccountIdSet().stream().map(i -> -i)
+                    .collect(Collectors.toSet()));
 
-                // only show Loan type accounts in loanAccountIDSet. Add i < 0 should improve performance
-                return i -> i < 0 && loanAccountIdSet.contains(i);
-            } catch (DaoException e) {
-                final String msg = "DaoException when get reminder/loan";
-                logger.error(msg, e);
-                DialogUtil.showExceptionDialog(getStage(), "DaoException", msg, e.toString(), e);
-            }
+            // only show Loan type accounts in loanAccountIDSet. Add i < 0 should improve performance
+            return i -> i < 0 && loanAccountIdSet.contains(i);
         }
         // show all categories and accounts, except the account in AccountID combobox.
-        return i -> i != -mAccountIDComboBox.getValue();
+        // if account set not set, then return true for everything
+        return i -> (mAccountIDComboBox.getValue() == null) || (i != -mAccountIDComboBox.getValue());
     }
 
     @FXML
@@ -316,7 +307,8 @@ public class EditReminderDialogController {
             } else {
                 message = "";
             }
-            List<SplitTransaction> outputSplitTransactionList = DialogUtil.showSplitTransactionsDialog(mainModel,
+            List<SplitTransaction> outputSplitTransactionList =
+                    DialogUtil.showSplitTransactionsDialog(reminderModel.getMainModel(),
                     getStage(), mAccountIDComboBox.getValue(), stList, message, netAmount);
 
             if (outputSplitTransactionList != null) {
@@ -369,11 +361,7 @@ public class EditReminderDialogController {
             mReminder.setEstimateCount(0);
 
         try {
-            if (mReminder.getID() > 0)
-                mainModel.updateReminder(mReminder);
-            else
-                mainModel.insertReminder(mReminder);
-            updated = true;
+            reminderModel.insertUpdateReminder(mReminder);
             close();
         } catch (DaoException e) {
             final String action = mReminder.getID() > 0 ? "Update" : "Insert";

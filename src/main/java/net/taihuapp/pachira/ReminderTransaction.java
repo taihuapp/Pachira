@@ -20,65 +20,34 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.property.*;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class ReminderTransaction {
-    static final String OVERDUE = "Over due";
-    static final String DUE_SOON = "Due soon";
-    static final String COMPLETED = "Completed";
-    static final String SKIPPED = "Skipped";
 
     private final ObjectProperty<Integer> mReminderIdProperty;
     private final ObjectProperty<LocalDate> mDueDateProperty;
     private final IntegerProperty mTransactionIDProperty;
-    private final StringProperty mStatusProperty;
-    private final ObjectProperty<Integer> alertDaysProperty;
-    private final ObjectProperty<BigDecimal> amountProperty;
 
     // tid > 0, representing the corresponding transaction id.
-    // tid 0 is skipped
+    // tid 0 is a skipped reminder transaction
     // tid < 0 is un-executed, -(tid) is the alert days.
-    public ReminderTransaction(int rID, LocalDate d, int tid, int alertDays, BigDecimal amt) {
+    public ReminderTransaction(int rID, LocalDate d, int tid) {
         mReminderIdProperty = new SimpleObjectProperty<>(rID);
         mDueDateProperty = new SimpleObjectProperty<>(d);
-        mStatusProperty = new SimpleStringProperty();
         mTransactionIDProperty = new SimpleIntegerProperty(tid);
-        alertDaysProperty = new SimpleObjectProperty<>(alertDays);
-        amountProperty = new SimpleObjectProperty<>(amt);
-
-        mStatusProperty.bind(Bindings.createStringBinding(() -> {
-            final int id = mTransactionIDProperty.get();
-            if (id > 0)
-                return COMPLETED;
-            if (id == 0)
-                return SKIPPED;
-
-            // id < 0, not executed
-            LocalDate today = MainApp.CURRENT_DATE_PROPERTY.get();
-            LocalDate dueDate = mDueDateProperty.get();
-            if (dueDate.isBefore(today))
-                return OVERDUE;
-
-            if (!dueDate.isAfter(today.plusDays(alertDaysProperty.get())))
-                return DUE_SOON;
-
-            return "";
-        }, mTransactionIDProperty, mDueDateProperty, alertDaysProperty, MainApp.CURRENT_DATE_PROPERTY));
     }
 
     ObjectProperty<LocalDate> getDueDateProperty() { return mDueDateProperty; }
     public LocalDate getDueDate() { return getDueDateProperty().get(); }
     public int getReminderId() { return mReminderIdProperty.get(); }
-    StringProperty getStatusProperty() { return mStatusProperty; }
-    public String getStatus() { return getStatusProperty().get(); }
-    private IntegerProperty getTransactionIDProperty() { return mTransactionIDProperty; }
+    public IntegerProperty getTransactionIDProperty() { return mTransactionIDProperty; }
     public int getTransactionID() { return getTransactionIDProperty().get(); }
-
-    ObjectProperty<BigDecimal> getAmountProperty() { return amountProperty; }
+    boolean isCompletedOrSkipped() { return getTransactionID() >= 0; }
 
     void setTransactionID(int tid) { getTransactionIDProperty().set(tid); }
 }

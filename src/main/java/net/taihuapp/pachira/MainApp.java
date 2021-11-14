@@ -95,7 +95,6 @@ import java.util.function.Predicate;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
-import static net.taihuapp.pachira.QIFUtil.EOL;
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class MainApp extends Application {
@@ -201,10 +200,6 @@ public class MainApp extends Application {
 
     private final SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
 
-    private final Map<Integer, Reminder> mReminderMap = new HashMap<>();
-
-    private final ObservableList<ReminderTransaction> mReminderTransactionList = FXCollections.observableArrayList();
-
     private final ObjectProperty<Account> mCurrentAccountProperty = new SimpleObjectProperty<>(null);
     ObjectProperty<Account> getCurrentAccountProperty() { return mCurrentAccountProperty; }
     void setCurrentAccount(Account a) { mCurrentAccountProperty.set(a); }
@@ -236,7 +231,7 @@ public class MainApp extends Application {
     }
 
     // return accounts for given type t or all account if t is null
-    // return either hidden or nonhidden account based on hiddenflag, or all if hiddenflag is null
+    // return either hidden or Unhidden account based on hiddenflag, or all if hiddenflag is null
     // include DELETED_ACCOUNT if exDeleted is false.
     SortedList<Account> getAccountList(Account.Type.Group g, Boolean hidden, Boolean exDeleted) {
         FilteredList<Account> fList = new FilteredList<>(mAccountList,
@@ -252,13 +247,6 @@ public class MainApp extends Application {
     ObservableList<Category> getCategoryList() { return mCategoryList; }
     ObservableList<Security> getSecurityList() { return mSecurityList; }
 
-    FilteredList<ReminderTransaction> getReminderTransactionList(boolean showCompleted) {
-        return new FilteredList<>(mReminderTransactionList,
-                rt -> (showCompleted || (!rt.getStatus().equals(ReminderTransaction.COMPLETED)
-                        && !rt.getStatus().equals(ReminderTransaction.SKIPPED))));
-    }
-
-    private Map<Integer, Reminder> getReminderMap() { return mReminderMap; }
 
     Account getAccountByName(String name) {
         for (Account a : getAccountList(null, null, false)) {
@@ -305,20 +293,6 @@ public class MainApp extends Application {
         for (Category c : getCategoryList()) {
             if (c.getName().equals(name)) return c;
         }
-        return null;
-    }
-
-    Tag getTagByID(int id) {
-        for (Tag t : getTagList())
-            if (t.getID() == id)
-                return t;
-        return null;
-    }
-
-    Tag getTagByName(String name) {
-        for (Tag t : getTagList())
-            if (t.getName().equals(name))
-                return t;
         return null;
     }
 
@@ -434,55 +408,6 @@ public class MainApp extends Application {
     }
 
     Stage getStage() { return mPrimaryStage; }
-
-    String exportToQIF(boolean exportAccount, boolean exportCategory, boolean exportSecurity,
-                       boolean exportTransaction, LocalDate fromDate, LocalDate toDate, List<Account> accountList) {
-        final StringBuilder stringBuilder = new StringBuilder();
-
-        if (exportCategory) {
-            // export Tags first
-            stringBuilder.append("!Type:Tag").append(EOL);
-            getTagList().forEach(t -> stringBuilder.append(t.toQIF()));
-
-            stringBuilder.append("!Type:Cat").append(EOL);
-            getCategoryList().forEach(c -> stringBuilder.append(c.toQIF()));
-        }
-
-        if (exportAccount || accountList.size() > 1) {
-            // need to export account information
-            stringBuilder.append("!Option:AutoSwitch").append(EOL);
-            stringBuilder.append("!Account").append(EOL);
-            getAccountList(null, null, true).forEach(a -> stringBuilder.append(a.toQIF(false)));
-            stringBuilder.append("!Clear:AutoSwitch").append(EOL);
-        }
-
-        if (exportSecurity) {
-            stringBuilder.append("!Type:Security").append(EOL);
-            getSecurityList().forEach(s -> stringBuilder.append(s.toQIF()));
-        }
-
-/*
-        if (exportTransaction) {
-            stringBuilder.append("!Option:AutoSwitch").append(EOL);
-            accountList.forEach(account -> {
-                stringBuilder.append("!Account").append(EOL);
-                stringBuilder.append(account.toQIF(true));
-                stringBuilder.append("!Type:").append(account.getType().toQIF(true)).append(EOL);
-                account.getTransactionList().filtered(t ->
-                        ((!t.getTDate().isBefore(fromDate)) && (!t.getTDate().isAfter(toDate))))
-                        .forEach(transaction -> stringBuilder.append(transaction.toQIF(this)));
-            });
-        }
-*/
-
-        if (exportSecurity) {
-            // need to export prices if securities are exported.
-            getSecurityList().stream().filter(s-> !s.getTicker().isEmpty()).forEach(s ->
-                getSecurityPrice(s.getID(), s.getTicker()).forEach(p -> stringBuilder.append(p.toQIF(s.getTicker()))));
-        }
-
-        return stringBuilder.toString();
-    }
 
     // given a transaction ID, return a ID list of transactions covering it
     List<Integer> lotMatchedBy(int tid) throws SQLException {
@@ -795,25 +720,6 @@ public class MainApp extends Application {
             }
         }
     }
-
-/*
-    void insertReminderTransactions(ReminderTransaction rt, int tid) {
-        rt.setTransactionID(tid);
-        String sqlCmd = "insert into REMINDERTRANSACTIONS (REMINDERID, DUEDATE, TRANSACTIONID) "
-                + "values (?, ?, ?)";
-        try (PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd)) {
-            preparedStatement.setInt(1, rt.getReminder().getID());
-            preparedStatement.setDate(2, Date.valueOf(rt.getDueDate()));
-            preparedStatement.setInt(3, tid);
-            preparedStatement.executeUpdate();
-        } catch (SQLException e) {
-            mLogger.error("SQLException: " + e.getSQLState(), e);
-            showExceptionDialog(mPrimaryStage, "Database Error",
-                    "Failed to insert into ReminderTransactions!",
-                    SQLExceptionToString(e), e);
-        }
-    }
-*/
 
     // insert or update transaction in the master list.
     void insertUpdateTransactionToMasterList(Transaction t) {
@@ -1751,117 +1657,6 @@ public class MainApp extends Application {
             mLogger.error("NullPointerException", e);
         }
     }
-
-    void initReminderMap() {
-        if (getConnection() == null) return;
-
-        mReminderMap.clear();
-        String sqlCmd = "select * from REMINDERS";
-        try (Statement statement = getConnection().createStatement();
-             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
-            while (resultSet.next()) {
-                int id = resultSet.getInt("ID");
-                String type = resultSet.getString("TYPE");
-                String payee = resultSet.getString("PAYEE");
-                BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
-                int estCnt = resultSet.getInt("ESTCOUNT");
-                int accountID = resultSet.getInt("ACCOUNTID");
-                int categoryID = resultSet.getInt("CATEGORYID");
-                int tagID = resultSet.getInt("TAGID");
-                String memo = resultSet.getString("MEMO");
-                LocalDate startDate = resultSet.getDate("STARTDATE").toLocalDate();
-                LocalDate endDate = resultSet.getDate("ENDDATE") == null ?
-                        null : resultSet.getDate("ENDDATE").toLocalDate();
-                DateSchedule.BaseUnit bu = DateSchedule.BaseUnit.valueOf(resultSet.getString("BASEUNIT"));
-                int np = resultSet.getInt("NUMPERIOD");
-                int ad = resultSet.getInt("ALERTDAYS");
-                boolean isDOM = resultSet.getBoolean("ISDOM");
-                boolean isFWD = resultSet.getBoolean("ISFWD");
-
-                DateSchedule ds = new DateSchedule(bu, np, startDate, endDate, isDOM, isFWD);
-                mReminderMap.put(id, new Reminder(id, Reminder.Type.valueOf(type), payee, amount, estCnt,
-                        accountID, categoryID, tagID, memo, ad, ds,
-                        loadSplitTransactions(-id).getOrDefault(-id, new ArrayList<>())));
-            }
-        } catch (SQLException e) {
-            mLogger.error("SQLException " + e.getSQLState(), e);
-        }
-    }
-
-/*
-    void initReminderTransactionList() {
-        if (getConnection() == null) return;
-
-        mReminderTransactionList.clear();
-        String sqlCmd = "select * from REMINDERTRANSACTIONS order by REMINDERID, DUEDATE";
-        int ridPrev = -1;
-        Reminder reminder = null;
-        Map<Integer, LocalDate> lastDueDateMap = new HashMap<>();
-        try (Statement statement = getConnection().createStatement();
-             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
-            while (resultSet.next()) {
-                int rid = resultSet.getInt("REMINDERID");
-                LocalDate dueDate = resultSet.getDate("DUEDATE").toLocalDate();
-                int tid = resultSet.getInt("TRANSACTIONID");
-
-                // keep track latest due date
-                lastDueDateMap.put(rid, dueDate);
-
-                if (rid != ridPrev) {
-                    // new rid
-                    reminder = getReminderMap().get(rid);
-                    if (reminder == null)
-                        continue; // zombie reminderTransaction
-
-                    ridPrev = rid; // save rid to ridPrev
-                }
-
-                mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, tid));
-            }
-
-            // add one unfulfilled reminders
-            for (Integer rid : getReminderMap().keySet()) {
-                reminder = getReminderMap().get(rid);
-                if (reminder.getEstimateCount() > 0) {
-                    // estimate amount
-                    FilteredList<ReminderTransaction> frtList = new FilteredList<>(mReminderTransactionList,
-                            rt -> rt.getReminder().getID() == rid);
-                    SortedList<ReminderTransaction> sfrtList = new SortedList<>(frtList,
-                            Comparator.comparing(ReminderTransaction::getDueDate));
-                    BigDecimal amt = BigDecimal.ZERO;
-                    int cnt = 0;
-                    for (int i = sfrtList.size()-1; i >= 0 && cnt < reminder.getEstimateCount(); i--) {
-                        ReminderTransaction rt = sfrtList.get(i);
-                        int tid = rt.getTransactionID();
-                        if (tid > 0) {
-                            int idx = getTransactionIndexByID(tid);
-                            if (idx > 0) {
-                                amt = amt.add(mTransactionList.get(idx).getAmount());
-                            } else {
-                                // tid not found, treat it as skipped
-                                mLogger.error("initReminderTransactionList: Transaction " + tid + " not found. " +
-                                        "Probably deleted, treat as skipped.");
-                            }
-                        }
-                        cnt++;
-                    }
-                    if (cnt > 0)
-                        amt = amt.divide(BigDecimal.valueOf(cnt), AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
-                    amt = amt.setScale(AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
-                    reminder.setAmount(amt);
-                }
-                LocalDate lastDueDate = lastDueDateMap.get(rid);
-                if (lastDueDate != null)
-                    lastDueDate = lastDueDate.plusDays(1);
-                LocalDate dueDate = reminder.getDateSchedule().getNextDueDate(lastDueDate);
-                mReminderTransactionList.add(new ReminderTransaction(reminder, dueDate, -1));
-            }
-            mReminderTransactionList.sort(Comparator.comparing(ReminderTransaction::getDueDate));
-        } catch (SQLException e) {
-            mLogger.error("SQLException " + e.getSQLState(), e);
-        }
-    }
-*/
 
     void initTagList() {
         if (getConnection() == null) return;
@@ -4042,23 +3837,6 @@ public class MainApp extends Application {
         return allPayees;
     }
 
-/*
-    void initializeLists() {
-        // initialize
-        initCategoryList();
-        initTagList();
-        initSecurityList();
-        initTransactionList();
-        initAccountList();  // this should be done after securitylist and categorylist are loaded
-        initReminderMap();
-        initReminderTransactionList();
-
-        initFIDataList();
-        initVault();
-        initAccountDCList();
-    }
-*/
-
     // encrypt a char array using master password in the vault, return encrypted and encoded
     String encrypt(final char[] secret) throws NoSuchAlgorithmException, InvalidKeySpecException,
             KeyStoreException, UnrecoverableKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException,
@@ -5563,7 +5341,7 @@ public class MainApp extends Application {
                                 + "'" + adc.getEncryptedAccountNumber() + "', "
                                 + "'" + dateString + "', "
                                 + "'" + timeString + "', "
-                                + ledgeBal.toString() + ")");
+                                + ledgeBal + ")");
             } else {
                 statement.executeUpdate(
                         "merge into ACCOUNTDCS (ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "

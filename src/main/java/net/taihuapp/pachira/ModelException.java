@@ -42,7 +42,7 @@ public class ModelException extends Exception {
          */
         INVALID_DIRECT_CONNECTION,
         /**
-         * the account doesn't have have DC
+         * the account doesn't have DC
          */
         ACCOUNT_NO_DC,
         /**

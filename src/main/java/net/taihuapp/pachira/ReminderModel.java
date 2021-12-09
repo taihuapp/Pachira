@@ -182,8 +182,10 @@ public class ReminderModel {
         int rid = reminder.getID();
         if (rid > 0)
             ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).update(reminder);
-        else
+        else {
             rid = ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).insert(reminder);
+            reminder.setID(rid);
+        }
 
         reminderIdMap.put(rid, reminder);
 

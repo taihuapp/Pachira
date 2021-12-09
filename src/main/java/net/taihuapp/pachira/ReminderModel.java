@@ -270,8 +270,8 @@ public class ReminderModel {
             final Loan.PaymentItem paymentItem = loan.getPaymentItem(reminderTransaction.getDueDate())
                     .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_PAYMENT_NOT_FOUND,
                             "Missing payment item on " + reminderTransaction.getDueDate(), null));
-            transaction.getSplitTransactionList().get(0).setAmount(paymentItem.getPrincipalAmount());
-            transaction.getSplitTransactionList().get(1).setAmount(paymentItem.getInterestAmount());
+            transaction.getSplitTransactionList().get(0).setAmount(paymentItem.getPrincipalAmount().negate());
+            transaction.getSplitTransactionList().get(1).setAmount(paymentItem.getInterestAmount().negate());
         }
 
         return transaction;

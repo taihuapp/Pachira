@@ -234,7 +234,7 @@ public class Loan {
         while (i < n-1) {
             i++;
             iPayment = y.multiply(balance).setScale(0, RoundingMode.HALF_UP).movePointLeft(2);
-            if (i == n-1)
+            if (i == n-2)
                 pPayment = balance; // we have to pay everything off
             else
                 pPayment = paymentAmount.subtract(iPayment);

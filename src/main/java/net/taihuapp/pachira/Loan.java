@@ -188,57 +188,44 @@ public class Loan {
         List<PaymentItem> paymentItems = new ArrayList<>();
         final List<LocalDate> paymentDates = getPaymentDates();
         final int n = paymentDates.size();
-        int i;
-        for (i = 0; i < n; i++) {
-            if (paymentDates.get(i).isAfter(date))
-                break; // paymentDates.get(i) is the first one after date
-        }
+
+        // find i such that paymentDates.get(i) is the first one after date
+        int i = 0;
+        while (i < n && !paymentDates.get(i).isAfter(date))
+            i++;
+
+        // calculate payment break down for the first (possibly partial) period
         final BigDecimal y = getEffectiveInterestRate(apr); // percentage interest rate per period
-        final long daysToNextPayment = ChronoUnit.DAYS.between(date, paymentDates.get(i));
-        BigDecimal oddDayInterest = BigDecimal.ZERO;
-        BigDecimal iPayment;
+        final BigDecimal oddDayInterest;
         if (i == 0) {
-            // calculate odd day interest
-            // date is before the first payment.
-            // d0 is the date of one full period before the first payment date
+            // date is before paymentDays.get(0)
             final long daysToD0 = ChronoUnit.DAYS.between(date, paymentDates.get(0));
-            if (daysToD0 > 0) {
-                // calculate odd day interest
-                // odd day interest, use actual/actual to pro-rate in the year
-                final long daysInYear = ChronoUnit.DAYS.between(date, date.plusYears(1));
-                // a word of caution here:  calcInterest() returns a rounded (to cents) interest
-                // should we compound first then round?
-                oddDayInterest = BigDecimal.ONE.add(y.movePointLeft(2))
-                        .multiply(calcInterest(balance, apr, daysToD0, daysInYear))
-                        .setScale(2, RoundingMode.HALF_UP);
-            } else if (daysToD0 < 0) {
-                // have credit, iPayment is negative
-                final long daysInPeriod = ChronoUnit.DAYS.between(paymentDates.get(0), paymentDates.get(1));
-                oddDayInterest = calcInterest(balance, y, daysToD0, daysInPeriod);
-            }
-            // calculate regular interest
-            final long daysInPeriod = ChronoUnit.DAYS.between(paymentDates.get(0), paymentDates.get(1));
-            iPayment = calcInterest(balance, y, daysInPeriod, daysInPeriod);
+            // calculate odd day interest
+            // odd day interest, use actual/actual to pro-rate in the year
+            final long daysInYear = ChronoUnit.DAYS.between(date, date.plusYears(1));
+            // a word of caution here:  calcInterest() returns a rounded (to cents) interest
+            // should we compound first then round?
+            oddDayInterest = BigDecimal.ONE.add(y.movePointLeft(2))
+                    .multiply(calcInterest(balance, apr, daysToD0, daysInYear))
+                    .setScale(2, RoundingMode.HALF_UP);
+            i = 1;
         } else {
-            // calculate regular interest
+            // calculate adjustment to the regular interest
             // date is between paymentDates(i-1) and (i), pro-rate in the period
-            final long daysInPeriod = ChronoUnit.DAYS.between(paymentDates.get(i - 1), paymentDates.get(i));
-            iPayment = calcInterest(balance, y, daysToNextPayment, daysInPeriod);
+            oddDayInterest = calcInterest(balance, y, ChronoUnit.DAYS.between(date, paymentDates.get(i-1)),
+                    ChronoUnit.DAYS.between(paymentDates.get(i-1), paymentDates.get(i)));
         }
-        BigDecimal pPayment = paymentAmount.subtract(iPayment);
+        final long daysInPeriod = ChronoUnit.DAYS.between(paymentDates.get(i - 1), paymentDates.get(i));
+        BigDecimal iPayment = calcInterest(balance, y, daysInPeriod, daysInPeriod); // regular full period interest
+        BigDecimal pPayment = (i == n-1) ? balance : paymentAmount.subtract(iPayment); // need to pay off at the last
         balance = balance.subtract(pPayment);
         paymentItems.add(new PaymentItem(i, paymentDates.get(i), pPayment.max(BigDecimal.ZERO),
                 iPayment.add(oddDayInterest), balance));
 
         // now finish the remaining paymentItem
-        while (i < n-1) {
-            i++;
+        while (++i < n) {
             iPayment = y.multiply(balance).setScale(0, RoundingMode.HALF_UP).movePointLeft(2);
-            if (i == n-2)
-                pPayment = balance; // we have to pay everything off
-            else
-                pPayment = paymentAmount.subtract(iPayment);
-
+            pPayment = (i == n-1) ? balance : paymentAmount.subtract(iPayment);  // need to pay off at the last
             balance = balance.subtract(pPayment).max(BigDecimal.ZERO);
             paymentItems.add(new PaymentItem(i, paymentDates.get(i), pPayment.max(BigDecimal.ZERO), iPayment, balance));
             if (balance.compareTo(BigDecimal.ZERO) == 0)

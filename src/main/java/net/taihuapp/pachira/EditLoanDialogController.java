@@ -23,6 +23,7 @@ package net.taihuapp.pachira;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
@@ -230,26 +231,27 @@ public class EditLoanDialogController {
                 Objects.requireNonNull(MainApp.class.getResource("/css/TransactionTableView.css"))
                 .toExternalForm());
         paymentScheduleTableView.setItems(loan.getPaymentSchedule());
+
+        paymentScheduleTableView.setRowFactory(tv -> {
+            final PseudoClass paid = PseudoClass.getPseudoClass("reconciled");
+            final TableRow<Loan.PaymentItem> row = new TableRow<>();
+            final ChangeListener<Boolean> changeListener = (obs, ov, nv) -> row.pseudoClassStateChanged(paid, nv);
+            row.itemProperty().addListener((obs, ov, nv) -> {
+                if (nv != null) {
+                    row.pseudoClassStateChanged(paid, nv.getIsPaidProperty().get());
+                    nv.getIsPaidProperty().addListener(changeListener);
+                } else {
+                    row.pseudoClassStateChanged(paid, false);
+                }
+                if (ov != null) {
+                    ov.getIsPaidProperty().removeListener(changeListener);
+                }
+            });
+            return row;
+        });
         seqNumTableColumn.setCellValueFactory(cd -> cd.getValue().getSequenceIDProperty());
         paymentDateTableColumn.setCellValueFactory(cd -> cd.getValue().getDateProperty());
-        paymentDateTableColumn.setCellFactory(c -> new TableCell<>() {
-            @Override
-            protected void updateItem(LocalDate item, boolean empty) {
-                super.updateItem(item, empty);
-                if (item == null || empty) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    setText(item.toString());
-                    setStyle("-fx-alignment: CENTER;");
-                    TableRow<Loan.PaymentItem> row = getTableRow();
-                    if (row != null) {
-                        row.pseudoClassStateChanged(PseudoClass.getPseudoClass("future"),
-                                !loan.isPaid(item));
-                    }
-                }
-            }
-        });
+
         principalPaymentTableColumn.setCellValueFactory(cd -> cd.getValue().getPrincipalAmountProperty());
         principalPaymentTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override
@@ -351,7 +353,7 @@ public class EditLoanDialogController {
 
         // find the first unpaid payment item
         final Optional<Loan.PaymentItem> paymentItemOptional = loan.getPaymentSchedule()
-                .stream().filter(pi -> !loan.isPaid(pi.getDate())).findFirst();
+                .stream().filter(pi -> !pi.getIsPaidProperty().get()).findFirst();
 
         if (paymentItemOptional.isEmpty()) {
             DialogUtil.showInformationDialog(getStage(), "All payments are paid", "No payment needed",
@@ -379,7 +381,9 @@ public class EditLoanDialogController {
             int tid = DialogUtil.showEditTransactionDialog(mainModel, getStage(), transaction, accountList,
                     accountList.get(0), Collections.singletonList(transaction.getTradeAction()));
 
-            mainModel.insertLoanTransaction(new LoanTransaction(-1, LoanTransaction.Type.REGULAR_PAYMENT,
+            int ltId = mainModel.insertLoanTransaction(new LoanTransaction(-1, LoanTransaction.Type.REGULAR_PAYMENT,
+                    loan.getAccountID(), tid, paymentItem.getDate(), BigDecimal.ZERO, BigDecimal.ZERO));
+            loan.addLoanTransaction(new LoanTransaction(ltId, LoanTransaction.Type.REGULAR_PAYMENT,
                     loan.getAccountID(), tid, paymentItem.getDate(), BigDecimal.ZERO, BigDecimal.ZERO));
         } catch (IOException | DaoException e) {
             final String msg = e.getClass().getName() + " when opening EditTransactionDialog";

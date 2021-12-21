@@ -1059,8 +1059,8 @@ public class MainModel {
         return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).get(loanAccountId);
     }
 
-    void insertLoanTransaction(LoanTransaction loanTransaction) throws DaoException {
-        ((LoanTransactionDao) daoManager.getDao(DaoManager.DaoType.LOAN_TRANSACTION)).insert(loanTransaction);
+    int insertLoanTransaction(LoanTransaction loanTransaction) throws DaoException {
+        return ((LoanTransactionDao) daoManager.getDao(DaoManager.DaoType.LOAN_TRANSACTION)).insert(loanTransaction);
     }
 
     /**

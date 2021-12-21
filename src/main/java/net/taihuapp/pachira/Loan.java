@@ -34,6 +34,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Loan {
 
@@ -44,6 +46,7 @@ public class Loan {
         private final ObjectProperty<BigDecimal> principalAmountProperty = new SimpleObjectProperty<>();
         private final ObjectProperty<BigDecimal> interestAmountProperty = new SimpleObjectProperty<>();
         private final ObjectProperty<BigDecimal> balanceAmountProperty = new SimpleObjectProperty<>();
+        private final ObjectProperty<Boolean> isPaidProperty = new SimpleObjectProperty<>(false);
 
         PaymentItem(Integer seq, LocalDate d, BigDecimal p, BigDecimal i, BigDecimal b) {
             sequenceIDProperty.set(seq);
@@ -58,6 +61,7 @@ public class Loan {
         ObjectProperty<BigDecimal> getPrincipalAmountProperty() { return principalAmountProperty; }
         ObjectProperty<BigDecimal> getInterestAmountProperty() { return interestAmountProperty; }
         public ObjectProperty<BigDecimal> getBalanceAmountProperty() { return balanceAmountProperty; }
+        public ObjectProperty<Boolean> getIsPaidProperty() { return isPaidProperty; }
 
         LocalDate getDate() { return getDateProperty().get(); }
         BigDecimal getPrincipalAmount() { return getPrincipalAmountProperty().get(); }
@@ -175,6 +179,13 @@ public class Loan {
                 .divide(BigDecimal.valueOf(daysInPeriod), 0, RoundingMode.HALF_UP).movePointLeft(2);
     }
 
+    private void updatePaymentStatus() {
+        final Set<LocalDate> paidDateSet = loanTransactionList.stream().map(LoanTransaction::getDate)
+                .collect(Collectors.toSet());
+        for (PaymentItem pi : getPaymentSchedule())
+            pi.getIsPaidProperty().set(paidDateSet.contains(pi.getDate()));
+    }
+
     /**
      * Given an input date, remaining balance, apr, and payment amount, compute the remaining payments
      * @param date: the input date
@@ -269,6 +280,9 @@ public class Loan {
 
         // calculate the regular payments (P+I)
         paymentSchedule.setAll(calcPayments(getLoanDate(), getOriginalAmount(), getInterestRate(), getPaymentAmount()));
+
+        // update paid status
+        updatePaymentStatus();
     }
 
     ObservableList<PaymentItem> getPaymentSchedule() { return paymentSchedule; }
@@ -315,11 +329,14 @@ public class Loan {
     public Boolean getCalcPaymentAmount() { return getCalcPaymentAmountProperty().get(); }
     void setCalcPaymentAmount(boolean b) { getCalcPaymentAmountProperty().set(b); }
 
-    public void setLoanTransactionList(List<LoanTransaction> list) { loanTransactionList.setAll(list); }
+    public void setLoanTransactionList(List<LoanTransaction> list) {
+        loanTransactionList.setAll(list);
+        updatePaymentStatus();
+    }
 
-    public boolean isPaid(LocalDate dueDate) {
-        return loanTransactionList.stream().anyMatch(lt -> lt.getType() == LoanTransaction.Type.REGULAR_PAYMENT
-                && lt.getDate().isEqual(dueDate));
+    public void addLoanTransaction(LoanTransaction loanTransaction) {
+        loanTransactionList.add(loanTransaction);
+        updatePaymentStatus();
     }
 
     ObjectProperty<Integer> getAccountIDProperty() { return accountIDProperty; }

@@ -141,12 +141,20 @@ public class ReminderTransactionListDialogController {
 
     @FXML
     private void handleSkip() {
-        ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+        final ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+        if (reminderModel.getReminder(rt.getReminderId()).getType() == Reminder.Type.LOAN_PAYMENT) {
+            if (!DialogUtil.showConfirmationDialog(getStage(), "Skip a loan payment",
+                    "Are you sure to skip a loan payment?",
+                    "Skipping a loan payment may lose track of loan payment sequences.  "
+                    + "Do you want to proceed?"))
+                return;
+        }
+
         final int oldTid = rt.getTransactionID();
         rt.setTransactionID(0);
         try {
             reminderModel.insertReminderTransaction(rt);
-        } catch (DaoException e) {
+        } catch (DaoException | ModelException e) {
             rt.setTransactionID(oldTid);
             final String msg = e.getClass().getName() + " exception when insert ReminderTransaction";
             logger.error(msg, e);
@@ -157,7 +165,7 @@ public class ReminderTransactionListDialogController {
     @FXML
     private void handleNew() { showEditReminderDialog(new Reminder()); }
 
-    void setMainModel(MainModel mainModel) throws DaoException {
+    void setMainModel(MainModel mainModel) throws DaoException, ModelException {
 
         reminderModel = new ReminderModel(mainModel);
 

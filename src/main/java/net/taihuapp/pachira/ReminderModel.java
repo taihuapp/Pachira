@@ -51,7 +51,7 @@ public class ReminderModel {
             rt -> new Observable[]{ rt.getDueDateProperty(), rt.getTransactionIDProperty() });
 
     // constructor
-    ReminderModel(MainModel mainModel) throws DaoException {
+    ReminderModel(MainModel mainModel) throws DaoException, ModelException {
         this.mainModel = mainModel;
 
         // get dao manager
@@ -122,7 +122,7 @@ public class ReminderModel {
     }
 
     // update un-executed reminder transactions for all reminders
-    private void updateReminderTransactionList() {
+    private void updateReminderTransactionList() throws DaoException, ModelException {
         for (Reminder r : reminderIdMap.values()) {
             updateReminderTransactionList(r);
         }
@@ -135,7 +135,7 @@ public class ReminderModel {
     }
 
     // update un-executed reminder transaction for reminder
-    private void updateReminderTransactionList(Reminder reminder) {
+    private void updateReminderTransactionList(Reminder reminder) throws DaoException, ModelException {
 
         final FilteredList<ReminderTransaction> rtList = new FilteredList<>(reminderTransactions,
                 rt -> rt.getReminderId() == reminder.getID() && rt.isCompletedOrSkipped());
@@ -148,24 +148,40 @@ public class ReminderModel {
         if (ds.getEndDate() != null && nextDueDate.isAfter(ds.getEndDate()))
             return; // we are done here
 
-        final int estCnt = reminder.getEstimateCount();
-        final BigDecimal amt;
-        if (estCnt > 0) {
-            final int n = Math.min(estCnt, sortedList.size());
-            if (n == 0) {
-                // a new Reminder, no reminder transaction yet
-                amt = BigDecimal.ZERO;
-            } else {
-                BigDecimal sum = BigDecimal.ZERO;
-                for (int i = 0; i < n; i++) {
-                    sum = sum.add(mainModel.getTransactionByID(sortedList.get(i).getTransactionID())
-                            .map(Transaction::getAmount).orElse(BigDecimal.ZERO));
-                }
-                amt = sum.divide(BigDecimal.valueOf(n), DaoManager.AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
-            }
-            reminder.setAmount(amt);
-        }
+        if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+            final int loanAccountId = -reminder.getSplitTransactionList().get(0).getCategoryID();
+            final Loan loan = mainModel.getLoan(loanAccountId)
+                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_NOT_FOUND,
+                            "Missing loan with account id = " + loanAccountId, null));
+            final Loan.PaymentItem paymentItem = loan.getPaymentItem(nextDueDate)
+                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_PAYMENT_NOT_FOUND,
+                            "Missing payment item on " + nextDueDate, null));
+            // update principal and interest payment
+            List<SplitTransaction> stList = reminder.getSplitTransactionList();
+            stList.get(0).setAmount(paymentItem.getPrincipalAmount().negate());
+            stList.get(1).setAmount(paymentItem.getInterestAmount().negate());
 
+            reminder.setAmount(stList.stream().map(SplitTransaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add).abs());
+        } else {
+            final int estCnt = reminder.getEstimateCount();
+            final BigDecimal amt;
+            if (estCnt > 0) {
+                final int n = Math.min(estCnt, sortedList.size());
+                if (n == 0) {
+                    // a new Reminder, no reminder transaction yet
+                    amt = BigDecimal.ZERO;
+                } else {
+                    BigDecimal sum = BigDecimal.ZERO;
+                    for (int i = 0; i < n; i++) {
+                        sum = sum.add(mainModel.getTransactionByID(sortedList.get(i).getTransactionID())
+                                .map(Transaction::getAmount).orElse(BigDecimal.ZERO));
+                    }
+                    amt = sum.divide(BigDecimal.valueOf(n), DaoManager.AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
+                }
+                reminder.setAmount(amt);
+            }
+        }
         reminderTransactions.removeIf(rt -> rt.getReminderId() == reminder.getID() && !rt.isCompletedOrSkipped());
 
         reminderTransactions.add(new ReminderTransaction(reminder.getID(), nextDueDate, -1));
@@ -177,7 +193,7 @@ public class ReminderModel {
      *
      * reminderIdMap is updated
      */
-    void insertUpdateReminder(Reminder reminder) throws DaoException {
+    void insertUpdateReminder(Reminder reminder) throws DaoException, ModelException {
         DaoManager daoManager = DaoManager.getInstance();
         int rid = reminder.getID();
         if (rid > 0)
@@ -199,7 +215,7 @@ public class ReminderModel {
     ObservableList<ReminderTransaction> getReminderTransactions() { return reminderTransactions; }
 
     // insert reminder transaction to database and also update reminder transaction list.
-    void insertReminderTransaction(ReminderTransaction rt) throws DaoException {
+    void insertReminderTransaction(ReminderTransaction rt) throws DaoException, ModelException {
 
         final Reminder reminder = getReminder(rt.getReminderId());
 
@@ -207,8 +223,8 @@ public class ReminderModel {
         try {
             daoManager.beginTransaction();
             if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
-                mainModel.insertLoanTransaction(new LoanTransaction(-1,
-                        LoanTransaction.Type.REGULAR_PAYMENT, -reminder.getCategoryID(), rt.getTransactionID(),
+                mainModel.insertLoanTransaction(new LoanTransaction(-1, LoanTransaction.Type.REGULAR_PAYMENT,
+                        -reminder.getSplitTransactionList().get(0).getCategoryID(), rt.getTransactionID(),
                         rt.getDueDate(), BigDecimal.ZERO, BigDecimal.ZERO));
             }
 
@@ -234,45 +250,42 @@ public class ReminderModel {
             throws DaoException, ModelException {
         final Reminder reminder = getReminder(reminderTransaction.getReminderId());
 
-        final Transaction.TradeAction tradeAction;
-        switch (reminder.getType()) {
-            case DEPOSIT:
-                tradeAction = Transaction.TradeAction.DEPOSIT;
-                break;
-            case PAYMENT:
-            case LOAN_PAYMENT:
-                tradeAction = Transaction.TradeAction.WITHDRAW;
-                break;
-            default:
-                throw new IllegalArgumentException(reminder.getType() + " not implemented");
-        }
-        final Transaction transaction = new Transaction(reminder.getAccountID(), reminderTransaction.getDueDate(),
-                tradeAction, reminder.getCategoryID());
-        transaction.setAmount(reminder.getAmount());
-        transaction.setPayee(reminder.getPayee());
-        transaction.setMemo(reminder.getMemo());
-
+        // make a copy of split transactions
         final List<SplitTransaction> stList = new ArrayList<>();
         for (SplitTransaction st : reminder.getSplitTransactionList()) {
             final SplitTransaction stCopy = new SplitTransaction(st);
             stCopy.setID(0);
             stList.add(stCopy);
         }
+
+        final BigDecimal amount;
+        final Transaction.TradeAction tradeAction;
+        switch (reminder.getType()) {
+            case DEPOSIT:
+                amount = reminder.getAmount();
+                tradeAction = Transaction.TradeAction.DEPOSIT;
+                break;
+            case PAYMENT:
+                amount = reminder.getAmount();
+                tradeAction = Transaction.TradeAction.WITHDRAW;
+                break;
+            case LOAN_PAYMENT:
+                amount = reminder.getSplitTransactionList().stream().map(SplitTransaction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                tradeAction = (amount.compareTo(BigDecimal.ZERO) > 0) ?
+                        Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW;
+                break;
+            default:
+                throw new IllegalArgumentException(reminder.getType() + " not implemented");
+        }
+
+        final Transaction transaction = new Transaction(reminder.getAccountID(), reminderTransaction.getDueDate(),
+                tradeAction, reminder.getCategoryID());
+        transaction.setAmount(amount.abs());
+        transaction.setPayee(reminder.getPayee());
+        transaction.setMemo(reminder.getMemo());
         transaction.setSplitTransactionList(stList);
         transaction.setTagID(reminder.getTagID());
-
-        // we need to take care of a few things if this is a loan payment
-        if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
-            final int loanAccountId = -reminder.getCategoryID();
-            final Loan loan = mainModel.getLoan(loanAccountId)
-                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_NOT_FOUND,
-                            "Missing loan with account id = " + loanAccountId, null));
-            final Loan.PaymentItem paymentItem = loan.getPaymentItem(reminderTransaction.getDueDate())
-                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_PAYMENT_NOT_FOUND,
-                            "Missing payment item on " + reminderTransaction.getDueDate(), null));
-            transaction.getSplitTransactionList().get(0).setAmount(paymentItem.getPrincipalAmount().negate());
-            transaction.getSplitTransactionList().get(1).setAmount(paymentItem.getInterestAmount().negate());
-        }
 
         return transaction;
     }

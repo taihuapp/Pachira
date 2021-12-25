@@ -35,7 +35,6 @@ import org.controlsfx.control.textfield.TextFields;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -108,21 +107,21 @@ public class EditReminderDialogController {
         this.reminderModel = reminderModel;
         this.mReminder = reminder;
 
+        if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+            // we want user to select loan account in the main windows, even though the info is stored
+            // in the first split transaction.  Extra care is taken to maintain the consistency of the two fields
+            mReminder.getCategoryIDProperty().set(mReminder.getSplitTransactionList().get(0).getCategoryID());
+        }
+
         // setup visibility/editable/disable update rules and populate choice boxes
         mTypeChoiceBox.getItems().setAll(Reminder.Type.values());
         mTypeChoiceBox.getSelectionModel().selectFirst();
         mTypeChoiceBox.valueProperty().addListener((obs, o, n) ->
                 mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate()));
 
-        mFixedAmountRadioButton.disableProperty().bind(mTypeChoiceBox.valueProperty()
-                .isEqualTo(Reminder.Type.LOAN_PAYMENT));
-
-        mAmountTextField.editableProperty().bind(mFixedAmountRadioButton.selectedProperty()
-                        .and(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT)));
+        mAmountTextField.visibleProperty().bind(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT));
+        fixedAmountHBox.visibleProperty().bind(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT));
         estimateHBox.visibleProperty().bind(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT));
-
-        mEstimateNumOccurrenceTextField.editableProperty().bind(mEstimateAmountRadioButton.selectedProperty()
-                        .and(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT)));
 
         final MainModel mainModel = reminderModel.getMainModel();
         mAccountIDComboBox.setConverter(new ConverterUtil.AccountIDConverter(mainModel));
@@ -148,29 +147,30 @@ public class EditReminderDialogController {
             // setup principal/interest payment in split transactions
             if (mTypeChoiceBox.getValue() == Reminder.Type.LOAN_PAYMENT) {
                 try {
-                    Optional<Loan> loanOptional = mainModel.getLoan(-mCategoryIDComboBox.getValue());
-                    if (loanOptional.isPresent()) {
-                        List<Loan.PaymentItem> paymentItemList = loanOptional.get().getPaymentSchedule();
-                        mStartDatePicker.setValue(paymentItemList.get(0).getDate());
-                        mEndDatePicker.setValue(paymentItemList.get(paymentItemList.size()-1).getDate());
-                        BigDecimal principal = BigDecimal.ZERO;
-                        BigDecimal interest = BigDecimal.ZERO;
-                        if (!paymentItemList.isEmpty()) {
-                            principal = paymentItemList.get(0).getPrincipalAmountProperty().get().negate();
-                            interest = paymentItemList.get(0).getInterestAmountProperty().get().negate();
-                        }
-                        List<SplitTransaction> stList = mReminder.getSplitTransactionList();
-                        stList.clear();
-                        // add the principal payment first
-                        stList.add(new SplitTransaction(-1, n, 0, "principal payment",
-                                principal, 0));
-                        // add the interest payment
-                        int cid = mainModel.getCategory(c -> c.getName().equals("Interest Exp")).map(Category::getID)
-                                .orElse(0);
-                        stList.add(new SplitTransaction(-1, cid, 0, "interest payment",
-                                interest, 0));
+                    final int loanAccountId = -mCategoryIDComboBox.getValue();
+                    final Loan loan = mainModel.getLoan(loanAccountId)
+                            .orElseThrow(() -> new ModelException(ModelException.ErrorCode.LOAN_NOT_FOUND,
+                                    "Missing loan with account id = " + loanAccountId, null));
+                    List<Loan.PaymentItem> paymentItemList = loan.getPaymentSchedule().stream()
+                            .filter(pi -> !pi.getIsPaidProperty().get()).collect(Collectors.toList());
+                    if (paymentItemList.isEmpty()) {
+                        throw new ModelException(ModelException.ErrorCode.LOAN_PAYMENT_NOT_FOUND,
+                                "No more payment scheduled", null);
                     }
-                } catch (DaoException e) {
+                    mStartDatePicker.setValue(paymentItemList.get(0).getDate());
+                    mEndDatePicker.setValue(paymentItemList.get(paymentItemList.size() - 1).getDate());
+                    // set up the amounts for transactions in mReminder
+                    List<SplitTransaction> stList = mReminder.getSplitTransactionList();
+                    stList.clear();
+                    // add the principal payment first
+                    stList.add(new SplitTransaction(-1, n, 0, "principal payment",
+                            paymentItemList.get(0).getPrincipalAmount().negate(), 0));
+                    // add the interest payment
+                    int cid = mainModel.getCategory(c -> c.getName().equals("Interest Exp"))
+                            .map(Category::getID).orElse(0);
+                    stList.add(new SplitTransaction(-1, cid, 0, "interest payment",
+                            paymentItemList.get(0).getInterestAmount().negate(), 0));
+                } catch (DaoException | ModelException e) {
                     final String msg = "DaoException when get loan";
                     logger.error(msg, e);
                     DialogUtil.showExceptionDialog(getStage(), "DaoException", msg, e.toString(), e);
@@ -311,9 +311,28 @@ public class EditReminderDialogController {
                     DialogUtil.showSplitTransactionsDialog(reminderModel.getMainModel(),
                     getStage(), mAccountIDComboBox.getValue(), stList, message, netAmount);
 
-            if (outputSplitTransactionList != null) {
-                // splitTransactionList changed
-                mReminder.setSplitTransactionList(outputSplitTransactionList);
+            if (outputSplitTransactionList != null) {  // splitTransactionList changed
+                // check loan account
+                if (mReminder.getType() == Reminder.Type.LOAN_PAYMENT) {
+                    final String title = "Loan Payment Reminder Warning";
+                    final String header = "Inconsistent Split Transactions for Loan Payment Reminder";
+                    final String msg;
+                    if (outputSplitTransactionList.size() < 2) {
+                        msg = "Loan payment reminder should have at least two split transactions, "
+                                + "first for principal payment and second interest payment.";
+                    } else if (!outputSplitTransactionList.get(0).getCategoryID().equals(mReminder.getCategoryID())) {
+                        msg = "Principal payment transfer account should be the same as the Loan account.";
+                    } else {
+                        msg = "";
+                    }
+                    if (!msg.isEmpty()) {
+                        DialogUtil.showWarningDialog(getStage(), title, header, msg);
+                    } else {
+                        mReminder.setSplitTransactionList(outputSplitTransactionList);
+                    }
+                } else {
+                    mReminder.setSplitTransactionList(outputSplitTransactionList);
+                }
             }
         } catch (IOException e) {
             logger.error("ShowSplitTransactionsDialog IOException", e);
@@ -355,6 +374,10 @@ public class EditReminderDialogController {
                         "Please recheck split");
                 return;
             }
+
+            // if there are split transactions, the category id of reminder should not be used
+            mCategoryIDComboBox.valueProperty().unbindBidirectional(mReminder.getCategoryIDProperty());
+            mReminder.getCategoryIDProperty().set(0);
         }
 
         if (!mEstimateAmountRadioButton.isSelected())
@@ -363,12 +386,10 @@ public class EditReminderDialogController {
         try {
             reminderModel.insertUpdateReminder(mReminder);
             close();
-        } catch (DaoException e) {
-            final String action = mReminder.getID() > 0 ? "Update" : "Insert";
-            logger.error(action + " Reminder error", e);
-            DialogUtil.showExceptionDialog(getStage(),
-                    "Exception", "DaoException",
-                    "DaoException " + e.getErrorCode() + " on " + action + " reminder", e);
+        } catch (DaoException | ModelException e) {
+            final String msg = ((mReminder.getID() > 0) ? "Update" : "Insert") + " Reminder error";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.getMessage(), e);
         }
     }
 

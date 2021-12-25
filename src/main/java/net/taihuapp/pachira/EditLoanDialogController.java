@@ -344,7 +344,7 @@ public class EditLoanDialogController {
                         "A reminder already exists for this loan.  Please use reminder to make loan payment");
                 return;
             }
-        } catch (DaoException e) {
+        } catch (DaoException | ModelException e) {
             final String msg = "DaoException when create ReminderModel";
             logger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
@@ -390,8 +390,6 @@ public class EditLoanDialogController {
             logger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.getMessage(), e);
         }
-
-        System.err.println("make payment for " + paymentItem.getDate());
     }
 
     @FXML

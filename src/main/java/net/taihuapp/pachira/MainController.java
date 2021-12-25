@@ -1136,7 +1136,7 @@ public class MainController {
             controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
-        } catch (IOException | DaoException e) {
+        } catch (IOException | DaoException | ModelException e) {
             logAndDisplayException(e.getClass().getName() + " on showReminderTransactionListDialog", e);
         }
     }

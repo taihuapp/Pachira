@@ -279,8 +279,9 @@ public class ReminderModel {
                 throw new IllegalArgumentException(reminder.getType() + " not implemented");
         }
 
+        final int categoryId = reminder.getSplitTransactionList().isEmpty() ? reminder.getCategoryID() : 0;
         final Transaction transaction = new Transaction(reminder.getAccountID(), reminderTransaction.getDueDate(),
-                tradeAction, reminder.getCategoryID());
+                tradeAction, categoryId);
         transaction.setAmount(amount.abs());
         transaction.setPayee(reminder.getPayee());
         transaction.setMemo(reminder.getMemo());

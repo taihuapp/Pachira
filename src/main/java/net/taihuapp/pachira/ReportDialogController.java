@@ -308,7 +308,7 @@ public class ReportDialogController {
         setupAccountsTab(Set.of(Account.Type.Group.INVESTING)); // show investing accounts only
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
-        setupTradeActionTab();
+        mTradeActionTab.setDisable(true); // report doesn't depend on trade action selection.
         mTextMatchTab.setDisable(true);
     }
 
@@ -616,10 +616,6 @@ public class ReportDialogController {
     private String InvestIncomeReport() throws DaoException, ModelException {
         StringBuilder reportStr = new StringBuilder("Investment Income Report from "
                 + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
-        if (mSetting.getSelectedTradeActionSet().isEmpty()) {
-            reportStr.append("No TradeAction selected.");
-            return reportStr.toString();
-        }
 
         class Income {
             private BigDecimal dividend = BigDecimal.ZERO;

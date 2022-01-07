@@ -60,6 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
@@ -244,8 +245,7 @@ public class MainController {
             Account.Type groupAccountType = Arrays.stream(Account.Type.values()).filter(t -> t.isGroup(g))
                     .findFirst().orElse(null);
             Account groupAccount = new Account(-1, groupAccountType, g.toString(),
-                    "Placeholder for " + g.toString(),
-                    false, -1, null, BigDecimal.ZERO);
+                    "Placeholder for " + g, false, -1, null, BigDecimal.ZERO);
             groupAccountList.add(groupAccount);
             TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
             typeNode.setExpanded(true);
@@ -502,11 +502,11 @@ public class MainController {
                 | IllegalBlockSizeException | BadPaddingException | DaoException | ModelException e) {
             final String message;
             if (e instanceof DaoException) {
-                message = "Database exception " + e.toString();
+                message = "Database exception " + e;
             } else if (e instanceof ModelException) {
-                message = "Model exception " + e.toString();
+                message = "Model exception " + e;
             } else {
-                message = "Vault exception " + e.toString();
+                message = "Vault exception " + e;
             }
             logAndDisplayException(message, e);
             DialogUtil.showInformationDialog(getStage(), "Create/Update Master Password",
@@ -571,7 +571,7 @@ public class MainController {
     }
 
     /**
-     * Ask user to select a input or output file
+     * Ask user to select an input or output file
      * @param title - title to prompt user
      * @param ef - selecting files for the given extension only.  If null, all files are permitted
      * @param isNew - if true, create a new file or overwrite an existing file
@@ -592,7 +592,7 @@ public class MainController {
 
     /**
      * return a file object of database file
-     * @param isNew - prompt for a new file if isNew is true, otherwise, prompt a existing file
+     * @param isNew - prompt for a new file if isNew is true, otherwise, prompt an existing file
      * @return a File object. The name always ends with dbPostfix.  Null is returned if the user cancelled it.
      */
     private File getDBFileFromUser(boolean isNew) {
@@ -875,7 +875,7 @@ public class MainController {
 
     @FXML
     private void handleSQLToDB() {
-        // get input SQL file from user
+        // get input SQL script from user
         final File sqlFile = getUserFile("Select input SQL script file...", null, false);
         if (sqlFile == null)
             return; // user cancelled
@@ -931,7 +931,7 @@ public class MainController {
             return;
         }
 
-        // get output SQL file from user
+        // get output SQL script from user
         final File sqlFile = getUserFile("Select output SQL script file...", null, true);
         if (sqlFile == null)
             return; // user cancelled
@@ -1136,8 +1136,8 @@ public class MainController {
             controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(event -> controller.close());
             dialogStage.showAndWait();
-        } catch (IOException e) {
-            logAndDisplayException("IOException on showReminderTransactionListDialog", e);
+        } catch (IOException | DaoException | ModelException e) {
+            logAndDisplayException(e.getClass().getName() + " on showReminderTransactionListDialog", e);
         }
     }
 
@@ -1344,11 +1344,11 @@ public class MainController {
     }
 
     // warn user about changing Clint UID.
-    // and return true of user OK's it
+    // and return true of user OK's it.
     // do nothing and return true if current UID is not set.
     private boolean warnChangingClientUID() throws DaoException {
         return getMainModel().getClientUID().map(uuid -> DialogUtil.showConfirmationDialog(getStage(),
-                "Changing ClientUID", "Current ClientUID is " + uuid.toString(),
+                "Changing ClientUID", "Current ClientUID is " + uuid,
                 "May have to reestablish existing Direct Connections after reset ClientUID"))
                 .orElse(true);
     }
@@ -1690,8 +1690,18 @@ public class MainController {
                 });
             }
         });
-        mTransactionTableView.getStylesheets().add(MainApp.class.getResource("/css/TransactionTableView.css")
-                .toExternalForm());
+
+        final String cssFileName = "/css/TransactionTableView.css";
+        final URL cssUrl = MainApp.class.getResource(cssFileName);
+        if (cssUrl != null) {
+            mTransactionTableView.getStylesheets().add(cssUrl.toExternalForm());
+        } else {
+            final String msg = "MainApp.class.getResource("+cssFileName+") returns null";
+            NullPointerException npe = new NullPointerException(msg);
+            mLogger.error(msg, npe);
+            DialogUtil.showWarningDialog(getStage(), "Warning", "Unable to get css", msg);
+            throw npe;
+        }
 
         // transaction table
         mTransactionStatusColumn.setCellValueFactory(cd -> cd.getValue().getStatusProperty());

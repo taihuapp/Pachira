@@ -23,6 +23,7 @@ package net.taihuapp.pachira;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
@@ -33,12 +34,11 @@ import javafx.util.converter.IntegerStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -231,26 +231,27 @@ public class EditLoanDialogController {
                 Objects.requireNonNull(MainApp.class.getResource("/css/TransactionTableView.css"))
                 .toExternalForm());
         paymentScheduleTableView.setItems(loan.getPaymentSchedule());
+
+        paymentScheduleTableView.setRowFactory(tv -> {
+            final PseudoClass paid = PseudoClass.getPseudoClass("reconciled");
+            final TableRow<Loan.PaymentItem> row = new TableRow<>();
+            final ChangeListener<Boolean> changeListener = (obs, ov, nv) -> row.pseudoClassStateChanged(paid, nv);
+            row.itemProperty().addListener((obs, ov, nv) -> {
+                if (nv != null) {
+                    row.pseudoClassStateChanged(paid, nv.getIsPaidProperty().get());
+                    nv.getIsPaidProperty().addListener(changeListener);
+                } else {
+                    row.pseudoClassStateChanged(paid, false);
+                }
+                if (ov != null) {
+                    ov.getIsPaidProperty().removeListener(changeListener);
+                }
+            });
+            return row;
+        });
         seqNumTableColumn.setCellValueFactory(cd -> cd.getValue().getSequenceIDProperty());
         paymentDateTableColumn.setCellValueFactory(cd -> cd.getValue().getDateProperty());
-        paymentDateTableColumn.setCellFactory(c -> new TableCell<>() {
-            @Override
-            protected void updateItem(LocalDate item, boolean empty) {
-                super.updateItem(item, empty);
-                if (item == null || empty) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    setText(item.toString());
-                    setStyle("-fx-alignment: CENTER;");
-                    TableRow<Loan.PaymentItem> row = getTableRow();
-                    if (row != null) {
-                        row.pseudoClassStateChanged(PseudoClass.getPseudoClass("future"),
-                                !loan.isPaid(item));
-                    }
-                }
-            }
-        });
+
         principalPaymentTableColumn.setCellValueFactory(cd -> cd.getValue().getPrincipalAmountProperty());
         principalPaymentTableColumn.setCellFactory(c -> new TableCell<>() {
             @Override
@@ -332,7 +333,63 @@ public class EditLoanDialogController {
 
     @FXML
     private void handleMakePayment() {
-        System.err.println("make payment");
+        // check if there is a reminder set for the loan already
+        try {
+            final ReminderModel reminderModel = new ReminderModel(mainModel);
+            final Set<Integer> loanAccountIdSet = reminderModel.getLoanReminderLoanAccountIdSet();
+            if (loanAccountIdSet.contains(loan.getAccountID())) {
+                // there is a reminder for this loan.
+                DialogUtil.showInformationDialog(getStage(), "Reminder exist for loan",
+                        "Do not make payment here",
+                        "A reminder already exists for this loan.  Please use reminder to make loan payment");
+                return;
+            }
+        } catch (DaoException | ModelException e) {
+            final String msg = "DaoException when create ReminderModel";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+            return;
+        }
+
+        // find the first unpaid payment item
+        final Optional<Loan.PaymentItem> paymentItemOptional = loan.getPaymentSchedule()
+                .stream().filter(pi -> !pi.getIsPaidProperty().get()).findFirst();
+
+        if (paymentItemOptional.isEmpty()) {
+            DialogUtil.showInformationDialog(getStage(), "All payments are paid", "No payment needed",
+                    "All payments for this loan has already been paid, nothing more to pay.");
+            return;
+        }
+
+        final Loan.PaymentItem paymentItem = paymentItemOptional.get();
+        final List<Account> accountList = mainModel.getAccountList(a ->
+                (!a.getHiddenFlag() && a.getType().isGroup(Account.Type.Group.SPENDING)));
+        // transaction has split, set 0 for category id
+        final Transaction transaction = new Transaction(accountList.get(0).getID(), paymentItem.getDate(),
+                    Transaction.TradeAction.WITHDRAW, 0);
+        final List<SplitTransaction> stList = new ArrayList<>();
+        // add principal payment and interest payment
+        stList.add(new SplitTransaction(-1, -loan.getAccountID(), 0, "principal payment",
+                paymentItem.getPrincipalAmount().negate(), 0));
+        stList.add(new SplitTransaction(-1,
+                mainModel.getCategory(c -> c.getName().equals("Interest Exp")).map(Category::getID).orElse(0),
+                0, "interest payment", paymentItem.getInterestAmount().negate(), 0));
+        transaction.setSplitTransactionList(stList);
+        transaction.setAmount(stList.stream().map(SplitTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add).negate());
+        try {
+            int tid = DialogUtil.showEditTransactionDialog(mainModel, getStage(), transaction, accountList,
+                    accountList.get(0), Collections.singletonList(transaction.getTradeAction()));
+
+            int ltId = mainModel.insertLoanTransaction(new LoanTransaction(-1, LoanTransaction.Type.REGULAR_PAYMENT,
+                    loan.getAccountID(), tid, paymentItem.getDate(), BigDecimal.ZERO, BigDecimal.ZERO));
+            loan.addLoanTransaction(new LoanTransaction(ltId, LoanTransaction.Type.REGULAR_PAYMENT,
+                    loan.getAccountID(), tid, paymentItem.getDate(), BigDecimal.ZERO, BigDecimal.ZERO));
+        } catch (IOException | DaoException e) {
+            final String msg = e.getClass().getName() + " when opening EditTransactionDialog";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.getMessage(), e);
+        }
     }
 
     @FXML

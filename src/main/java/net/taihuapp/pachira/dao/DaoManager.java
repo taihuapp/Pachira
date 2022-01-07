@@ -935,8 +935,7 @@ public class DaoManager {
                         splitTransactionListDao));
             }
             case REMINDER_TRANSACTION:
-                ReminderDao reminderDao = (ReminderDao) getDao(DaoType.REMINDER);
-                return daoMap.computeIfAbsent(daoType, o -> new ReminderTransactionDao(connection, reminderDao));
+                return daoMap.computeIfAbsent(daoType, o -> new ReminderTransactionDao(connection));
             case REPORT_SETTING:
                 ReportDetailDao reportDetailDao = (ReportDetailDao) getDao(DaoType.REPORT_DETAIL);
                 return daoMap.computeIfAbsent(daoType, o -> new ReportSettingDao(connection, reportDetailDao));

@@ -253,7 +253,7 @@ public class MainModel {
         return getTransactionIndex(t);
     }
 
-    private Optional<Transaction> getTransactionByID(int tid) {
+    Optional<Transaction> getTransactionByID(int tid) {
         final int index = getTransactionIndexByID(tid);
         if (index >= 0)
             return Optional.of(transactionList.get(index));
@@ -874,67 +874,6 @@ public class MainModel {
         }
     }
 
-    void insertReminderTransaction(ReminderTransaction rt) throws DaoException {
-        ((ReminderTransactionDao) daoManager.getDao(DaoManager.DaoType.REMINDER_TRANSACTION)).insert(rt);
-    }
-
-    /**
-     * get
-     * @return - the past reminder transactions and one next future reminder transaction for each reminder
-     * @throws DaoException - database operations
-     */
-    ObservableList<ReminderTransaction> getReminderTransactionList() throws DaoException {
-        // get the past reminder transactions first
-        ObservableList<ReminderTransaction> reminderTransactions = FXCollections.observableArrayList();
-        reminderTransactions.setAll(((ReminderTransactionDao) daoManager
-                .getDao(DaoManager.DaoType.REMINDER_TRANSACTION)).getAll());
-
-        List<Reminder> reminders = ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).getAll();
-
-        for (Reminder reminder : reminders) {
-            FilteredList<ReminderTransaction> filteredList = new FilteredList<>(reminderTransactions,
-                    rt -> rt.getReminder() != null && rt.getReminder().getID() == reminder.getID());
-            SortedList<ReminderTransaction> sortedList = new SortedList<>(filteredList,
-                    Comparator.comparing(ReminderTransaction::getDueDate).reversed());
-
-            // let estimate the amount
-            final int n = Math.min(reminder.getEstimateCount(), sortedList.size());
-            BigDecimal amt = BigDecimal.ZERO;
-            for (int i = 0; i < n; i++) {
-                final int tid = sortedList.get(i).getTransactionID();
-                amt = amt.add(getTransactionByID(tid).map(Transaction::getAmount).orElse(BigDecimal.ZERO));
-            }
-            if (n > 0) {
-                amt = amt.divide(BigDecimal.valueOf(n), DaoManager.AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
-                reminder.setAmount(amt);
-            }
-
-            // calculate next due date
-            final LocalDate nextDueDate = sortedList.isEmpty() ? reminder.getDateSchedule().getStartDate()
-                    : reminder.getDateSchedule().getNextDueDate(sortedList.get(0).getDueDate());
-            final LocalDate endDate = reminder.getDateSchedule().getEndDate();
-            if (endDate == null || !nextDueDate.isAfter(reminder.getDateSchedule().getEndDate()))
-                reminderTransactions.add(new ReminderTransaction(reminder, nextDueDate, -1));
-        }
-        return reminderTransactions;
-    }
-
-    void deleteReminder(Reminder reminder) throws DaoException {
-        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).delete(reminder.getID());
-    }
-
-    void insertReminder(Reminder reminder) throws DaoException {
-        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).insert(reminder);
-    }
-
-    void updateReminder(Reminder reminder) throws DaoException {
-        ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).update(reminder);
-    }
-
-    List<Reminder> getReminderList() throws DaoException {
-        return ((ReminderDao) daoManager.getDao(DaoManager.DaoType.REMINDER)).getAll();
-    }
-
     /**
      * insert or update account to database and master list
      * @param account - the account to be inserted or updated
@@ -1120,8 +1059,8 @@ public class MainModel {
         return ((LoanDao) daoManager.getDao(DaoManager.DaoType.LOAN)).get(loanAccountId);
     }
 
-    void insertLoanTransaction(LoanTransaction loanTransaction) throws DaoException {
-        ((LoanTransactionDao) daoManager.getDao(DaoManager.DaoType.LOAN_TRANSACTION)).insert(loanTransaction);
+    int insertLoanTransaction(LoanTransaction loanTransaction) throws DaoException {
+        return ((LoanTransactionDao) daoManager.getDao(DaoManager.DaoType.LOAN_TRANSACTION)).insert(loanTransaction);
     }
 
     /**

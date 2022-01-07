@@ -30,11 +30,8 @@ import java.time.LocalDate;
 
 public class ReminderTransactionDao extends Dao<ReminderTransaction, Integer> {
 
-    private final ReminderDao reminderDao;
-
-    ReminderTransactionDao(Connection connection, ReminderDao reminderDao) {
+    ReminderTransactionDao(Connection connection) {
         this.connection = connection;
-        this.reminderDao = reminderDao;
     }
 
     @Override
@@ -50,7 +47,7 @@ public class ReminderTransactionDao extends Dao<ReminderTransaction, Integer> {
     boolean autoGenKey() { return false; }
 
     @Override
-    Integer getKeyValue(ReminderTransaction reminderTransaction) { return reminderTransaction.getReminder().getID(); }
+    Integer getKeyValue(ReminderTransaction reminderTransaction) { return reminderTransaction.getReminderId(); }
 
     @Override
     ReminderTransaction fromResultSet(ResultSet resultSet) throws SQLException, DaoException {
@@ -58,14 +55,27 @@ public class ReminderTransactionDao extends Dao<ReminderTransaction, Integer> {
         final LocalDate dueDate = resultSet.getObject("DUEDATE", LocalDate.class);
         final int transactionID = resultSet.getInt("TRANSACTIONID");
 
-        return new ReminderTransaction(reminderDao.get(reminderID).orElse(null), dueDate, transactionID);
+        // these reminder transactions are either entered or skipped, the alert days is not used, enter 0
+        return new ReminderTransaction(reminderID, dueDate, transactionID);
     }
 
     @Override
-    void setPreparedStatement(PreparedStatement preparedStatement, ReminderTransaction reminderTransaction, boolean withKey) throws SQLException {
+    void setPreparedStatement(PreparedStatement preparedStatement, ReminderTransaction reminderTransaction,
+                              boolean withKey) throws SQLException {
         preparedStatement.setObject(1, reminderTransaction.getDueDate());
         preparedStatement.setInt(2, reminderTransaction.getTransactionID());
         if (withKey)
-            preparedStatement.setInt(3, reminderTransaction.getReminder().getID());
+            preparedStatement.setInt(3, reminderTransaction.getReminderId());
+    }
+
+    public void deleteByReminderId(int rId) throws DaoException {
+        final String sqlCmd = "DELETE FROM " + getTableName() + " WHERE REMINDERID = ?";
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, rId);
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_DELETE, "", e);
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -61,9 +61,10 @@ public class ReportDialogController {
         LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR,
         LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD;
 
-        static EnumSet<DatePeriod> groupD = EnumSet.of(TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE);
-        static EnumSet<DatePeriod> groupP = EnumSet.of(WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
-                LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD);
+        static final EnumSet<DatePeriod> groupD = EnumSet.of(TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE);
+        static final EnumSet<DatePeriod> groupP = EnumSet.of(WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE,
+                EPOCHTODATE, LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS,
+                CUSTOMPERIOD);
     }
 
     public enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
@@ -1214,9 +1215,6 @@ public class ReportDialogController {
         totalLine.proceeds = dcFormat.format(totalLTProceeds.add(totalSTProceeds));
         totalLine.realizedGL = dcFormat.format(totalLTProceeds.subtract(totalLTCostBasis)
                 .add(totalSTProceeds).subtract(totalSTCostBasis));
-
-        final Line total = new Line();
-        total.aName = "Total";
 
         int aNameLen = 12;
         int sNameLen = 24;

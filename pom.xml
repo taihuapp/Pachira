@@ -26,7 +26,7 @@
 
     <groupId>net.taihuapp.pachira</groupId>
     <artifactId>Pachira</artifactId>
-    <version>0.8.1.0</version>
+    <version>0.8.1.1</version>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
@@ -138,6 +138,7 @@
                         <configuration>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
                             <excludeGroupIds>org.openjfx,org.junit.jupiter</excludeGroupIds>
+                            <includeScope>runtime</includeScope>
                             <overWriteReleases>false</overWriteReleases>
                             <overWriteSnapshots>false</overWriteSnapshots>
                             <overWriteIfNewer>true</overWriteIfNewer>

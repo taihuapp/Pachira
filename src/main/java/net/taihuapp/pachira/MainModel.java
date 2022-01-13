@@ -191,8 +191,11 @@ public class MainModel {
                 if (settings.get(settings.size()-1).getDisplayOrder() == Integer.MAX_VALUE) {
                     // there are entries with unset display order
                     for (int i = 0; i < settings.size(); i++) {
-                        settings.get(i).setDisplayOrder(i);
-                        insertUpdateReportSetting(settings.get(i));
+                        ReportDialogController.Setting setting = settings.get(i);
+                        if (setting.getDisplayOrder() != i) {
+                            settings.get(i).setDisplayOrder(i);
+                            insertUpdateReportSetting(settings.get(i));
+                        }
                     }
                 }
                 daoManager.commit();

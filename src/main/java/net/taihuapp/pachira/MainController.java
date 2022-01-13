@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -1171,21 +1171,75 @@ public class MainController {
         updateSavedReportsMenu();
     }
 
-    private void updateSavedReportsMenu() {
-        List<MenuItem> menuItemList = new ArrayList<>();
-        try {
-            List<ReportDialogController.Setting> settings = getMainModel().getReportSettingList();
-            settings.sort(Comparator.comparing(ReportDialogController.Setting::getID));
-            for (ReportDialogController.Setting setting : settings) {
-                MenuItem mi = new MenuItem(setting.getName());
-                mi.setUserData(setting);
-                mi.setOnAction(t -> {
-                    showReportDialog((ReportDialogController.Setting) mi.getUserData());
-                    updateSavedReportsMenu();
-                });
-                menuItemList.add(mi);
+    /**
+     * delete a saved report setting
+     * @param setting the input setting to be deleted
+     */
+    private void deleteReportSetting(ReportDialogController.Setting setting) {
+        if (DialogUtil.showConfirmationDialog(getStage(), "Delete Saved Report",
+                "Delete Report '" + setting.getName() + "'",
+                "You are about to delete a saved report titled '" + setting.getName() + "', are you sure?")) {
+            try {
+                mainModel.deleteReportSetting(setting.getID());
+                updateSavedReportsMenu();
+            } catch (DaoException e) {
+                logAndDisplayException(e.getErrorCode() + " when deleting saved report '" + setting.getName() + "'", e);
             }
-            mSavedReportsMenu.getItems().setAll(menuItemList);
+        }
+    }
+
+    private void swapReportSettingDisplayOrders(ReportDialogController.Setting s1, ReportDialogController.Setting s2) {
+        try {
+            mainModel.swapReportSettingDisplayOrder(s1, s2);
+            updateSavedReportsMenu();
+        } catch (DaoException e) {
+            logAndDisplayException(e.getErrorCode() + " when swapping report display orders", e);
+        }
+    }
+
+    /**
+     * update saved report menu
+     */
+    private void updateSavedReportsMenu() {
+        try {
+            mSavedReportsMenu.getItems().clear();
+            List<ReportDialogController.Setting> settings = getMainModel().getReportSettingList();
+            for (int i = 0; i < settings.size(); i++) {
+                final ReportDialogController.Setting setting = settings.get(i);
+
+                final Menu menu = new Menu(setting.getName());
+
+                // add a show menu item
+                final MenuItem showMI = new MenuItem("Show");
+                showMI.setOnAction(e -> showReportDialog(setting));
+                menu.getItems().add(showMI);
+
+                // add a separator
+                menu.getItems().add(new SeparatorMenuItem());
+
+                if (i > 0) {
+                    // add a move up menu item
+                    final MenuItem moveUpMI = new MenuItem("Move Up");
+                    final ReportDialogController.Setting prev = settings.get(i-1);
+                    moveUpMI.setOnAction(e -> swapReportSettingDisplayOrders(prev, setting));
+                    menu.getItems().add(moveUpMI);
+                }
+
+                if (i < settings.size()-1) {
+                    // add a move down menu item
+                    final MenuItem moveDownMI = new MenuItem("Move Down");
+                    final ReportDialogController.Setting next = settings.get(i+1);
+                    moveDownMI.setOnAction(e -> swapReportSettingDisplayOrders(setting, next));
+                    menu.getItems().add(moveDownMI);
+                }
+
+                // add a delete menu item
+                final MenuItem deleteMI = new MenuItem("Delete");
+                deleteMI.setOnAction(e -> deleteReportSetting(setting));
+                menu.getItems().add(deleteMI);
+
+                mSavedReportsMenu.getItems().add(menu);
+            }
         } catch (DaoException e) {
             logAndDisplayException(e.getErrorCode() + " when get Report settings", e);
         }

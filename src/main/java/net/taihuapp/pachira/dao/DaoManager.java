@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -47,7 +47,7 @@ public class DaoManager {
 
     // constants
     private static final String DB_VERSION_NAME = "DBVERSION";
-    private static final int DB_VERSION_VALUE = 11; // required DB_VERSION
+    private static final int DB_VERSION_VALUE = 12; // required DB_VERSION
     private static final String DB_OWNER = "ADMPACHIRA";
     private static final String DB_POSTFIX = ".mv.db";
     private static final String URL_PREFIX = "jdbc:h2:";
@@ -574,7 +574,8 @@ public class DaoManager {
                 + "PAYEECONTAINS varchar (80), "
                 + "PAYEEREGEX boolean, "
                 + "MEMOCONTAINS varchar (80), "
-                + "MEMOREGEX boolean);";
+                + "MEMOREGEX boolean, "
+                + "DISPLAYORDER int NOT NULL);";
         executeUpdateQuery(sqlCmd);
 
         // SavedReportDetails table
@@ -638,7 +639,11 @@ public class DaoManager {
             updateDB(oldV, newV-1); // recursively bring from oldV up.
 
         // need to run this to update DBVERSION
-        if (newV == 11) {
+        if (newV == 12) {
+            // add column to DISPLAYORDER to SAVEDREPORTS
+            executeUpdateQuery("alter table SAVEDREPORTS add column DISPLAYORDER int default "
+                    + Integer.MAX_VALUE + " not null");
+        } else if (newV == 11) {
             executeUpdateQuery("alter table SPLITTRANSACTIONS add column TYPE varchar(16) default '"
                     + SplitTransaction.Type.TXN.name() + "' not null");
             executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TYPE drop DEFAULT");

@@ -21,9 +21,7 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -88,7 +86,10 @@ public class ReportDialogController {
         private Boolean mPayeeRegEx = false;
         private String mMemoContains = "";
         private Boolean mMemoRegEx = false;
-
+        private final ObjectProperty<Integer> displayOrderProperty = new SimpleObjectProperty<>(Integer.MAX_VALUE);
+        public ObjectProperty<Integer> getDisplayOrderProperty() { return displayOrderProperty; }
+        public int getDisplayOrder() { return getDisplayOrderProperty().get(); }
+        public void setDisplayOrder(int order) { getDisplayOrderProperty().set(order); }
 
         Setting(ReportType type) {
             this(-1, type);

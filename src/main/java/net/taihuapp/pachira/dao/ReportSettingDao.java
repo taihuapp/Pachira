@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -54,7 +54,7 @@ public class ReportSettingDao extends Dao<ReportDialogController.Setting, Intege
     @Override
     String[] getColumnNames() {
         return new String[]{ "NAME", "TYPE", "DATEPERIOD", "SDATE", "EDATE", "FREQUENCY",
-                "PAYEECONTAINS", "PAYEEREGEX", "MEMOCONTAINS", "MEMOREGEX" };
+                "PAYEECONTAINS", "PAYEEREGEX", "MEMOCONTAINS", "MEMOREGEX", "DISPLAYORDER" };
     }
 
     @Override
@@ -79,6 +79,7 @@ public class ReportSettingDao extends Dao<ReportDialogController.Setting, Intege
         setting.setPayeeRegEx(resultSet.getBoolean("PAYEEREGEX"));
         setting.setMemoContains(resultSet.getString("MEMOCONTAINS"));
         setting.setMemoRegEx(resultSet.getBoolean("MEMOREGEX"));
+        setting.setDisplayOrder(resultSet.getInt("DISPLAYORDER"));
 
         reportDetailDao.get(id).ifPresent(reportDetails -> {
             for (ReportDialogController.ItemName itemName : ReportDialogController.ItemName.values()) {
@@ -121,8 +122,9 @@ public class ReportSettingDao extends Dao<ReportDialogController.Setting, Intege
         preparedStatement.setBoolean(8, setting.getPayeeRegEx());
         preparedStatement.setString(9, setting.getMemoContains());
         preparedStatement.setBoolean(10, setting.getMemoRegEx());
+        preparedStatement.setInt(11, setting.getDisplayOrder());
         if (withKey)
-            preparedStatement.setInt(11, setting.getID());
+            preparedStatement.setInt(12, setting.getID());
     }
 
     @Override
@@ -158,7 +160,7 @@ public class ReportSettingDao extends Dao<ReportDialogController.Setting, Intege
         itemsMap.put(SECURITYID.name(), setting.getSelectedSecurityIDSet().stream()
                 .map(String::valueOf).collect(Collectors.toList()));
         itemsMap.put(TRADEACTION.name(), setting.getSelectedTradeActionSet().stream()
-                .map(String::valueOf).collect(Collectors.toList()));
+                .map(Transaction.TradeAction::name).collect(Collectors.toList()));
         return itemsMap;
     }
 

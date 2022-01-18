@@ -1484,13 +1484,11 @@ public class ReportDialogController {
                         line.num = t.getReference() == null ? "" : t.getReference();
                     line.memo = t.getMemo() == null ? "" : t.getMemo();
                     line.category = categoryIDConverter.toString(t.getCategoryID());
-                    BigDecimal amount;
+                    final BigDecimal amount = t.getCashAmount().add(t.getInvestAmount());
                     if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
                         line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
-                        amount = t.getCashAmount();
                     } else {
                         line.desc = t.getPayee() == null ? "" : t.getPayee();
-                        amount = t.getDepositProperty().get().subtract(t.getPaymentProperty().get());
                     }
                     line.amount = dcFormat.format(amount);
                     totalAmount = totalAmount.add(amount);

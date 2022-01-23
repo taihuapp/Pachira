@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -160,6 +160,8 @@ public class EditTransactionDialogControllerNew {
     @FXML
     private ComboBox<Integer> mCategoryComboBox;
     private CategoryTransferAccountIDComboBoxWrapper mCategoryComboBoxWrapper;
+    @FXML
+    private Label splitLabel;
     @FXML
     private Label mTagLabel;
     @FXML
@@ -384,9 +386,10 @@ public class EditTransactionDialogControllerNew {
         // category combobox visibility
         mCategoryComboBox.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
-            return (ta != STKSPLIT && ta != SHRSIN && ta != SHRSOUT && ta != REINVDIV && ta != REINVINT
+            return (!splitLabel.isVisible())
+                    && (ta != STKSPLIT && ta != SHRSIN && ta != SHRSOUT && ta != REINVDIV && ta != REINVINT
                     && ta != REINVLG && ta != REINVMD && ta != REINVSH && ta != SHRCLSCVN && ta != CORPSPINOFF);
-        }, mTradeActionChoiceBox.valueProperty()));
+        }, mTradeActionChoiceBox.valueProperty(), splitLabel.visibleProperty()));
         mCategoryLabel.visibleProperty().bind(mCategoryComboBox.visibleProperty());
         mCategoryLabel.textProperty().bind(Bindings.createStringBinding(() -> {
             switch (mTradeActionChoiceBox.getValue()) {
@@ -404,6 +407,7 @@ public class EditTransactionDialogControllerNew {
             }
         }, mTradeActionChoiceBox.valueProperty()));
         mCategoryComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
+        splitLabel.setVisible(!mTransaction.getSplitTransactionList().isEmpty());
 
         // memo always visible
         mMemoTextField.textProperty().bindBidirectional(mTransaction.getMemoProperty());
@@ -994,6 +998,8 @@ public class EditTransactionDialogControllerNew {
                 // has split, unset category or transfer
                 mCategoryComboBox.getSelectionModel().select(Integer.valueOf(0));
             }
+
+            splitLabel.setVisible(!mTransaction.getSplitTransactionList().isEmpty());
         } catch (IOException e) {
             DialogUtil.showExceptionDialog(stage, "IOException",
                     "IOException encountered when opening SplitTransactionDialog", e.getMessage(), e);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -172,8 +172,89 @@ public class MainModel {
             reportSettingDao.update(setting);
     }
 
+    /**
+     * get a list of saved reports sorted in display order
+     * @return list
+     * @throws DaoException from database operations
+     */
     List<ReportDialogController.Setting> getReportSettingList() throws DaoException {
-        return ((ReportSettingDao) daoManager.getDao(DaoManager.DaoType.REPORT_SETTING)).getAll();
+        final ReportSettingDao reportSettingDao =
+                (ReportSettingDao) daoManager.getDao(DaoManager.DaoType.REPORT_SETTING);
+        final List<ReportDialogController.Setting> settings = reportSettingDao.getAll();
+
+        if (!settings.isEmpty()) {
+            // sort it
+            settings.sort(Comparator.comparing(ReportDialogController.Setting::getDisplayOrder)
+                    .thenComparing(ReportDialogController.Setting::getID));
+            try {
+                daoManager.beginTransaction();
+                if (settings.get(settings.size()-1).getDisplayOrder() == Integer.MAX_VALUE) {
+                    // there are entries with unset display order
+                    for (int i = 0; i < settings.size(); i++) {
+                        ReportDialogController.Setting setting = settings.get(i);
+                        if (setting.getDisplayOrder() != i) {
+                            settings.get(i).setDisplayOrder(i);
+                            insertUpdateReportSetting(settings.get(i));
+                        }
+                    }
+                }
+                daoManager.commit();
+            } catch (DaoException e) {
+                try {
+                    daoManager.rollback();
+                } catch (DaoException e1) {
+                    e.addSuppressed(e1);
+                }
+                throw e;
+            }
+        }
+        return settings;
+    }
+
+    void deleteReportSetting(int id) throws DaoException {
+        try {
+            daoManager.beginTransaction();
+            ((ReportDetailDao) daoManager.getDao(DaoManager.DaoType.REPORT_DETAIL)).delete(id);
+            ((ReportSettingDao) daoManager.getDao(DaoManager.DaoType.REPORT_SETTING)).delete(id);
+            daoManager.commit();
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * swap display orders for report settings s1 and s2
+     * input object are not changed if exception is encountered
+     * @param s1 first setting being swapped
+     * @param s2 second setting being swapped
+     * @throws DaoException from database operations
+     */
+    void swapReportSettingDisplayOrder(ReportDialogController.Setting s1,
+                                       ReportDialogController.Setting s2) throws DaoException {
+        final int o1 = s1.getDisplayOrder();
+        final int o2 = s2.getDisplayOrder();
+        s1.setDisplayOrder(o2);
+        s2.setDisplayOrder(o1);
+        try {
+            daoManager.beginTransaction();
+            insertUpdateReportSetting(s1);
+            insertUpdateReportSetting(s2);
+            daoManager.commit();
+        } catch (DaoException e) {
+            try {
+                s1.setDisplayOrder(o1);
+                s2.setDisplayOrder(o2);
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e1.addSuppressed(e1);
+            }
+            throw e;
+        }
     }
 
     private void initSecurityList() throws DaoException {

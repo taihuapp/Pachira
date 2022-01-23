@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -204,6 +204,11 @@ public class Loan {
         int i = 0;
         while (i < n && !paymentDates.get(i).isAfter(date))
             i++;
+
+        if (i >= n) {
+            // date is after last payment date
+            return paymentItems;
+        }
 
         // calculate payment break down for the first (possibly partial) period
         final BigDecimal y = getEffectiveInterestRate(apr); // percentage interest rate per period

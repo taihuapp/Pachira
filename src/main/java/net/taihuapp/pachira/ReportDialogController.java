@@ -21,16 +21,15 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
-import javafx.scene.layout.TilePane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Pair;
@@ -88,7 +87,10 @@ public class ReportDialogController {
         private Boolean mPayeeRegEx = false;
         private String mMemoContains = "";
         private Boolean mMemoRegEx = false;
-
+        private final ObjectProperty<Integer> displayOrderProperty = new SimpleObjectProperty<>(Integer.MAX_VALUE);
+        public ObjectProperty<Integer> getDisplayOrderProperty() { return displayOrderProperty; }
+        public int getDisplayOrder() { return getDisplayOrderProperty().get(); }
+        public void setDisplayOrder(int order) { getDisplayOrderProperty().set(order); }
 
         Setting(ReportType type) {
             this(-1, type);
@@ -191,6 +193,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Account, BooleanProperty>, String> mAccountTableColumn;
     @FXML
     private TableColumn<Pair<Account, BooleanProperty>, Boolean> mAccountSelectedTableColumn;
+    @FXML
+    private TextField accountFilterTextField;
 
     @FXML
     private Tab mCategoriesTab;
@@ -200,6 +204,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, String> mCategoryTableColumn;
     @FXML
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, Boolean> mCategorySelectedTableColumn;
+    @FXML
+    private TextField categoryFilterTextField;
 
     @FXML
     private Tab mSecuritiesTab;
@@ -209,6 +215,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, String> mSecurityTableColumn;
     @FXML
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, Boolean> mSecuritySelectedTableColumn;
+    @FXML
+    private TextField securityFilterTextField;
 
     @FXML
     private Tab mTradeActionTab;
@@ -218,6 +226,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, String> mTradeActionTableColumn;
     @FXML
     private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, Boolean> mTradeActionSelectedTableColumn;
+    @FXML
+    private TextField tradeActionFilterTextField;
 
     @FXML
     private Tab mTextMatchTab;
@@ -231,8 +241,6 @@ public class ReportDialogController {
     private CheckBox mMemoRegExCheckBox;
 
     @FXML
-    private TilePane mRightTilePane;
-    @FXML
     TextArea mReportTextArea;
     @FXML
     Button mShowReportButton;
@@ -242,6 +250,10 @@ public class ReportDialogController {
     Button mShowSettingButton;
     @FXML
     Button mSaveSettingButton;
+    @FXML
+    Button setAllButton;
+    @FXML
+    Button clearAllButton;
 
     private MainModel mainModel;
 
@@ -367,7 +379,7 @@ public class ReportDialogController {
     // show accounts with group included in groupSet
     private void setupAccountsTab(Set<Account.Type.Group> groupSet) {
         // a list of Pair<Pair<account, displayOrder>, selected>
-        ObservableList<Pair<Account, BooleanProperty>> abList = FXCollections.observableArrayList();
+        final ObservableList<Pair<Account, BooleanProperty>> abList = FXCollections.observableArrayList();
 
         for (Account account : mainModel.getAccountList(a -> groupSet.contains(a.getType().getGroup())
                 && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME))) {
@@ -375,7 +387,25 @@ public class ReportDialogController {
                     new SimpleBooleanProperty(mSetting.getSelectedAccountIDSet().contains(account.getID()))));
         }
 
-        mAccountSelectionTableView.setItems(abList);
+        // create a filtered list
+        final FilteredList<Pair<Account, BooleanProperty>> filteredList = new FilteredList<>(abList);
+        // create a pattern binding depending on the text field
+        final ObjectBinding<Pattern> patternObjectBinding = Bindings.createObjectBinding(() ->
+                Pattern.compile(accountFilterTextField.getText().trim(),
+                        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                accountFilterTextField.textProperty());
+        // bind the filtered list predicate property, the selected accounts and account name contains
+        // the filter text will be shown
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                        e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().getName()).find(),
+                patternObjectBinding));
+        // create a sorted list
+        final SortedList<Pair<Account, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+        // bind the comparator
+
+        mAccountSelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mAccountSelectionTableView.comparatorProperty());
+
         mAccountTableColumn.setCellValueFactory(cd -> cd.getValue().getKey().getNameProperty());
         mAccountSelectedTableColumn.setCellValueFactory(cd -> cd.getValue().getValue());
         mAccountSelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mAccountSelectedTableColumn));
@@ -383,8 +413,9 @@ public class ReportDialogController {
     }
 
     private void setupCategoriesTab() {
-        ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
-        boolean newSetting = mSetting.getID() < 0;  // we pre-select all categories for new setting
+        final ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList =
+                FXCollections.observableArrayList();
+        final boolean newSetting = mSetting.getID() < 0;  // we pre-select all categories for new setting
         sibList.add(new Pair<>(new Pair<>(NO_CATEGORY, 0),
                 new SimpleBooleanProperty(newSetting
                         || mSetting.getSelectedCategoryIDSet().contains(0))));
@@ -399,7 +430,23 @@ public class ReportDialogController {
                     new SimpleBooleanProperty(newSetting
                             || mSetting.getSelectedCategoryIDSet().contains(-a.getID()))));
         }
-        mCategorySelectionTableView.setItems(sibList);
+
+        final FilteredList<Pair<Pair<String, Integer>, BooleanProperty>> filteredList = new FilteredList<>(sibList);
+        // create a pattern binding depending on the text field
+        final ObjectBinding<Pattern>  patternObjectBinding = Bindings.createObjectBinding(() ->
+                        Pattern.compile(categoryFilterTextField.getText().trim(),
+                                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                categoryFilterTextField.textProperty());
+        // bind the filteredList predicate property
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                        e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().getKey()).find(),
+                patternObjectBinding));
+        // set up a sorted list
+        final SortedList<Pair<Pair<String, Integer>, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+
+        mCategorySelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mCategorySelectionTableView.comparatorProperty());
+
         mCategoryTableColumn.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().getKey().getKey()));
         mCategorySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
@@ -408,8 +455,9 @@ public class ReportDialogController {
     }
 
     private void setupSecuritiesTab() {
-        ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
-        boolean newSetting = mSetting.getID() < 0;
+        final ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList =
+                FXCollections.observableArrayList();
+        final boolean newSetting = mSetting.getID() < 0;
         sibList.add(new Pair<>(new Pair<>(NO_SECURITY, 0),
                 new SimpleBooleanProperty(newSetting || mSetting.getSelectedSecurityIDSet().contains(0))));
         for (Security s : mainModel.getSecurityList()) {
@@ -417,7 +465,24 @@ public class ReportDialogController {
                     new SimpleBooleanProperty(newSetting
                             || mSetting.getSelectedSecurityIDSet().contains(s.getID()))));
         }
-        mSecuritySelectionTableView.setItems(sibList);
+
+        // create a filtered list
+        final FilteredList<Pair<Pair<String, Integer>, BooleanProperty>> filteredList= new FilteredList<>(sibList);
+        // create a pattern binding depending on the text field
+        final ObjectBinding<Pattern> patternObjectBinding = Bindings.createObjectBinding(() ->
+                Pattern.compile(securityFilterTextField.getText().trim(),
+                        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                securityFilterTextField.textProperty());
+        // bind the filteredList predicate property
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().getKey()).find(),
+                patternObjectBinding));
+        // set up a sorted list
+        final SortedList<Pair<Pair<String, Integer>, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+
+        mSecuritySelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mSecuritySelectionTableView.comparatorProperty());
+
         mSecurityTableColumn.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().getKey().getKey()));
         mSecuritySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
@@ -426,15 +491,30 @@ public class ReportDialogController {
     }
 
     private void setupTradeActionTab() {
-        ObservableList<Pair<Transaction.TradeAction, BooleanProperty>> tabList = FXCollections.observableArrayList();
-        boolean newSetting = mSetting.getID() < 0;
+        final ObservableList<Pair<Transaction.TradeAction, BooleanProperty>> tabList = FXCollections.observableArrayList();
+        final boolean newSetting = mSetting.getID() < 0;
         for (Transaction.TradeAction ta : Transaction.TradeAction.values()) {
             tabList.add(new Pair<>(ta, new SimpleBooleanProperty(newSetting
                     || mSetting.getSelectedTradeActionSet().contains(ta))));
         }
-        mTradeActionSelectionTableView.setItems(tabList);
+
+        final FilteredList<Pair<Transaction.TradeAction, BooleanProperty>> filteredList = new FilteredList<>(tabList);
+        // create a pattern bind depending on the text field
+        final ObjectBinding<Pattern> patternObjectBinding = Bindings.createObjectBinding(() ->
+                Pattern.compile(tradeActionFilterTextField.getText().trim(),
+                        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                tradeActionFilterTextField.textProperty());
+        // bind the filteredList predicate property
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().toString()).find(),
+                patternObjectBinding));
+        final SortedList<Pair<Transaction.TradeAction, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+
+        mTradeActionSelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mTradeActionSelectionTableView.comparatorProperty());
+
         mTradeActionTableColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getKey().name()));
+                new SimpleStringProperty(cellData.getValue().getKey().toString()));
         mTradeActionSelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
         mTradeActionSelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mTradeActionSelectedTableColumn));
         mTradeActionSelectedTableColumn.setEditable(true);
@@ -1404,13 +1484,11 @@ public class ReportDialogController {
                         line.num = t.getReference() == null ? "" : t.getReference();
                     line.memo = t.getMemo() == null ? "" : t.getMemo();
                     line.category = categoryIDConverter.toString(t.getCategoryID());
-                    BigDecimal amount;
+                    final BigDecimal amount = t.getCashAmount().add(t.getInvestAmount());
                     if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
                         line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
-                        amount = t.getCashAmount();
                     } else {
                         line.desc = t.getPayee() == null ? "" : t.getPayee();
-                        amount = t.getDepositProperty().get().subtract(t.getPaymentProperty().get());
                     }
                     line.amount = dcFormat.format(amount);
                     totalAmount = totalAmount.add(amount);
@@ -1646,11 +1724,14 @@ public class ReportDialogController {
         mReportTextArea.setVisible(false);
         mReportTextArea.setStyle("-fx-font-family: monospace");
 
-        // bind the visibility of mRightTilePane to either mDatesTab and mTextTab is not visible
-        mRightTilePane.visibleProperty().bind(Bindings.createBooleanBinding(()
-                        -> (mTabPane.getSelectionModel().getSelectedItem() != mDatesTab) &&
-                        (mTabPane.getSelectionModel().getSelectedItem() != mTextMatchTab),
-                mTabPane.getSelectionModel().selectedItemProperty()));
+        setAllButton.visibleProperty().bind(mAccountsTab.selectedProperty().or(mCategoriesTab.selectedProperty())
+                .or(mSecuritiesTab.selectedProperty()).or(mTradeActionTab.selectedProperty()));
+        clearAllButton.visibleProperty().bind(setAllButton.visibleProperty());
+
+        accountFilterTextField.visibleProperty().bind(mAccountsTab.selectedProperty());
+        categoryFilterTextField.visibleProperty().bind(mCategoriesTab.selectedProperty());
+        securityFilterTextField.visibleProperty().bind(mSecuritiesTab.selectedProperty());
+        tradeActionFilterTextField.visibleProperty().bind(mTradeActionTab.selectedProperty());
 
         // the javafx DatePicker isn't aware of the edited value of its own text field.
         // DatePickerUtil.CaptureEditedDate is a workaround for it.

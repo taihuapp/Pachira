@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -149,7 +149,7 @@ public class SpecifyLotsDialogController {
                 }
 
                 boolean roundingOK = selectedQ.subtract(mTransaction.getQuantity())
-                        .setScale(MainApp.QUANTITY_FRACTION_LEN-1, RoundingMode.HALF_UP)
+                        .setScale(MainModel.QUANTITY_FRACTION_LEN-1, RoundingMode.HALF_UP)
                         .compareTo(BigDecimal.ZERO) == 0;
 
                 if (hasResidual && !roundingOK) {
@@ -231,7 +231,7 @@ public class SpecifyLotsDialogController {
         mLotInfoTableView.setEditable(true);
         mLotInfoTableView.setItems(mSpecifyLotInfoList);
         mLotInfoTableView.setRowFactory(tv -> {
-            // double click the row will select all available quantity for this row
+            // double-click the row will select all available quantity for this row
             TableRow<SpecifyLotInfo> row = new TableRow<>();
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {

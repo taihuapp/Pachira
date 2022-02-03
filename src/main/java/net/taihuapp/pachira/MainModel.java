@@ -86,6 +86,9 @@ public class MainModel {
     static final DecimalFormat DOLLAR_CENT_2_FORMAT = new DecimalFormat("###,##0.00");
 
     static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
+    static final int QUANTITY_FRACTION_LEN = 8;
+
+    static final int CURRENCY_FRACTION_LEN = 2;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
@@ -982,6 +985,106 @@ public class MainModel {
                 }
             }
         }
+    }
+
+    /**
+     * compute security holdings for a given transaction up to the given date, excluding a given transaction
+     * the input list should have the same account id and ordered according the account type
+     * @param tList - an observableList of transactions
+     * @param date - the date to compute up to
+     * @param exTid - the id of the transaction to be excluded.
+     * @return - list of security holdings for the given date
+     *           as a side effect, it will update running cash balance for each transaction
+     */
+    List<SecurityHoldingNew> computeSecurityHoldingsNew(List<Transaction> tList, LocalDate date, int exTid)
+            throws DaoException {
+        // 'total cash' is the cash amount for the account to the last transaction in the tList
+        // 'total cash now' is the cash amount for the account up to the 'date'
+        BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
+        BigDecimal totalCashNow = totalCash;
+        final Map<String, SecurityHoldingNew> shMap = new HashMap<>();  // map of security name and securityHolding
+        final Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
+
+        // now loop through the sorted and filtered list
+        for (Transaction t : tList) {
+            totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHolding.CURRENCYDECIMALLEN,
+                    RoundingMode.HALF_UP));
+            if (!t.getTDate().isAfter(date))
+                totalCashNow = totalCash;
+
+            t.setBalance(totalCash); // set the cash balance for the transaction
+
+            if ((t.getTDate().equals(date) && t.getID() == exTid) || t.getTDate().isAfter(date))
+                continue;
+
+            final String name = t.getSecurityName();
+            if (name != null && !name.isEmpty()) {
+                // it has a security name
+                final SecurityHoldingNew securityHolding = shMap.computeIfAbsent(name,
+                        n -> new SecurityHoldingNew(n, CURRENCY_FRACTION_LEN));
+                final List<SecurityHolding.MatchInfo> matchInfoList = getMatchInfoList(t.getID());
+                securityHolding.processTransaction(t, matchInfoList);
+                if (t.getTradeAction() == STKSPLIT) // we need to keep track of stock splits
+                    stockSplitTransactionListMap.computeIfAbsent(name, k -> new ArrayList<>()).add(t);
+            }
+        }
+
+        BigDecimal totalMarketValue = totalCashNow;
+        BigDecimal totalCostBasis = totalCashNow;
+        SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
+        List<SecurityHoldingNew> securityHoldingNewList = new ArrayList<>();
+        for (SecurityHoldingNew securityHoldingNew : shMap.values()) {
+            if (securityHoldingNew.getQuantity().compareTo(BigDecimal.ZERO) == 0)
+                continue;  // zero holding, skip
+
+            securityHoldingNewList.add(securityHoldingNew);
+
+            Optional<Security> securityOptional = getSecurity(s ->
+                    s.getName().equals(securityHoldingNew.getSecurityName()));
+            if (securityOptional.isPresent()) {
+                final Security security = securityOptional.get();
+                Optional<Pair<Security, Price>> optionalSecurityPricePair =
+                        securityPriceDao.getLastPrice(new Pair<>(security, date));
+                if (optionalSecurityPricePair.isPresent()) {
+                    final Price price = optionalSecurityPricePair.get().getValue();
+                    BigDecimal p = price.getPrice();
+                    if (price.getDate().isBefore(date)) {
+                        // the price is not on the date, need to check if there are any
+                        // stock split between the date of the price and the date
+                        final List<Transaction> splitList = stockSplitTransactionListMap.get(security.getName());
+                        if (splitList != null) {
+                            // we have a list splits, check now
+                            // since this list is ordered by date, we start from the end
+                            for (int i = splitList.size(); i-- > 0; ) {
+                                final Transaction t = splitList.get(i);
+                                if (t.getTDate().isBefore(price.getDate()))
+                                    break; // we're done
+                                p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(),
+                                        DaoManager.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+                            }
+                        }
+                    }
+                    securityHoldingNew.setPrice(p);
+
+                    totalMarketValue = totalMarketValue.add(securityHoldingNew.getMarketValue());
+                    totalCostBasis = totalCostBasis.add(securityHoldingNew.getCostBasis());
+                }
+            }
+        }
+
+        SecurityHoldingNew cashHolding = new SecurityHoldingNew(SecurityHoldingNew.CASH, CURRENCY_FRACTION_LEN);
+        cashHolding.setCostBasis(totalCashNow);
+        cashHolding.setMarketValue(totalCashNow);
+
+        SecurityHoldingNew totalHolding = new SecurityHoldingNew(SecurityHoldingNew.TOTAL, CURRENCY_FRACTION_LEN);
+        totalHolding.setMarketValue(totalMarketValue);
+        totalHolding.setCostBasis(totalCostBasis);
+
+        securityHoldingNewList.sort(Comparator.comparing(SecurityHoldingNew::getSecurityName));
+        if (totalCashNow.signum() != 0)
+            securityHoldingNewList.add(cashHolding);
+        securityHoldingNewList.add(totalHolding);
+        return securityHoldingNewList;
     }
 
     /**

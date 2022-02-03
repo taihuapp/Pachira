@@ -725,7 +725,7 @@ public class EditTransactionDialogControllerNew {
                     BigDecimal costBasis = li.getCostBasis();
                     BigDecimal oldLotQuantity = li.getQuantity();
                     BigDecimal newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
-                            MainApp.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
+                            MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
                     BigDecimal lotPrice = costBasis.divide(newLotQuantity,
                             MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                     transactionList.add(new Transaction(-1, account.getID(), tDate, li.getDate(), SHRSIN,

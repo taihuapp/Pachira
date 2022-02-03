@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -310,14 +310,14 @@ public class SecurityHolding extends LotHolding {
         for (LotInfo li : getLotInfoList()) {
             BigDecimal oldQ = li.getQuantity();
             BigDecimal oldP = li.getPrice();
-            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, MainApp.QUANTITY_FRACTION_LEN,
+            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, MainModel.QUANTITY_FRACTION_LEN,
                     RoundingMode.HALF_UP);
             oldQTotal = oldQTotal.add(oldQ);
             li.setQuantity(newQ);
-            li.setPrice(oldP.multiply(oldQuantity).divide(newQuantity, MainApp.QUANTITY_FRACTION_LEN,
+            li.setPrice(oldP.multiply(oldQuantity).divide(newQuantity, MainModel.QUANTITY_FRACTION_LEN,
                     RoundingMode.HALF_UP));
         }
-        setQuantity(oldQTotal.multiply(newQuantity).divide(oldQuantity, MainApp.QUANTITY_FRACTION_LEN,
+        setQuantity(oldQTotal.multiply(newQuantity).divide(oldQuantity, MainModel.QUANTITY_FRACTION_LEN,
                 RoundingMode.HALF_UP));
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -89,7 +89,7 @@ public class Transaction {
                 stringBuilder.append("I").append(getPrice()).append(EOL);
             if (getQuantity() != null && getQuantity().compareTo(BigDecimal.ZERO) != 0) {
                 final BigDecimal q = getTradeAction().equals(TradeAction.STKSPLIT) ?
-                        getQuantity().multiply(BigDecimal.TEN).divide(getOldQuantity(), MainApp.QUANTITY_FRACTION_LEN,
+                        getQuantity().multiply(BigDecimal.TEN).divide(getOldQuantity(), MainModel.QUANTITY_FRACTION_LEN,
                                 RoundingMode.HALF_UP) : getQuantity();
                 stringBuilder.append("Q").append(q).append(EOL);
             }

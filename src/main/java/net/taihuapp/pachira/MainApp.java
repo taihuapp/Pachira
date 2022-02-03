@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -123,18 +123,6 @@ public class MainApp extends Application {
     private static final String IFEXISTCLAUSE="IFEXISTS=TRUE;";
 
     private static final String DBVERSIONNAME = "DBVERSION";
-    private static final int DBVERSIONVALUE = 10;  // need DBVERSION to run properly.
-
-    private static final int ACCOUNTNAMELEN = 40;
-    private static final int ACCOUNTDESCLEN = 256;
-    private static final int SECURITYTICKERLEN = 16;
-    private static final int SECURITYNAMELEN = 64;
-
-    private static final int CATEGORYNAMELEN = 40;
-    private static final int CATEGORYDESCLEN = 256;
-
-    private static final int AMOUNT_TOTAL_LEN = 20;
-    private static final int AMOUNT_FRACTION_LEN = 4;
 
     static final int TRANSACTIONMEMOLEN = 255;
     private static final int TRANSACTIONREFLEN = 16;
@@ -150,9 +138,6 @@ public class MainApp extends Application {
 
     private static final int PRICE_TOTAL_LEN = 20;
     static final int PRICE_FRACTION_LEN = 8;
-
-    private static final int QUANTITY_TOTAL_LEN = 20;
-    static final int QUANTITY_FRACTION_LEN = 8;
 
     private static final String HASHEDMASTERPASSWORDNAME = "HASHEDMASTERPASSWORD";
     private static final String CLIENTUIDNAME = "ClientUID";
@@ -194,11 +179,8 @@ public class MainApp extends Application {
     private final ObservableList<Tag> mTagList = FXCollections.observableArrayList();
     private final ObservableList<Category> mCategoryList = FXCollections.observableArrayList();
     private final ObservableList<Security> mSecurityList = FXCollections.observableArrayList();
-    private final ObservableList<SecurityHolding> mSecurityHoldingList = FXCollections.observableArrayList();
     private final ObservableList<DirectConnection.FIData> mFIDataList = FXCollections.observableArrayList();
     private final ObservableList<DirectConnection> mDCInfoList = FXCollections.observableArrayList();
-
-    private final SecurityHolding mRootSecurityHolding = new SecurityHolding("Root");
 
     private final ObjectProperty<Account> mCurrentAccountProperty = new SimpleObjectProperty<>(null);
     ObjectProperty<Account> getCurrentAccountProperty() { return mCurrentAccountProperty; }
@@ -4934,214 +4916,6 @@ public class MainApp extends Application {
                 + "URL varchar(2084) UNIQUE NOT NULL, "
                 + "primary key (ID), "
                 + "CONSTRAINT FIID_SUBID UNIQUE(FIID, SUBID))";
-        sqlCreateTable(sqlCmd);
-    }
-
-    // initialize database structure
-    private void initDBStructure() {
-        if (getConnection() == null)
-            return;
-
-        // create Settings Table first.ACCOUNTDC
-        createSettingsTable(DBVERSIONVALUE);
-
-        // create AccountDC, DCInfo, and FIData Tables
-        createDirectConnectTables();
-        alterAccountDCSTable();
-
-        // Accounts table
-        // ID starts from 1
-        String sqlCmd = "create table ACCOUNTS ("
-                // make sure to start from MIN_ACCOUNT_ID
-                + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_ACCOUNT_ID + "), "
-                + "TYPE varchar (16) NOT NULL, "
-                + "NAME varchar(" + ACCOUNTNAMELEN + ") UNIQUE NOT NULL, "
-                + "DESCRIPTION varchar(" + ACCOUNTDESCLEN + ") NOT NULL, "
-                + "HIDDENFLAG boolean NOT NULL, "
-                + "DISPLAYORDER integer NOT NULL, "
-                + "LASTRECONCILEDATE date, "
-                + "primary key (ID));";
-        sqlCreateTable(sqlCmd);
-
-        // insert Deleted account as the first account, so the account number is MIN_ACCOUND_ID
-        insertUpdateAccountToDB(new Account(-1, Account.Type.CHECKING, DELETED_ACCOUNT_NAME,
-                "Placeholder for the Deleted Account", true, Integer.MAX_VALUE,
-                null, BigDecimal.ZERO));
-
-        // Security Table
-        // ID starts from 1
-        sqlCmd = "create table SECURITIES ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure starts with 1
-                + "TICKER varchar(" + SECURITYTICKERLEN + ") NOT NULL, "
-                + "NAME varchar(" + SECURITYNAMELEN + ") UNIQUE NOT NULL, "
-                + "TYPE varchar(16) NOT NULL, "
-                + "primary key (ID));";
-        sqlCreateTable(sqlCmd);
-
-        // Price Table
-        // a price can be keyed by its ticker or its security id.
-        // On insert, if the ticker is not empty, then security id is set to 0, otherwise, a real security id is used.
-        // On retrieve, return either ticker match or security id match.
-        sqlCmd = "create table PRICES ("
-                + "SECURITYID integer NOT NULL, "
-                + "TICKER varchar(" + SECURITYTICKERLEN + ") NOT NULL, "
-                + "DATE date NOT NULL, "
-                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "),"
-                + "PRIMARY KEY (SECURITYID, TICKER, DATE));";
-        sqlCreateTable(sqlCmd);
-
-        // Category Table
-        // ID starts from 1
-        sqlCmd = "create table CATEGORIES ("
-                // make sure to start from MIN_CATEGORY_ID
-                + "ID integer NOT NULL AUTO_INCREMENT (" + MIN_CATEGORY_ID + "), "
-                + "NAME varchar(" + CATEGORYNAMELEN + ") UNIQUE NOT NULL, "
-                + "DESCRIPTION varchar(" + CATEGORYDESCLEN + ") NOT NULL, "
-                + "INCOMEFLAG boolean, "
-                + "TAXREFNUM integer, "
-                + "BUDGETAMOUNT decimal(20,4), "
-                + "primary key (ID))";
-        sqlCreateTable(sqlCmd);
-
-        // SplitTransaction
-        // ID starts from 1
-        sqlCmd = "create table SPLITTRANSACTIONS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), "
-                + "TRANSACTIONID integer NOT NULL, "
-                + "CATEGORYID integer, "
-                + "TAGID integer, "
-                + "MEMO varchar (" + TRANSACTIONMEMOLEN + "), "
-                + "AMOUNT decimal(" + AMOUNT_TOTAL_LEN + "," + AMOUNT_FRACTION_LEN + "), "
-                + "PERCENTAGE decimal(20,4), "
-                + "MATCHTRANSACTIONID integer, "
-                + "MATCHSPLITTRANSACTIONID integer, "
-                + "primary key (ID));";
-        sqlCreateTable(sqlCmd);
-
-        // Addresses table
-        // ID starts from 1
-        sqlCmd = "create table ADDRESSES ("
-                + "ID integer not null auto_increment (1), "
-                + "LINE0 varchar(" + ADDRESSLINELEN + "), "
-                + "LINE1 varchar(" + ADDRESSLINELEN + "), "
-                + "LINE2 varchar(" + ADDRESSLINELEN + "), "
-                + "LINE3 varchar(" + ADDRESSLINELEN + "), "
-                + "LINE4 varchar(" + ADDRESSLINELEN + "), "
-                + "LINE5 varchar(" + ADDRESSLINELEN + "), "
-                + "primary key (ID));";
-        sqlCreateTable(sqlCmd);
-
-        // amortlines table
-        // ID starts from 1
-        sqlCmd = "create table AMORTIZATIONLINES ("
-                + "ID integer not null auto_increment (1), "
-                + "LINE0 varchar(" + AMORTLINELEN + "), "
-                + "LINE1 varchar(" + AMORTLINELEN + "), "
-                + "LINE2 varchar(" + AMORTLINELEN + "), "
-                + "LINE3 varchar(" + AMORTLINELEN + "), "
-                + "LINE4 varchar(" + AMORTLINELEN + "), "
-                + "LINE5 varchar(" + AMORTLINELEN + "), "
-                + "LINE6 varchar(" + AMORTLINELEN + "), "
-                + "primary key (ID)); ";
-        sqlCreateTable(sqlCmd);
-
-        // Transactions
-        // ID starts from 1
-        sqlCmd = "create table TRANSACTIONS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), " // make sure to start with 1
-                + "ACCOUNTID integer NOT NULL, "
-                + "DATE date NOT NULL, "
-                + "ADATE date, "
-                + "AMOUNT decimal(20,4), "
-                + "STATUS varchar(" + TRANSACTIONSTATUSLEN + ") not null, " // status
-                + "CATEGORYID integer, "   // positive for category ID, negative for transfer account id
-                + "TAGID integer, "
-                + "MEMO varchar(" + TRANSACTIONMEMOLEN + ") not null, "
-                + "REFERENCE varchar (" + TRANSACTIONREFLEN + ") not null, "  // reference or check number as string
-                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + ") not null, "
-                + "SPLITFLAG boolean, "
-                + "ADDRESSID integer, "
-                + "AMORTIZATIONID integer, "
-                + "TRADEACTION varchar(" + TRANSACTIONTRADEACTIONLEN + "), "
-                + "SECURITYID integer, "
-                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "), "
-                + "QUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "
-                + "OLDQUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "  // used in stock split transactions
-                + "TRANSFERREMINDER varchar(" + TRANSACTIONTRANSFERREMINDERLEN + "), "
-                + "COMMISSION decimal(20,4), "
-                + "ACCRUEDINTEREST decimal(20,4), "
-                + "AMOUNTTRANSFERRED decimal(20,4), "
-                + "MATCHTRANSACTIONID integer, "   // matching transfer transaction id
-                + "MATCHSPLITTRANSACTIONID integer, "  // matching split
-                + "FITID varchar(" + TRANSACTIONFITIDLEN + ") not null, "
-                + "primary key (ID));";
-        sqlCreateTable(sqlCmd);
-
-        // LotMATCH table
-        sqlCmd = "create table LOTMATCH ("
-                + "TransID integer NOT NULL, "
-                + "MatchID integer NOT NULL, "
-                + "MatchQuantity decimal(" + QUANTITY_TOTAL_LEN + ","  + QUANTITY_FRACTION_LEN + "), "
-                + "Constraint UniquePair unique (TransID, MatchID));";
-        sqlCreateTable(sqlCmd);
-
-        // SavedReports table
-        sqlCmd = "create table SAVEDREPORTS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
-                + "NAME varchar (" + MainModel.SAVEDREPORTS_NAME_LEN + ") UNIQUE NOT NULL, "       // name of the report
-                + "TYPE varchar (16) NOT NULL, "              // type of the report
-                + "DATEPERIOD varchar (16) NOT NULL, "        // enum for dateperiod
-                + "SDATE date NOT NULL, "                              // customized start date
-                + "EDATE date NOT NULL, "                              // customized start date
-                + "FREQUENCY varchar (16) NOT NULL, "                 // frequency enum
-                + "PAYEECONTAINS varchar (80), "
-                + "PAYEEREGEX boolean, "
-                + "MEMOCONTAINS varchar (80), "
-                + "MEMOREGEX boolean);";
-        sqlCreateTable(sqlCmd);
-
-        // SavedReportDetails table
-        sqlCmd = "create table SAVEDREPORTDETAILS ("
-                + "REPORTID integer NOT NULL, "
-                + "ITEMNAME varchar(16) NOT NULL, "
-                + "ITEMVALUE varchar(16) NOT NULL);";
-        sqlCreateTable(sqlCmd);
-
-        // Tag table
-        sqlCmd = "create table TAGS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), " // starting 1
-                + "NAME varchar(20) UNIQUE NOT NULL, "
-                + "DESCRIPTION varchar(80) NOT NULL, "
-                + "primary key(ID));";
-        sqlCreateTable(sqlCmd);
-
-        // Reminders table
-        sqlCmd = "create table REMINDERS ("
-                + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure to start with 1
-                + "TYPE varchar(" + 12 + "), "
-                + "PAYEE varchar (" + TRANSACTIONPAYEELEN + "), "
-                + "AMOUNT decimal(20, 4), "
-                + "ESTCOUNT integer, "
-                + "ACCOUNTID integer NOT NULL, "
-                + "CATEGORYID integer, "
-                + "TRANSFERACCOUNTID integer, "
-                + "TAGID integer, "
-                + "MEMO varchar(" + TRANSACTIONMEMOLEN + "), "
-                + "STARTDATE date NOT NULL, "
-                + "ENDDATE date, "
-                + "BASEUNIT varchar(8) NOT NULL, "
-                + "NUMPERIOD integer NOT NULL, "
-                + "ALERTDAYS integer NOT NULL, "
-                + "ISDOM boolean NOT NULL, "
-                + "ISFWD boolean NOT NULL, "
-                + "primary key (ID));";
-        sqlCreateTable(sqlCmd);
-
-        // ReminderTransactions table
-        sqlCmd = "create table REMINDERTRANSACTIONS ("
-                + "REMINDERID integer NOT NULL, "
-                + "DUEDATE date, "
-                + "TRANSACTIONID integer)";
         sqlCreateTable(sqlCmd);
     }
 

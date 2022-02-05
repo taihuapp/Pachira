@@ -328,7 +328,7 @@ public class MainApp extends Application {
         alert.setHeaderText(header);
         alert.setContentText(content);
 
-        // work around for non resizable alert dialog truncates message
+        // work around for non-resizable alert dialog truncates message
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(480, 320);
 
@@ -1709,8 +1709,8 @@ public class MainApp extends Application {
     void updateAccountBalance(Account account) {
         // update holdings and balance for INVESTING account
         if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
-            List<SecurityHolding> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
-            SecurityHolding totalHolding = shList.get(shList.size() - 1);
+            List<SecurityHoldingOld> shList = updateAccountSecurityHoldingList(account, LocalDate.now(), 0);
+            SecurityHoldingOld totalHolding = shList.get(shList.size() - 1);
             if (totalHolding.getSecurityName().equals("TOTAL")) {
                 account.setCurrentBalance(totalHolding.getMarketValue());
             } else {
@@ -1719,7 +1719,7 @@ public class MainApp extends Application {
 
             ObservableList<Security> accountSecurityList = account.getCurrentSecurityList();
             accountSecurityList.clear();
-            for (SecurityHolding sh : shList) {
+            for (SecurityHoldingOld sh : shList) {
                 String securityName = sh.getSecurityName();
                 if (!securityName.equals("TOTAL") && !securityName.equals("CASH")) {
                     Security se = getSecurityByName(securityName);
@@ -2338,9 +2338,9 @@ public class MainApp extends Application {
 
     // update HoldingsList to date but exclude transaction exTid
     // an list of cash and total is returned if the account is not an investing account
-    List<SecurityHolding> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
+    List<SecurityHoldingOld> updateAccountSecurityHoldingList(Account account, LocalDate date, int exTid) {
         // empty the list first
-        List<SecurityHolding> securityHoldingList = new ArrayList<>();
+        List<SecurityHoldingOld> securityHoldingOldList = new ArrayList<>();
         if (!account.getType().isGroup(Account.Type.Group.INVESTING)) {
             // deal with non investing account here
             BigDecimal totalCash = null;
@@ -2369,13 +2369,13 @@ public class MainApp extends Application {
                 }
             }
 
-            SecurityHolding cashHolding = new SecurityHolding("CASH");
+            SecurityHoldingOld cashHolding = new SecurityHoldingOld("CASH");
             cashHolding.getPriceProperty().set(null);
             cashHolding.getQuantityProperty().set(null);
             cashHolding.setCostBasis(totalCash);
             cashHolding.getMarketValueProperty().set(totalCash);
 
-            SecurityHolding totalHolding = new SecurityHolding("TOTAL");
+            SecurityHoldingOld totalHolding = new SecurityHoldingOld("TOTAL");
             totalHolding.getMarketValueProperty().set(totalCash);
             totalHolding.setQuantity(null);
             totalHolding.setCostBasis(totalCash);
@@ -2384,9 +2384,9 @@ public class MainApp extends Application {
             totalHolding.updatePctRet();
 
             // nothing to sort here, but for symmetry...
-            securityHoldingList.add(cashHolding);
-            securityHoldingList.add(totalHolding);
-            return securityHoldingList;
+            securityHoldingOldList.add(cashHolding);
+            securityHoldingOldList.add(totalHolding);
+            return securityHoldingOldList;
         }
 
         // deal with Investing account here
@@ -2401,7 +2401,7 @@ public class MainApp extends Application {
             tList.add(t);
         }
 
-        BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
+        BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHoldingOld.CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
         Map<String, Integer> indexMap = new HashMap<>();  // security name and location index
         Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
 
@@ -2438,7 +2438,7 @@ public class MainApp extends Application {
         for (Transaction t : sortedTransactionList) {
             int tid = t.getID();
 
-            totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHolding.CURRENCYDECIMALLEN,
+            totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHoldingOld.CURRENCYDECIMALLEN,
                     RoundingMode.HALF_UP));
             String name = t.getSecurityName();
 
@@ -2447,12 +2447,12 @@ public class MainApp extends Application {
                 Integer index = indexMap.get(name);
                 if (index == null) {
                     // first time seeing this security, add to the end
-                    index = securityHoldingList.size();
+                    index = securityHoldingOldList.size();
                     indexMap.put(name, index);
-                    securityHoldingList.add(new SecurityHolding(name));
+                    securityHoldingOldList.add(new SecurityHoldingOld(name));
                 }
                 if (t.getTradeAction() == Transaction.TradeAction.STKSPLIT) {
-                    securityHoldingList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
+                    securityHoldingOldList.get(index).adjustStockSplit(t.getQuantity(), t.getOldQuantity());
                     List<Transaction> splitList = stockSplitTransactionListMap.computeIfAbsent(t.getSecurityName(),
                             k -> new ArrayList<>());
                     splitList.add(t);
@@ -2460,7 +2460,7 @@ public class MainApp extends Application {
                     LocalDate aDate = t.getADate();
                     if (aDate == null)
                         aDate = t.getTDate();
-                    securityHoldingList.get(index).addLot(new SecurityHolding.LotInfo(t.getID(), name,
+                    securityHoldingOldList.get(index).addLot(new SecurityHoldingOld.LotInfo(t.getID(), name,
                             t.getTradeAction(), aDate, t.getPrice(), t.getSignedQuantity(), t.getCostBasis()),
                             getMatchInfoList(tid));
                 }
@@ -2469,22 +2469,22 @@ public class MainApp extends Application {
 
         BigDecimal totalMarketValue = totalCash;
         BigDecimal totalCostBasis = totalCash;
-        for (Iterator<SecurityHolding> securityHoldingIterator = securityHoldingList.iterator();
+        for (Iterator<SecurityHoldingOld> securityHoldingIterator = securityHoldingOldList.iterator();
              securityHoldingIterator.hasNext(); ) {
-            SecurityHolding securityHolding = securityHoldingIterator.next();
+            SecurityHoldingOld securityHoldingOld = securityHoldingIterator.next();
 
-            if (securityHolding.getQuantity().setScale(MainModel.QUANTITY_FRACTION_DISPLAY_LEN,
+            if (securityHoldingOld.getQuantity().setScale(MainModel.QUANTITY_FRACTION_DISPLAY_LEN,
                     RoundingMode.HALF_UP).signum() == 0) {
                 // remove security with zero quantity
                 securityHoldingIterator.remove();
                 continue;
             }
 
-            Price price = getLatestSecurityPrice(getSecurityByName(securityHolding.getSecurityName()), date);
+            Price price = getLatestSecurityPrice(getSecurityByName(securityHoldingOld.getSecurityName()), date);
             BigDecimal p = price == null ? BigDecimal.ZERO : price.getPrice(); // assume zero if no price found
             if (price != null && price.getDate().isBefore(date)) {
                 // need to check if there is stock split between "date" and price.getDate()
-                List<Transaction> splitList = stockSplitTransactionListMap.get(securityHolding.getSecurityName());
+                List<Transaction> splitList = stockSplitTransactionListMap.get(securityHoldingOld.getSecurityName());
                 if (splitList != null) {
                     // we have a list of stock splits, check now
                     // since this list is ordered by date, we start from the end
@@ -2498,21 +2498,21 @@ public class MainApp extends Application {
                     }
                 }
             }
-            securityHolding.updateMarketValue(p);
-            securityHolding.updatePctRet();
+            securityHoldingOld.updateMarketValue(p);
+            securityHoldingOld.updatePctRet();
 
             // both cost basis and market value are properly scaled
-            totalMarketValue = totalMarketValue.add(securityHolding.getMarketValue());
-            totalCostBasis = totalCostBasis.add(securityHolding.getCostBasis());
+            totalMarketValue = totalMarketValue.add(securityHoldingOld.getMarketValue());
+            totalCostBasis = totalCostBasis.add(securityHoldingOld.getCostBasis());
         }
 
-        SecurityHolding cashHolding = new SecurityHolding("CASH");
+        SecurityHoldingOld cashHolding = new SecurityHoldingOld("CASH");
         cashHolding.getPriceProperty().set(null);
         cashHolding.getQuantityProperty().set(null);
         cashHolding.setCostBasis(totalCash);
         cashHolding.getMarketValueProperty().set(totalCash);
 
-        SecurityHolding totalHolding = new SecurityHolding("TOTAL");
+        SecurityHoldingOld totalHolding = new SecurityHoldingOld("TOTAL");
         totalHolding.getMarketValueProperty().set(totalMarketValue);
         totalHolding.setQuantity(null);
         totalHolding.setCostBasis(totalCostBasis);
@@ -2520,18 +2520,18 @@ public class MainApp extends Application {
         totalHolding.getPriceProperty().set(null); // don't want to display any price
         totalHolding.updatePctRet();
 
-        securityHoldingList.sort(Comparator.comparing(SecurityHolding::getSecurityName));
+        securityHoldingOldList.sort(Comparator.comparing(SecurityHoldingOld::getSecurityName));
         // put cash holding at the bottom
         if (totalCash.signum() != 0)
-            securityHoldingList.add(cashHolding);
-        securityHoldingList.add(totalHolding);
+            securityHoldingOldList.add(cashHolding);
+        securityHoldingOldList.add(totalHolding);
 
-        return securityHoldingList;
+        return securityHoldingOldList;
     }
 
     // load MatchInfoList from database
-    List<SecurityHolding.MatchInfo> getMatchInfoList(int tid) {
-        List<SecurityHolding.MatchInfo> matchInfoList = new ArrayList<>();
+    List<MatchInfo> getMatchInfoList(int tid) {
+        List<MatchInfo> matchInfoList = new ArrayList<>();
 
         if (getConnection() == null) {
             mLogger.error("DB connection down?! ");
@@ -2545,7 +2545,7 @@ public class MainApp extends Application {
             while (rs.next()) {
                 int mid = rs.getInt("MATCHID");
                 BigDecimal quantity = rs.getBigDecimal("MATCHQUANTITY");
-                matchInfoList.add(new SecurityHolding.MatchInfo(mid, quantity));
+                matchInfoList.add(new MatchInfo(mid, quantity));
             }
         } catch (SQLException e) {
             mLogger.error("SQLException " + e.getSQLState(), e);
@@ -2603,7 +2603,7 @@ public class MainApp extends Application {
     // delete all MatchInfo in the database with same TransactionID
     // save new MatchInfo.
     // Note: The TransactionID field of input matchInfoList is not used.
-    void putMatchInfoList(int tid, List<SecurityHolding.MatchInfo> matchInfoList) {
+    void putMatchInfoList(int tid, List<MatchInfo> matchInfoList) {
         if (getConnection() == null) {
             mLogger.error("DB connection down?!");
             return;
@@ -2622,7 +2622,7 @@ public class MainApp extends Application {
         // insert list
         String sqlCmd = "insert into LOTMATCH (TRANSID, MATCHID, MATCHQUANTITY) values (?, ?, ?)";
         try (PreparedStatement preparedStatement = getConnection().prepareStatement(sqlCmd)) {
-            for (SecurityHolding.MatchInfo matchInfo : matchInfoList) {
+            for (MatchInfo matchInfo : matchInfoList) {
                 preparedStatement.setInt(1, tid);
                 preparedStatement.setInt(2, matchInfo.getMatchTransactionID());
                 preparedStatement.setBigDecimal(3, matchInfo.getMatchQuantity());
@@ -2657,7 +2657,7 @@ public class MainApp extends Application {
         }
     }
 
-    void showSpecifyLotsDialog(Stage parent, Transaction t, List<SecurityHolding.MatchInfo> matchInfoList) {
+    void showSpecifyLotsDialog(Stage parent, Transaction t, List<MatchInfo> matchInfoList) {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/SpecifyLotsDialog.fxml"));
@@ -4099,7 +4099,7 @@ public class MainApp extends Application {
     // If oldT and newT both are not null, oldT is modified to newT.
     // return true for success and false for failure
     // this is the new one
-    boolean alterTransaction(Transaction oldT, Transaction newT, List<SecurityHolding.MatchInfo> newMatchInfoList) {
+    boolean alterTransaction(Transaction oldT, Transaction newT, List<MatchInfo> newMatchInfoList) {
         if (oldT == null && newT == null)
             return true; // both null, no-op.
 
@@ -4123,7 +4123,7 @@ public class MainApp extends Application {
                     final BigDecimal quantity = updateAccountSecurityHoldingList(getAccountByID(newT.getAccountID()),
                             newT.getTDate(), newT.getID()).stream()
                             .filter(sh -> sh.getSecurityName().equals(newT.getSecurityName()))
-                            .map(SecurityHolding::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+                            .map(SecurityHoldingOld::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
                     if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newT.getQuantity()) < 0)
                         || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newT.getQuantity()) < 0)) {
                         // existing quantity not enough for the new trade
@@ -4692,7 +4692,7 @@ public class MainApp extends Application {
         importAccountStatement(account, statement);
         adc.setLastDownloadInfo(statement.getLedgerBalance().getAsOfDate(),
                 BigDecimal.valueOf(statement.getLedgerBalance().getAmount())
-                        .setScale(SecurityHolding.CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
+                        .setScale(SecurityHoldingOld.CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
         mergeAccountDCToDB(adc);
     }
 
@@ -4940,33 +4940,33 @@ public class MainApp extends Application {
             return null;
 
         Account account = getAccountByID(transaction.getAccountID());
-        List<SecurityHolding> securityHoldingList = updateAccountSecurityHoldingList(account,
+        List<SecurityHoldingOld> securityHoldingOldList = updateAccountSecurityHoldingList(account,
                 transaction.getTDate(), transaction.getID());
-        List<SecurityHolding.MatchInfo> miList = getMatchInfoList(transaction.getID());
+        List<MatchInfo> miList = getMatchInfoList(transaction.getID());
         List<CapitalGainItem> capitalGainItemList = new ArrayList<>();
-        for (SecurityHolding securityHolding : securityHoldingList) {
-            if (!securityHolding.getSecurityName().equals(transaction.getSecurityName()))
+        for (SecurityHoldingOld securityHoldingOld : securityHoldingOldList) {
+            if (!securityHoldingOld.getSecurityName().equals(transaction.getSecurityName()))
                 continue;  // different security, skip
 
             // we have the right security holding here now
             BigDecimal remainCash = transaction.getAmount();
             BigDecimal remainQuantity = transaction.getQuantity();
-            FilteredList<SecurityHolding.LotInfo> lotInfoList = new FilteredList<>(securityHolding.getLotInfoList());
-            Map<Integer, SecurityHolding.MatchInfo> matchMap = new HashMap<>();
+            FilteredList<SecurityHoldingOld.LotInfo> lotInfoList = new FilteredList<>(securityHoldingOld.getLotInfoList());
+            Map<Integer, MatchInfo> matchMap = new HashMap<>();
             if (!miList.isEmpty()) {
                 // we have a matchInfo list,
-                for (SecurityHolding.MatchInfo mi : miList)
+                for (MatchInfo mi : miList)
                     matchMap.put(mi.getMatchTransactionID(), mi);
                 lotInfoList.setPredicate(li -> matchMap.containsKey(li.getTransactionID()));
             }
             //for (SecurityHolding.LotInfo li : securityHolding.getLotInfoList()) {
-            for (SecurityHolding.LotInfo li : lotInfoList) {
+            for (SecurityHoldingOld.LotInfo li : lotInfoList) {
                 BigDecimal costBasis;
                 BigDecimal proceeds;
                 Transaction matchTransaction;
 
                 matchTransaction = getTransactionByID(li.getTransactionID());
-                SecurityHolding.MatchInfo mi = matchMap.get(li.getTransactionID());
+                MatchInfo mi = matchMap.get(li.getTransactionID());
                 BigDecimal liMatchQuantity = (mi == null) ?
                         li.getQuantity().min(remainQuantity) : mi.getMatchQuantity();
 

@@ -1612,7 +1612,7 @@ public class MainController {
                                         return;
                                     Transaction oldT = getItem();
                                     try {
-                                        List<SecurityHolding.MatchInfo> matchInfoList =
+                                        List<MatchInfo> matchInfoList =
                                                 getMainModel().getMatchInfoList(oldT.getID());
                                         if (matchInfoList.isEmpty() || MainApp.showConfirmationDialog("Confirmation",
                                                 "Transaction with Lot Matching",

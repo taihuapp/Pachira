@@ -20,6 +20,8 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -28,296 +30,250 @@ import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
-import static net.taihuapp.pachira.Transaction.TradeAction.CVTSHRT;
-import static net.taihuapp.pachira.Transaction.TradeAction.SELL;
+// A class for security holding
+public class SecurityHolding implements LotView {
 
-public class SecurityHolding extends LotHolding {
+    static final String CASH = "CASH";
+    static final String TOTAL = "TOTAL";
+    private final int decimalScale; // number of decimal places to use
+    private final String securityName;
+    private static final Logger logger = Logger.getLogger(SecurityHolding.class);
 
-    private static final Logger mLogger = Logger.getLogger(SecurityHolding.class);
+    private final ObservableList<SecurityLot> securityLotList;
+    private final ObjectProperty<BigDecimal> priceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> quantityProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> rorProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> costBasisProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> marketValueProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> pnlProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
-    public final static int CURRENCYDECIMALLEN = 2;  // two place for cents
+    /**
+     * Constructor for general security holdings
+     * @param n  security name
+     * @param scale number of decimal places for rounding
+     */
+    SecurityHolding(final String n, int scale) {
+        securityName = n;
+        decimalScale = scale;
 
-    public static class LotInfo extends LotHolding implements Comparable<LotInfo> {
+        if (n.equals(CASH) || n.equals(TOTAL)) {
+            securityLotList = FXCollections.emptyObservableList(); // create an immutable empty list
+            quantityProperty.set(null); // we don't care about quantity and ror.
+            rorProperty.set(null);
+        } else {
+            securityLotList = FXCollections.observableArrayList(lot ->
+                    new Observable[]{lot.getCostBasisProperty(), lot.getQuantityProperty()});
 
-        private final int mTransactionID;
-        private final ObjectProperty<LocalDate> mDateProperty = new SimpleObjectProperty<>();
-        private final ObjectProperty<Transaction.TradeAction> mTradeActionProperty = new SimpleObjectProperty<>();
+            // bind cost basis property to the sum of cost basis of each lot in the list
+            costBasisProperty.bind(Bindings.createObjectBinding(() ->
+                    securityLotList.stream().map(SecurityLot::getCostBasis).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    securityLotList));
 
-        // copy constructor
-        // how to chain constructor???
-        public LotInfo(LotInfo li0) {
-            super(li0.getSecurityName());
-            mTransactionID = li0.getTransactionID();
-            mDateProperty.set(li0.getDate());
-            mTradeActionProperty.set(li0.getTradeAction());
+            // bind quantity property to the sum of quantities of each lot in the list
+            quantityProperty.bind(Bindings.createObjectBinding(() ->
+                    securityLotList.stream().map(SecurityLot::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    securityLotList));
 
-            setQuantity(li0.getQuantity());
-            setCostBasis(li0.getCostBasis());
-            setPrice(li0.getPrice());
+            // bind market value property
+            marketValueProperty.bind(Bindings.createObjectBinding(() ->
+                            getQuantity().multiply(getPrice()).setScale(decimalScale, RoundingMode.HALF_UP),
+                    getQuantityProperty(), getPriceProperty()));
         }
 
-        // constructor
-        public LotInfo(int id, String n, Transaction.TradeAction ta, LocalDate date,
-                       BigDecimal price, BigDecimal quantity, BigDecimal costBasis) {
-            super(n);
-            mTransactionID = id;
-            mDateProperty.set(date);
-            mTradeActionProperty.set(ta);
+        // bind pnlProperty
+        pnlProperty.bind(Bindings.createObjectBinding(() -> getMarketValue().subtract(getCostBasis()),
+                getMarketValueProperty(), getCostBasisProperty()));
+    }
 
-            setQuantity(quantity);
-            setCostBasis(costBasis.setScale(CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
-            setPrice(price);  // this is the trade price
-        }
-
-        ObjectProperty<LocalDate> getDateProperty() { return mDateProperty; }
-        LocalDate getDate() { return mDateProperty.get(); }
-        int getTransactionID() { return mTransactionID; }
-        ObjectProperty<Transaction.TradeAction> getTradeActionProperty() { return mTradeActionProperty; }
-        Transaction.TradeAction getTradeAction() { return getTradeActionProperty().get(); }
-
-        // compute market value and pnl
-        @Override
-        protected void updateMarketValue(BigDecimal p) {
-            BigDecimal m = p.multiply(getQuantity()).setScale(CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
-            getMarketValueProperty().set(m);
-            getPNLProperty().set(m.subtract(getCostBasis()));
-        }
-
-        @Override
-        public String getLabel() { return getDate().toString(); }
-
-        @Override
-        public int compareTo(LotInfo l) {
-            // a bit optimization here, if IDs are equal, then must be equal
-            int idCompare = getTransactionID()-l.getTransactionID();
-            if (idCompare == 0)
-                return 0;
-
-            // otherwise, order by date first, then by id within the same date
-            int dateCompare = getDate().compareTo(l.getDate());
-            if (dateCompare == 0)
-                return idCompare;
-            return dateCompare;
+    private void adjustStockSplit(final BigDecimal newQ, final BigDecimal oldQ) {
+        for (SecurityLot lot : securityLotList) {
+            final BigDecimal oldLotQ = lot.getQuantity();
+            final BigDecimal oldLotP = lot.getPrice();
+            lot.setQuantity(oldLotQ.multiply(newQ).divide(oldQ, MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
+            lot.setPrice(oldLotP.multiply(oldQ).divide(newQ, MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
         }
     }
 
-    public static class MatchInfo {
-        private final int mMatchTransactionID;
-        private final BigDecimal mMatchQuantity;  // always positive
+    /**
+     * Take an existing lot, and a tradedLot, match off
+     * the quantity of these two lots can not be the same sign
+     * the quantity of both lot is reduced by min(abs(lot.quantity), abs(tradedLot.quantity))
+     * @param lot: an existing lot
+     * @param tradedLot: a traded lot
+     */
+    private void matchLots(SecurityLot lot, SecurityLot tradedLot) {
+        matchLots(lot, tradedLot, lot.getQuantity().abs().min(tradedLot.getQuantity().abs()));
+    }
 
-        public MatchInfo(int mid, BigDecimal q) {
-            mMatchTransactionID = mid;
-            mMatchQuantity = q;
+    /**
+     * Take an existing lot, and a tradedLot, and a match quantity, match the two lots
+     * the quantity of these two lot cannot be the same sign
+     * the absolute value of the quantity of either lot should be no less than matchQuantity (positive)
+     * @param lot: an existing lot
+     * @param tradedLot: a traded lot
+     * @param matchQuantity: the amount to match
+     */
+    private void matchLots(SecurityLot lot, SecurityLot tradedLot, BigDecimal matchQuantity) {
+        // scale cost basis for lot
+        final BigDecimal lotOldC = lot.getCostBasis();
+        final BigDecimal tradedOldC = tradedLot.getCostBasis();
+        final BigDecimal lotOldQ = lot.getQuantity();
+        final BigDecimal tradedOldQ = tradedLot.getQuantity();
+
+        final int lotOldQSign = lotOldQ.signum();
+        if (lotOldQSign == 0) {
+            // the lot has a cost basis but zero quantity, we just empty the cost basis
+            // for the lot and return.
+            lot.setCostBasis(BigDecimal.ZERO);
+            return;
+        }
+        final BigDecimal lotNewQ;
+        final BigDecimal tradedNewQ;
+
+        if (lotOldQSign > 0) {
+            lotNewQ = lotOldQ.subtract(matchQuantity);
+            tradedNewQ = tradedOldQ.add(matchQuantity);
+        } else {
+            // lotOldSign < 0
+            lotNewQ = lotOldQ.add(matchQuantity);
+            tradedNewQ = tradedOldQ.subtract(matchQuantity);
         }
 
-        // getters
-        public int getMatchTransactionID() { return mMatchTransactionID; }
-        public BigDecimal getMatchQuantity() { return mMatchQuantity; }
+        lot.setCostBasis(scaleCostBasis(lotOldC, lotOldQ, lotNewQ));
+        lot.setQuantity(lotNewQ);
+        tradedLot.setCostBasis(scaleCostBasis(tradedOldC, tradedOldQ, tradedNewQ));
+        tradedLot.setQuantity(tradedNewQ);
     }
 
-    private final ObservableList<LotInfo> mLotInfoList = FXCollections.observableArrayList();
+    // assume the security name of the transaction matches securityName
+    void processTransaction(final Transaction t, final List<MatchInfo> matchInfoList) {
+        // handle stock split
+        if (t.getTradeAction() == Transaction.TradeAction.STKSPLIT) {
+            adjustStockSplit(t.getQuantity(), t.getOldQuantity());
+            return;
+        }
 
-    public SecurityHolding(String n) {
-        super(n);
-        //this(n, null);
+        if (!Transaction.hasQuantity(t.getTradeAction()))
+            return;  // non relevant transaction
+
+        final BigDecimal tradedQuantity = t.getSignedQuantity();
+        final BigDecimal tradedCostBasis = t.getCostBasis();
+        if ((tradedCostBasis.compareTo(BigDecimal.ZERO) == 0) && (tradedQuantity.compareTo(BigDecimal.ZERO) == 0)) {
+            // for long trade, zero cost basis can only occur if quantity is zero.
+            // but for short sale,  cost basis is quantity*price + commission, the first term is negative
+            // if both are zero, do nothing
+            return;
+        }
+
+        // we process transactions in the order of TDate
+        // we mark the trading lot using ADate if it is not null, otherwise, use TDate
+        final SecurityLot tradedLot = new SecurityLot(t.getID(), t.getADate() != null ? t.getADate() : t.getTDate(),
+                tradedQuantity, tradedCostBasis, t.getPrice(), decimalScale);
+
+        if (tradedQuantity.signum()*getQuantity().signum() >= 0) {
+            // either a new open trade, or adding to the same position
+            securityLotList.add(tradedLot);
+            if (!matchInfoList.isEmpty()) {
+                // why matchInfoList isn't empty?
+                logger.warn("Can't find offsetting lots for " + t.getTradeAction() + " " + tradedQuantity
+                        + " shares of " + t.getSecurityName() + " on " + t.getTDate()
+                        + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID());
+            }
+            return;
+        }
+
+        // it's a closing trade, need to match lots
+        if (matchInfoList.isEmpty()) {
+            // empty matchInfoList, FIFO rule
+            final Iterator<SecurityLot> securityLotIterator = securityLotList.iterator();
+            while (securityLotIterator.hasNext()) {
+                final SecurityLot securityLot = securityLotIterator.next();
+                matchLots(securityLot, tradedLot);
+                if (securityLot.getQuantity().compareTo(BigDecimal.ZERO) == 0)
+                    securityLotIterator.remove();
+                if (tradedLot.getQuantity().compareTo(BigDecimal.ZERO) == 0)
+                    return; // we are done
+            }
+        } else {
+            // use matchInfoList
+            for (MatchInfo mi : matchInfoList) {
+                Optional<SecurityLot> optionalSecurityLot = securityLotList.stream()
+                        .filter(lot -> lot.getTransactionID() == mi.getMatchTransactionID()).findAny();
+                if (optionalSecurityLot.isPresent()) {
+                    matchLots(optionalSecurityLot.get(), tradedLot, mi.getMatchQuantity());
+                } else {
+                    logger.error("Missing matching transaction id = " + mi.getMatchTransactionID()
+                            + " for transaction of " +  t.getTradeAction() + " " + tradedQuantity
+                            + " shares of " + t.getSecurityName() + " on " + t.getTDate()
+                            + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID());
+                }
+            }
+        }
+
+        if (tradedLot.getQuantity().compareTo(BigDecimal.ZERO) != 0) {
+            if (tradedLot.getCostBasis().compareTo(BigDecimal.ZERO) != 0) {
+                // something is wrong.
+                logger.warn("Can't find enough offset for " + t.getTradeAction() + " " + t.getQuantity()
+                        + " shares of " + t.getSecurityName() + " on " + t.getTDate()
+                        + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID());
+            } else {
+                logger.warn("Can't find enough offset for " + t.getTradeAction() + " " + t.getQuantity()
+                        + " shares of " + t.getSecurityName() + " on " + t.getTDate()
+                        + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID()
+                        + System.lineSeparator()
+                        + "    Remaining quantity:   " + tradedLot.getQuantity() + System.lineSeparator()
+                        + "    Remaining cost basis: " + tradedLot.getCostBasis() + System.lineSeparator());
+            }
+            securityLotList.add(tradedLot);
+        }
     }
 
-    // getters
+    /**
+     * return oldC*newQ/oldQ.  Obviously oldQ can not be zero.
+     * @param oldC - old cost basis
+     * @param oldQ - old quantity
+     * @param newQ - new quantity
+     * @return scaled cost basis
+     */
+    private BigDecimal scaleCostBasis(BigDecimal oldC, BigDecimal oldQ, BigDecimal newQ) {
+        return oldC.multiply(newQ).divide(oldQ, decimalScale, RoundingMode.HALF_UP);
+    }
+
+    String getSecurityName() { return securityName; }
+    ObservableList<SecurityLot> getSecurityLotList() { return securityLotList; }
+
     @Override
     public String getLabel() { return getSecurityName(); }
 
-    private int getLotIndex(int tid) {
-        for (int idx = 0; idx < mLotInfoList.size(); idx++) {
-            if (mLotInfoList.get(idx).getTransactionID() == tid)
-                return idx;
-        }
-        return -1;
-    }
-
-    ObservableList<LotInfo> getLotInfoList() { return mLotInfoList; }
-
-    private BigDecimal scaleCostBasis(BigDecimal oldC, BigDecimal oldQ, BigDecimal newQ) {
-        return oldC.multiply(newQ).divide(oldQ, CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
-    }
-
-    // update market value and PNL
     @Override
-    public void updateMarketValue(BigDecimal p) {
-        setPrice(p);
-        BigDecimal q = BigDecimal.ZERO;
-        for (LotInfo li : getLotInfoList()) {
-            li.updateMarketValue(p);
-            q = q.add(li.getQuantity());
-        }
-        BigDecimal m = q.multiply(p).setScale(CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
-        getMarketValueProperty().set(m);
-        getPNLProperty().set(m.subtract(getCostBasis()));
+    public ObjectProperty<BigDecimal> getPriceProperty() { return priceProperty; }
+    public BigDecimal getPrice() { return getPriceProperty().get(); }
+    void setPrice(BigDecimal p) {
+        getPriceProperty().set(p);
+        securityLotList.forEach(l -> l.setMarketPrice(p));
     }
 
     @Override
-    public void updatePctRet() {
-        super.updatePctRet();
-        getLotInfoList().forEach(LotInfo::updatePctRet);
-    }
+    public ObjectProperty<BigDecimal> getQuantityProperty() { return quantityProperty; }
+    public BigDecimal getQuantity() { return getQuantityProperty().get(); }
 
-    // add the lot and match off if necessary
-    // if the lots are added with wrong order, the cost basis
-    // calculation will be wrong
-    public void addLot(LotInfo lotInfo, List<MatchInfo> matchInfoList) {
-        BigDecimal oldQuantity = getQuantity();
+    @Override
+    public ObjectProperty<BigDecimal> getMarketValueProperty() { return marketValueProperty; }
+    public BigDecimal getMarketValue() { return getMarketValueProperty().get(); }
+    void setMarketValue(BigDecimal m) { getMarketValueProperty().set(m); }
 
-        // update total quantity here
-        BigDecimal lotInfoQuantity = lotInfo.getQuantity();
-        if (lotInfoQuantity == null || lotInfoQuantity.signum() == 0) {
-            // no change in quantity, check cost basis
-            setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
-            return;
-        }
+    @Override
+    public ObjectProperty<BigDecimal> getPnLProperty() { return pnlProperty; }
 
-        setQuantity(oldQuantity.add(lotInfoQuantity));
+    @Override
+    public ObjectProperty<BigDecimal> getRoRProperty() { return rorProperty; }
 
-        if (oldQuantity.signum() == 0 && (lotInfo.getTradeAction() == SELL || lotInfo.getTradeAction() == CVTSHRT)) {
-            // this is a closing trade
-            String indent = "    ";
-            mLogger.error("*******\n"
-                    + indent + "Transaction Date: " + lotInfo.getDate().toString() + "\n"
-                    + indent + "Security Name: " + lotInfo.getSecurityName() + "\n"
-                    + indent + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
-                    + indent + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
-                    + indent + "Quantity: " + lotInfoQuantity + "\n"
-                    + indent + "Existing Quantity: " + oldQuantity + "\n"
-                    + indent + "can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
-                    + indent + "*******");
-            getLotInfoList().add(lotInfo);
-            setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
-            return;
-        }
-
-        if ((oldQuantity.signum() >= 0) && (lotInfoQuantity.signum() > 0)
-            || ((oldQuantity.signum() <= 0) && (lotInfo.getQuantity().signum() < 0))) {
-            // same sign, nothing of offset
-            if (matchInfoList.size() > 0) {
-                mLogger.error("" + lotInfo.getTransactionID() + " can't find offset lots" );
-            }
-            getLotInfoList().add(lotInfo);
-            setCostBasis(getCostBasis().add(lotInfo.getCostBasis()));
-            return;
-        }
-
-        // lotInfo quantity has opposite sign as current holding, need to match lots
-        if (lotInfoQuantity.abs().compareTo(oldQuantity.abs()) > 0) {
-            // more than offset the current?  we shouldn't be here
-            // probably something went wrong.  Issue a error message
-            // and then match offset anyway
-            String indent = "    ";
-            mLogger.error("*******\n"
-                    + indent + "Transaction Date: " + lotInfo.getDate().toString() + "\n"
-                    + indent + "Security Name: " + lotInfo.getSecurityName() + "\n"
-                    + indent + "Transaction ID: " + lotInfo.getTransactionID() + "\n"
-                    + indent + "Transaction Type: " + lotInfo.getTradeAction() + "\n"
-                    + indent + "Quantity: " + lotInfoQuantity + "\n"
-                    + indent + "Existing Quantity: " + oldQuantity + "\n"
-                    + indent + "can't find enough lots to offset.  Something might be wrong, proceed with caution" + "\n"
-                    + indent + "*******");
-        }
-
-        if (matchInfoList.size() == 0) {
-            // offset with fifo rule
-            Iterator<LotInfo> iterator = getLotInfoList().iterator();
-            while (iterator.hasNext()) {
-                LotInfo li = iterator.next();
-                if (li.getQuantity().abs().compareTo(lotInfo.getQuantity().abs()) > 0) {
-                    // this lot in the list has more to offset the lotInfo
-                    BigDecimal oldQ = li.getQuantity();
-                    BigDecimal newQ = oldQ.add(lotInfo.getQuantity());
-                    BigDecimal oldC = li.getCostBasis();
-                    BigDecimal newC = scaleCostBasis(oldC, oldQ, newQ);
-                    li.setCostBasis(newC);
-                    li.setQuantity(newQ);
-                    setCostBasis(getCostBasis().add(newC).subtract(oldC));
-                    return;
-                }
-
-                // lotInfo may has more than li can offset
-                BigDecimal oldC = lotInfo.getCostBasis();
-                BigDecimal oldQ = lotInfo.getQuantity();
-                BigDecimal newQ = oldQ.add(li.getQuantity());
-                BigDecimal newC = scaleCostBasis(oldC, oldQ, newQ);
-
-                lotInfo.setQuantity(newQ);
-                lotInfo.setCostBasis(newC);
-
-                setCostBasis(getCostBasis().subtract(li.getCostBasis()));
-
-                iterator.remove();  // li has been offset, remove
-
-                if (lotInfo.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
-                    // nothing left to offset
-                    return;
-                }
-            }
-        }
-
-        // offset against matchInfo
-        for (MatchInfo matchInfo : matchInfoList) {
-            int matchTID = matchInfo.getMatchTransactionID();
-            int matchIndex =  getLotIndex(matchTID);
-            if (matchIndex < 0) {
-                mLogger.error("Missing matching transaction " + matchInfo.getMatchTransactionID());
-                continue;
-            }
-
-            LotInfo matchLot = getLotInfoList().get(matchIndex);
-            // getMatchQuantity() always none negative
-            BigDecimal matchQ = matchInfo.getMatchQuantity();
-            if (matchLot.getQuantity().abs().compareTo(matchQ) < 0 ) {
-                // something is wrong here
-                mLogger.error("Match lot " + matchTID + " q = " + matchLot.getQuantity()
-                        + ", needed " + matchQ + " to match. Reset match Q.");
-                matchQ = matchLot.getQuantity().abs();
-            }
-
-            BigDecimal oldQ = matchLot.getQuantity();
-            BigDecimal newQ = oldQ.compareTo(BigDecimal.ZERO) > 0 ? oldQ.subtract(matchQ) : oldQ.add(matchQ);
-            BigDecimal oldC = matchLot.getCostBasis();
-            BigDecimal newC = scaleCostBasis(oldC, oldQ, newQ);
-
-            if (newQ.compareTo(BigDecimal.ZERO) == 0) {
-                getLotInfoList().remove(matchLot);
-            } else {
-                matchLot.setQuantity(newQ);
-                matchLot.setCostBasis(newC);
-            }
-
-            setCostBasis(getCostBasis().add(newC).subtract(oldC));
-
-            // update lotInfo Q and C
-            oldQ = lotInfo.getQuantity();
-            newQ = oldQ.compareTo(BigDecimal.ZERO) > 0 ? oldQ.subtract(matchQ) : oldQ.add(matchQ);
-            oldC = lotInfo.getCostBasis();
-            newC = scaleCostBasis(oldC, oldQ, newQ);
-            lotInfo.setQuantity(newQ);
-            lotInfo.setCostBasis(newC);
-        }
-    }
-
-    public void adjustStockSplit(BigDecimal newQuantity, BigDecimal oldQuantity) {
-        BigDecimal oldQTotal = BigDecimal.ZERO;
-        for (LotInfo li : getLotInfoList()) {
-            BigDecimal oldQ = li.getQuantity();
-            BigDecimal oldP = li.getPrice();
-            BigDecimal newQ = oldQ.multiply(newQuantity).divide(oldQuantity, MainModel.QUANTITY_FRACTION_LEN,
-                    RoundingMode.HALF_UP);
-            oldQTotal = oldQTotal.add(oldQ);
-            li.setQuantity(newQ);
-            li.setPrice(oldP.multiply(oldQuantity).divide(newQuantity, MainModel.QUANTITY_FRACTION_LEN,
-                    RoundingMode.HALF_UP));
-        }
-        setQuantity(oldQTotal.multiply(newQuantity).divide(oldQuantity, MainModel.QUANTITY_FRACTION_LEN,
-                RoundingMode.HALF_UP));
-    }
+    @Override
+    public ObjectProperty<BigDecimal> getCostBasisProperty() { return costBasisProperty; }
+    public BigDecimal getCostBasis() { return getCostBasisProperty().get(); }
+    void setCostBasis(BigDecimal c) { getCostBasisProperty().set(c); }
 }

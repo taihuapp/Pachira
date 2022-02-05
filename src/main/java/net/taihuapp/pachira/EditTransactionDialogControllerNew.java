@@ -229,7 +229,7 @@ public class EditTransactionDialogControllerNew {
 
     private Transaction mTransactionOrig;  // original copy
     private Transaction mTransaction;  // working copy
-    private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
+    private List<MatchInfo> mMatchInfoList = null;
     private boolean mSplitTransactionListChanged = false;
 
     private Stage getStage() { return (Stage) mTradeActionChoiceBox.getScene().getWindow(); }
@@ -282,7 +282,7 @@ public class EditTransactionDialogControllerNew {
             // valid, still clear is.
             boolean isOK = true;
             BigDecimal totalQuantity = BigDecimal.ZERO;
-            for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+            for (MatchInfo mi : mMatchInfoList) {
                 Transaction transaction = mainModel.getTransaction(t -> t.getID() == mi.getMatchTransactionID())
                         .orElse(null);
                 if (transaction == null || !transaction.getTDate().isBefore(mTransaction.getTDate())
@@ -710,18 +710,18 @@ public class EditTransactionDialogControllerNew {
         int matchSplitID = 0;
 
         final String memo = mTransaction.getMemo().isEmpty() ? "Share class conversion" : mTransaction.getMemo();
-        List<SecurityHolding> shList;
+        List<SecurityHoldingOld> shList;
         try {
-            shList = mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, mTransaction.getID());
+            shList = mainModel.computeSecurityHoldingsOld(account.getTransactionList(), tDate, mTransaction.getID());
         } catch (DaoException e) {
             mLogger.error("Failed to computer Security holdings for Account " + account.getName(), e);
             return false;
         }
-        for (SecurityHolding sh : shList) {
+        for (SecurityHoldingOld sh : shList) {
             if (sh.getSecurityName().equals(oldSecurity.getName())) {
                 // we have holdings for old security
                 BigDecimal oldQuantity = sh.getQuantity();
-                for (SecurityHolding.LotInfo li : sh.getLotInfoList()) {
+                for (SecurityHoldingOld.LotInfo li : sh.getLotInfoList()) {
                     BigDecimal costBasis = li.getCostBasis();
                     BigDecimal oldLotQuantity = li.getQuantity();
                     BigDecimal newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
@@ -865,12 +865,12 @@ public class EditTransactionDialogControllerNew {
             }
 
             try {
-                List<SecurityHolding> securityHoldingList =
-                        mainModel.computeSecurityHoldings(account.getTransactionList(),
+                List<SecurityHoldingOld> securityHoldingOldList =
+                        mainModel.computeSecurityHoldingsOld(account.getTransactionList(),
                         mTransaction.getTDate(), mTransaction.getID());
 
                 boolean hasEnough = false;
-                for (SecurityHolding sh : securityHoldingList) {
+                for (SecurityHoldingOld sh : securityHoldingOldList) {
                     if (sh.getSecurityName().equals(mTransaction.getSecurityName())) {
                         // we have matching security position, check
                         // sh.getQuantity is signed, mTransaction getQuantity is always positive

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -125,7 +125,7 @@ public class DialogUtil {
         alert.setHeaderText(header);
         alert.setContentText(content);
 
-        // work around for non resizable alert dialog truncates message
+        // work around for non-resizable alert dialog truncates message
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(480, 320);
 
@@ -150,7 +150,7 @@ public class DialogUtil {
     }
 
     static void showSpecifyLotsDialog(MainModel mainModel, Stage parent, Transaction t,
-                                      List<SecurityHolding.MatchInfo> matchInfoList) throws IOException, DaoException {
+                                      List<MatchInfo> matchInfoList) throws IOException, DaoException {
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(MainApp.class.getResource("/view/SpecifyLotsDialog.fxml"));
 

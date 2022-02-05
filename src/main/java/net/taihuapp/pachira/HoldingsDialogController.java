@@ -71,8 +71,8 @@ public class HoldingsDialogController {
 
     private void populateTreeTable() {
         try {
-            mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(new SecurityHoldingNew(SecurityHoldingNew.TOTAL, 2)));
-            for (SecurityHoldingNew h : mainModel.computeSecurityHoldingsNew(mainModel.getCurrentAccount().getTransactionList(),
+            mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(new SecurityHolding(SecurityHolding.TOTAL, 2)));
+            for (SecurityHolding h : mainModel.computeSecurityHoldings(mainModel.getCurrentAccount().getTransactionList(),
                             mDatePicker.getValue(), -1)) {
                 TreeItem<LotView> t = new TreeItem<>(h);
                 mSecurityHoldingTreeTableView.getRoot().getChildren().add(t);
@@ -144,8 +144,8 @@ public class HoldingsDialogController {
                             TreeItem<LotView> treeItem = treeTableRow.getTreeItem();
                             if (treeItem != null) {
                                 final String label = treeItem.getValue().getLabel();
-                                isTotalOrCash = label.equals(SecurityHoldingNew.TOTAL)
-                                        || label.equals(SecurityHoldingNew.CASH);
+                                isTotalOrCash = label.equals(SecurityHolding.TOTAL)
+                                        || label.equals(SecurityHolding.CASH);
                                 setEditable(mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) <= 1
                                         && !isTotalOrCash); // it seems the setEditable need to be called again and again
                             }

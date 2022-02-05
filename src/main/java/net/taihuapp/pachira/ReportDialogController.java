@@ -1549,7 +1549,7 @@ public class ReportDialogController {
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
         for (Account account : mSetting.getSelectedAccountList(mainModel)) {
-            List<SecurityHolding> shList = mainModel.computeSecurityHoldings(account.getTransactionList(),
+            List<SecurityHoldingOld> shList = mainModel.computeSecurityHoldingsOld(account.getTransactionList(),
                     date, -1);
             int shListLen = shList.size();
 
@@ -1565,7 +1565,7 @@ public class ReportDialogController {
             // print out positions
             BigDecimal q, p;
             for (int i = 0; i < shListLen-1; i++) {
-                SecurityHolding sh = shList.get(i);
+                SecurityHoldingOld sh = shList.get(i);
                 q = sh.getQuantity();
                 p = sh.getPrice();
                 outputStr.append(String.format("  %-50s%12s%10s%14s\n", sh.getLabel(),

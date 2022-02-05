@@ -41,13 +41,13 @@ public class SpecifyLotsDialogController {
 
     private static final Logger mLogger = Logger.getLogger(SpecifyLotsDialogController.class);
 
-    private static class SpecifyLotInfo extends SecurityHolding.LotInfo {
+    private static class SpecifyLotInfo extends SecurityHoldingOld.LotInfo {
 
         private final ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
         private final ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
         // constructor
-        SpecifyLotInfo(SecurityHolding.LotInfo lotInfo) {
+        SpecifyLotInfo(SecurityHoldingOld.LotInfo lotInfo) {
             super(lotInfo);
         }
 
@@ -77,7 +77,7 @@ public class SpecifyLotsDialogController {
     }
 
     private Transaction mTransaction;
-    private List<SecurityHolding.MatchInfo> mMatchInfoList = null;
+    private List<MatchInfo> mMatchInfoList = null;
     private final ObservableList<SpecifyLotInfo> mSpecifyLotInfoList = FXCollections.observableArrayList();
 
     @FXML
@@ -171,7 +171,7 @@ public class SpecifyLotsDialogController {
             for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
                 if (sli.getSelectedShares() == null || sli.getSelectedShares().compareTo(BigDecimal.ZERO) == 0)
                     continue;
-                mMatchInfoList.add(new SecurityHolding.MatchInfo(sli.getTransactionID(), sli.getSelectedShares()));
+                mMatchInfoList.add(new MatchInfo(sli.getTransactionID(), sli.getSelectedShares()));
             }
         }
         ((Stage) mLotInfoTableView.getScene().getWindow()).close();
@@ -180,7 +180,7 @@ public class SpecifyLotsDialogController {
     @FXML
     private void handleCancel() { ((Stage) mLotInfoTableView.getScene().getWindow()).close(); }
 
-    void setMainModel(MainModel mainModel, Transaction t, List<SecurityHolding.MatchInfo> matchInfoList)
+    void setMainModel(MainModel mainModel, Transaction t, List<MatchInfo> matchInfoList)
             throws DaoException {
         mMatchInfoList = matchInfoList;  // a link point to the input list
         mTransaction = t;
@@ -204,13 +204,13 @@ public class SpecifyLotsDialogController {
             mLogger.error("Invalid account ID " + t.getAccountID());
             return;
         }
-        List<SecurityHolding> shList = mainModel.computeSecurityHoldings(account.getTransactionList(),
+        List<SecurityHoldingOld> shList = mainModel.computeSecurityHoldingsOld(account.getTransactionList(),
                 t.getTDate(), t.getID());
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
-        for (SecurityHolding s : shList) {
+        for (SecurityHoldingOld s : shList) {
             if (s.getSecurityName().equals(mTransaction.getSecurityName())) {
                 // we found the right security
-                for (SecurityHolding.LotInfo sl : s.getLotInfoList()) {
+                for (SecurityHoldingOld.LotInfo sl : s.getLotInfoList()) {
                     mSpecifyLotInfoList.add(new SpecifyLotInfo(sl));
                 }
                 break;
@@ -218,7 +218,7 @@ public class SpecifyLotsDialogController {
         }
 
         // pair off between mSpecifyLotInfoList and mMatchInfoList
-        for (SecurityHolding.MatchInfo mi : mMatchInfoList) {
+        for (MatchInfo mi : mMatchInfoList) {
             for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
                 if (sli.getTransactionID() == mi.getMatchTransactionID()) {
                     sli.setSelectedShares(mi.getMatchQuantity());

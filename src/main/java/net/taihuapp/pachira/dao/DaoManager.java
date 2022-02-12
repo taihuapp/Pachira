@@ -87,7 +87,6 @@ public class DaoManager {
 
     private static final int QUANTITY_FRACTION_LEN = 8;
     private static final int QUANTITY_TOTAL_LEN = 20;
-    public static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
 
     // the logger
     private static final Logger logger = Logger.getLogger(DaoManager.class);

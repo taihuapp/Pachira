@@ -82,19 +82,50 @@ public class SecurityHolding implements LotView {
             marketValueProperty.bind(Bindings.createObjectBinding(() ->
                             getQuantity().multiply(getPrice()).setScale(decimalScale, RoundingMode.HALF_UP),
                     getQuantityProperty(), getPriceProperty()));
+
+            // bind rate of return property
+            rorProperty.bind(Bindings.createObjectBinding(() -> {
+                final BigDecimal costBasis = getCostBasis();
+                if (costBasis.signum() == 0)
+                    return null;
+                return BigDecimal.valueOf(100).multiply(getPnLProperty().get())
+                        .divide(costBasis.abs(), 2, RoundingMode.HALF_UP);
+            }, pnlProperty, costBasisProperty));
         }
 
-        // bind pnlProperty
-        pnlProperty.bind(Bindings.createObjectBinding(() -> getMarketValue().subtract(getCostBasis()),
-                getMarketValueProperty(), getCostBasisProperty()));
+        // bind pnlProperty, if not cash
+        if (n.equals(CASH))
+            pnlProperty.set(null);
+        else
+            pnlProperty.bind(Bindings.createObjectBinding(() -> getMarketValue().subtract(getCostBasis()),
+                    getMarketValueProperty(), getCostBasisProperty()));
     }
 
+    /**
+     * adjust stock split for each lot, and attribute the rounding error to the lot
+     * with most quantity.
+     * @param newQ - numerator for the split ratio
+     * @param oldQ - denominator for the split ratio
+     */
     private void adjustStockSplit(final BigDecimal newQ, final BigDecimal oldQ) {
+        final BigDecimal oldHoldingQ = getQuantity();
+        final BigDecimal newHoldingQ = oldHoldingQ.multiply(newQ).divide(oldQ, MainModel.QUANTITY_FRACTION_LEN,
+                RoundingMode.HALF_UP);
+        SecurityLot maxLot = null; // we need max lot in case have rounding error to add
         for (SecurityLot lot : securityLotList) {
             final BigDecimal oldLotQ = lot.getQuantity();
             final BigDecimal oldLotP = lot.getPrice();
             lot.setQuantity(oldLotQ.multiply(newQ).divide(oldQ, MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
             lot.setPrice(oldLotP.multiply(oldQ).divide(newQ, MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
+            if (maxLot == null || maxLot.getQuantity().abs().compareTo(lot.getQuantity().abs()) < 0) {
+                // update maxLot if maxLot quantity is smaller than lot quantity
+                maxLot = lot;
+            }
+        }
+        BigDecimal diff = newHoldingQ.subtract(getQuantity());
+        if ((maxLot != null) && (diff.signum() != 0)) {
+            // there is rounding issues
+            maxLot.setQuantity(maxLot.getQuantity().add(diff));
         }
     }
 
@@ -171,7 +202,8 @@ public class SecurityHolding implements LotView {
 
         // we process transactions in the order of TDate
         // we mark the trading lot using ADate if it is not null, otherwise, use TDate
-        final SecurityLot tradedLot = new SecurityLot(t.getID(), t.getADate() != null ? t.getADate() : t.getTDate(),
+        final SecurityLot tradedLot = new SecurityLot(t.getID(), t.getTradeAction(),
+                t.getADate() != null ? t.getADate() : t.getTDate(),
                 tradedQuantity, tradedCostBasis, t.getPrice(), decimalScale);
 
         if (tradedQuantity.signum()*getQuantity().signum() >= 0) {

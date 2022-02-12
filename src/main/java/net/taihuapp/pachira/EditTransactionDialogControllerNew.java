@@ -285,7 +285,14 @@ public class EditTransactionDialogControllerNew {
             for (MatchInfo mi : mMatchInfoList) {
                 Transaction transaction = mainModel.getTransaction(t -> t.getID() == mi.getMatchTransactionID())
                         .orElse(null);
-                if (transaction == null || !transaction.getTDate().isBefore(mTransaction.getTDate())
+                // it's not OK if
+                // 1) transaction is null, 2) transaction trade date is after mTransaction trade date
+                // 3) transaction trade date is the same as mTransaction trade date
+                //    AND transaction id is greater than mTransaction id
+                // 4) security name mismatch
+                if (transaction == null || transaction.getTDate().isAfter(mTransaction.getTDate())
+                        || (transaction.getTDate().isEqual(mTransaction.getTDate())
+                            && (transaction.getID() > mTransaction.getID()))
                         || !transaction.getSecurityName().equals(mTransaction.getSecurityName())) {
                     isOK = false;  // this is not good.
                     break;
@@ -710,24 +717,31 @@ public class EditTransactionDialogControllerNew {
         int matchSplitID = 0;
 
         final String memo = mTransaction.getMemo().isEmpty() ? "Share class conversion" : mTransaction.getMemo();
-        List<SecurityHoldingOld> shList;
+        List<SecurityHolding> shList;
         try {
-            shList = mainModel.computeSecurityHoldingsOld(account.getTransactionList(), tDate, mTransaction.getID());
+            shList = mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, mTransaction.getID());
         } catch (DaoException e) {
             mLogger.error("Failed to computer Security holdings for Account " + account.getName(), e);
             return false;
         }
-        for (SecurityHoldingOld sh : shList) {
+        for (SecurityHolding sh : shList) {
             if (sh.getSecurityName().equals(oldSecurity.getName())) {
                 // we have holdings for old security
                 BigDecimal oldQuantity = sh.getQuantity();
-                for (SecurityHoldingOld.LotInfo li : sh.getLotInfoList()) {
+                for (SecurityLot li : sh.getSecurityLotList()) {
                     BigDecimal costBasis = li.getCostBasis();
                     BigDecimal oldLotQuantity = li.getQuantity();
-                    BigDecimal newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
-                            MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
-                    BigDecimal lotPrice = costBasis.divide(newLotQuantity,
-                            MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+
+                    BigDecimal newLotQuantity, lotPrice;
+                    if (oldLotQuantity.signum() != 0) {
+                        newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
+                                MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
+                        lotPrice = costBasis.divide(newLotQuantity,
+                                MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+                    } else {
+                        newLotQuantity = BigDecimal.ZERO;
+                        lotPrice = BigDecimal.ZERO;
+                    }
                     transactionList.add(new Transaction(-1, account.getID(), tDate, li.getDate(), SHRSIN,
                             Transaction.Status.UNCLEARED, newSecurity.getName(), "", "",
                             lotPrice, newLotQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO,
@@ -865,12 +879,12 @@ public class EditTransactionDialogControllerNew {
             }
 
             try {
-                List<SecurityHoldingOld> securityHoldingOldList =
-                        mainModel.computeSecurityHoldingsOld(account.getTransactionList(),
-                        mTransaction.getTDate(), mTransaction.getID());
+                List<SecurityHolding> securityHoldingList =
+                        mainModel.computeSecurityHoldings(account.getTransactionList(),
+                                mTransaction.getTDate(), mTransaction.getID());
 
                 boolean hasEnough = false;
-                for (SecurityHoldingOld sh : securityHoldingOldList) {
+                for (SecurityHolding sh : securityHoldingList) {
                     if (sh.getSecurityName().equals(mTransaction.getSecurityName())) {
                         // we have matching security position, check
                         // sh.getQuantity is signed, mTransaction getQuantity is always positive

@@ -33,6 +33,7 @@ public class SecurityLot implements LotView {
     private final int decimalScale; // number of decimal places to use
     private final int transactionID;
     private final LocalDate transactionDate;
+    private final Transaction.TradeAction tradeAction;
     // this is the traded price
     private final ObjectProperty<BigDecimal> tradedPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     // this is the market price
@@ -44,9 +45,10 @@ public class SecurityLot implements LotView {
     private final ObjectProperty<BigDecimal> costBasisProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
     // d should be the acquired date
-    SecurityLot(int tid, LocalDate d, BigDecimal q, BigDecimal c, BigDecimal p, int scale) {
+    SecurityLot(int tid, Transaction.TradeAction ta, LocalDate d, BigDecimal q, BigDecimal c, BigDecimal p, int scale) {
         transactionID = tid;
         transactionDate = d;
+        tradeAction = ta;
         decimalScale = scale;
 
         // bind some derived properties
@@ -65,14 +67,17 @@ public class SecurityLot implements LotView {
 
         tradedPriceProperty.set(p);
         quantityProperty.set(q);
-        costBasisProperty.set(c);
+        costBasisProperty.set(c.setScale(decimalScale, RoundingMode.HALF_UP));
     }
 
+    int getScale() { return decimalScale; }
     private ObjectProperty<BigDecimal> getMarketPriceProperty() { return marketPriceProperty; }
     private BigDecimal getMarketPrice() { return getMarketPriceProperty().get(); }
     void setMarketPrice(BigDecimal p) { getMarketPriceProperty().set(p); }
 
     int getTransactionID() { return transactionID; }
+    LocalDate getDate() { return transactionDate; }
+    Transaction.TradeAction getTradeAction() { return tradeAction; }
 
     @Override
     public String getLabel() { return transactionDate.toString(); }

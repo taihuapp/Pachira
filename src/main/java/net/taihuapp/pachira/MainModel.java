@@ -317,7 +317,7 @@ public class MainModel {
 
         // computer security holding list and update account balance for each transaction
         // and set account balance
-        List<SecurityHoldingOld> shList = computeSecurityHoldingsOld(sortedList, LocalDate.now(), -1);
+        final List<SecurityHolding> shList = computeSecurityHoldings(sortedList, LocalDate.now(), -1);
         account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
         account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
     }
@@ -389,10 +389,10 @@ public class MainModel {
 
             List<Transaction> newTransactionList = new ArrayList<>();
             for (Account account : getAccountList(a -> a.getType().isGroup(Account.Type.Group.INVESTING))) {
-                final List<SecurityHoldingOld> shList = computeSecurityHoldingsOld(account.getTransactionList(), date, -1);
-                SecurityHoldingOld oldSH = null;
+                final List<SecurityHolding> shList = computeSecurityHoldings(account.getTransactionList(), date, -1);
+                SecurityHolding oldSH = null;
                 boolean hasNew = false;
-                for (SecurityHoldingOld sh : shList) {
+                for (SecurityHolding sh : shList) {
                     if (sh.getSecurityName().equals(security.getName()))
                         oldSH = sh;
                     if (sh.getSecurityName().equals(newSecurityName))
@@ -412,7 +412,7 @@ public class MainModel {
                 t0.setQuantity(numOfOldShares);
                 t0.setMemo(memo);
                 newTransactionList.add(t0);
-                for (SecurityHoldingOld.LotInfo li : oldSH.getLotInfoList()) {
+                for (SecurityLot li : oldSH.getSecurityLotList()) {
                     final BigDecimal costBasis_i = li.getCostBasis();
                     final BigDecimal newCostBasis_i = costBasis_i.multiply(totalNewAmount)
                             .divide(totalAmount, 2, RoundingMode.HALF_UP);
@@ -516,11 +516,11 @@ public class MainModel {
      * @param shList - a list of SecurityHolding objects
      * @return - a list of Security objects
      */
-    private List<Security> fromSecurityHoldingList(List<SecurityHoldingOld> shList) {
-        List<Security> securityList = new ArrayList<>();
-        for (SecurityHoldingOld sh : shList) {
-            String sName = sh.getSecurityName();
-            if (sName.equals("TOTAL") || sName.equals("CASH"))
+    private List<Security> fromSecurityHoldingList(List<SecurityHolding> shList) {
+        final List<Security> securityList = new ArrayList<>();
+        for (SecurityHolding sh : shList) {
+            final String sName = sh.getSecurityName();
+            if (sName.equals(SecurityHolding.TOTAL) || sName.equals(SecurityHolding.CASH))
                 continue; // skip total and cash lines
 
             getSecurity(security -> security.getName().equals(sName)).ifPresent(securityList::add);
@@ -726,10 +726,10 @@ public class MainModel {
      * @throws DaoException - from computeSecurityHoldings
      */
     public void updateAccountBalance(Predicate<Account> predicate) throws DaoException {
-        FilteredList<Account> filteredList = new FilteredList<>(accountList, predicate);
+        final FilteredList<Account> filteredList = new FilteredList<>(accountList, predicate);
         for (Account account : filteredList) {
             ObservableList<Transaction> transactionList = account.getTransactionList();
-            List<SecurityHoldingOld> shList = computeSecurityHoldingsOld(transactionList, LocalDate.now(), -1);
+            List<SecurityHolding> shList = computeSecurityHoldings(transactionList, LocalDate.now(), -1);
             account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
             account.setCurrentBalance(shList.get(shList.size() - 1).getMarketValue());
         }
@@ -843,7 +843,8 @@ public class MainModel {
         List<Account> accountList = getAccountList(predicate);
 
         for (Account account : accountList) {
-            List<SecurityHoldingOld> shList = computeSecurityHoldingsOld(account.getTransactionList(), LocalDate.now(), -1);
+            final List<SecurityHolding> shList = computeSecurityHoldings(account.getTransactionList(),
+                    LocalDate.now(), -1);
             account.getCurrentSecurityList().setAll(fromSecurityHoldingList(shList));
             account.setCurrentBalance(shList.get(shList.size()-1).getMarketValue());
         }
@@ -1008,7 +1009,7 @@ public class MainModel {
         // now loop through the sorted and filtered list
         for (Transaction t : tList) {
             totalCash = totalCash.add(t.getCashAmount().setScale(CURRENCY_FRACTION_LEN, RoundingMode.HALF_UP));
-            if (!t.getTDate().isAfter(date))
+            if (!t.getTDate().isAfter(date) && (t.getID() != exTid))
                 totalCashNow = totalCash;
 
             t.setBalance(totalCash); // set the cash balance for the transaction
@@ -1079,120 +1080,14 @@ public class MainModel {
         totalHolding.setMarketValue(totalMarketValue);
         totalHolding.setCostBasis(totalCostBasis);
 
+        // sort holding according to the security names
         securityHoldingList.sort(Comparator.comparing(SecurityHolding::getSecurityName));
+        // then add cash if needed
         if (totalCashNow.signum() != 0)
             securityHoldingList.add(cashHolding);
+        // add total
         securityHoldingList.add(totalHolding);
         return securityHoldingList;
-    }
-
-    /**
-     * compute security holdings for a given transaction up to the given date, excluding a given transaction
-     * the input list should have the same account id and ordered according the account type
-     * @param tList - an observableList of transactions
-     * @param date - the date to compute up to
-     * @param exTid - the id of the transaction to be excluded.
-     * @return - list of security holdings for the given date
-     *           as a side effect, it will update running cash balance for each transaction
-     */
-    List<SecurityHoldingOld> computeSecurityHoldingsOld(ObservableList<Transaction> tList, LocalDate date, int exTid)
-            throws DaoException {
-
-        BigDecimal totalCash = BigDecimal.ZERO.setScale(SecurityHoldingOld.CURRENCYDECIMALLEN, RoundingMode.HALF_UP);
-        BigDecimal totalCashNow = totalCash;
-        Map<String, SecurityHoldingOld> shMap = new HashMap<>();  // map of security name and securityHolding
-        Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
-
-        // now loop through the sorted and filtered list
-        for (Transaction t : tList) {
-            totalCash = totalCash.add(t.getCashAmount().setScale(SecurityHoldingOld.CURRENCYDECIMALLEN,
-                    RoundingMode.HALF_UP));
-            if (!t.getTDate().isAfter(date))
-                totalCashNow = totalCash;
-
-            t.setBalance(totalCash);
-
-            if ((t.getTDate().equals(date) && t.getID() == exTid) || t.getTDate().isAfter(date))
-                continue;
-
-            String name = t.getSecurityName();
-            if (name != null && !name.isEmpty()) {
-                // it has a security name
-                SecurityHoldingOld securityHoldingOld = shMap.computeIfAbsent(name, SecurityHoldingOld::new);
-                if (t.getTradeAction() == STKSPLIT) {
-                    securityHoldingOld.adjustStockSplit(t.getQuantity(), t.getOldQuantity());
-                    List<Transaction> splitList = stockSplitTransactionListMap.computeIfAbsent(name,
-                            k -> new ArrayList<>());
-                    splitList.add(t);
-                } else if (Transaction.hasQuantity(t.getTradeAction())) {
-                    LocalDate aDate = t.getADate();
-                    if (aDate == null)
-                        aDate = t.getTDate();
-                    securityHoldingOld.addLot(new SecurityHoldingOld.LotInfo(t.getID(), name, t.getTradeAction(), aDate,
-                            t.getPrice(), t.getSignedQuantity(), t.getCostBasis()), getMatchInfoList(t.getID()));
-                }
-            }
-        }
-
-        BigDecimal totalMarketValue = totalCashNow;
-        BigDecimal totalCostBasis = totalCashNow;
-        SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
-        List<SecurityHoldingOld> shList = new ArrayList<>(shMap.values());
-        shList.removeIf(sh -> sh.getQuantity().setScale(DaoManager.QUANTITY_FRACTION_DISPLAY_LEN,
-                RoundingMode.HALF_UP).signum() == 0);
-        for (SecurityHoldingOld sh : shList) {
-            Price price = null;
-            BigDecimal p = BigDecimal.ZERO;
-            Optional<Security> securityOptional = getSecurity(security ->
-                    security.getName().equals(sh.getSecurityName()));
-            if (securityOptional.isPresent()) {
-                Optional<Pair<Security, Price>> optionalSecurityPricePair =
-                        securityPriceDao.getLastPrice(new Pair<>(securityOptional.get(), date));
-                if (optionalSecurityPricePair.isPresent()) {
-                    price = optionalSecurityPricePair.get().getValue();
-                    p = price.getPrice();
-                }
-            }
-            if (price != null && price.getDate().isBefore(date)) {
-                // need to check if there is any stock split between price.getDate() and date
-                List<Transaction> splitList = stockSplitTransactionListMap.get(sh.getSecurityName());
-                if (splitList != null) {
-                    // w have a list of stock splits, check now
-                    // since this list is order by date, we start from the end
-                    ListIterator<Transaction> li = splitList.listIterator(splitList.size());
-                    while (li.hasPrevious()) {
-                        Transaction t = li.previous();
-                        if (t.getTDate().isBefore(price.getDate()))
-                            break;
-                        p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(), DaoManager.PRICE_FRACTION_LEN,
-                                RoundingMode.HALF_UP);
-                    }
-                }
-            }
-            sh.updateMarketValue(p);
-            sh.updatePctRet();
-
-            totalMarketValue = totalMarketValue.add(sh.getMarketValue());
-            totalCostBasis = totalCostBasis.add(sh.getCostBasis());
-        }
-
-        SecurityHoldingOld cashHolding = new SecurityHoldingOld("CASH");
-        cashHolding.setPrice(null);
-        cashHolding.setQuantity(null);
-        cashHolding.setCostBasis(totalCashNow);
-        cashHolding.setMarketValue(totalCashNow);
-
-        SecurityHoldingOld totalHolding = new SecurityHoldingOld("TOTAL");
-        totalHolding.setMarketValue(totalMarketValue);
-        totalHolding.setQuantity(null);
-        totalHolding.setCostBasis(totalCostBasis);
-        totalHolding.setPNL(totalMarketValue.subtract(totalCostBasis));
-
-        shList.sort(Comparator.comparing(SecurityHoldingOld::getSecurityName));
-        if (totalCash.signum() != 0)
-            shList.add(cashHolding);
-        shList.add(totalHolding);
-        return shList;
     }
 
     /**
@@ -1383,10 +1278,10 @@ public class MainModel {
                                             "Transaction '" + newT.getID() + "' has an invalid account ID ("
                                                     + newT.getAccountID() + ")", null));
                     // compute security holdings
-                    final BigDecimal quantity = computeSecurityHoldingsOld(transactions, newT.getTDate(),
+                    final BigDecimal quantity = computeSecurityHoldings(transactions, newT.getTDate(),
                             newT.getID())
                             .stream().filter(sh -> sh.getSecurityName().equals(newT.getSecurityName()))
-                            .map(SecurityHoldingOld::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+                            .map(SecurityHolding::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
                     if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newT.getQuantity()) < 0)
                             || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newT.getQuantity()) < 0)) {
                         // existing quantity not enough for the new trade
@@ -1639,9 +1534,10 @@ public class MainModel {
                 // we never modify oldT, so no need to create a copy
 
                 // first make sure it is not covered by SELL or CVTSHRT
-                if (pairTidMatchInfoListDao.get(oldT.getID()).isPresent()) {
+                //if (pairTidMatchInfoListDao.get(oldT.getID()).isPresent()) {
+                if (!pairTidMatchInfoListDao.getByMatchId(oldT.getID()).isEmpty()) {
                     throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                            "Cannot delete transaction (" + oldT.getID() + ") which is lot matched",
+                            "Cannot modify/delete transaction (" + oldT.getID() + ") which is lot matched",
                             null);
                 }
 
@@ -1965,35 +1861,35 @@ public class MainModel {
     }
 
     List<CapitalGainItem> getCapitalGainItemList(Transaction transaction) throws DaoException, ModelException {
-        Transaction.TradeAction ta = transaction.getTradeAction();
+        final Transaction.TradeAction ta = transaction.getTradeAction();
         if (!ta.equals(SELL) && ta.equals(Transaction.TradeAction.CVTSHRT))
             return null;
 
-        Account account = getAccount(a -> a.getID() == transaction.getAccountID())
+        final Account account = getAccount(a -> a.getID() == transaction.getAccountID())
                 .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                        "Transaction " + transaction.getID()
                         + " has an invalid account id " + transaction.getAccountID(), null));
-        List<SecurityHoldingOld> securityHoldingOldList = computeSecurityHoldingsOld(account.getTransactionList(),
+        final List<SecurityHolding> securityHoldingList = computeSecurityHoldings(account.getTransactionList(),
                 transaction.getTDate(), transaction.getID());
-        List<MatchInfo> miList = getMatchInfoList(transaction.getID());
-        List<CapitalGainItem> capitalGainItemList = new ArrayList<>();
-        for (SecurityHoldingOld securityHoldingOld : securityHoldingOldList) {
-            if (!securityHoldingOld.getSecurityName().equals(transaction.getSecurityName()))
+        final List<MatchInfo> miList = getMatchInfoList(transaction.getID());
+        final List<CapitalGainItem> capitalGainItemList = new ArrayList<>();
+        for (SecurityHolding securityHolding : securityHoldingList) {
+            if (!securityHolding.getSecurityName().equals(transaction.getSecurityName()))
                 continue;  // different security, skip
 
             // we have the right security holding here now
             BigDecimal remainCash = transaction.getAmount();
             BigDecimal remainQuantity = transaction.getQuantity();
-            FilteredList<SecurityHoldingOld.LotInfo> lotInfoList = new FilteredList<>(securityHoldingOld.getLotInfoList());
-            Map<Integer, MatchInfo> matchMap = new HashMap<>();
+            final FilteredList<SecurityLot> securityLots = new FilteredList<>(securityHolding.getSecurityLotList());
+            final Map<Integer, MatchInfo> matchMap = new HashMap<>();
             if (!miList.isEmpty()) {
                 // we have a matchInfo list,
                 for (MatchInfo mi : miList)
                     matchMap.put(mi.getMatchTransactionID(), mi);
-                lotInfoList.setPredicate(li -> matchMap.containsKey(li.getTransactionID()));
+                securityLots.setPredicate(li -> matchMap.containsKey(li.getTransactionID()));
             }
-            //for (SecurityHolding.LotInfo li : securityHolding.getLotInfoList()) {
-            for (SecurityHoldingOld.LotInfo li : lotInfoList) {
+
+            for (SecurityLot li : securityLots) {
                 BigDecimal costBasis;
                 BigDecimal proceeds;
                 Transaction matchTransaction;
@@ -2006,7 +1902,9 @@ public class MainModel {
                 BigDecimal liMatchQuantity = (mi == null) ?
                         li.getQuantity().min(remainQuantity) : mi.getMatchQuantity();
 
-                costBasis = li.getCostBasis().multiply(liMatchQuantity).divide(li.getQuantity(), RoundingMode.HALF_UP);
+                // if li has zero quantity, use up all the cost basis
+                costBasis = li.getQuantity().signum() == 0 ? li.getCostBasis()
+                        : li.getCostBasis().multiply(liMatchQuantity).divide(li.getQuantity(), RoundingMode.HALF_UP);
                 proceeds = remainCash.multiply(liMatchQuantity).divide(remainQuantity, RoundingMode.HALF_UP);
                 remainCash = remainCash.subtract(proceeds);
                 remainQuantity = remainQuantity.subtract(liMatchQuantity);
@@ -2104,7 +2002,7 @@ public class MainModel {
             Set<TransactionType> unTested = importAccountStatement(account, statement);
             adc.setLastDownloadInfo(statement.getLedgerBalance().getAsOfDate(),
                     BigDecimal.valueOf(statement.getLedgerBalance().getAmount())
-                            .setScale(SecurityHoldingOld.CURRENCYDECIMALLEN, RoundingMode.HALF_UP));
+                            .setScale(CURRENCY_FRACTION_LEN, RoundingMode.HALF_UP));
             mergeAccountDC(adc);
             daoManager.commit();
             return unTested;

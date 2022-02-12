@@ -71,6 +71,28 @@ public class PairTidMatchInfoListDao extends Dao<Pair<Integer, List<MatchInfo>>,
     }
 
     /**
+     * get a list of transaction id which has a MATCHID matches the input
+     * @param matchId - input
+     * @return - a list of tid
+     * @throws DaoException - from database operation
+     */
+    public List<Integer> getByMatchId(int matchId) throws DaoException {
+        final List<Integer> tidList = new ArrayList<>();
+        final String sqlCmd = "select TRANSID from " + getTableName() + " where MATCHID = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
+            preparedStatement.setInt(1, matchId);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next())
+                    tidList.add(resultSet.getInt(1));
+            }
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET,
+                    "Failed to get tid for match id = " + matchId, e);
+        }
+        return tidList;
+    }
+
+    /**
      * this only return one MatchInfo in a singleton list as the value of a pair
      * @param resultSet the resultSet with information
      * @return the pair constructed from the resultSet

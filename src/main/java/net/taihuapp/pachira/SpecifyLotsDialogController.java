@@ -21,6 +21,7 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -41,14 +42,15 @@ public class SpecifyLotsDialogController {
 
     private static final Logger mLogger = Logger.getLogger(SpecifyLotsDialogController.class);
 
-    private static class SpecifyLotInfo extends SecurityHoldingOld.LotInfo {
+    private static class SpecifyLotInfo extends SecurityLot {
 
         private final ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
         private final ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
         // constructor
-        SpecifyLotInfo(SecurityHoldingOld.LotInfo lotInfo) {
-            super(lotInfo);
+        SpecifyLotInfo(SecurityLot lot) {
+            super(lot.getTransactionID(), lot.getTradeAction(), lot.getDate(),
+                    lot.getQuantity(), lot.getCostBasis(), lot.getPrice(), lot.getScale());
         }
 
         // getters
@@ -67,6 +69,13 @@ public class SpecifyLotsDialogController {
                 return;
 
             int scale = getCostBasis().scale();
+            if (getQuantity().signum() == 0) {
+                // this lot has zero quantity and some cost basis
+                // use up all the cost basis
+                getRealizedPNLProperty().set(getCostBasis().negate());
+                return;
+            }
+
             BigDecimal c0 = getCostBasis().multiply(getSelectedShares())
                     .divide(getQuantity().abs(), scale, RoundingMode.HALF_UP);
             // t.getQuantity() is always positive
@@ -204,13 +213,13 @@ public class SpecifyLotsDialogController {
             mLogger.error("Invalid account ID " + t.getAccountID());
             return;
         }
-        List<SecurityHoldingOld> shList = mainModel.computeSecurityHoldingsOld(account.getTransactionList(),
+        List<SecurityHolding> shList = mainModel.computeSecurityHoldings(account.getTransactionList(),
                 t.getTDate(), t.getID());
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
-        for (SecurityHoldingOld s : shList) {
+        for (SecurityHolding s : shList) {
             if (s.getSecurityName().equals(mTransaction.getSecurityName())) {
                 // we found the right security
-                for (SecurityHoldingOld.LotInfo sl : s.getLotInfoList()) {
+                for (SecurityLot sl : s.getSecurityLotList()) {
                     mSpecifyLotInfoList.add(new SpecifyLotInfo(sl));
                 }
                 break;
@@ -243,8 +252,8 @@ public class SpecifyLotsDialogController {
             });
             return row;
         });
-        mDateColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
-        mTypeColumn.setCellValueFactory(cellData->cellData.getValue().getTradeActionProperty());
+        mDateColumn.setCellValueFactory(cellData -> new ReadOnlyObjectWrapper<>(cellData.getValue().getDate()));
+        mTypeColumn.setCellValueFactory(cellData -> new ReadOnlyObjectWrapper<>(cellData.getValue().getTradeAction()));
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
         mQuantityColumn.setCellValueFactory(cellData->new SimpleObjectProperty<>(cellData.getValue().getQuantity().abs()));
         mSelectedColumn.setCellValueFactory(cellData->cellData.getValue().getSelectedSharesProperty());

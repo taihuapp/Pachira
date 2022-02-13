@@ -246,6 +246,8 @@ public class SecurityHolding implements LotView {
             }
         }
 
+        securityLotList.removeIf(lot -> (lot.getCostBasis().signum() == 0) && (lot.getQuantity().signum() == 0));
+
         if (tradedLot.getQuantity().compareTo(BigDecimal.ZERO) != 0) {
             if (tradedLot.getCostBasis().compareTo(BigDecimal.ZERO) != 0) {
                 // something is wrong.

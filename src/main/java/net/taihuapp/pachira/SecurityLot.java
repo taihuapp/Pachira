@@ -95,10 +95,11 @@ public class SecurityLot implements LotView {
 
     @Override
     public ObjectProperty<BigDecimal> getMarketValueProperty() { return marketValueProperty; }
-    private BigDecimal getMarketValue() { return getMarketValueProperty().get(); }
+    public BigDecimal getMarketValue() { return getMarketValueProperty().get(); }
 
     @Override
     public ObjectProperty<BigDecimal> getPnLProperty() { return pnlProperty; }
+    public BigDecimal getPnL() { return getPnLProperty().get(); }
 
     @Override
     public ObjectProperty<BigDecimal> getRoRProperty() { return rorProperty; }

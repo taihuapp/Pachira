@@ -88,7 +88,7 @@ public class SecurityHolding implements LotView {
                 final BigDecimal costBasis = getCostBasis();
                 if (costBasis.signum() == 0)
                     return null;
-                return BigDecimal.valueOf(100).multiply(getPnLProperty().get())
+                return BigDecimal.valueOf(100).multiply(getPnL())
                         .divide(costBasis.abs(), 2, RoundingMode.HALF_UP);
             }, pnlProperty, costBasisProperty));
         }
@@ -302,6 +302,7 @@ public class SecurityHolding implements LotView {
 
     @Override
     public ObjectProperty<BigDecimal> getPnLProperty() { return pnlProperty; }
+    public BigDecimal getPnL() { return getPnLProperty().get(); }
 
     @Override
     public ObjectProperty<BigDecimal> getRoRProperty() { return rorProperty; }

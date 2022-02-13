@@ -52,7 +52,7 @@ public class ReportDialogController {
 
     private static final Logger mLogger = Logger.getLogger(ReportDialogController.class);
 
-    public enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS }
+    public enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS, COSTBASIS }
     public enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
     public enum DatePeriod {
         TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE,
@@ -101,6 +101,7 @@ public class ReportDialogController {
             mType = type;
             switch (type) {
                 case NAV:
+                case COSTBASIS:
                     mDatePeriod = DatePeriod.TODAY;
                     break;
                 case INVESTINCOME:
@@ -288,6 +289,9 @@ public class ReportDialogController {
                 stage.setTitle("Capital Gains Report");
                 setupCapitalGainsReport();
                 break;
+            case COSTBASIS:
+                stage.setTitle("Cost Basis Report");
+                setupCostBasisReport();
             default:
                 break;
         }
@@ -296,6 +300,15 @@ public class ReportDialogController {
     private Set<String> mapSecurityIDSetToNameSet(Set<Integer> idSet) {
         return idSet.stream().map(id -> mainModel.getSecurity(s -> s.getID() == id)
                 .map(Security::getName).orElse(NO_SECURITY)).collect(Collectors.toSet());
+    }
+
+    private void setupCostBasisReport() {
+        setupDatesTab(false); // just one date
+        setupAccountsTab(Set.of(Account.Type.Group.INVESTING)); // show all invest accounts
+        mCategoriesTab.setDisable(true);
+        setupSecuritiesTab();
+        mTradeActionTab.setDisable(true);
+        mTextMatchTab.setDisable(true);
     }
 
     private void setupCapitalGainsReport() {
@@ -571,6 +584,9 @@ public class ReportDialogController {
                     break;
                 case CAPITALGAINS:
                     mReportTextArea.setText(CapitalGainsReport());
+                    break;
+                case COSTBASIS:
+                    mReportTextArea.setText(CostBasisReport());
                     break;
                 default:
                     mReportTextArea.setText("Report type " + mSetting.getType() + " not implemented yet");
@@ -1141,7 +1157,7 @@ public class ReportDialogController {
         title.costBasis = "Cost Basis";
         title.realizedGL = "Realized G/L";
 
-        final List<String> errMsgs = new ArrayList<>();
+        final List<String> errorMessageList = new ArrayList<>();
 
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
@@ -1268,7 +1284,7 @@ public class ReportDialogController {
                     transactionLTGLines.add(line);
                 }
                 if (!matchedQuantity.equals(t.getQuantity())) {
-                    errMsgs.add(account.getName() + " " + t.getTradeAction() + " "
+                    errorMessageList.add(account.getName() + " " + t.getTradeAction() + " "
                             + t.getQuantity() + ", matched " + matchedQuantity + ". Difference = "
                             + t.getQuantity().subtract(matchedQuantity));
                 }
@@ -1346,9 +1362,9 @@ public class ReportDialogController {
                 .append(mSetting.getStartDate()).append(" to ").append(mSetting.getEndDate()).append("\n")
                 .append("Generated on ").append(LocalDate.now()).append("\n");
 
-        if (!errMsgs.isEmpty()) {
+        if (!errorMessageList.isEmpty()) {
             reportSB.append("\n*** Start of Error Messages ***\n");
-            for (String s : errMsgs)
+            for (String s : errorMessageList)
                 reportSB.append(s).append("\n");
             reportSB.append("*** End of Error Messages ***\n");
         }
@@ -1536,6 +1552,125 @@ public class ReportDialogController {
                 reportStr.append(separator).append("\n");
         }
         return reportStr.toString();
+    }
+
+    private String CostBasisReport() throws DaoException {
+        final LocalDate date = mSetting.getEndDate();
+        final String EOL = System.lineSeparator();
+        final StringBuilder outputSB = new StringBuilder("Cost Basis as of " + date + EOL + EOL);
+        final Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
+
+        final String nameHeader = "Name";
+        final String pHeader = "Price";
+        final String qHeader = "Quantity";
+        final String mvHeader = "Market Value";
+        final String cbHeader = "Cost Basis";
+        final String pnlHeader = "P&L";
+        int nameLen = 12; // dates will take 10 and 2 space indent
+        int pLen = pHeader.length();
+        int qLen = qHeader.length();
+        int mvLen = mvHeader.length();
+        int cbLen = cbHeader.length();
+        int pnlLen = pnlHeader.length();
+
+        final DecimalFormat pFormatter = new DecimalFormat();
+        pFormatter.setMaximumFractionDigits(MainModel.PRICE_FRACTION_DISPLAY_LEN);
+        pFormatter.setMinimumFractionDigits(0);
+
+        final DecimalFormat qFormatter = new DecimalFormat();
+        qFormatter.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
+        qFormatter.setMinimumFractionDigits(0);
+
+        // compute holdings and calculate column width
+        final Map<Integer, List<SecurityHolding>> accountSecurityHoldingMap = new HashMap<>();
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
+            final List<SecurityHolding> shList =  mainModel.computeSecurityHoldings(account.getTransactionList(),
+                    date, -1).stream().filter(sh -> securityNameSet.contains(sh.getSecurityName()))
+                    .collect(Collectors.toList());
+            for (SecurityHolding sh : shList) {
+                final int len = sh.getSecurityName().length();
+                if (len > nameLen)
+                    nameLen = len;
+                final String pString = pFormatter.format(sh.getPrice());
+                if (pString.length() > pLen)
+                    pLen = pString.length();
+                final String qString = qFormatter.format(sh.getQuantity());
+                if (qString.length() > qLen)
+                    qLen = qString.length();
+                final String mvString = MainModel.DOLLAR_CENT_FORMAT.format(sh.getMarketValue());
+                if (mvString.length() > mvLen)
+                    mvLen = mvString.length();
+                final String cbString = MainModel.DOLLAR_CENT_FORMAT.format(sh.getCostBasis());
+                if (cbString.length() > cbLen)
+                    cbLen = cbString.length();
+                final String pnlString = MainModel.DOLLAR_CENT_FORMAT.format(sh.getPnL());
+                if (pnlString.length() > pnlLen)
+                    pnlLen = pnlString.length();
+                for (SecurityLot lot : sh.getSecurityLotList()) {
+                    final String lotPString = pFormatter.format(lot.getPrice());
+                    if (lotPString.length() > pLen)
+                        pLen = lotPString.length();
+                    final String lotQString = qFormatter.format(lot.getQuantity());
+                    if (lotQString.length() > qLen)
+                        qLen = lotQString.length();
+                    final String lotMVString = MainModel.DOLLAR_CENT_FORMAT.format(lot.getMarketValue());
+                    if (lotMVString.length() > mvLen)
+                        mvLen = lotMVString.length();
+                    final String lotCBString = MainModel.DOLLAR_CENT_FORMAT.format(lot.getCostBasis());
+                    if (lotCBString.length() > cbLen)
+                        cbLen = lotCBString.length();
+                    final String lotPnLString = MainModel.DOLLAR_CENT_FORMAT.format(lot.getPnL());
+                    if (lotPnLString.length() > pnlLen)
+                        pnlLen = lotPnLString.length();
+                }
+            }
+            accountSecurityHoldingMap.put(account.getID(), shList);
+        }
+
+        // prepare report
+        final int lineLen = nameLen + 4 + pLen + 2 + qLen + 2 + mvLen + 2 + cbLen + 2 + pnlLen;
+        final String separator = new String(new char[lineLen]).replace("\0", "=");
+        outputSB.append(String.format("  %-" + nameLen + "s", nameHeader))
+                .append(String.format("  %" + pLen + "s", pHeader))
+                .append(String.format("  %" + qLen + "s", qHeader))
+                .append(String.format("  %" + mvLen + "s", mvHeader))
+                .append(String.format("  %" + cbLen + "s", cbHeader))
+                .append(String.format("  %" + pnlLen + "s", pnlHeader))
+
+                .append(EOL);
+        outputSB.append(separator).append(EOL).append(EOL);
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
+            outputSB.append(account.getName()).append(EOL);
+            final List<SecurityHolding> shList = accountSecurityHoldingMap.get(account.getID());
+            for (SecurityHolding sh : shList) {
+                outputSB.append(String.format("  %-" + nameLen + "s", sh.getLabel()))
+                        .append(String.format("  %" + pLen + "s", pFormatter.format(sh.getPrice())))
+                        .append(String.format("  %" + qLen + "s", qFormatter.format(sh.getQuantity())))
+                        .append(String.format("  %" + mvLen + "s",
+                                MainModel.DOLLAR_CENT_FORMAT.format(sh.getMarketValue())))
+                        .append(String.format("  %" + cbLen + "s",
+                                MainModel.DOLLAR_CENT_FORMAT.format(sh.getCostBasis())))
+                        .append(String.format("  %" + pnlLen + "s",
+                                MainModel.DOLLAR_CENT_FORMAT.format(sh.getPnL())))
+                        .append(EOL);
+                for (SecurityLot lot : sh.getSecurityLotList()) {
+                    outputSB.append(String.format("    %-" + (nameLen-2) + "s", lot.getLabel()))
+                            .append(String.format("  %" + pLen + "s", pFormatter.format(lot.getPrice())))
+                            .append(String.format("  %" + qLen + "s", qFormatter.format(lot.getQuantity())))
+                            .append(String.format("  %" + mvLen + "s",
+                                    MainModel.DOLLAR_CENT_FORMAT.format(lot.getMarketValue())))
+                            .append(String.format("  %" + cbLen + "s",
+                                    MainModel.DOLLAR_CENT_FORMAT.format(lot.getCostBasis())))
+                            .append(String.format("  %" + pnlLen + "s",
+                                    MainModel.DOLLAR_CENT_FORMAT.format(lot.getPnL())))
+                            .append(EOL);
+                }
+                outputSB.append(EOL);
+            }
+            outputSB.append(separator).append(EOL).append(EOL);
+        }
+
+        return outputSB.toString();
     }
 
     private String NAVReport() throws DaoException {

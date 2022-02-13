@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -145,6 +145,7 @@
                         <MenuItem mnemonicParsing="false" onAction="#handleInvestingIncome" text="Investing Income" />
                         <MenuItem mnemonicParsing="false" onAction="#handleInvestingTransactions" text="Investing Transactions" />
                         <MenuItem mnemonicParsing="false" onAction="#handleCapitalGains" text="Capital Gains" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleCostBasis" text="Cost Basis" />
                     </items>
                   </Menu>
                   <Menu fx:id="mOFXMenu" mnemonicParsing="false" text="Direct Connect">

@@ -1171,6 +1171,12 @@ public class MainController {
         updateSavedReportsMenu();
     }
 
+    @FXML
+    private void handleCostBasis() {
+        showReportDialog(new ReportDialogController.Setting(ReportDialogController.ReportType.COSTBASIS));
+        updateSavedReportsMenu();
+    }
+
     /**
      * delete a saved report setting
      * @param setting the input setting to be deleted

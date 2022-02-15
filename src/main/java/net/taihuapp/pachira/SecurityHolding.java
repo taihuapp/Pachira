@@ -180,6 +180,21 @@ public class SecurityHolding implements LotView {
         tradedLot.setQuantity(tradedNewQ);
     }
 
+    /**
+     * add a lot to the list in the order of lot date
+     * so the security lot list is sorted in ascending order of lot date
+     * @param lot: a lot to be added
+     */
+    private void addLot(final SecurityLot lot) {
+        for (int index = securityLotList.size(); index > 0; index--) {
+            if (!securityLotList.get(index-1).getDate().isAfter(lot.getDate())) {
+                securityLotList.add(index, lot);
+                return;
+            }
+        }
+        securityLotList.add(0, lot);
+    }
+
     // assume the security name of the transaction matches securityName
     void processTransaction(final Transaction t, final List<MatchInfo> matchInfoList) {
         // handle stock split
@@ -208,7 +223,8 @@ public class SecurityHolding implements LotView {
 
         if (tradedQuantity.signum()*getQuantity().signum() >= 0) {
             // either a new open trade, or adding to the same position
-            securityLotList.add(tradedLot);
+            //securityLotList.add(tradedLot);
+            addLot(tradedLot);
             if (!matchInfoList.isEmpty()) {
                 // why matchInfoList isn't empty?
                 logger.warn("Can't find offsetting lots for " + t.getTradeAction() + " " + tradedQuantity
@@ -262,7 +278,8 @@ public class SecurityHolding implements LotView {
                         + "    Remaining quantity:   " + tradedLot.getQuantity() + System.lineSeparator()
                         + "    Remaining cost basis: " + tradedLot.getCostBasis() + System.lineSeparator());
             }
-            securityLotList.add(tradedLot);
+            //securityLotList.add(tradedLot);
+            addLot(tradedLot);
         }
     }
 

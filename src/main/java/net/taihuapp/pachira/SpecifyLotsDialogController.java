@@ -37,6 +37,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 public class SpecifyLotsDialogController {
 
@@ -56,6 +57,7 @@ public class SpecifyLotsDialogController {
         // getters
         ObjectProperty<BigDecimal> getSelectedSharesProperty() { return mSelectedSharesProperty; }
         ObjectProperty<BigDecimal> getRealizedPNLProperty() { return mRealizedPNLProperty; }
+        BigDecimal getRealizedPNL() { return getRealizedPNLProperty().get(); }
         BigDecimal getSelectedShares() { return getSelectedSharesProperty().get(); }
 
         // setters
@@ -63,6 +65,12 @@ public class SpecifyLotsDialogController {
 
         // update realized pnl against a trade
         void updateRealizedPNL(Transaction t) {
+            if (getSelectedShares() == null) {
+                // nothing selected
+                getRealizedPNLProperty().set(null);
+                return;
+            }
+
             // if t has zero quantity, there shouldn't be any cost basis,
             // simply skip
             if (t.getQuantity().signum() == 0)
@@ -245,7 +253,13 @@ public class SpecifyLotsDialogController {
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {
                     SpecifyLotInfo sli = row.getItem();
-                    sli.setSelectedShares(sli.getQuantity());
+                    if (sli.getSelectedShares() == null || (sli.getSelectedShares().signum() == 0)) {
+                        // not selected, select as much as possible for this lot
+                        sli.setSelectedShares(mTransaction.getQuantity().subtract(getSelectedShares())
+                                .min(sli.getQuantity()));
+                    } else {
+                        sli.setSelectedShares(null);
+                    }
                     sli.updateRealizedPNL(t);
                     updateSelectedShares();
                 }
@@ -278,16 +292,23 @@ public class SpecifyLotsDialogController {
         updateSelectedShares();
     }
 
+    private BigDecimal getSelectedShares() {
+        // Specify Lot Info quantity = null means not selected.
+        return mSpecifyLotInfoList.stream().map(SpecifyLotInfo::getSelectedShares).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal getRealizedPnL() {
+        // Specify Lot Info quantity = null means not selected.
+        return mSpecifyLotInfoList.stream().filter(sli -> sli.getSelectedShares() != null)
+                .map(SpecifyLotInfo::getRealizedPNL).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     // Add up selected shares and P&L, update the display labels
     private void updateSelectedShares() {
-        BigDecimal selected = BigDecimal.ZERO;
-        BigDecimal realizedPNL = BigDecimal.ZERO;
-        for (SpecifyLotInfo sli : mSpecifyLotInfoList)
-            if (sli.getSelectedShares() != null) {
-                // if it is null, it means not selected yet, skip
-                selected = selected.add(sli.getSelectedShares());
-                realizedPNL = realizedPNL.add(sli.getRealizedPNLProperty().get());
-            }
+        final BigDecimal selected = getSelectedShares();
+        final BigDecimal realizedPNL = getRealizedPnL();
+
         mSelectedSharesLabel.setText("" + selected);
         mPNLLabel.setText("" + realizedPNL);
         if (mTransaction.getQuantity() == null)

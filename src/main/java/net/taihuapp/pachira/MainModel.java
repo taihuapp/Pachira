@@ -1263,6 +1263,9 @@ public class MainModel {
         PairTidMatchInfoListDao pairTidMatchInfoListDao =
                 (PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO);
         SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
+        final int DELETE_ACCOUNT_ID = getAccount(a -> a.getName().equals(DELETED_ACCOUNT_NAME)).orElseThrow(() ->
+                new ModelException(ModelException.ErrorCode.MISSING_DELETED_ACCOUNT, "Cannot find DELETED_ACCOUNT",
+                        null)).getID();
         try {
             // start a dao transaction
             daoManager.beginTransaction();
@@ -1394,7 +1397,9 @@ public class MainModel {
                     // match id and/or match split id in newT might have changed
                     // match id in split transactions might have changed
                     transactionDao.update(newT);
-                } else if (newT.isTransfer()) {
+                } else if (newT.isTransfer() && newT.getCategoryID() != -DELETE_ACCOUNT_ID) {
+                    // newT is a transferring transaction and also not transferring to the deleted account
+
                     if (newT.getCategoryID() == -newT.getAccountID()) {
                         throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                 "Transaction is transferring back to the same account", null);
@@ -1556,8 +1561,9 @@ public class MainModel {
                             accountIDSet.add(-st.getCategoryID());
                         }
                     }
-                } else if (oldT.isTransfer()) {
-                    // oldT is a transfer.  Check if the xferT is updated
+                } else if (oldT.isTransfer() && oldT.getCategoryID() != -DELETE_ACCOUNT_ID) {
+                    // oldT is a transferring transaction and also not transferring to the deleted account
+                    // now check if the xferT is updated
                     if (updateTSet.stream().noneMatch(t -> t.getID() == oldT.getMatchID())) {
                         // linked transaction is not being updated
                         if (oldT.getMatchSplitID() > 0) {

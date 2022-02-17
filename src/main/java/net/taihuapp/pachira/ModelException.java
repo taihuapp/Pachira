@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -64,7 +64,11 @@ public class ModelException extends Exception {
         /**
          * not find payment item on date
          */
-        LOAN_PAYMENT_NOT_FOUND
+        LOAN_PAYMENT_NOT_FOUND,
+        /**
+         * can't find DELETED_ACCOUNT
+         */
+        MISSING_DELETED_ACCOUNT
     }
 
     private final ErrorCode errorCode;

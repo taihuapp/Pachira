@@ -86,6 +86,7 @@ public class SpecifyLotsDialogController {
         for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
             sli.updateSelectedShares(BigDecimal.ZERO, new SecurityLot(mTransaction, sli.getScale()));
         }
+        updateSelectedShares();
     }
 
     @FXML
@@ -208,6 +209,7 @@ public class SpecifyLotsDialogController {
                         matchQuantity = null;
                     }
                     sli.updateSelectedShares(matchQuantity, new SecurityLot(mTransaction, sli.getScale()));
+                    updateSelectedShares();
                 }
             });
             return row;

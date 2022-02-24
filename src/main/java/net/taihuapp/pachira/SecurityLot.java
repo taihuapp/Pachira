@@ -44,6 +44,11 @@ public class SecurityLot implements LotView {
     private final ObjectProperty<BigDecimal> rorProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> costBasisProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
+    SecurityLot(Transaction t, int scale) {
+        this(t.getID(), t.getTradeAction(), t.getADate() != null ? t.getADate() : t.getTDate(),
+                t.getSignedQuantity(), t.getCostBasis(), t.getPrice(), scale);
+    }
+
     // d should be the acquired date
     SecurityLot(int tid, Transaction.TradeAction ta, LocalDate d, BigDecimal q, BigDecimal c, BigDecimal p, int scale) {
         transactionID = tid;
@@ -108,4 +113,65 @@ public class SecurityLot implements LotView {
     public ObjectProperty<BigDecimal> getCostBasisProperty() { return costBasisProperty; }
     public BigDecimal getCostBasis() { return getCostBasisProperty().get(); }
     public void setCostBasis(BigDecimal c) { getCostBasisProperty().set(c); }
+
+    /**
+     * Take an existing lot, and a tradedLot, and a match quantity, match the two lots
+     * the quantity of these two lot cannot be the same sign
+     * the absolute value of the quantity of either lot should be no less than matchQuantity (positive)
+     * @param lot: an existing lot
+     * @param tradedLot: a traded lot
+     * @param matchQuantity: the amount to match
+     * @return PnL or null of matchQuantity is null
+     */
+    static BigDecimal matchLots(SecurityLot lot, SecurityLot tradedLot, BigDecimal matchQuantity) {
+
+        if (matchQuantity == null) {
+            // we are not doing match, return null
+            return null;
+        }
+
+        final BigDecimal lotOldC = lot.getCostBasis();
+        final BigDecimal tradedOldC = tradedLot.getCostBasis();
+        final BigDecimal lotOldQ = lot.getQuantity();
+        final BigDecimal tradedOldQ = tradedLot.getQuantity();
+
+        final int lotOldQSign = lotOldQ.signum();
+        if (lotOldQSign == 0) {
+            // the lot has a cost basis but zero quantity, we just empty the cost basis
+            // for the lot and return.
+            lot.setCostBasis(BigDecimal.ZERO);
+            return lotOldC.negate();
+        }
+
+        final BigDecimal lotNewQ;
+        final BigDecimal tradedNewQ;
+
+        if (lotOldQSign > 0) {
+            lotNewQ = lotOldQ.subtract(matchQuantity);
+            tradedNewQ = tradedOldQ.add(matchQuantity);
+        } else {
+            // lotOldSign < 0
+            lotNewQ = lotOldQ.add(matchQuantity);
+            tradedNewQ = tradedOldQ.subtract(matchQuantity);
+        }
+
+        final BigDecimal lotNewC = scaleCostBasis(lotOldC, lotOldQ, lotNewQ);
+        final BigDecimal tradedNewC = scaleCostBasis(tradedOldC, tradedOldQ, tradedNewQ);
+        lot.setCostBasis(lotNewC);
+        lot.setQuantity(lotNewQ);
+        tradedLot.setCostBasis(tradedNewC);
+        tradedLot.setQuantity(tradedNewQ);
+        return lotOldC.subtract(lotNewC).add(tradedOldC).subtract(tradedNewC).negate();
+    }
+
+    /**
+     * return oldC*newQ/oldQ.  Obviously oldQ can not be zero.
+     * @param oldC - old cost basis
+     * @param oldQ - old quantity
+     * @param newQ - new quantity
+     * @return scaled cost basis
+     */
+    private static BigDecimal scaleCostBasis(BigDecimal oldC, BigDecimal oldQ, BigDecimal newQ) {
+        return oldC.multiply(newQ).divide(oldQ, oldC.scale(), RoundingMode.HALF_UP);
+    }
 }

@@ -739,7 +739,6 @@ public class ReportDialogController {
             }
         }
 
-        final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
         Income fieldUsed = new Income(); // use this to keep track the field being used
         List<Map<String, Income>> accountSecurityIncomeList = new ArrayList<>();
         for (Account account : mainModel.getAccountList(a -> a.getType().isGroup(Account.Type.Group.INVESTING)
@@ -771,16 +770,17 @@ public class ReportDialogController {
                     case SELL:
                     case CVTSHRT:
                         fieldUsed.realized = BigDecimal.ONE;
+                        final SecurityHolding securityHolding =
+                                mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, t.getID())
+                                        .stream().filter(sh -> sh.getSecurityName().equals(sName)).findAny()
+                                        .orElseThrow(() ->
+                                                new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                                "Cannot find security holding for " + t.getTradeAction() + " "
+                                                        + t.getQuantity() + " of " + sName, null));
+                        final BigDecimal realized = securityHolding.processTransaction(t,
+                                mainModel.getMatchInfoList(t.getID())).stream().map(SpecifyLotInfo::getRealizedPNL)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
                         securityIncomeMap.put(sName, income);
-                        BigDecimal realized = mainModel.calcRealizedGain(t);
-                        if (realized == null) {
-                            reportStr.append("**********************\n" + "* Lot Matching Error *\n" + "* Account:  ")
-                                    .append(account.getName()).append("\n").append("* Date:     ").append(t.getTDate())
-                                    .append("\n").append("* Security: ").append(t.getSecurityName()).append("\n")
-                                    .append("* Action:   ").append(t.getTradeAction().name()).append("\n")
-                                    .append("* Quantity: ").append(qpFormat.format(t.getQuantity())).append("\n");
-                            return reportStr.toString();
-                        }
                         income.realized = income.realized.add(realized);
                         break;
                     case DIV:
@@ -1138,9 +1138,9 @@ public class ReportDialogController {
         }
 
         BigDecimal totalSTCostBasis = BigDecimal.ZERO;
-        BigDecimal totalSTProceeds = BigDecimal.ZERO;
+        BigDecimal totalSTPnL = BigDecimal.ZERO;
         BigDecimal totalLTCostBasis = BigDecimal.ZERO;
-        BigDecimal totalLTProceeds = BigDecimal.ZERO;
+        BigDecimal totalLTPnL = BigDecimal.ZERO;
 
         final List<Line> detailLTGLines = new ArrayList<>();  // long term gain details
         final List<Line> detailSTGLines = new ArrayList<>();  // short term gain details
@@ -1157,136 +1157,119 @@ public class ReportDialogController {
         title.costBasis = "Cost Basis";
         title.realizedGL = "Realized G/L";
 
-        final List<String> errorMessageList = new ArrayList<>();
-
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
         // selected security tab has only IDs, transaction contains security name only,
         // convert ID's to names
-        Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
+        final Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
 
-        final LocalDate sDate1 = mSetting.mStartDate.minusDays(1); // one day before start date
-        final LocalDate eDate1 = mSetting.mEndDate.plusDays(1); // one day after end date
         for (int accountID : mSetting.getSelectedAccountIDSet()) {
-            Account account = mainModel.getAccount(a -> a.getID() == accountID).orElse(null);
+            final Account account = mainModel.getAccount(a -> a.getID() == accountID).orElse(null);
             if (account == null)
                 continue;
             for (Transaction t : new FilteredList<>(account.getTransactionList(), p -> {
                 final String sName = p.getSecurityName().isEmpty() ? NO_SECURITY : p.getSecurityName();
-                return (securityNameSet.contains(sName) &&
-                        (p.getTradeAction() == Transaction.TradeAction.SELL ||
-                                p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
-                        p.getTDate().isAfter(sDate1) && p.getTDate().isBefore(eDate1));
+                return ((p.getTradeAction() == Transaction.TradeAction.SELL ||
+                        p.getTradeAction() == Transaction.TradeAction.CVTSHRT) && securityNameSet.contains(sName) &&
+                        (!p.getTDate().isBefore(mSetting.getStartDate())) &&
+                        (!p.getTDate().isAfter(mSetting.getEndDate())));
             })) {
-                BigDecimal matchedQuantity = BigDecimal.ZERO;
-                CapitalGainItem transactionSTG = null; // keep track short term gain for the transaction
-                CapitalGainItem transactionLTG = null; // keep track long term gain for the transaction
-                for (CapitalGainItem cgi : mainModel.getCapitalGainItemList(t)) {
-                    matchedQuantity = matchedQuantity.add(cgi.getQuantity());
+                final SecurityHolding securityHolding = mainModel.computeSecurityHoldings(account.getTransactionList(),
+                        t.getTDate(), t.getID()).stream().filter(sh -> sh.getSecurityName().equals(t.getSecurityName()))
+                        .findAny().orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                account.getName() + " " + t.getTradeAction() + " " + t.getQuantity() + " on "
+                                        + t.getTDate(), null));
+                final List<SpecifyLotInfo> matchLotList =
+                        securityHolding.processTransaction(t, mainModel.getMatchInfoList(t.getID()));
+                final List<SpecifyLotInfo> stgLotList = new ArrayList<>();
+                final List<SpecifyLotInfo> ltgLotList = new ArrayList<>();
+                for (SpecifyLotInfo sli : matchLotList) {
                     Line line = new Line();
                     line.aName = account.getName();
                     line.sName = t.getSecurityName();
-                    line.quantity = qpFormat.format(cgi.getQuantity());
-                    Transaction matchT = cgi.getMatchTransaction();
+                    line.quantity = qpFormat.format(sli.getSelectedShares());
                     if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
                         line.sDate = t.getTDate().toString();
-                        line.bDate = matchT.getTDate().toString();
+                        line.bDate = sli.getDate().toString();
                     } else {
-                        line.sDate = matchT.getTDate().toString();
+                        line.sDate = sli.getDate().toString();
                         line.bDate = t.getTDate().toString();
                     }
-                    line.proceeds = dcFormat.format(cgi.getProceeds());
-                    line.costBasis = dcFormat.format(cgi.getCostBasis());
-                    line.realizedGL = dcFormat.format(cgi.getProceeds().subtract(cgi.getCostBasis()));
-                    if (cgi.isShortTerm()) {
+                    line.proceeds = dcFormat.format(sli.getProceeds());
+                    line.costBasis = dcFormat.format(sli.getProceeds().subtract(sli.getRealizedPNL()));
+                    line.realizedGL = dcFormat.format(sli.getRealizedPNL());
+                    if (sli.isShortTerm(t.getTDate())) {
                         detailSTGLines.add(line);
-                        if (transactionSTG == null) {
-                            transactionSTG = new CapitalGainItem(cgi);
-                        } else {
-                            if ((transactionSTG.getMatchTransaction() != null) &&
-                                    !transactionSTG.getMatchTransaction().getTDate().equals(
-                                            cgi.getMatchTransaction().getTDate())) {
-                                // matching transactions on multiple days, set to null
-                                transactionSTG.setMatchTransaction(null);
-                            }
-                            transactionSTG.setCostBasis(transactionSTG.getCostBasis().add(cgi.getCostBasis()));
-                            transactionSTG.setProceeds(transactionSTG.getProceeds().add(cgi.getProceeds()));
-                        }
+                        stgLotList.add(sli);
 
-                        totalSTCostBasis = totalSTCostBasis.add(cgi.getCostBasis());
-                        totalSTProceeds = totalSTProceeds.add(cgi.getProceeds());
+                        totalSTCostBasis = totalSTCostBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
+                        totalSTPnL = totalSTPnL.add(sli.getRealizedPNL());
                     } else {
                         detailLTGLines.add(line);
-                        if (transactionLTG == null) {
-                            transactionLTG = new CapitalGainItem(cgi);
-                        } else {
-                            if ((transactionLTG.getMatchTransaction() != null) &&
-                                    !transactionLTG.getMatchTransaction().getTDate().equals(
-                                            cgi.getMatchTransaction().getTDate())) {
-                                // matching transactions on multiple days, set to null
-                                transactionLTG.setMatchTransaction(null);
-                            }
-                            transactionLTG.setCostBasis(transactionLTG.getCostBasis().add(cgi.getCostBasis()));
-                            transactionLTG.setProceeds(transactionLTG.getProceeds().add(cgi.getProceeds()));
-                        }
+                        ltgLotList.add(sli);
 
-                        totalLTCostBasis = totalLTCostBasis.add(cgi.getCostBasis());
-                        totalLTProceeds = totalLTProceeds.add(cgi.getProceeds());
+                        totalLTCostBasis = totalLTCostBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
+                        totalLTPnL = totalLTPnL.add(sli.getRealizedPNL());
                     }
                 }
-                if (transactionSTG != null) {
+                if (!stgLotList.isEmpty()) {
                     Line line = new Line();
                     line.aName = account.getName();
                     line.sName = t.getSecurityName();
                     line.quantity = qpFormat.format(t.getQuantity());
-                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
-                        line.sDate = t.getTDate().toString();
-                        if (transactionSTG.getMatchTransaction() == null)
-                            line.bDate = "Various";
-                        else
-                            line.bDate = transactionSTG.getMatchTransaction().getTDate().toString();
-                    } else {
-                        line.bDate = t.getTDate().toString();
-                        if (transactionSTG.getMatchTransaction() == null)
-                            line.sDate = "Various";
-                        else
-                            line.sDate = transactionSTG.getMatchTransaction().getTDate().toString();
+                    String lotDateStr = stgLotList.get(0).getDate().toString();
+                    BigDecimal costBasis = BigDecimal.ZERO;
+                    BigDecimal pnl = BigDecimal.ZERO;
+                    for (SpecifyLotInfo sli : stgLotList) {
+                        if (!sli.getDate().isEqual(stgLotList.get(0).getDate()))
+                            lotDateStr = "Various"; // more than one date
+
+                        costBasis = costBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
+                        pnl = pnl.add(sli.getRealizedPNL());
                     }
-                    line.costBasis = dcFormat.format(transactionSTG.getCostBasis());
-                    line.proceeds = dcFormat.format(transactionSTG.getProceeds());
-                    line.realizedGL =
-                            dcFormat.format(transactionSTG.getProceeds().subtract(transactionSTG.getCostBasis()));
+                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
+                        // The covering transaction is a sell
+                        line.sDate = t.getTDate().toString();
+                        line.bDate = lotDateStr;
+                    } else {
+                        // The covering transaction is a short covering buy
+                        line.bDate = t.getTDate().toString();
+                        line.sDate = lotDateStr;
+                    }
+                    line.costBasis = dcFormat.format(costBasis);
+                    line.proceeds = dcFormat.format(pnl.add(costBasis));
+                    line.realizedGL = dcFormat.format(pnl);
                     transactionSTGLines.add(line);
                 }
-                if (transactionLTG != null) {
+                if (!ltgLotList.isEmpty()) {
                     Line line = new Line();
                     line.aName = account.getName();
                     line.sName = t.getSecurityName();
                     line.quantity = qpFormat.format(t.getQuantity());
-                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
-                        line.sDate = t.getTDate().toString();
-                        if (transactionLTG.getMatchTransaction() == null)
-                            line.bDate = "Various";
-                        else
-                            line.bDate = transactionLTG.getMatchTransaction().getTDate().toString();
-                    } else {
-                        line.bDate = t.getTDate().toString();
-                        if (transactionLTG.getMatchTransaction() == null)
-                            line.sDate = "Various";
-                        else
-                            line.sDate = transactionLTG.getMatchTransaction().getTDate().toString();
+                    String lotDateStr = ltgLotList.get(0).getDate().toString();
+                    BigDecimal costBasis = BigDecimal.ZERO;
+                    BigDecimal pnl = BigDecimal.ZERO;
+                    for (SpecifyLotInfo sli : ltgLotList) {
+                        if (!sli.getDate().isEqual(ltgLotList.get(0).getDate()))
+                            lotDateStr = "Various"; // more than one date
+
+                        costBasis = costBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
+                        pnl = pnl.add(sli.getRealizedPNL());
                     }
-                    line.costBasis = dcFormat.format(transactionLTG.getCostBasis());
-                    line.proceeds = dcFormat.format(transactionLTG.getProceeds());
-                    line.realizedGL =
-                            dcFormat.format(transactionLTG.getProceeds().subtract(transactionLTG.getCostBasis()));
+                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
+                        // the covering transaction is a sell
+                        line.sDate = t.getTDate().toString();
+                        line.bDate = lotDateStr;
+                    } else {
+                        // short covering buy
+                        line.bDate = t.getTDate().toString();
+                        line.sDate = lotDateStr;
+                    }
+                    line.costBasis = dcFormat.format(costBasis);
+                    line.proceeds = dcFormat.format(costBasis.add(pnl));
+                    line.realizedGL = dcFormat.format(pnl);
                     transactionLTGLines.add(line);
-                }
-                if (!matchedQuantity.equals(t.getQuantity())) {
-                    errorMessageList.add(account.getName() + " " + t.getTradeAction() + " "
-                            + t.getQuantity() + ", matched " + matchedQuantity + ". Difference = "
-                            + t.getQuantity().subtract(matchedQuantity));
                 }
             }
         }
@@ -1297,20 +1280,19 @@ public class ReportDialogController {
         totalSTGLine.aName = "Overall";
         totalSTGLine.sName = "Short Term";
         totalSTGLine.costBasis = dcFormat.format(totalSTCostBasis);
-        totalSTGLine.proceeds = dcFormat.format(totalSTProceeds);
-        totalSTGLine.realizedGL = dcFormat.format(totalSTProceeds.subtract(totalSTCostBasis));
+        totalSTGLine.proceeds = dcFormat.format(totalSTCostBasis.add(totalSTPnL));
+        totalSTGLine.realizedGL = dcFormat.format(totalSTPnL);
 
         totalLTGLine.aName = "Overall";
         totalLTGLine.sName = "Long Term";
         totalLTGLine.costBasis = dcFormat.format(totalLTCostBasis);
-        totalLTGLine.proceeds = dcFormat.format(totalLTProceeds);
-        totalLTGLine.realizedGL = dcFormat.format(totalLTProceeds.subtract(totalLTCostBasis));
+        totalLTGLine.proceeds = dcFormat.format(totalLTCostBasis.add(totalLTPnL));
+        totalLTGLine.realizedGL = dcFormat.format(totalLTPnL);
 
         totalLine.aName = "Overall";
         totalLine.costBasis = dcFormat.format(totalLTCostBasis.add(totalSTCostBasis));
-        totalLine.proceeds = dcFormat.format(totalLTProceeds.add(totalSTProceeds));
-        totalLine.realizedGL = dcFormat.format(totalLTProceeds.subtract(totalLTCostBasis)
-                .add(totalSTProceeds).subtract(totalSTCostBasis));
+        totalLine.proceeds = dcFormat.format(totalLTCostBasis.add(totalLTPnL).add(totalSTCostBasis).add(totalSTPnL));
+        totalLine.realizedGL = dcFormat.format(totalLTPnL.add(totalSTPnL));
 
         int aNameLen = 12;
         int sNameLen = 24;
@@ -1361,13 +1343,6 @@ public class ReportDialogController {
         StringBuilder reportSB = new StringBuilder("Capital Gains Report from ")
                 .append(mSetting.getStartDate()).append(" to ").append(mSetting.getEndDate()).append("\n")
                 .append("Generated on ").append(LocalDate.now()).append("\n");
-
-        if (!errorMessageList.isEmpty()) {
-            reportSB.append("\n*** Start of Error Messages ***\n");
-            for (String s : errorMessageList)
-                reportSB.append(s).append("\n");
-            reportSB.append("*** End of Error Messages ***\n");
-        }
 
         reportSB.append("\n").append(title.format(formatStr)).append(s0);
         if (!detailSTGLines.isEmpty())

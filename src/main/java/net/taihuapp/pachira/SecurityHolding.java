@@ -30,9 +30,7 @@ import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 // A class for security holding
 public class SecurityHolding implements LotView {
@@ -130,57 +128,6 @@ public class SecurityHolding implements LotView {
     }
 
     /**
-     * Take an existing lot, and a tradedLot, match off
-     * the quantity of these two lots can not be the same sign
-     * the quantity of both lot is reduced by min(abs(lot.quantity), abs(tradedLot.quantity))
-     * @param lot: an existing lot
-     * @param tradedLot: a traded lot
-     */
-    private void matchLots(SecurityLot lot, SecurityLot tradedLot) {
-        matchLots(lot, tradedLot, lot.getQuantity().abs().min(tradedLot.getQuantity().abs()));
-    }
-
-    /**
-     * Take an existing lot, and a tradedLot, and a match quantity, match the two lots
-     * the quantity of these two lot cannot be the same sign
-     * the absolute value of the quantity of either lot should be no less than matchQuantity (positive)
-     * @param lot: an existing lot
-     * @param tradedLot: a traded lot
-     * @param matchQuantity: the amount to match
-     */
-    private void matchLots(SecurityLot lot, SecurityLot tradedLot, BigDecimal matchQuantity) {
-        // scale cost basis for lot
-        final BigDecimal lotOldC = lot.getCostBasis();
-        final BigDecimal tradedOldC = tradedLot.getCostBasis();
-        final BigDecimal lotOldQ = lot.getQuantity();
-        final BigDecimal tradedOldQ = tradedLot.getQuantity();
-
-        final int lotOldQSign = lotOldQ.signum();
-        if (lotOldQSign == 0) {
-            // the lot has a cost basis but zero quantity, we just empty the cost basis
-            // for the lot and return.
-            lot.setCostBasis(BigDecimal.ZERO);
-            return;
-        }
-        final BigDecimal lotNewQ;
-        final BigDecimal tradedNewQ;
-
-        if (lotOldQSign > 0) {
-            lotNewQ = lotOldQ.subtract(matchQuantity);
-            tradedNewQ = tradedOldQ.add(matchQuantity);
-        } else {
-            // lotOldSign < 0
-            lotNewQ = lotOldQ.add(matchQuantity);
-            tradedNewQ = tradedOldQ.subtract(matchQuantity);
-        }
-
-        lot.setCostBasis(scaleCostBasis(lotOldC, lotOldQ, lotNewQ));
-        lot.setQuantity(lotNewQ);
-        tradedLot.setCostBasis(scaleCostBasis(tradedOldC, tradedOldQ, tradedNewQ));
-        tradedLot.setQuantity(tradedNewQ);
-    }
-
-    /**
      * add a lot to the list in the order of lot date
      * so the security lot list is sorted in ascending order of lot date
      * @param lot: a lot to be added
@@ -196,15 +143,18 @@ public class SecurityHolding implements LotView {
     }
 
     // assume the security name of the transaction matches securityName
-    void processTransaction(final Transaction t, final List<MatchInfo> matchInfoList) {
+    // for transaction of trade action being SELL or CVTSHRT, return the matched (either via MatchInfo or FIFO)
+    // SpecifyLotInfo list.
+    List<SpecifyLotInfo> processTransaction(final Transaction t, final List<MatchInfo> matchInfoList) {
+        final List<SpecifyLotInfo> specifyLotInfoList = new ArrayList<>();
         // handle stock split
         if (t.getTradeAction() == Transaction.TradeAction.STKSPLIT) {
             adjustStockSplit(t.getQuantity(), t.getOldQuantity());
-            return;
+            return specifyLotInfoList;
         }
 
         if (!Transaction.hasQuantity(t.getTradeAction()))
-            return;  // non relevant transaction
+            return specifyLotInfoList;  // non relevant transaction
 
         final BigDecimal tradedQuantity = t.getSignedQuantity();
         final BigDecimal tradedCostBasis = t.getCostBasis();
@@ -212,18 +162,15 @@ public class SecurityHolding implements LotView {
             // for long trade, zero cost basis can only occur if quantity is zero.
             // but for short sale,  cost basis is quantity*price + commission, the first term is negative
             // if both are zero, do nothing
-            return;
+            return specifyLotInfoList;
         }
 
         // we process transactions in the order of TDate
         // we mark the trading lot using ADate if it is not null, otherwise, use TDate
-        final SecurityLot tradedLot = new SecurityLot(t.getID(), t.getTradeAction(),
-                t.getADate() != null ? t.getADate() : t.getTDate(),
-                tradedQuantity, tradedCostBasis, t.getPrice(), decimalScale);
-
+        final SecurityLot tradedLot = new SecurityLot(t, decimalScale);
         if (tradedQuantity.signum()*getQuantity().signum() >= 0) {
             // either a new open trade, or adding to the same position
-            //securityLotList.add(tradedLot);
+            // securityLotList.add(tradedLot);
             addLot(tradedLot);
             if (!matchInfoList.isEmpty()) {
                 // why matchInfoList isn't empty?
@@ -231,35 +178,48 @@ public class SecurityHolding implements LotView {
                         + " shares of " + t.getSecurityName() + " on " + t.getTDate()
                         + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID());
             }
-            return;
+            return specifyLotInfoList;
         }
 
         // it's a closing trade, need to match lots
-        if (matchInfoList.isEmpty()) {
-            // empty matchInfoList, FIFO rule
-            final Iterator<SecurityLot> securityLotIterator = securityLotList.iterator();
-            while (securityLotIterator.hasNext()) {
-                final SecurityLot securityLot = securityLotIterator.next();
-                matchLots(securityLot, tradedLot);
-                if (securityLot.getQuantity().compareTo(BigDecimal.ZERO) == 0)
-                    securityLotIterator.remove();
-                if (tradedLot.getQuantity().compareTo(BigDecimal.ZERO) == 0)
-                    return; // we are done
-            }
-        } else {
-            // use matchInfoList
+        final Map<Integer, MatchInfo> matchMap = new HashMap<>();
+        if (!matchInfoList.isEmpty()) {
+            // we have a matching info list
             for (MatchInfo mi : matchInfoList) {
-                Optional<SecurityLot> optionalSecurityLot = securityLotList.stream()
-                        .filter(lot -> lot.getTransactionID() == mi.getMatchTransactionID()).findAny();
-                if (optionalSecurityLot.isPresent()) {
-                    matchLots(optionalSecurityLot.get(), tradedLot, mi.getMatchQuantity());
-                } else {
-                    logger.error("Missing matching transaction id = " + mi.getMatchTransactionID()
-                            + " for transaction of " +  t.getTradeAction() + " " + tradedQuantity
-                            + " shares of " + t.getSecurityName() + " on " + t.getTDate()
-                            + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID());
-                }
+                matchMap.put(mi.getMatchTransactionID(), mi);
             }
+        }
+
+        // now we can loop through matchLots, even if we have a match info list
+        final Iterator<SecurityLot> matchLotIterator = securityLotList.iterator();
+        while (matchLotIterator.hasNext()) {
+            final SecurityLot securityLot = matchLotIterator.next();
+            final BigDecimal matchQuantity;
+            if (matchInfoList.isEmpty()) { // FIFO
+                matchQuantity = securityLot.getQuantity().abs().min(tradedLot.getQuantity().abs());
+            } else { // use MatchInfo
+                final MatchInfo mi = matchMap.get(securityLot.getTransactionID());
+                if (mi == null)
+                    continue; // this one is not in the match
+                else
+                    matchQuantity = matchMap.get(securityLot.getTransactionID()).getMatchQuantity();
+            }
+
+            // we need to match.
+            final SpecifyLotInfo specifyLotInfo =
+                    new SpecifyLotInfo(securityLot);
+            specifyLotInfo.updateSelectedShares(matchQuantity, tradedLot);
+            specifyLotInfoList.add(specifyLotInfo);
+
+            // update securityLot cost basis and quantity
+            securityLot.setCostBasis(specifyLotInfo.getCostBasis());
+            securityLot.setQuantity(specifyLotInfo.getQuantity());
+
+
+            if (securityLot.getQuantity().compareTo(BigDecimal.ZERO) == 0)
+                matchLotIterator.remove();
+            if (tradedLot.getQuantity().compareTo(BigDecimal.ZERO) == 0)
+                return specifyLotInfoList; // we are done
         }
 
         securityLotList.removeIf(lot -> (lot.getCostBasis().signum() == 0) && (lot.getQuantity().signum() == 0));
@@ -281,17 +241,7 @@ public class SecurityHolding implements LotView {
             //securityLotList.add(tradedLot);
             addLot(tradedLot);
         }
-    }
-
-    /**
-     * return oldC*newQ/oldQ.  Obviously oldQ can not be zero.
-     * @param oldC - old cost basis
-     * @param oldQ - old quantity
-     * @param newQ - new quantity
-     * @return scaled cost basis
-     */
-    private BigDecimal scaleCostBasis(BigDecimal oldC, BigDecimal oldQ, BigDecimal newQ) {
-        return oldC.multiply(newQ).divide(oldQ, decimalScale, RoundingMode.HALF_UP);
+        return specifyLotInfoList;
     }
 
     String getSecurityName() { return securityName; }

@@ -20,7 +20,6 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -42,56 +41,6 @@ import java.util.Objects;
 public class SpecifyLotsDialogController {
 
     private static final Logger mLogger = Logger.getLogger(SpecifyLotsDialogController.class);
-
-    private static class SpecifyLotInfo extends SecurityLot {
-
-        private final ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-        private final ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
-
-        // constructor
-        SpecifyLotInfo(SecurityLot lot) {
-            super(lot.getTransactionID(), lot.getTradeAction(), lot.getDate(),
-                    lot.getQuantity(), lot.getCostBasis(), lot.getPrice(), lot.getScale());
-        }
-
-        // getters
-        ObjectProperty<BigDecimal> getSelectedSharesProperty() { return mSelectedSharesProperty; }
-        ObjectProperty<BigDecimal> getRealizedPNLProperty() { return mRealizedPNLProperty; }
-        BigDecimal getRealizedPNL() { return getRealizedPNLProperty().get(); }
-        BigDecimal getSelectedShares() { return getSelectedSharesProperty().get(); }
-
-        // setters
-        void setSelectedShares(BigDecimal s) { mSelectedSharesProperty.set(s); }
-
-        // update realized pnl against a trade
-        void updateRealizedPNL(Transaction t) {
-            if (getSelectedShares() == null) {
-                // nothing selected
-                getRealizedPNLProperty().set(null);
-                return;
-            }
-
-            // if t has zero quantity, there shouldn't be any cost basis,
-            // simply skip
-            if (t.getQuantity().signum() == 0)
-                return;
-
-            int scale = getCostBasis().scale();
-            if (getQuantity().signum() == 0) {
-                // this lot has zero quantity and some cost basis
-                // use up all the cost basis
-                getRealizedPNLProperty().set(getCostBasis().negate());
-                return;
-            }
-
-            BigDecimal c0 = getCostBasis().multiply(getSelectedShares())
-                    .divide(getQuantity().abs(), scale, RoundingMode.HALF_UP);
-            // t.getQuantity() is always positive
-            BigDecimal c1 = t.getCostBasis().multiply(getSelectedShares())
-                    .divide(t.getQuantity(), scale, RoundingMode.HALF_UP);
-            getRealizedPNLProperty().set(c1.add(c0).negate());
-        }
-    }
 
     private Transaction mTransaction;
     private List<MatchInfo> mMatchInfoList = null;
@@ -135,8 +84,7 @@ public class SpecifyLotsDialogController {
     @FXML
     private void handleReset() {
         for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
-            sli.setSelectedShares(BigDecimal.ZERO);
-            sli.updateRealizedPNL(mTransaction);
+            sli.updateSelectedShares(BigDecimal.ZERO, new SecurityLot(mTransaction, sli.getScale()));
         }
     }
 
@@ -238,8 +186,7 @@ public class SpecifyLotsDialogController {
         for (MatchInfo mi : mMatchInfoList) {
             for (SpecifyLotInfo sli : mSpecifyLotInfoList) {
                 if (sli.getTransactionID() == mi.getMatchTransactionID()) {
-                    sli.setSelectedShares(mi.getMatchQuantity());
-                    sli.updateRealizedPNL(mTransaction);
+                    sli.updateSelectedShares(mi.getMatchQuantity(), new SecurityLot(mTransaction, sli.getScale()));
                     break;
                 }
             }
@@ -253,15 +200,14 @@ public class SpecifyLotsDialogController {
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {
                     SpecifyLotInfo sli = row.getItem();
+                    final BigDecimal matchQuantity;
                     if (sli.getSelectedShares() == null || (sli.getSelectedShares().signum() == 0)) {
                         // not selected, select as much as possible for this lot
-                        sli.setSelectedShares(mTransaction.getQuantity().subtract(getSelectedShares())
-                                .min(sli.getQuantity()));
+                        matchQuantity = mTransaction.getQuantity().subtract(getSelectedShares()).min(sli.getQuantity());
                     } else {
-                        sli.setSelectedShares(null);
+                        matchQuantity = null;
                     }
-                    sli.updateRealizedPNL(t);
-                    updateSelectedShares();
+                    sli.updateSelectedShares(matchQuantity, new SecurityLot(mTransaction, sli.getScale()));
                 }
             });
             return row;
@@ -283,8 +229,7 @@ public class SpecifyLotsDialogController {
                     BigDecimal ava = sli.getQuantity();
                     if (nv.compareTo(ava) > 0)
                         nv = ava;
-                    sli.setSelectedShares(nv);
-                    sli.updateRealizedPNL(mTransaction);
+                    sli.updateSelectedShares(nv, new SecurityLot(mTransaction, sli.getScale()));
                     updateSelectedShares();
                 }
         );

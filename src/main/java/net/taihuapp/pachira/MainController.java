@@ -38,6 +38,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.HPos;
 import javafx.scene.Cursor;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.ColumnConstraints;
@@ -1347,6 +1348,8 @@ public class MainController {
             dialogStage.initModality(Modality.WINDOW_MODAL);
             dialogStage.initOwner(getStage());
             dialogStage.setScene(new Scene(loader.load()));
+            // make sure the dialog does not resize any smaller than this.
+            dialogStage.setMinHeight(((Parent) loader.getRoot()).prefHeight(-1));
             ReportDialogController controller = loader.getController();
             if (controller == null) {
                 mLogger.error("Null ReportDialogController");

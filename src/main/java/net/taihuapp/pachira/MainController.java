@@ -28,6 +28,7 @@ import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -1588,6 +1589,27 @@ public class MainController {
 
         mTransactionTableView.setRowFactory(tv -> new TableRow<>() {
             {
+                final PseudoClass reconciled = PseudoClass.getPseudoClass("reconciled");
+                final PseudoClass future = PseudoClass.getPseudoClass("future");
+                final ChangeListener<Transaction.Status> statusChangeListener = (obs, ov, nv) ->
+                        pseudoClassStateChanged(reconciled, nv == Transaction.Status.RECONCILED);
+                final ChangeListener<LocalDate> dateChangeListener = (obs, ov, nv) ->
+                        pseudoClassStateChanged(future, nv.isAfter(LocalDate.now()));
+                itemProperty().addListener((obs, ov, nv) -> {
+                    if (nv != null) {
+                        pseudoClassStateChanged(reconciled, nv.getStatus()== Transaction.Status.RECONCILED);
+                        pseudoClassStateChanged(future, nv.getTDate().isAfter(LocalDate.now()));
+                        nv.getStatusProperty().addListener(statusChangeListener);
+                        nv.getTDateProperty().addListener(dateChangeListener);
+                    } else {
+                        pseudoClassStateChanged(reconciled, false);
+                        pseudoClassStateChanged(future, false);
+                    }
+                    if (ov != null) {
+                        ov.getStatusProperty().removeListener(statusChangeListener);
+                        ov.getTDateProperty().removeListener(dateChangeListener);
+                    }
+                });
                 final ContextMenu contextMenu = new ContextMenu();
                 final MenuItem deleteMI = new MenuItem("Delete");
                 deleteMI.setOnAction(e -> {
@@ -1780,8 +1802,6 @@ public class MainController {
                     setStyle("-fx-alignment: CENTER;");
                     TableRow<Transaction> row = getTableRow();
                     if (row != null) {
-                        row.pseudoClassStateChanged(PseudoClass.getPseudoClass("reconciled"),
-                                item == Transaction.Status.RECONCILED);
                         ContextMenu contextMenu = row.getContextMenu();
                         if (contextMenu != null) {
                             for (MenuItem mi : contextMenu.getItems()) {
@@ -1806,11 +1826,6 @@ public class MainController {
                 } else {
                     setText(item.toString());
                     setStyle("-fx-alignment: CENTER;");
-                    TableRow<Transaction> row = getTableRow();
-                    if (row != null) {
-                        row.pseudoClassStateChanged(PseudoClass.getPseudoClass("future"),
-                                item.isAfter(LocalDate.now()));
-                    }
                 }
             }
         });

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -32,11 +32,16 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.apache.log4j.Logger;
 
+import java.net.URL;
 import java.time.LocalDate;
 import java.util.Arrays;
 
 class MergeCandidateDialog {
+
+    private static final Logger logger = Logger.getLogger(MergeCandidateDialog.class);
+
     private final Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
 
@@ -85,9 +90,6 @@ class MergeCandidateDialog {
             return row;
         });
 
-        mergeCandidateTransactionTableView.getStylesheets().add(getClass()
-                .getResource("/css/TransactionTableView.css").toExternalForm());
-
         Label infoLabel = new Label();
         infoLabel.setText("Found " + mergeCandidateTransactionTableView.getItems().size()
                 + " possible merge candidate transactions");
@@ -128,5 +130,17 @@ class MergeCandidateDialog {
             mergeCandidateTransactionTableView.getSelectionModel().select(0);  // select the very first
         mDialogStage.setScene(new Scene(vBox));
         mergeButton.requestFocus();
+
+        final String cssFileName = "/css/TransactionTableView.css";
+        final URL cssUrl = getClass().getResource(cssFileName);
+        if (cssUrl != null) {
+            mergeCandidateTransactionTableView.getStylesheets().add(cssUrl.toExternalForm());
+        } else {
+            final String msg = getClass() + ".getResource(" + cssFileName + ") returns null";
+            NullPointerException npe = new NullPointerException(msg);
+            logger.error(msg, npe);
+            DialogUtil.showWarningDialog(mDialogStage, "Error", "Unable to get css", msg);
+            throw npe;
+        }
     }
 }

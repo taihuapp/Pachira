@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -50,31 +50,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ReconcileDialogController {
-
-    static class ReconcileTransactionTableView extends TransactionTableView {
-        @Override
-        final void setColumnVisibility() {
-            for (TableColumn<Transaction, ?> tc : Arrays.asList(
-                    mTransactionAccountColumn,
-                    mTransactionDescriptionColumn,
-                    mTransactionInvestAmountColumn,
-                    mTransactionMemoColumn,
-                    mTransactionCashAmountColumn,
-                    mTransactionPaymentColumn,
-                    mTransactionDepositColumn,
-                    mTransactionBalanceColumn
-            )) {
-                tc.setVisible(false);
-            }
-        }
-
-        @Override
-        final void setColumnSortability() {}  // all columns remains sortable
-
-        ReconcileTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
-            super(mainModel, tList);
-        }
-    }
 
     static class SecurityBalance {
         final StringProperty mNameProperty = new SimpleStringProperty("");
@@ -140,7 +115,7 @@ public class ReconcileDialogController {
     private LocalDate mLastDownloadDate = null;
     private BigDecimal mDownloadedLedgeBalance = null;
 
-    private ReconcileTransactionTableView mTransactionTableView;
+    private TransactionTableView mTransactionTableView;
     private final Map<Integer, Transaction.Status> mOriginalStatusMap = new HashMap<>();
 
     // Mark all unreconciled transaction as cleared
@@ -186,7 +161,7 @@ public class ReconcileDialogController {
         }
 
         // process transaction list and calculate balances
-        // make sure we are observe STATUS property
+        // make sure we are observing STATUS property
         ObservableList<Transaction> transactionList = FXCollections.observableArrayList(t
                 -> new Observable[] {t.getStatusProperty()});
         transactionList.addAll(account.getTransactionList());
@@ -236,10 +211,24 @@ public class ReconcileDialogController {
         mSecurityBalanceTableView.setItems(sbList);
 
 
-        mTransactionTableView = new ReconcileTransactionTableView(mainModel,
+        mTransactionTableView = new TransactionTableView(mainModel,
                 transactionList.filtered(t -> !t.getStatus().equals(Transaction.Status.RECONCILED)));
+        for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                mTransactionTableView.mTransactionAccountColumn,
+                mTransactionTableView.mTransactionDescriptionColumn,
+                mTransactionTableView.mTransactionInvestAmountColumn,
+                mTransactionTableView.mTransactionMemoColumn,
+                mTransactionTableView.mTransactionCashAmountColumn,
+                mTransactionTableView.mTransactionPaymentColumn,
+                mTransactionTableView.mTransactionDepositColumn,
+                mTransactionTableView.mTransactionBalanceColumn
+        )) {
+            tc.setVisible(false);
+        }
+        Callback<TableView<Transaction>, TableRow<Transaction>> callback
+                = mTransactionTableView.getRowFactory();
         mTransactionTableView.setRowFactory(tv -> {
-            final TableRow<Transaction> row = new TableRow<>();
+            final TableRow<Transaction> row = callback.call(tv);
             row.setOnMouseClicked(e -> {
                 if (!row.isEmpty()) {
                     if (row.getItem().getStatus().equals(Transaction.Status.CLEARED))

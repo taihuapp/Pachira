@@ -20,22 +20,17 @@
 
 package net.taihuapp.pachira;
 
-import javafx.collections.ObservableList;
-import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 import org.apache.log4j.Logger;
 
 import java.net.URL;
-import java.time.LocalDate;
 import java.util.Arrays;
 
 class MergeCandidateDialog {
@@ -45,25 +40,6 @@ class MergeCandidateDialog {
     private final Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
 
-    static class MergeCandidateTransactionTableView extends TransactionTableView {
-        @Override
-        final void setColumnVisibility() {
-            for (TableColumn<Transaction, ?> tc : Arrays.asList(
-                    mTransactionAccountColumn,
-                    mTransactionDescriptionColumn,
-                    mTransactionBalanceColumn
-            )) {
-                tc.setVisible(false);
-            }
-        }
-
-        @Override
-        final void setColumnSortability() {} // all columns remain sortable
-
-        MergeCandidateTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
-            super(mainModel, tList);}
-    }
-
     private void handleClose() { mDialogStage.close(); }
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
 
@@ -71,11 +47,22 @@ class MergeCandidateDialog {
     MergeCandidateDialog(MainModel mainModel, Stage stage, final Transaction downloadedTransaction) {
         mDialogStage = stage;
 
-        MergeCandidateTransactionTableView mergeCandidateTransactionTableView =
-                new MergeCandidateTransactionTableView(mainModel,
+        TransactionTableView mergeCandidateTransactionTableView =
+                new TransactionTableView(mainModel,
                         mainModel.getMergeCandidateTransactionList(downloadedTransaction));
+        for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                mergeCandidateTransactionTableView.mTransactionAccountColumn,
+                mergeCandidateTransactionTableView.mTransactionDescriptionColumn,
+                mergeCandidateTransactionTableView.mTransactionBalanceColumn
+        )) {
+            tc.setVisible(false);
+        }
+
+        Callback<TableView<Transaction>, TableRow<Transaction>> callback =
+                mergeCandidateTransactionTableView.getRowFactory();
         mergeCandidateTransactionTableView.setRowFactory(tv -> {
-            TableRow<Transaction> row = new TableRow<>();
+            TableRow<Transaction> row = callback.call(tv);
+
             // double click select the merge candidate
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {
@@ -83,10 +70,6 @@ class MergeCandidateDialog {
                     handleClose();
                 }
             });
-            PseudoClass future = PseudoClass.getPseudoClass("future");
-            row.itemProperty().addListener((obs, oTransaction, nTransaction) ->
-                    row.pseudoClassStateChanged(future, (nTransaction != null)
-                    && nTransaction.getTDate().isAfter(LocalDate.now())));
             return row;
         });
 

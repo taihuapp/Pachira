@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -22,14 +22,19 @@ package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
+import javafx.css.PseudoClass;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.util.Callback;
+import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
+import java.net.URL;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -40,7 +45,11 @@ import java.util.Optional;
  * This TableView is derived and used in multiple places.
  */
 
-abstract class TransactionTableView extends TableView<Transaction> {
+class TransactionTableView extends TableView<Transaction> {
+
+    private static final Logger logger = Logger.getLogger(TransactionTableView.class);
+
+    static final String CSS_FILE_NAME = "/css/TransactionTableView.css";
 
     MainModel mainModel;
 
@@ -186,7 +195,7 @@ abstract class TransactionTableView extends TableView<Transaction> {
                 };
             }
         });
-        
+
         Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
                 new Callback<>() {
                     @Override
@@ -214,15 +223,45 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionBalanceColumn.setCellFactory(dollarCentsCF);
         mTransactionAmountColumn.setCellFactory(dollarCentsCF);
 
+        final URL cssUrl = getClass().getResource(CSS_FILE_NAME);
+        if (cssUrl != null) {
+            getStylesheets().add(cssUrl.toExternalForm());
+
+            // set row style to highlight future transactions and reconciled transactions
+            setRowFactory(tv -> {
+                final TableRow<Transaction> row = new TableRow<>();
+
+                final PseudoClass reconciled = PseudoClass.getPseudoClass("reconciled");
+                final PseudoClass future = PseudoClass.getPseudoClass("future");
+                final ChangeListener<Transaction.Status> statusChangeListener = (obs, ov, nv) ->
+                        row.pseudoClassStateChanged(reconciled, nv == Transaction.Status.RECONCILED);
+                final ChangeListener<LocalDate> dateChangeListener = (obs, ov, nv) ->
+                        row.pseudoClassStateChanged(future, nv.isAfter(LocalDate.now()));
+                row.itemProperty().addListener((obs, ov, nv) -> {
+                    if (nv != null) {
+                        // we have a row to display
+                        row.pseudoClassStateChanged(reconciled, nv.getStatus() == Transaction.Status.RECONCILED);
+                        row.pseudoClassStateChanged(future, nv.getTDate().isAfter(LocalDate.now()));
+                        nv.getStatusProperty().addListener(statusChangeListener);
+                        nv.getTDateProperty().addListener(dateChangeListener);
+                    } else {
+                        row.pseudoClassStateChanged(reconciled, false);
+                        row.pseudoClassStateChanged(future, false);
+                    }
+                    if (ov != null) {
+                        ov.getStatusProperty().removeListener(statusChangeListener);
+                        ov.getTDateProperty().removeListener(dateChangeListener);
+                    }
+                });
+                return row;
+            });
+        } else {
+            // failed to get css url, log and ignore.
+            logger.error(getClass() + ".getResource(" + CSS_FILE_NAME + ") returns null");
+        }
+
         SortedList<Transaction> sortedList = new SortedList<>(tList);
         setItems(sortedList);
         sortedList.comparatorProperty().bind(comparatorProperty());
-
-        setColumnVisibility();
-        setColumnSortability();
     }
-
-    // by default, all columns are visible and sortable
-    abstract void setColumnVisibility();
-    abstract void setColumnSortability();
 }

@@ -20,52 +20,20 @@
 
 package net.taihuapp.pachira;
 
-import javafx.collections.ObservableList;
-import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
+import javafx.scene.control.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import org.apache.log4j.Logger;
+import javafx.util.Callback;
 
-import java.net.URL;
-import java.time.LocalDate;
 import java.util.Arrays;
 
 class SearchResultDialog {
 
-    private static final Logger logger = Logger.getLogger(SearchResultDialog.class);
-
     private final Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
-
-    static class SearchTransactionTableView extends TransactionTableView {
-        @Override
-        final void setColumnVisibility() {
-            for (TableColumn<Transaction, ?> tc : Arrays.asList(
-                    mTransactionDescriptionColumn,
-                    mTransactionInvestAmountColumn,
-                    mTransactionCashAmountColumn,
-                    mTransactionPaymentColumn,
-                    mTransactionDepositColumn,
-                    mTransactionBalanceColumn
-            )) {
-                tc.setVisible(false);
-            }
-        }
-
-        @Override
-        final void setColumnSortability() {}  // all columns remains sortable
-
-        SearchTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
-            super(mainModel, tList);
-        }
-    }
 
     private void handleClose() { mDialogStage.close(); }
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
@@ -74,23 +42,29 @@ class SearchResultDialog {
     SearchResultDialog(String searchString, MainModel mainModel, Stage stage) {
         mDialogStage = stage;
 
-        SearchTransactionTableView searchTransactionTableView = new SearchTransactionTableView(mainModel,
+        TransactionTableView searchTransactionTableView = new TransactionTableView(mainModel,
                 mainModel.getStringSearchTransactionList(searchString));
-
+        // hide certain columns
+        for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                searchTransactionTableView.mTransactionDescriptionColumn,
+                searchTransactionTableView.mTransactionInvestAmountColumn,
+                searchTransactionTableView.mTransactionCashAmountColumn,
+                searchTransactionTableView.mTransactionPaymentColumn,
+                searchTransactionTableView.mTransactionDepositColumn,
+                searchTransactionTableView.mTransactionBalanceColumn
+        )) {
+            tc.setVisible(false);
+        }
+        Callback<TableView<Transaction>, TableRow<Transaction>> callback = searchTransactionTableView.getRowFactory();
         searchTransactionTableView.setRowFactory(tv -> {
-            TableRow<Transaction> row = new TableRow<>();
+            TableRow<Transaction> row = callback.call(tv);
+
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {
                     mSelectedTransaction = row.getItem();
                     handleClose();
                 }
             });
-
-            // high light future transactions
-            PseudoClass future = PseudoClass.getPseudoClass("future");
-            row.itemProperty().addListener((obs, oTransaction, nTransaction) ->
-                    row.pseudoClassStateChanged(future, (nTransaction != null)
-                    && nTransaction.getTDate().isAfter(LocalDate.now())));
             return row;
         });
 
@@ -111,17 +85,5 @@ class SearchResultDialog {
         VBox.setVgrow(searchTransactionTableView, Priority.ALWAYS);
 
         mDialogStage.setScene(new Scene(vBox));
-
-        final String cssFileName = "/css/TransactionTableView.css";
-        final URL cssUrl = getClass().getResource(cssFileName);
-        if (cssUrl != null) {
-            searchTransactionTableView.getStylesheets().add(cssUrl.toExternalForm());
-        } else {
-            final String msg = getClass() + ".getResource(" + cssFileName + ") returns null";
-            NullPointerException npe = new NullPointerException(msg);
-            logger.error(msg, npe);
-            DialogUtil.showWarningDialog(mDialogStage, "Error", "Unable to get css", msg);
-            throw npe;
-        }
     }
 }

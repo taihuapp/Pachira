@@ -73,8 +73,8 @@ class TransactionTableView extends TableView<Transaction> {
     protected TableColumn<Transaction, BigDecimal> mTransactionAmountColumn = new TableColumn<>("Amount");
 
     // constructor
-    TransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
-        this.mainModel = mainModel;
+    TransactionTableView(MainModel m, ObservableList<Transaction> tList) {
+        mainModel = m;
 
         // add columns to TableView
         //setTableMenuButtonVisible(true);
@@ -196,7 +196,7 @@ class TransactionTableView extends TableView<Transaction> {
             }
         });
 
-        Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
+        final Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
                 new Callback<>() {
                     @Override
                     public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> param) {
@@ -220,7 +220,21 @@ class TransactionTableView extends TableView<Transaction> {
         mTransactionDepositColumn.setCellFactory(dollarCentsCF);
         mTransactionInvestAmountColumn.setCellFactory(dollarCentsCF);
         mTransactionCashAmountColumn.setCellFactory(dollarCentsCF);
-        mTransactionBalanceColumn.setCellFactory(dollarCentsCF);
+        mTransactionBalanceColumn.setCellFactory(cell -> new TableCell<>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+
+                    if (item == null || empty) {
+                        setText("");
+                    } else {
+                        // format
+                        setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                    }
+                    setStyle("-fx-alignment: CENTER-RIGHT;");
+                }
+            }
+        );
         mTransactionAmountColumn.setCellFactory(dollarCentsCF);
 
         final URL cssUrl = getClass().getResource(CSS_FILE_NAME);
@@ -263,5 +277,10 @@ class TransactionTableView extends TableView<Transaction> {
         SortedList<Transaction> sortedList = new SortedList<>(tList);
         setItems(sortedList);
         sortedList.comparatorProperty().bind(comparatorProperty());
+    }
+
+    void updateMainModel(MainModel m) {
+        mainModel = m;
+        getItems().clear();
     }
 }

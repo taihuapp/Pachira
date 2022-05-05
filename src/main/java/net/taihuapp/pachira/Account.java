@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -35,7 +35,7 @@ import static net.taihuapp.pachira.QIFUtil.EOR;
 public class Account {
 
     /*
-     * Accounts are separated into four groups, and each groups are consisted with several
+     * Accounts are separated into four groups, and each group are consisted with several
      * types
      *    Banking
      *        Checking
@@ -223,30 +223,6 @@ public class Account {
     private ObjectProperty<LocalDate> getLastReconcileDateProperty() { return mLastReconcileDateProperty; }
     public LocalDate getLastReconcileDate() { return getLastReconcileDateProperty().get();  }
     void setLastReconcileDate(LocalDate d) { getLastReconcileDateProperty().set(d); }
-
-    // update balance field for each transaction for non INVESTING account
-    // no-op for INVESTING accounts
-    public void updateTransactionListBalance() {
-        BigDecimal b = new BigDecimal(0);
-        boolean accountBalanceIsSet = false;
-        for (Transaction t : getTransactionList()) {
-            if (!getType().isGroup(Type.Group.INVESTING) && !accountBalanceIsSet
-                    && t.getTDateProperty().get().isAfter(LocalDate.now())) {
-                // this is a future transaction.  if account current balance is not set
-                // set it before process this future transaction
-                setCurrentBalance(b);
-                accountBalanceIsSet = true;
-            }
-            BigDecimal amount = t.getCashAmountProperty().get();
-            if (amount != null) {
-                b = b.add(amount);
-                t.setBalance(b);
-            }
-        }
-        // at the end of the list, if the account balance still not set, set it now.
-        if (!accountBalanceIsSet && (!getType().isGroup(Type.Group.INVESTING)))
-            setCurrentBalance(b);
-    }
 
     public String toString() {
         return "mID:" + mID.get() + ";mType:" +

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,9 +20,7 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 
 import java.time.LocalDate;
@@ -31,7 +29,7 @@ public class ReminderTransaction {
 
     private final ObjectProperty<Integer> mReminderIdProperty;
     private final ObjectProperty<LocalDate> mDueDateProperty;
-    private final IntegerProperty mTransactionIDProperty;
+    private final ObjectProperty<Integer> mTransactionIDProperty;
 
     // tid > 0, representing the corresponding transaction id.
     // tid 0 is a skipped reminder transaction
@@ -39,13 +37,13 @@ public class ReminderTransaction {
     public ReminderTransaction(int rID, LocalDate d, int tid) {
         mReminderIdProperty = new SimpleObjectProperty<>(rID);
         mDueDateProperty = new SimpleObjectProperty<>(d);
-        mTransactionIDProperty = new SimpleIntegerProperty(tid);
+        mTransactionIDProperty = new SimpleObjectProperty<>(tid);
     }
 
     ObjectProperty<LocalDate> getDueDateProperty() { return mDueDateProperty; }
     public LocalDate getDueDate() { return getDueDateProperty().get(); }
     public int getReminderId() { return mReminderIdProperty.get(); }
-    public IntegerProperty getTransactionIDProperty() { return mTransactionIDProperty; }
+    public ObjectProperty<Integer> getTransactionIDProperty() { return mTransactionIDProperty; }
     public int getTransactionID() { return getTransactionIDProperty().get(); }
     boolean isCompletedOrSkipped() { return getTransactionID() >= 0; }
 

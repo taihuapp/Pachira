@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,7 +20,10 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.*;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -49,7 +52,7 @@ public class Category {
     // mTaxRefNum = -1 for non tax related
     //               0 for tax related but no valid ref num
     //              >0 actual tax ref number
-    private final IntegerProperty mTaxRefNumProperty;  // Tax reference number (for tax-related items,
+    private final ObjectProperty<Integer> mTaxRefNumProperty;  // Tax reference number (for tax-related items,
     private final ObjectProperty<BigDecimal> mBudgetAmountProperty; // budget amount
 
     // constructor
@@ -58,7 +61,7 @@ public class Category {
         mNameProperty = new SimpleStringProperty(name);
         mDescriptionProperty = new SimpleStringProperty(description);
         mIsIncomeProperty = new SimpleObjectProperty<>(isIncome);
-        mTaxRefNumProperty = new SimpleIntegerProperty(taxRefNum);
+        mTaxRefNumProperty = new SimpleObjectProperty<>(taxRefNum);
 
         mBudgetAmountProperty = new SimpleObjectProperty<>(null);
     }
@@ -96,6 +99,7 @@ public class Category {
     public Boolean getIsIncome() { return getIsIncomeProperty().get(); }
     void setIsIncome(boolean isIncome) { getIsIncomeProperty().set(isIncome); }
 
+    @SuppressWarnings("SameParameterValue")
     void setIsTaxRelated(boolean t) {
         if (t && (getTaxRefNum() < 0)) {
             setTaxRefNum(0); // set it to be tax related
@@ -106,7 +110,7 @@ public class Category {
 
     boolean isTaxRelated() { return getTaxRefNum() >= 0; }
 
-    private IntegerProperty getTaxRefNumProperty() { return mTaxRefNumProperty; }
+    private ObjectProperty<Integer> getTaxRefNumProperty() { return mTaxRefNumProperty; }
     public int getTaxRefNum() { return getTaxRefNumProperty().get(); }
     void setTaxRefNum(int r) { mTaxRefNumProperty.set(r); }
 

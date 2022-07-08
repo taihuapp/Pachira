@@ -23,6 +23,7 @@ package net.taihuapp.pachira;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
 import javafx.css.PseudoClass;
@@ -281,6 +282,6 @@ class TransactionTableView extends TableView<Transaction> {
 
     void updateMainModel(MainModel m) {
         mainModel = m;
-        getItems().clear();
+        setItems(new SortedList<>(FXCollections.observableArrayList()));
     }
 }

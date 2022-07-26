@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -36,7 +36,6 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -46,21 +45,9 @@ public class EditLoanDialogController {
 
     private static final Logger logger = Logger.getLogger(EditLoanDialogController.class);
 
-    private static final BigDecimalStringConverter DOLLAR_CENT_2_STRING_CONVERTER = new BigDecimalStringConverter() {
-        @Override
-        public BigDecimal fromString(String s) {
-            try {
-                return s == null ? null : (BigDecimal) MainModel.DOLLAR_CENT_2_FORMAT.parse(s);
-            } catch (ParseException e) {
-                return null;
-            }
-        }
-
-        @Override
-        public String toString(BigDecimal b) {
-            return b == null ? null : MainModel.DOLLAR_CENT_2_FORMAT.format(b);
-        }
-    };
+    // format dollar and cents, fixed two decimal places
+    private static final BigDecimalStringConverter DOLLAR_CENT_STRING_CONVERTER =
+            ConverterUtil.getDollarCentStringConverterInstance();
 
     private MainModel mainModel;
     private Loan loan;
@@ -165,7 +152,7 @@ public class EditLoanDialogController {
                 readOnlyProperty, Bindings.size(availableAccounts)));
         setupAccountSection();
 
-        TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER,null,
+        TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER, null,
                 c -> RegExUtil.DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         originalAmountTextField.setTextFormatter(originalAmountFormatter);
         originalAmountFormatter.valueProperty().bindBidirectional(this.loan.getOriginalAmountProperty());
@@ -216,7 +203,7 @@ public class EditLoanDialogController {
         DatePickerUtil.captureEditedDate(firstPaymentDatePicker);
         firstPaymentDatePicker.disableProperty().bind(readOnlyProperty);
 
-        TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_2_STRING_CONVERTER, null,
+        TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER, null,
                 c -> RegExUtil.DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         paymentAmountTextField.setTextFormatter(paymentAmountFormatter);
         paymentAmountFormatter.valueProperty().bindBidirectional(this.loan.getPaymentAmountProperty());
@@ -260,7 +247,7 @@ public class EditLoanDialogController {
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(MainModel.DOLLAR_CENT_2_FORMAT.format(item));
+                    setText(DOLLAR_CENT_STRING_CONVERTER.toString(item));
             }
         });
         interestPaymentTableColumn.setCellValueFactory(cd -> cd.getValue().getInterestAmountProperty());
@@ -271,7 +258,7 @@ public class EditLoanDialogController {
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(MainModel.DOLLAR_CENT_2_FORMAT.format(item));
+                    setText(DOLLAR_CENT_STRING_CONVERTER.toString(item));
             }
         });
         balanceTableColumn.setCellValueFactory(cd -> cd.getValue().getBalanceAmountProperty());
@@ -282,7 +269,7 @@ public class EditLoanDialogController {
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(MainModel.DOLLAR_CENT_2_FORMAT.format(item));
+                    setText(DOLLAR_CENT_STRING_CONVERTER.toString(item));
             }
         });
 

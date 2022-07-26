@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -21,6 +21,14 @@
 package net.taihuapp.pachira;
 
 import javafx.util.StringConverter;
+import javafx.util.converter.BigDecimalStringConverter;
+
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Currency;
 
 public class ConverterUtil {
     public static class TagIDConverter extends StringConverter<Integer> {
@@ -118,5 +126,46 @@ public class ConverterUtil {
                 return null;
             return mainModel.getSecurity(security -> security.getName().equals(name)).orElse(null);
         }
+    }
+
+    // 2 digits after decimal place
+    public static BigDecimalStringConverter getDollarCentStringConverterInstance() {
+        return getDollarCentStringConverterInstance(0);
+    }
+
+    // format dollar and cents without the dollar sign, minimum 2 digits and maximum maxFractionDigits
+    // after decimal places, with ',' for thousands group
+    public static DecimalFormat getDollarCentFormatInstance(int maxFractionDigits) {
+        final DecimalFormat decimalFormat = (DecimalFormat) NumberFormat.getCurrencyInstance();
+        Currency usd = Currency.getInstance("USD");
+        decimalFormat.setCurrency(usd);
+        DecimalFormatSymbols decimalFormatSymbols = decimalFormat.getDecimalFormatSymbols();
+        decimalFormatSymbols.setCurrencySymbol("");  // don't want to show $ sign
+        decimalFormat.setDecimalFormatSymbols(decimalFormatSymbols);
+        decimalFormat.setMinimumFractionDigits(usd.getDefaultFractionDigits());
+        decimalFormat.setMaximumFractionDigits(Math.max(maxFractionDigits, usd.getDefaultFractionDigits()));
+        decimalFormat.setParseBigDecimal(true);
+        return decimalFormat;
+    }
+
+    public static DecimalFormat getDollarCentFormatInstance() { return getDollarCentFormatInstance(0); }
+
+    // 2 to maxFractionDigits digits after decimal place
+    public static BigDecimalStringConverter getDollarCentStringConverterInstance(int maxFractionDigits) {
+        final DecimalFormat decimalFormat = getDollarCentFormatInstance(maxFractionDigits);
+
+        return new BigDecimalStringConverter() {
+            @Override
+            public BigDecimal fromString(String s) {
+                try {
+                    return s == null ? null : (BigDecimal) decimalFormat.parse(s);
+                } catch (ParseException e) {
+                    return null;
+                }
+            }
+
+            @Override
+            public String toString(BigDecimal b) { return b == null ? null : decimalFormat.format(b); }
+        };
     }
 }

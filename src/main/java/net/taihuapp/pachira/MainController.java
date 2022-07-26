@@ -1758,7 +1758,7 @@ public class MainController {
                     setText("");
                 } else {
                     // format
-                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                    setText(ConverterUtil.getDollarCentFormatInstance().format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }

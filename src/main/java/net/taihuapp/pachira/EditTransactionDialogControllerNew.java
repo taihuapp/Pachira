@@ -41,7 +41,6 @@ import org.controlsfx.control.textfield.TextFields;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Predicate;
@@ -59,21 +58,8 @@ public class EditTransactionDialogControllerNew {
         }
     };
 
-    private static final BigDecimalStringConverter DOLLAR_CENT_STRING_CONVERTER = new BigDecimalStringConverter() {
-        public String toString(BigDecimal b) {
-            return b == null ? "" : MainModel.DOLLAR_CENT_FORMAT.format(b);
-        }
-        public BigDecimal fromString(String s) {
-            if (s == null)
-                return BigDecimal.ZERO;
-
-            try {
-                return (BigDecimal) MainModel.DOLLAR_CENT_FORMAT.parse(s);
-            } catch (ParseException e) {
-                return BigDecimal.ZERO;
-            }
-        }
-    };
+    private static final BigDecimalStringConverter DOLLAR_CENT_STRING_CONVERTER =
+            ConverterUtil.getDollarCentStringConverterInstance();
 
     static class CategoryTransferAccountIDComboBoxWrapper {
         private final ComboBox<Integer> mComboBox;

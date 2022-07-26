@@ -58,7 +58,7 @@ public class Transaction {
         // amount, U amount and T amount are always the same.
         BigDecimal tAmount = (isBanking && getTradeAction().equals(TradeAction.WITHDRAW)) ?
                 getAmount().negate() : getAmount();
-        String amountStr = MainModel.DOLLAR_CENT_FORMAT.format(tAmount);
+        String amountStr = ConverterUtil.getDollarCentFormatInstance().format(tAmount);
         stringBuilder.append("U").append(amountStr).append(EOL);
         stringBuilder.append("T").append(amountStr).append(EOL);
         if (!getStatus().equals(Status.UNCLEARED))
@@ -608,6 +608,7 @@ public class Transaction {
     void setPayee(String payee) { getPayeeProperty().set(payee); }
     void setQuantity(BigDecimal q) { mQuantityProperty.set(q); }
     void setOldQuantity(BigDecimal q) { mOldQuantityProperty.set(q); }
+    @SuppressWarnings("SameParameterValue")
     void setAccruedInterest(BigDecimal ai) { mAccruedInterestProperty.set(ai); }
     void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
     void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }

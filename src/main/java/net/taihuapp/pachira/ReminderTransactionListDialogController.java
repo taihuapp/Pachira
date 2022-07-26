@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -245,7 +245,7 @@ public class ReminderTransactionListDialogController {
                     setText("");
                 } else {
                     // format
-                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                    setText(ConverterUtil.getDollarCentFormatInstance().format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }

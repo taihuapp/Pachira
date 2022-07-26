@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -164,6 +164,8 @@ public class ReminderModel {
             reminder.setAmount(stList.stream().map(SplitTransaction::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add).abs());
         } else {
+            final Currency usd = Currency.getInstance("USD");
+            final int fractionLen = usd.getDefaultFractionDigits();
             final int estCnt = reminder.getEstimateCount();
             final BigDecimal amt;
             if (estCnt > 0) {
@@ -177,7 +179,7 @@ public class ReminderModel {
                         sum = sum.add(mainModel.getTransactionByID(sortedList.get(i).getTransactionID())
                                 .map(Transaction::getAmount).orElse(BigDecimal.ZERO));
                     }
-                    amt = sum.divide(BigDecimal.valueOf(n), DaoManager.AMOUNT_FRACTION_LEN, RoundingMode.HALF_UP);
+                    amt = sum.divide(BigDecimal.valueOf(n), fractionLen, RoundingMode.HALF_UP);
                 }
                 reminder.setAmount(amt);
             }

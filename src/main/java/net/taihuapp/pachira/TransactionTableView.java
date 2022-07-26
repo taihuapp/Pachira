@@ -210,7 +210,8 @@ class TransactionTableView extends TableView<Transaction> {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(item.signum() == 0 ? "" : MainModel.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(item.signum() == 0 ?
+                                            "" : ConverterUtil.getDollarCentFormatInstance().format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }
@@ -230,7 +231,7 @@ class TransactionTableView extends TableView<Transaction> {
                         setText("");
                     } else {
                         // format
-                        setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                        setText(ConverterUtil.getDollarCentFormatInstance().format(item));
                     }
                     setStyle("-fx-alignment: CENTER-RIGHT;");
                 }

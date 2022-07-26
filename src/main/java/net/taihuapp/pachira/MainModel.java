@@ -64,7 +64,6 @@ import java.net.URL;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -81,14 +80,9 @@ public class MainModel {
     public static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     public static final int SAVEDREPORTS_NAME_LEN = 32;
     static final int PRICE_FRACTION_DISPLAY_LEN = 6;
-    // minimum 2 decimal places, maximum 4 decimal places
-    static final DecimalFormat DOLLAR_CENT_FORMAT = new DecimalFormat("###,##0.00##");
-    static final DecimalFormat DOLLAR_CENT_2_FORMAT = new DecimalFormat("###,##0.00");
 
     static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
     static final int QUANTITY_FRACTION_LEN = 8;
-
-    static final int CURRENCY_FRACTION_LEN = 2;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
@@ -1001,14 +995,16 @@ public class MainModel {
             throws DaoException {
         // 'total cash' is the cash amount for the account to the last transaction in the tList
         // 'total cash now' is the cash amount for the account up to the 'date'
-        BigDecimal totalCash = BigDecimal.ZERO.setScale(CURRENCY_FRACTION_LEN, RoundingMode.HALF_UP);
+        Currency usd = Currency.getInstance("USD");
+        int fractionDigits = usd.getDefaultFractionDigits();
+        BigDecimal totalCash = BigDecimal.ZERO.setScale(fractionDigits, RoundingMode.HALF_UP);
         BigDecimal totalCashNow = totalCash;
         final Map<String, SecurityHolding> shMap = new HashMap<>();  // map of security name and securityHolding
         final Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
 
         // now loop through the sorted and filtered list
         for (Transaction t : tList) {
-            totalCash = totalCash.add(t.getCashAmount().setScale(CURRENCY_FRACTION_LEN, RoundingMode.HALF_UP));
+            totalCash = totalCash.add(t.getCashAmount().setScale(fractionDigits, RoundingMode.HALF_UP));
             if (!t.getTDate().isAfter(date) && (t.getID() != exTid))
                 totalCashNow = totalCash;
 
@@ -1021,7 +1017,7 @@ public class MainModel {
             if (name != null && !name.isEmpty()) {
                 // it has a security name
                 final SecurityHolding securityHolding = shMap.computeIfAbsent(name,
-                        n -> new SecurityHolding(n, CURRENCY_FRACTION_LEN));
+                        n -> new SecurityHolding(n, fractionDigits));
                 final List<MatchInfo> matchInfoList = getMatchInfoList(t.getID());
                 securityHolding.processTransaction(t, matchInfoList);
                 if (t.getTradeAction() == STKSPLIT) // we need to keep track of stock splits
@@ -1072,11 +1068,11 @@ public class MainModel {
             }
         }
 
-        SecurityHolding cashHolding = new SecurityHolding(SecurityHolding.CASH, CURRENCY_FRACTION_LEN);
+        SecurityHolding cashHolding = new SecurityHolding(SecurityHolding.CASH, fractionDigits);
         cashHolding.setCostBasis(totalCashNow);
         cashHolding.setMarketValue(totalCashNow);
 
-        SecurityHolding totalHolding = new SecurityHolding(SecurityHolding.TOTAL, CURRENCY_FRACTION_LEN);
+        SecurityHolding totalHolding = new SecurityHolding(SecurityHolding.TOTAL, fractionDigits);
         totalHolding.setMarketValue(totalMarketValue);
         totalHolding.setCostBasis(totalCostBasis);
 
@@ -1936,7 +1932,7 @@ public class MainModel {
             Set<TransactionType> unTested = importAccountStatement(account, statement);
             adc.setLastDownloadInfo(statement.getLedgerBalance().getAsOfDate(),
                     BigDecimal.valueOf(statement.getLedgerBalance().getAmount())
-                            .setScale(CURRENCY_FRACTION_LEN, RoundingMode.HALF_UP));
+                            .setScale(Currency.getInstance("USD").getDefaultFractionDigits(), RoundingMode.HALF_UP));
             mergeAccountDC(adc);
             daoManager.commit();
             return unTested;

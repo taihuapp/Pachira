@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -222,8 +222,8 @@ public class AccountListDialogController {
                 if (item == null || empty) {
                     setText("");
                 } else {
-                    // format
-                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                    // format, balances always have scale of 2.
+                    setText(ConverterUtil.getDollarCentFormatInstance().format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }

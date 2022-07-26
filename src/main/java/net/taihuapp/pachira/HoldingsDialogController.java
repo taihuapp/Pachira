@@ -113,7 +113,7 @@ public class HoldingsDialogController {
         mPriceColumn.setCellFactory(new Callback<>() {
             @Override
             public TreeTableCell<LotView, BigDecimal> call(TreeTableColumn<LotView, BigDecimal> paramTreeTableColumn) {
-                return new TextFieldTreeTableCell<>(new StringConverter<BigDecimal>() {
+                return new TextFieldTreeTableCell<>(new StringConverter<>() {
                     @Override
                     public String toString(BigDecimal object) {
                         if (object == null)
@@ -221,7 +221,7 @@ public class HoldingsDialogController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(ConverterUtil.getDollarCentFormatInstance().format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }

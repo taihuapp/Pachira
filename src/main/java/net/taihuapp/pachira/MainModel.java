@@ -79,10 +79,8 @@ public class MainModel {
 
     public static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     public static final int SAVEDREPORTS_NAME_LEN = 32;
-    static final int PRICE_FRACTION_DISPLAY_LEN = 6;
-
-    static final int QUANTITY_FRACTION_DISPLAY_LEN = 6;
-    static final int QUANTITY_FRACTION_LEN = 8;
+    public static final int PRICE_FRACTION_LEN = 8;
+    public static final int QUANTITY_FRACTION_LEN = 8;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
@@ -1056,7 +1054,7 @@ public class MainModel {
                                 if (t.getTDate().isBefore(price.getDate()))
                                     break; // we're done
                                 p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(),
-                                        DaoManager.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+                                        PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                             }
                         }
                     }
@@ -1071,6 +1069,7 @@ public class MainModel {
         SecurityHolding cashHolding = new SecurityHolding(SecurityHolding.CASH, fractionDigits);
         cashHolding.setCostBasis(totalCashNow);
         cashHolding.setMarketValue(totalCashNow);
+        cashHolding.setPrice(BigDecimal.ONE);
 
         SecurityHolding totalHolding = new SecurityHolding(SecurityHolding.TOTAL, fractionDigits);
         totalHolding.setMarketValue(totalMarketValue);

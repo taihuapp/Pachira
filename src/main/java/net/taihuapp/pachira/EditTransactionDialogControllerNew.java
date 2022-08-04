@@ -723,7 +723,7 @@ public class EditTransactionDialogControllerNew {
                         newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
                                 MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
                         lotPrice = costBasis.divide(newLotQuantity,
-                                MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+                                MainModel.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
                     } else {
                         newLotQuantity = BigDecimal.ZERO;
                         lotPrice = BigDecimal.ZERO;

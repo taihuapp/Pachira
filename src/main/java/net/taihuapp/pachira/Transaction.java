@@ -432,7 +432,7 @@ public class Transaction {
                 subTotal = amount.add(commission).add(accruedInterest);
             else
                 subTotal = amount.subtract(commission).subtract(accruedInterest);
-            return subTotal.divide(quantity, MainApp.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+            return subTotal.divide(quantity, MainModel.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
         }, getTradeActionProperty(), getAmountProperty(), getQuantityProperty(), getCommissionProperty(),
                 getAccruedInterestProperty()));
     }

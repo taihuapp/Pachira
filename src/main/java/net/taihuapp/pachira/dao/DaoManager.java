@@ -64,7 +64,6 @@ public class DaoManager {
     private static final int SECURITY_NAME_LEN = 64;
 
     private static final int PRICE_TOTAL_LEN = 20;
-    public static final int PRICE_FRACTION_LEN = 8;
 
     private static final int MIN_CATEGORY_ID = 10;
     private static final int CATEGORY_NAME_LEN = 40;
@@ -85,7 +84,6 @@ public class DaoManager {
     private static final int TRANSACTION_TRANSFER_REMINDER_LEN = 40;
     private static final int TRANSACTION_FITID_LEN = 256;
 
-    private static final int QUANTITY_FRACTION_LEN = 8;
     private static final int QUANTITY_TOTAL_LEN = 20;
 
     // the logger
@@ -461,7 +459,7 @@ public class DaoManager {
                 + "SECURITYID integer NOT NULL, "
                 + "TICKER varchar(" + SECURITY_TICKER_LEN + ") NOT NULL, "
                 + "DATE date NOT NULL, "
-                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "),"
+                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + MainModel.PRICE_FRACTION_LEN + "),"
                 + "PRIMARY KEY (SECURITYID, TICKER, DATE));";
         executeUpdateQuery(sqlCmd);
 
@@ -540,9 +538,9 @@ public class DaoManager {
                 + "AMORTIZATIONID integer, "
                 + "TRADEACTION varchar(" + TRANSACTION_TRADEACTION_LEN + "), "
                 + "SECURITYID integer, "
-                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + PRICE_FRACTION_LEN + "), "
-                + "QUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "
-                + "OLDQUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + QUANTITY_FRACTION_LEN + "), "  // used in stock split transactions
+                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + MainModel.PRICE_FRACTION_LEN + "), "
+                + "QUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + MainModel.QUANTITY_FRACTION_LEN + "), "
+                + "OLDQUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + MainModel.QUANTITY_FRACTION_LEN + "), "  // used in stock split transactions
                 + "TRANSFERREMINDER varchar(" + TRANSACTION_TRANSFER_REMINDER_LEN + "), "
                 + "COMMISSION decimal(20,4), "
                 + "ACCRUEDINTEREST decimal(20,4), "
@@ -557,7 +555,7 @@ public class DaoManager {
         sqlCmd = "create table LOTMATCH ("
                 + "TransID integer NOT NULL, "
                 + "MatchID integer NOT NULL, "
-                + "MatchQuantity decimal(" + QUANTITY_TOTAL_LEN + ","  + QUANTITY_FRACTION_LEN + "), "
+                + "MatchQuantity decimal(" + QUANTITY_TOTAL_LEN + ","  + MainModel.QUANTITY_FRACTION_LEN + "), "
                 + "Constraint UniquePair unique (TransID, MatchID));";
         executeUpdateQuery(sqlCmd);
 

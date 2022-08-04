@@ -29,13 +29,11 @@ import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Pair;
-import javafx.util.StringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -113,29 +111,7 @@ public class HoldingsDialogController {
         mPriceColumn.setCellFactory(new Callback<>() {
             @Override
             public TreeTableCell<LotView, BigDecimal> call(TreeTableColumn<LotView, BigDecimal> paramTreeTableColumn) {
-                return new TextFieldTreeTableCell<>(new StringConverter<>() {
-                    @Override
-                    public String toString(BigDecimal object) {
-                        if (object == null)
-                            return null;
-                        // format to 6 decimal places
-                        DecimalFormat df = new DecimalFormat();
-                        df.setMaximumFractionDigits(MainModel.PRICE_FRACTION_DISPLAY_LEN);
-                        df.setMinimumFractionDigits(0);
-                        return df.format(object);
-                    }
-
-                    @Override
-                    public BigDecimal fromString(String string) {
-                        BigDecimal result;
-                        try {
-                            result = new BigDecimal(string);
-                        } catch (NumberFormatException | NullPointerException e) {
-                            result = null;
-                        }
-                        return result;
-                    }
-                }) {
+                return new TextFieldTreeTableCell<>(ConverterUtil.getPriceQuantityStringConverterInstance()) {
                     @Override
                     public void updateItem(BigDecimal item, boolean empty) {
                         TreeTableRow<LotView> treeTableRow = getTreeTableRow();
@@ -242,10 +218,7 @@ public class HoldingsDialogController {
                             setText("");
                         } else {
                             // format
-                            DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
-                            df.setMinimumFractionDigits(0);
-                            setText(df.format(item));
+                            setText(ConverterUtil.getPriceQuantityFormatInstance().format(item));
                         }
                         setStyle("-fx-alignment: CENTER-RIGHT;");
                     }

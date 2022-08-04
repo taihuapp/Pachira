@@ -1548,13 +1548,7 @@ public class ReportDialogController {
         int cbLen = cbHeader.length();
         int pnlLen = pnlHeader.length();
 
-        final DecimalFormat pFormatter = new DecimalFormat();
-        pFormatter.setMaximumFractionDigits(MainModel.PRICE_FRACTION_DISPLAY_LEN);
-        pFormatter.setMinimumFractionDigits(0);
-
-        final DecimalFormat qFormatter = new DecimalFormat();
-        qFormatter.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
-        qFormatter.setMinimumFractionDigits(0);
+        final DecimalFormat pqFormatter = ConverterUtil.getPriceQuantityFormatInstance();
 
         // compute holdings and calculate column width
         final Map<Integer, List<SecurityHolding>> accountSecurityHoldingMap = new HashMap<>();
@@ -1567,10 +1561,10 @@ public class ReportDialogController {
                 final int len = sh.getSecurityName().length();
                 if (len > nameLen)
                     nameLen = len;
-                final String pString = pFormatter.format(sh.getPrice());
+                final String pString = pqFormatter.format(sh.getPrice());
                 if (pString.length() > pLen)
                     pLen = pString.length();
-                final String qString = qFormatter.format(sh.getQuantity());
+                final String qString = pqFormatter.format(sh.getQuantity());
                 if (qString.length() > qLen)
                     qLen = qString.length();
                 final String mvString = decimalFormat.format(sh.getMarketValue());
@@ -1583,10 +1577,10 @@ public class ReportDialogController {
                 if (pnlString.length() > pnlLen)
                     pnlLen = pnlString.length();
                 for (SecurityLot lot : sh.getSecurityLotList()) {
-                    final String lotPString = pFormatter.format(lot.getPrice());
+                    final String lotPString = pqFormatter.format(lot.getPrice());
                     if (lotPString.length() > pLen)
                         pLen = lotPString.length();
-                    final String lotQString = qFormatter.format(lot.getQuantity());
+                    final String lotQString = pqFormatter.format(lot.getQuantity());
                     if (lotQString.length() > qLen)
                         qLen = lotQString.length();
                     final String lotMVString = decimalFormat.format(lot.getMarketValue());
@@ -1620,16 +1614,16 @@ public class ReportDialogController {
             final List<SecurityHolding> shList = accountSecurityHoldingMap.get(account.getID());
             for (SecurityHolding sh : shList) {
                 outputSB.append(String.format("  %-" + nameLen + "s", sh.getLabel()))
-                        .append(String.format("  %" + pLen + "s", pFormatter.format(sh.getPrice())))
-                        .append(String.format("  %" + qLen + "s", qFormatter.format(sh.getQuantity())))
+                        .append(String.format("  %" + pLen + "s", pqFormatter.format(sh.getPrice())))
+                        .append(String.format("  %" + qLen + "s", pqFormatter.format(sh.getQuantity())))
                         .append(String.format("  %" + mvLen + "s", decimalFormat.format(sh.getMarketValue())))
                         .append(String.format("  %" + cbLen + "s", decimalFormat.format(sh.getCostBasis())))
                         .append(String.format("  %" + pnlLen + "s", decimalFormat.format(sh.getPnL())))
                         .append(EOL);
                 for (SecurityLot lot : sh.getSecurityLotList()) {
                     outputSB.append(String.format("    %-" + (nameLen-2) + "s", lot.getLabel()))
-                            .append(String.format("  %" + pLen + "s", pFormatter.format(lot.getPrice())))
-                            .append(String.format("  %" + qLen + "s", qFormatter.format(lot.getQuantity())))
+                            .append(String.format("  %" + pLen + "s", pqFormatter.format(lot.getPrice())))
+                            .append(String.format("  %" + qLen + "s", pqFormatter.format(lot.getQuantity())))
                             .append(String.format("  %" + mvLen + "s", decimalFormat.format(lot.getMarketValue())))
                             .append(String.format("  %" + cbLen + "s", decimalFormat.format(lot.getCostBasis())))
                             .append(String.format("  %" + pnlLen + "s", decimalFormat.format(lot.getPnL())))

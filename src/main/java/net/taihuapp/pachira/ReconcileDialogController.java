@@ -42,7 +42,6 @@ import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -316,10 +315,7 @@ public class ReconcileDialogController {
                             setText("");
                         } else {
                             // format
-                            DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
-                            df.setMinimumFractionDigits(0);
-                            setText(df.format(item));
+                            setText(ConverterUtil.getPriceQuantityFormatInstance().format(item));
                         }
                         setStyle("-fx-alignment: CENTER-RIGHT;");
                     }

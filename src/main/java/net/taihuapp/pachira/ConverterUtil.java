@@ -168,4 +168,41 @@ public class ConverterUtil {
             public String toString(BigDecimal b) { return b == null ? null : decimalFormat.format(b); }
         };
     }
+
+    private static final int PRICE_QUANTITY_FRACTION_DISPLAY_LEN = 6;
+
+    public static BigDecimalStringConverter getPriceQuantityStringConverterInstance() {
+        return getPriceQuantityStringConverterInstance(0, PRICE_QUANTITY_FRACTION_DISPLAY_LEN); // min 0, max 6
+    }
+
+    public static BigDecimalStringConverter getPriceQuantityStringConverterInstance(int minFractionDigits,
+                                                                                    int maxFractionDigits) {
+        final DecimalFormat decimalFormat = getPriceQuantityFormatInstance(minFractionDigits, maxFractionDigits);
+
+        return new BigDecimalStringConverter() {
+            @Override
+            public BigDecimal fromString(String s) {
+                try {
+                    return s == null ? null : (BigDecimal) decimalFormat.parse(s);
+                } catch (ParseException e) {
+                    return null;
+                }
+            }
+            @Override
+            public String toString(BigDecimal b) { return b == null ? null : decimalFormat.format(b); }
+        };
+    }
+
+    public static DecimalFormat getPriceQuantityFormatInstance() {
+        return getPriceQuantityFormatInstance(0, PRICE_QUANTITY_FRACTION_DISPLAY_LEN);  // default min 0, max 6
+    }
+
+    public static DecimalFormat getPriceQuantityFormatInstance(int minFractionDigits, int maxFractionDigits) {
+        final DecimalFormat decimalFormat = new DecimalFormat();
+        decimalFormat.setMinimumFractionDigits(minFractionDigits);
+        decimalFormat.setMaximumFractionDigits(maxFractionDigits);
+        decimalFormat.setParseBigDecimal(true);
+
+        return decimalFormat;
+    }
 }

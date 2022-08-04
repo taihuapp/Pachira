@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
@@ -152,8 +153,11 @@ public class EditLoanDialogController {
                 readOnlyProperty, Bindings.size(availableAccounts)));
         setupAccountSection();
 
-        TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER, null,
-                c -> RegExUtil.DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        final Currency currency = Currency.getInstance("USD");
+        final Locale locale = Locale.getDefault();
+        final Pattern currencyPattern = RegExUtil.getCurrencyInputRegEx(currency, locale);
+        final TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER,
+                null, c -> currencyPattern.matcher(c.getControlNewText()).matches() ? c : null);
         originalAmountTextField.setTextFormatter(originalAmountFormatter);
         originalAmountFormatter.valueProperty().bindBidirectional(this.loan.getOriginalAmountProperty());
         originalAmountTextField.editableProperty().bind(readOnlyProperty.not());
@@ -203,8 +207,8 @@ public class EditLoanDialogController {
         DatePickerUtil.captureEditedDate(firstPaymentDatePicker);
         firstPaymentDatePicker.disableProperty().bind(readOnlyProperty);
 
-        TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER, null,
-                c -> RegExUtil.DOLLAR_CENT_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        final TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER,
+                null, c -> currencyPattern.matcher(c.getControlNewText()).matches() ? c : null);
         paymentAmountTextField.setTextFormatter(paymentAmountFormatter);
         paymentAmountFormatter.valueProperty().bindBidirectional(this.loan.getPaymentAmountProperty());
         paymentAmountTextField.editableProperty().bind(setPaymentRadioButton.selectedProperty()

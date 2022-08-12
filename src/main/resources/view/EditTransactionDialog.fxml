@@ -80,7 +80,7 @@
              <TextField fx:id="mOldSharesTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="4" />
              <TextField fx:id="mCommissionTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="6" />
              <TextField fx:id="mAccruedInterestTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="7" />
-             <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" editable="false" GridPane.columnIndex="3" GridPane.rowIndex="8" />
+             <TextField fx:id="mTotalTextField" alignment="CENTER_RIGHT" GridPane.columnIndex="3" GridPane.rowIndex="8" />
              <Button fx:id="mSpecifyLotButton" mnemonicParsing="false" onAction="#handleSpecifyLots" text="Specify Lots" GridPane.columnIndex="1" GridPane.rowIndex="7" />
              <Label fx:id="mIncomeLabel" text="Income" GridPane.columnIndex="2" GridPane.rowIndex="2" />
              <Label fx:id="mPayeeLabel" text="Payee" GridPane.columnIndex="2" GridPane.rowIndex="2" />

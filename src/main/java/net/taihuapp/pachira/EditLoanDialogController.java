@@ -46,10 +46,6 @@ public class EditLoanDialogController {
 
     private static final Logger logger = Logger.getLogger(EditLoanDialogController.class);
 
-    // format dollar and cents, fixed two decimal places
-    private static final BigDecimalStringConverter DOLLAR_CENT_STRING_CONVERTER =
-            ConverterUtil.getDollarCentStringConverterInstance();
-
     private MainModel mainModel;
     private Loan loan;
     private final BooleanProperty readOnlyProperty = new SimpleBooleanProperty(false);
@@ -153,10 +149,13 @@ public class EditLoanDialogController {
                 readOnlyProperty, Bindings.size(availableAccounts)));
         setupAccountSection();
 
+        // hard code usd here
         final Currency currency = Currency.getInstance("USD");
-        final Locale locale = Locale.getDefault();
-        final Pattern currencyPattern = RegExUtil.getCurrencyInputRegEx(currency, locale);
-        final TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER,
+        // two digits dollar and cents
+        final BigDecimalStringConverter currencyAmountStringConverter =
+                ConverterUtil.getCurrencyAmountStringConverterInstance(currency);
+        final Pattern currencyPattern = RegExUtil.getCurrencyInputRegEx(currency);
+        final TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(currencyAmountStringConverter,
                 null, c -> currencyPattern.matcher(c.getControlNewText()).matches() ? c : null);
         originalAmountTextField.setTextFormatter(originalAmountFormatter);
         originalAmountFormatter.valueProperty().bindBidirectional(this.loan.getOriginalAmountProperty());
@@ -207,7 +206,7 @@ public class EditLoanDialogController {
         DatePickerUtil.captureEditedDate(firstPaymentDatePicker);
         firstPaymentDatePicker.disableProperty().bind(readOnlyProperty);
 
-        final TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(DOLLAR_CENT_STRING_CONVERTER,
+        final TextFormatter<BigDecimal> paymentAmountFormatter = new TextFormatter<>(currencyAmountStringConverter,
                 null, c -> currencyPattern.matcher(c.getControlNewText()).matches() ? c : null);
         paymentAmountTextField.setTextFormatter(paymentAmountFormatter);
         paymentAmountFormatter.valueProperty().bindBidirectional(this.loan.getPaymentAmountProperty());
@@ -251,7 +250,7 @@ public class EditLoanDialogController {
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(DOLLAR_CENT_STRING_CONVERTER.toString(item));
+                    setText(currencyAmountStringConverter.toString(item));
             }
         });
         interestPaymentTableColumn.setCellValueFactory(cd -> cd.getValue().getInterestAmountProperty());
@@ -262,7 +261,7 @@ public class EditLoanDialogController {
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(DOLLAR_CENT_STRING_CONVERTER.toString(item));
+                    setText(currencyAmountStringConverter.toString(item));
             }
         });
         balanceTableColumn.setCellValueFactory(cd -> cd.getValue().getBalanceAmountProperty());
@@ -273,7 +272,7 @@ public class EditLoanDialogController {
                 if (item == null || empty)
                     setText("");
                 else
-                    setText(DOLLAR_CENT_STRING_CONVERTER.toString(item));
+                    setText(currencyAmountStringConverter.toString(item));
             }
         });
 

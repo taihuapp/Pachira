@@ -128,9 +128,48 @@ public class ConverterUtil {
         }
     }
 
-    // 2 digits after decimal place
-    public static BigDecimalStringConverter getDollarCentStringConverterInstance() {
-        return getDollarCentStringConverterInstance(0);
+    // format currency amount
+    // if fractionDigits >= 0, the format instance will show fractionDigits.
+    // otherwise, use currency default
+    public static DecimalFormat getCurrencyAmountFormatInstance(Currency currency, int fractionDigits) {
+        final DecimalFormat decimalFormat = (DecimalFormat) NumberFormat.getCurrencyInstance();
+        decimalFormat.setParseBigDecimal(true);  // we will be dealing with BigDecimal
+        decimalFormat.setCurrency(currency);
+        DecimalFormatSymbols decimalFormatSymbols = decimalFormat.getDecimalFormatSymbols();
+        decimalFormatSymbols.setCurrencySymbol("");  // don't show the currency symbol
+        decimalFormat.setDecimalFormatSymbols(decimalFormatSymbols);
+        if (fractionDigits >= 0) {
+            decimalFormat.setMinimumFractionDigits(fractionDigits);
+            decimalFormat.setMaximumFractionDigits(fractionDigits);
+        } else {
+            decimalFormat.setMinimumFractionDigits(currency.getDefaultFractionDigits());
+            decimalFormat.setMaximumFractionDigits(currency.getDefaultFractionDigits());
+        }
+        return decimalFormat;
+    }
+
+    // format currency amount shows the number of digits according to currency default
+    public static BigDecimalStringConverter getCurrencyAmountStringConverterInstance(Currency currency) {
+        return getCurrencyAmountStringConverterInstance(currency, -1);
+    }
+
+    public static BigDecimalStringConverter getCurrencyAmountStringConverterInstance(Currency currency,
+                                                                                     int maxFractionDigits) {
+        final DecimalFormat decimalFormat = getCurrencyAmountFormatInstance(currency, maxFractionDigits);
+
+        return new BigDecimalStringConverter() {
+            @Override
+            public BigDecimal fromString(String s) {
+                try {
+                    return s == null ? null : (BigDecimal) decimalFormat.parse(s);
+                } catch (ParseException e) {
+                    return null;
+                }
+            }
+
+            @Override
+            public String toString(BigDecimal b) { return b == null ? null : decimalFormat.format(b); }
+        };
     }
 
     // format dollar and cents without the dollar sign, minimum 2 digits and maximum maxFractionDigits
@@ -150,31 +189,13 @@ public class ConverterUtil {
 
     public static DecimalFormat getDollarCentFormatInstance() { return getDollarCentFormatInstance(0); }
 
-    // 2 to maxFractionDigits digits after decimal place
-    public static BigDecimalStringConverter getDollarCentStringConverterInstance(int maxFractionDigits) {
-        final DecimalFormat decimalFormat = getDollarCentFormatInstance(maxFractionDigits);
-
-        return new BigDecimalStringConverter() {
-            @Override
-            public BigDecimal fromString(String s) {
-                try {
-                    return s == null ? null : (BigDecimal) decimalFormat.parse(s);
-                } catch (ParseException e) {
-                    return null;
-                }
-            }
-
-            @Override
-            public String toString(BigDecimal b) { return b == null ? null : decimalFormat.format(b); }
-        };
-    }
-
-    private static final int PRICE_QUANTITY_FRACTION_DISPLAY_LEN = 6;
+    static final int PRICE_QUANTITY_FRACTION_DISPLAY_LEN = 6;
 
     public static BigDecimalStringConverter getPriceQuantityStringConverterInstance() {
         return getPriceQuantityStringConverterInstance(0, PRICE_QUANTITY_FRACTION_DISPLAY_LEN); // min 0, max 6
     }
 
+    // display price/quantity using with minimum of minFractionDigits and maximum of maxFractionDigits
     public static BigDecimalStringConverter getPriceQuantityStringConverterInstance(int minFractionDigits,
                                                                                     int maxFractionDigits) {
         final DecimalFormat decimalFormat = getPriceQuantityFormatInstance(minFractionDigits, maxFractionDigits);

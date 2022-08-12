@@ -29,7 +29,6 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import javafx.util.converter.BigDecimalStringConverter;
@@ -50,16 +49,6 @@ import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class EditTransactionDialogControllerNew {
     private static final Logger mLogger = Logger.getLogger(EditTransactionDialogControllerNew.class);
-
-    private static final BigDecimalStringConverter BIGDECIMALSTRINGCONVERTER = new BigDecimalStringConverter() {
-        public BigDecimal fromString(String s) {
-            BigDecimal b = super.fromString(s);
-            return b == null ? BigDecimal.ZERO : b;
-        }
-    };
-
-    private static final BigDecimalStringConverter DOLLAR_CENT_STRING_CONVERTER =
-            ConverterUtil.getDollarCentStringConverterInstance();
 
     static class CategoryTransferAccountIDComboBoxWrapper {
         private final ComboBox<Integer> mComboBox;
@@ -219,15 +208,6 @@ public class EditTransactionDialogControllerNew {
     private boolean mSplitTransactionListChanged = false;
 
     private Stage getStage() { return (Stage) mTradeActionChoiceBox.getScene().getWindow(); }
-
-    // allows only numeric input in a textField
-    private static void addEventFilterNumericInputOnly(TextField textField) {
-        textField.setEditable(true);  // make sure it's editable
-        textField.addEventFilter(KeyEvent.KEY_TYPED, e -> {
-            if (!"0123456789.".contains(e.getCharacter()))
-                e.consume();
-        });
-    }
 
     // clean data contained on invisible controls
     private void cleanInvisibleControlData() {
@@ -468,8 +448,14 @@ public class EditTransactionDialogControllerNew {
         mPayeeLabel.visibleProperty().bind(mPayeeTextField.visibleProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
 
+        final Currency currency = Currency.getInstance("USD");  // hard code USD for now
+
         // Income
-        addEventFilterNumericInputOnly(mIncomeTextField);  // only allowing numeric input
+        //addEventFilterNumericInputOnly(mIncomeTextField);  // only allowing numeric input
+        final TextFormatter<BigDecimal> incomeTextFormatter = new TextFormatter<>(
+                ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
+                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+        mIncomeTextField.setTextFormatter(incomeTextFormatter);
         mIncomeTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == REINVDIV || ta == REINVINT || ta == REINVLG || ta == REINVMD || ta == REINVSH
@@ -478,11 +464,15 @@ public class EditTransactionDialogControllerNew {
         }, mTradeActionChoiceBox.valueProperty()));
         mIncomeLabel.visibleProperty().bind(mIncomeTextField.visibleProperty());
         mIncomeLabel.textProperty().bind(mTradeActionChoiceBox.valueProperty().asString());
-        mIncomeTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
-                DOLLAR_CENT_STRING_CONVERTER);
+        incomeTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
 
         // shares
-        addEventFilterNumericInputOnly(mSharesTextField);
+        //addEventFilterNumericInputOnly(mSharesTextField);
+        final TextFormatter<BigDecimal> sharesTextFormatter = new TextFormatter<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(), null,
+                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null);
+        mSharesTextField.setTextFormatter(sharesTextFormatter);
+        sharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getQuantityProperty());
         mSharesTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == BUY || ta == SELL || ta == REINVDIV || ta == REINVINT || ta == REINVLG
@@ -498,45 +488,53 @@ public class EditTransactionDialogControllerNew {
                 return "New Shares/Old Share:";
             return "Number of Shares:";
         }, mTradeActionChoiceBox.valueProperty()));
-        mSharesTextField.textProperty().bindBidirectional(mTransaction.getQuantityProperty(),
-                BIGDECIMALSTRINGCONVERTER);
 
         // old shares
-        addEventFilterNumericInputOnly(mOldSharesTextField);
+        //addEventFilterNumericInputOnly(mOldSharesTextField);
+        final TextFormatter<BigDecimal> oldSharesTextFormatter = new TextFormatter<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(), null,
+                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null);
+        mOldSharesTextField.setTextFormatter(oldSharesTextFormatter);
+        oldSharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getOldQuantityProperty());
         mOldSharesTextField.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(STKSPLIT)
                 .or(mTradeActionChoiceBox.valueProperty().isEqualTo(SHRCLSCVN)));
         mOldSharesLabel.visibleProperty().bind(mOldSharesTextField.visibleProperty());
-        mOldSharesTextField.textProperty().bindBidirectional(mTransaction.getOldQuantityProperty(),
-                BIGDECIMALSTRINGCONVERTER);
 
 
         // price is always calculated
         mPriceTextField.visibleProperty().bind(Bindings.createBooleanBinding(()
                 -> Transaction.hasQuantity(mTradeActionChoiceBox.getValue()), mTradeActionChoiceBox.valueProperty()));
-        mPriceTextField.textProperty().bind(Bindings.createStringBinding(()
-                -> BIGDECIMALSTRINGCONVERTER.toString(mTransaction.getPrice()), mTransaction.getPriceProperty()));
+        mPriceTextField.textProperty().bind(Bindings.createStringBinding(() ->
+                        ConverterUtil.getPriceQuantityFormatInstance().format(mTransaction.getPrice()),
+                mTransaction.getPriceProperty()));
         mPriceLabel.visibleProperty().bind(mPriceTextField.visibleProperty());
 
         // commission, same visibility as price, except in Share Class Conversion and Corp Spin Off
         // For Corp Spin Off, this field is for input Old Share Price
-        addEventFilterNumericInputOnly(mCommissionTextField);
+        // addEventFilterNumericInputOnly(mCommissionTextField);
+        final TextFormatter<BigDecimal> commissionTextFormatter = new TextFormatter<>(
+                ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
+                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+        mCommissionTextField.setTextFormatter(commissionTextFormatter);
+        commissionTextFormatter.valueProperty().bindBidirectional(mTransaction.getCommissionProperty());
         mCommissionTextField.visibleProperty().bind(mPriceTextField.visibleProperty()
                 .and(mTradeActionChoiceBox.valueProperty().isNotEqualTo(SHRCLSCVN))
                 .or(mTradeActionChoiceBox.valueProperty().isEqualTo(CORPSPINOFF)));
         mCommissionLabel.visibleProperty().bind(mCommissionTextField.visibleProperty());
-        mCommissionTextField.textProperty().bindBidirectional(mTransaction.getCommissionProperty(),
-                DOLLAR_CENT_STRING_CONVERTER);
         mCommissionLabel.textProperty().bind(Bindings.createStringBinding(() ->
                 mTradeActionChoiceBox.getValue() == CORPSPINOFF ?
                         "Old Share Price:" : "Commission:", mTradeActionChoiceBox.valueProperty()));
 
         // accrued interest, same visibility as commission, except corp spin off
         // For Corp Spin Off, accrued interest field is for input New Share Price
-        addEventFilterNumericInputOnly(mAccruedInterestTextField);
+        //addEventFilterNumericInputOnly(mAccruedInterestTextField);
+        final TextFormatter<BigDecimal> accruedInterestTextFormatter = new TextFormatter<>(
+                ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
+                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+        mAccruedInterestTextField.setTextFormatter(accruedInterestTextFormatter);
+        accruedInterestTextFormatter.valueProperty().bindBidirectional(mTransaction.getAccruedInterestProperty());
         mAccruedInterestTextField.visibleProperty().bind(mCommissionTextField.visibleProperty());
         mAccruedInterestLabel.visibleProperty().bind(mAccruedInterestTextField.visibleProperty());
-        mAccruedInterestTextField.textProperty().bindBidirectional(mTransaction.getAccruedInterestProperty(),
-                DOLLAR_CENT_STRING_CONVERTER);
         mAccruedInterestLabel.textProperty().bind(Bindings.createStringBinding(() ->
                 mTradeActionChoiceBox.getValue() == CORPSPINOFF ?
                         "New Share Price:" : "Accrued Interest:", mTradeActionChoiceBox.valueProperty()));
@@ -548,7 +546,12 @@ public class EditTransactionDialogControllerNew {
         }, mTradeActionChoiceBox.valueProperty()));
 
         // total cost
-        addEventFilterNumericInputOnly(mTotalTextField);
+        //addEventFilterNumericInputOnly(mTotalTextField);
+        final TextFormatter<BigDecimal> totalTextFormatter = new TextFormatter<>(
+                ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
+                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+        mTotalTextField.setTextFormatter(totalTextFormatter);
+        totalTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
         mTotalTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return ta == BUY || ta == SELL || ta == SHRSIN || ta == SHTSELL || ta == CVTSHRT
@@ -568,8 +571,6 @@ public class EditTransactionDialogControllerNew {
                     return "Amount:";
             }
         }, mTradeActionChoiceBox.valueProperty()));
-        mTotalTextField.textProperty().bindBidirectional(mTransaction.getAmountProperty(),
-                DOLLAR_CENT_STRING_CONVERTER);
 
         // set default button
         // if transaction != null, it is editing an existing transaction
@@ -613,25 +614,26 @@ public class EditTransactionDialogControllerNew {
                 return false;
         }
 
-        BigDecimal newShares = BIGDECIMALSTRINGCONVERTER.fromString(mSharesTextField.getText());
-        BigDecimal oldSharePrice = BIGDECIMALSTRINGCONVERTER.fromString(mCommissionTextField.getText());
-        BigDecimal newSharePrice = BIGDECIMALSTRINGCONVERTER.fromString(mAccruedInterestTextField.getText());
+        final BigDecimalStringConverter pqStringConverter = ConverterUtil.getPriceQuantityStringConverterInstance();
+        final BigDecimal newShares = pqStringConverter.fromString(mSharesTextField.getText());
+        final BigDecimal oldSharePrice = pqStringConverter.fromString(mCommissionTextField.getText());
+        final BigDecimal newSharePrice = pqStringConverter.fromString(mAccruedInterestTextField.getText());
 
-        if (newShares.compareTo(BigDecimal.ZERO) <= 0) {
+        if (newShares == null || newShares.compareTo(BigDecimal.ZERO) <= 0) {
             DialogUtil.showWarningDialog(getStage(), "Invalid New Share Quantity",
                     "Number of new shares per old shares should be positive.",
                     "Please enter correct number of new shares issued per old share.");
             return false;
         }
 
-        if (oldSharePrice.compareTo(BigDecimal.ZERO) <= 0) {
+        if (oldSharePrice == null || oldSharePrice.compareTo(BigDecimal.ZERO) <= 0) {
             DialogUtil.showWarningDialog(getStage(), "Invalid Price",
                     "Price for old security should be positive",
                     "Please enter correct price for the old security.");
             return false;
         }
 
-        if (newSharePrice.compareTo(BigDecimal.ZERO) <= 0) {
+        if (newSharePrice == null || newSharePrice.compareTo(BigDecimal.ZERO) <= 0) {
             DialogUtil.showWarningDialog(getStage(), "Invalid Price",
                     "Price for new security should be positive",
                     "Please enter correct price for the new security.");
@@ -678,22 +680,23 @@ public class EditTransactionDialogControllerNew {
             return false;
         }
 
-        BigDecimal newShares = BIGDECIMALSTRINGCONVERTER.fromString(mSharesTextField.getText());
-        if (newShares.compareTo(BigDecimal.ZERO) <= 0) {
+        final BigDecimalStringConverter pqStringConverter = ConverterUtil.getPriceQuantityStringConverterInstance();
+        final BigDecimal newShares = pqStringConverter.fromString(mSharesTextField.getText());
+        if (newShares == null || newShares.compareTo(BigDecimal.ZERO) <= 0) {
             header = "Non positive new shares";
             mLogger.warn(header);
             showWarningDialog(header, "Please enter a positive number for New Shares");
             return false;
         }
-        BigDecimal oldShares = BIGDECIMALSTRINGCONVERTER.fromString(mOldSharesTextField.getText());
-        if (oldShares.compareTo(BigDecimal.ZERO) <= 0) {
+        final BigDecimal oldShares = pqStringConverter.fromString(mOldSharesTextField.getText());
+        if (oldShares == null || oldShares.compareTo(BigDecimal.ZERO) <= 0) {
             header = "Non positive old shares";
             mLogger.warn(header);
             showWarningDialog(header, "Please enter a positive number for Old Shares");
             return false;
         }
 
-        List<Transaction> transactionList = new ArrayList<>();  // this is the list transaction to be entered
+        final List<Transaction> transactionList = new ArrayList<>();  // this is the list transaction to be entered
         Account account = mAccountComboBox.getValue();
         LocalDate tDate = mTransaction.getTDate();
         BigDecimal newPrice = mTransaction.getPrice();

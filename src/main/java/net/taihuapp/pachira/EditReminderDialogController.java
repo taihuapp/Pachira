@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -26,7 +26,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
@@ -34,6 +33,7 @@ import org.controlsfx.control.textfield.TextFields;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Currency;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -118,6 +118,21 @@ public class EditReminderDialogController {
         mTypeChoiceBox.getSelectionModel().selectFirst();
         mTypeChoiceBox.valueProperty().addListener((obs, o, n) ->
                 mCategoryTransferAccountIDComboBoxWrapper.setFilter(categoryIDPredicate()));
+
+        final Currency currency = Currency.getInstance("USD"); // hard code usd for now
+        final TextFormatter<BigDecimal> amountTextFormatter = new TextFormatter<>(
+                ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
+                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+        mAmountTextField.setTextFormatter(amountTextFormatter);
+        amountTextFormatter.valueProperty().bindBidirectional(mReminder.getAmountProperty());
+        mAmountTextField.editableProperty().bind(mFixedAmountRadioButton.selectedProperty());
+
+        final TextFormatter<Integer> estimateNumOccurrenceTextFormatter = new TextFormatter<>(
+                new IntegerStringConverter(), null,
+                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        mEstimateNumOccurrenceTextField.setTextFormatter(estimateNumOccurrenceTextFormatter);
+        estimateNumOccurrenceTextFormatter.valueProperty().bindBidirectional(mReminder.getEstimateCountProperty());
+        mEstimateNumOccurrenceTextField.editableProperty().bind(mEstimateAmountRadioButton.selectedProperty());
 
         mAmountTextField.visibleProperty().bind(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT));
         fixedAmountHBox.visibleProperty().bind(mTypeChoiceBox.valueProperty().isNotEqualTo(Reminder.Type.LOAN_PAYMENT));
@@ -228,11 +243,6 @@ public class EditReminderDialogController {
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
         TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
 
-        mAmountTextField.textProperty().bindBidirectional(mReminder.getAmountProperty(),
-                new BigDecimalStringConverter());
-        mEstimateNumOccurrenceTextField.textProperty().bindBidirectional(mReminder.getEstimateCountProperty(),
-                new IntegerStringConverter());
-
         Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
         if (mAccountIDComboBox.getSelectionModel().isEmpty())
             mAccountIDComboBox.getSelectionModel().selectFirst(); // if no account selected, default the first.
@@ -248,13 +258,13 @@ public class EditReminderDialogController {
         mStartDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getStartDateProperty());
         mEndDatePicker.valueProperty().bindBidirectional(mReminder.getDateSchedule().getEndDateProperty());
 
-        TextFormatter<Integer> numPeriodFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
+        final TextFormatter<Integer> numPeriodFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
                 c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         mNumPeriodTextField.setTextFormatter(numPeriodFormatter);
         numPeriodFormatter.valueProperty().bindBidirectional(mReminder.getDateSchedule().getNumPeriodProperty());
 
-        TextFormatter<Integer> alertDaysFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
-                c -> RegExUtil.POSITIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
+        final TextFormatter<Integer> alertDaysFormatter = new TextFormatter<>(new IntegerStringConverter(), null,
+                c -> RegExUtil.NON_NEGATIVE_INTEGER_REG_EX.matcher(c.getControlNewText()).matches() ? c : null);
         mAlertDayTextField.setTextFormatter(alertDaysFormatter);
         alertDaysFormatter.valueProperty().bindBidirectional(mReminder.getAlertDaysProperty());
 
@@ -345,8 +355,24 @@ public class EditReminderDialogController {
     private void handleSave() {
         // validation
         // todo
+        if (mEstimateAmountRadioButton.isSelected()) {
+            if (mReminder.getEstimateCount() == null) {
+                DialogUtil.showWarningDialog(getStage(), "Estimate count Not Set",
+                        "Please set estimate count",
+                        "Estimate count has to be an positive integer");
+                return;
+            }
+        } else {
+            mReminder.setEstimateCount(0);
+        }
 
-        List<SplitTransaction> stList = mReminder.getSplitTransactionList();
+        if (mReminder.getAlertDays() == null) {
+            DialogUtil.showWarningDialog(getStage(), "Alert Days Not Set", "Please set alert days",
+                    "Alert days has to be an non-negative integer");
+            return;
+        }
+
+        final List<SplitTransaction> stList = mReminder.getSplitTransactionList();
         if (mReminder.getType() == Reminder.Type.LOAN_PAYMENT) {
             if (stList.size() < 2 || !stList.get(0).getCategoryID().equals(mReminder.getCategoryID())) {
                 final String title = "Warning";
@@ -379,9 +405,6 @@ public class EditReminderDialogController {
             mCategoryIDComboBox.valueProperty().unbindBidirectional(mReminder.getCategoryIDProperty());
             mReminder.getCategoryIDProperty().set(0);
         }
-
-        if (!mEstimateAmountRadioButton.isSelected())
-            mReminder.setEstimateCount(0);
 
         try {
             reminderModel.insertUpdateReminder(mReminder);

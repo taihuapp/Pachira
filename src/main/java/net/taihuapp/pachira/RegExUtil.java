@@ -29,6 +29,8 @@ public class RegExUtil {
     static final Pattern INTEREST_RATE_REG_EX = Pattern.compile("^(0|[1-9]\\d*)?(\\.\\d{0,6})?$");
     // for positive integer or empty
     static final Pattern POSITIVE_INTEGER_REG_EX = Pattern.compile("^([1-9]+\\d*)?$");
+    // for non-negative integer
+    static final Pattern NON_NEGATIVE_INTEGER_REG_EX = Pattern.compile("^(0|([1-9]+\\d*))?$");
 
     // this is used for price and quantity
     static Pattern getPriceQuantityInputRegEx() {

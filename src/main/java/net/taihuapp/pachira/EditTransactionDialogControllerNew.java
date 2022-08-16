@@ -451,7 +451,6 @@ public class EditTransactionDialogControllerNew {
         final Currency currency = Currency.getInstance("USD");  // hard code USD for now
 
         // Income
-        //addEventFilterNumericInputOnly(mIncomeTextField);  // only allowing numeric input
         final TextFormatter<BigDecimal> incomeTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
@@ -467,7 +466,6 @@ public class EditTransactionDialogControllerNew {
         incomeTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
 
         // shares
-        //addEventFilterNumericInputOnly(mSharesTextField);
         final TextFormatter<BigDecimal> sharesTextFormatter = new TextFormatter<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(), null,
                 c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null);
@@ -490,7 +488,6 @@ public class EditTransactionDialogControllerNew {
         }, mTradeActionChoiceBox.valueProperty()));
 
         // old shares
-        //addEventFilterNumericInputOnly(mOldSharesTextField);
         final TextFormatter<BigDecimal> oldSharesTextFormatter = new TextFormatter<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(), null,
                 c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null);
@@ -511,7 +508,6 @@ public class EditTransactionDialogControllerNew {
 
         // commission, same visibility as price, except in Share Class Conversion and Corp Spin Off
         // For Corp Spin Off, this field is for input Old Share Price
-        // addEventFilterNumericInputOnly(mCommissionTextField);
         final TextFormatter<BigDecimal> commissionTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
@@ -527,7 +523,6 @@ public class EditTransactionDialogControllerNew {
 
         // accrued interest, same visibility as commission, except corp spin off
         // For Corp Spin Off, accrued interest field is for input New Share Price
-        //addEventFilterNumericInputOnly(mAccruedInterestTextField);
         final TextFormatter<BigDecimal> accruedInterestTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
@@ -546,7 +541,6 @@ public class EditTransactionDialogControllerNew {
         }, mTradeActionChoiceBox.valueProperty()));
 
         // total cost
-        //addEventFilterNumericInputOnly(mTotalTextField);
         final TextFormatter<BigDecimal> totalTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);

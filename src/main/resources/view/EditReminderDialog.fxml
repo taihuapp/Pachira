@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -82,7 +82,7 @@
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                     </HBox.margin>
                 </RadioButton>
-                <TextField fx:id="mEstimateNumOccurrenceTextField" prefWidth="30.0">
+                <TextField fx:id="mEstimateNumOccurrenceTextField" alignment="CENTER" prefWidth="40.0">
                     <HBox.margin>
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                     </HBox.margin></TextField>
@@ -118,7 +118,7 @@
         <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="3" GridPane.columnSpan="2" GridPane.rowIndex="1">
             <children>
                 <Label text="Alert me " />
-                <TextField fx:id="mAlertDayTextField" prefHeight="25.0" prefWidth="32.0" />
+                <TextField fx:id="mAlertDayTextField" alignment="CENTER" prefHeight="25.0" prefWidth="42.0" />
                 <Label text=" days in advance" />
             </children>
         </HBox>

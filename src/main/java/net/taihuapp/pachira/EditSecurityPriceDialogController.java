@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,10 +24,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import javafx.util.StringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
@@ -90,25 +88,10 @@ public class EditSecurityPriceDialogController {
         mPriceDateTableColumn.setCellValueFactory(cellData->cellData.getValue().getDateProperty());
 
         mPricePriceTableColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
-        mPricePriceTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new StringConverter<>() {
-            @Override
-            public String toString(BigDecimal object) {
-                if (object == null)
-                    return null;
-                return object.toString();
-            }
 
-            @Override
-            public BigDecimal fromString(String string) {
-                BigDecimal result;
-                try {
-                    result = new BigDecimal(string);
-                } catch (NumberFormatException | NullPointerException e){
-                    result = null;
-                }
-                return result;
-            }
-        }));
+        mPricePriceTableColumn.setCellFactory(col -> new EditableTableCell<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(),
+                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null));
         mPricePriceTableColumn.setOnEditCommit(event -> {
             LocalDate date = event.getRowValue().getDate();
             BigDecimal newPrice = event.getNewValue();

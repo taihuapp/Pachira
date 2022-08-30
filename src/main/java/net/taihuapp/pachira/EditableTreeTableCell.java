@@ -22,22 +22,23 @@ package net.taihuapp.pachira;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.TreeTableCell;
 import javafx.util.StringConverter;
 
 import java.util.function.UnaryOperator;
 
 /**
- * javafx has an editable table cell class called TextFieldTableCell
+ * javafx has an editable tree table cell class called TextFieldTreeTableCell
  * But it does not let you add a TextFormatter to it.
  * This class add this feature.  The code is largely adapted from javafx.
  *
  * @param <S> The type of the TableView generic type
  * @param <T> The type of the elements contained within the TableColumn
  */
-public class EditableTableCell<S, T> extends TableCell<S, T> {
+
+public class EditableTreeTableCell<S, T> extends TreeTableCell<S, T> {
 
     // the text field for the editable cell
     private TextField textField;
@@ -61,8 +62,8 @@ public class EditableTableCell<S, T> extends TableCell<S, T> {
     private UnaryOperator<TextFormatter.Change> getFilter() { return filterProperty().get(); }
 
     // constructor
-    public EditableTableCell(StringConverter<T> converter, UnaryOperator<TextFormatter.Change> filter) {
-        this.getStyleClass().add("editable-table-cell");
+    public EditableTreeTableCell(StringConverter<T> converter, UnaryOperator<TextFormatter.Change> filter) {
+        this.getStyleClass().add("editable-tree-table-cell");
         setConverter(converter);
         setFilter(filter);
     }
@@ -71,10 +72,10 @@ public class EditableTableCell<S, T> extends TableCell<S, T> {
     public void startEdit() {
         super.startEdit();
         if (!isEditing())
-            return; // why are we here?
+            return;
 
         if (textField == null) {
-            // create textField now
+            // create text field now
             textField = EditableCellUtil.createTextField(this, getConverter(), getFilter());
         }
 

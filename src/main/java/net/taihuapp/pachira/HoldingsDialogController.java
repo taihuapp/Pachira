@@ -24,7 +24,6 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -108,40 +107,38 @@ public class HoldingsDialogController {
         mPriceColumn.setCellValueFactory(p -> p.getValue().getValue().getPriceProperty());
         mPriceColumn.setComparator(null);
 
-        mPriceColumn.setCellFactory(new Callback<>() {
+        mPriceColumn.setCellFactory(col -> new EditableTreeTableCell<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(),
+                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null) {
             @Override
-            public TreeTableCell<LotView, BigDecimal> call(TreeTableColumn<LotView, BigDecimal> paramTreeTableColumn) {
-                return new TextFieldTreeTableCell<>(ConverterUtil.getPriceQuantityStringConverterInstance()) {
-                    @Override
-                    public void updateItem(BigDecimal item, boolean empty) {
-                        TreeTableRow<LotView> treeTableRow = getTreeTableRow();
-                        boolean isTotalOrCash = false;
-                        if (treeTableRow != null) {
-                            TreeItem<LotView> treeItem = treeTableRow.getTreeItem();
-                            if (treeItem != null) {
-                                final String label = treeItem.getValue().getLabel();
-                                isTotalOrCash = label.equals(SecurityHolding.TOTAL)
-                                        || label.equals(SecurityHolding.CASH);
-                                setEditable(mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) <= 1
-                                        && !isTotalOrCash); // it seems the setEditable need to be called again and again
-                            }
-                        }
-                        if (isTotalOrCash)
-                            super.updateItem(null, empty); // don't show price for TOTAL or CASH
-                        else
-                            super.updateItem(item, empty);
+            public void updateItem(BigDecimal item, boolean empty) {
+                final TreeTableRow<LotView> treeTableRow = getTreeTableRow();
+                boolean isTotalOrCash = false;
+                if (treeTableRow != null) {
+                    final TreeItem<LotView> treeItem = treeTableRow.getTreeItem();
+                    if (treeItem != null) {
+                        final String label = treeItem.getValue().getLabel();
+                        isTotalOrCash = label.equals(SecurityHolding.TOTAL)
+                                || label.equals(SecurityHolding.CASH);
+                        setEditable(mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) <= 1
+                                && !isTotalOrCash); // it seems the setEditable need to be called again and again
                     }
-                };
+                }
+                if (isTotalOrCash)
+                    super.updateItem(null, empty); // don't show price for TOTAL or CASH
+                else
+                    super.updateItem(item, empty);
             }
         });
+
         mPriceColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPriceColumn.setOnEditCommit(event -> {
-            Security security = mainModel.getSecurity(s -> s.getName()
+            final Security security = mainModel.getSecurity(s -> s.getName()
                     .equals(event.getRowValue().getValue().getLabel())).orElse(null);
             if (security == null)
                 return;
-            LocalDate date = mDatePicker.getValue();
-            BigDecimal newPrice = event.getNewValue();
+            final LocalDate date = mDatePicker.getValue();
+            final BigDecimal newPrice = event.getNewValue();
             if (newPrice == null || newPrice.signum() < 0) {
                 DialogUtil.showWarningDialog((Stage) mSecurityHoldingTreeTableView.getScene().getWindow(),
                         "Warning!", "Bad input price, change discarded!",

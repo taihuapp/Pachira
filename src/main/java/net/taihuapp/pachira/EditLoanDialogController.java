@@ -154,7 +154,7 @@ public class EditLoanDialogController {
         // two digits dollar and cents
         final BigDecimalStringConverter currencyAmountStringConverter =
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency);
-        final Pattern currencyPattern = RegExUtil.getCurrencyInputRegEx(currency);
+        final Pattern currencyPattern = RegExUtil.getCurrencyInputRegEx(currency, false);
         final TextFormatter<BigDecimal> originalAmountFormatter = new TextFormatter<>(currencyAmountStringConverter,
                 null, c -> currencyPattern.matcher(c.getControlNewText()).matches() ? c : null);
         originalAmountTextField.setTextFormatter(originalAmountFormatter);

@@ -122,7 +122,8 @@ public class EditReminderDialogController {
         final Currency currency = Currency.getInstance("USD"); // hard code usd for now
         final TextFormatter<BigDecimal> amountTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
-                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.getCurrencyInputRegEx(currency, false)
+                        .matcher(c.getControlNewText()).matches() ? c : null);
         mAmountTextField.setTextFormatter(amountTextFormatter);
         amountTextFormatter.valueProperty().bindBidirectional(mReminder.getAmountProperty());
         mAmountTextField.editableProperty().bind(mFixedAmountRadioButton.selectedProperty());

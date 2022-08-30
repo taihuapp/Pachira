@@ -453,7 +453,8 @@ public class EditTransactionDialogControllerNew {
         // Income
         final TextFormatter<BigDecimal> incomeTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
-                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.getCurrencyInputRegEx(currency, false)
+                        .matcher(c.getControlNewText()).matches() ? c : null);
         mIncomeTextField.setTextFormatter(incomeTextFormatter);
         mIncomeTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
@@ -510,7 +511,8 @@ public class EditTransactionDialogControllerNew {
         // For Corp Spin Off, this field is for input Old Share Price
         final TextFormatter<BigDecimal> commissionTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
-                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.getCurrencyInputRegEx(currency, false)
+                        .matcher(c.getControlNewText()).matches() ? c : null);
         mCommissionTextField.setTextFormatter(commissionTextFormatter);
         commissionTextFormatter.valueProperty().bindBidirectional(mTransaction.getCommissionProperty());
         mCommissionTextField.visibleProperty().bind(mPriceTextField.visibleProperty()
@@ -525,7 +527,8 @@ public class EditTransactionDialogControllerNew {
         // For Corp Spin Off, accrued interest field is for input New Share Price
         final TextFormatter<BigDecimal> accruedInterestTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
-                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.getCurrencyInputRegEx(currency, false)
+                        .matcher(c.getControlNewText()).matches() ? c : null);
         mAccruedInterestTextField.setTextFormatter(accruedInterestTextFormatter);
         accruedInterestTextFormatter.valueProperty().bindBidirectional(mTransaction.getAccruedInterestProperty());
         mAccruedInterestTextField.visibleProperty().bind(mCommissionTextField.visibleProperty());
@@ -543,7 +546,8 @@ public class EditTransactionDialogControllerNew {
         // total cost
         final TextFormatter<BigDecimal> totalTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
-                c -> RegExUtil.getCurrencyInputRegEx(currency).matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.getCurrencyInputRegEx(currency, false)
+                        .matcher(c.getControlNewText()).matches() ? c : null);
         mTotalTextField.setTextFormatter(totalTextFormatter);
         totalTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
         mTotalTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {

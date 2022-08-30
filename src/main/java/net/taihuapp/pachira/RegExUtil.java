@@ -34,17 +34,20 @@ public class RegExUtil {
 
     // this is used for price and quantity
     static Pattern getPriceQuantityInputRegEx() {
-        return getDecimalInputRegEx(ConverterUtil.PRICE_QUANTITY_FRACTION_DISPLAY_LEN);
+        // minus sign is not allowed in price and/or quantity field
+        return getDecimalInputRegEx(ConverterUtil.PRICE_QUANTITY_FRACTION_DISPLAY_LEN, false);
     }
 
     // for currency input under locale
-    static Pattern getCurrencyInputRegEx(Currency currency) {
-        return getDecimalInputRegEx(currency.getDefaultFractionDigits());
+    static Pattern getCurrencyInputRegEx(Currency currency, boolean allowNegative) {
+        return getDecimalInputRegEx(currency.getDefaultFractionDigits(), allowNegative);
     }
 
-    private static Pattern getDecimalInputRegEx(int fractionDigits) {
+    private static Pattern getDecimalInputRegEx(int fractionDigits, boolean allowNegative) {
+        final String unsignedRegEx = "(0|[1-9][%s\\d]*)?(%s\\d{0,%d})?";  // for unsigned decimal numbers
+        final String regEx = allowNegative ? ("-?" + unsignedRegEx) : unsignedRegEx; // possible minus sign
         final DecimalFormatSymbols decimalFormatSymbols = DecimalFormatSymbols.getInstance();
-        return Pattern.compile(String.format("^(0|[1-9][%s\\d]*)?(%s\\d{0,%d})?$",
+        return Pattern.compile(String.format("^" + regEx + "$",
                 Pattern.quote(String.valueOf(decimalFormatSymbols.getGroupingSeparator())),
                 Pattern.quote(String.valueOf(decimalFormatSymbols.getDecimalSeparator())),
                 fractionDigits));

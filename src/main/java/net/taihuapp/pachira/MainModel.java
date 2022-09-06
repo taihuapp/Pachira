@@ -79,8 +79,7 @@ public class MainModel {
 
     public static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     public static final int SAVEDREPORTS_NAME_LEN = 32;
-    public static final int PRICE_FRACTION_LEN = 8;
-    public static final int QUANTITY_FRACTION_LEN = 8;
+    public static final int PRICE_QUANTITY_FRACTION_LEN = 8;
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
@@ -1054,7 +1053,7 @@ public class MainModel {
                                 if (t.getTDate().isBefore(price.getDate()))
                                     break; // we're done
                                 p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(),
-                                        PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+                                        PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
                             }
                         }
                     }

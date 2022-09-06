@@ -107,14 +107,16 @@ public class SecurityHolding implements LotView {
      */
     private void adjustStockSplit(final BigDecimal newQ, final BigDecimal oldQ) {
         final BigDecimal oldHoldingQ = getQuantity();
-        final BigDecimal newHoldingQ = oldHoldingQ.multiply(newQ).divide(oldQ, MainModel.QUANTITY_FRACTION_LEN,
+        final BigDecimal newHoldingQ = oldHoldingQ.multiply(newQ).divide(oldQ, MainModel.PRICE_QUANTITY_FRACTION_LEN,
                 RoundingMode.HALF_UP);
         SecurityLot maxLot = null; // we need max lot in case have rounding error to add
         for (SecurityLot lot : securityLotList) {
             final BigDecimal oldLotQ = lot.getQuantity();
             final BigDecimal oldLotP = lot.getPrice();
-            lot.setQuantity(oldLotQ.multiply(newQ).divide(oldQ, MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
-            lot.setPrice(oldLotP.multiply(oldQ).divide(newQ, MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
+            lot.setQuantity(oldLotQ.multiply(newQ)
+                    .divide(oldQ, MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
+            lot.setPrice(oldLotP.multiply(oldQ)
+                    .divide(newQ, MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
             if (maxLot == null || maxLot.getQuantity().abs().compareTo(lot.getQuantity().abs()) < 0) {
                 // update maxLot if maxLot quantity is smaller than lot quantity
                 maxLot = lot;

@@ -89,8 +89,8 @@ public class Transaction {
                 stringBuilder.append("I").append(getPrice()).append(EOL);
             if (getQuantity() != null && getQuantity().compareTo(BigDecimal.ZERO) != 0) {
                 final BigDecimal q = getTradeAction().equals(TradeAction.STKSPLIT) ?
-                        getQuantity().multiply(BigDecimal.TEN).divide(getOldQuantity(), MainModel.QUANTITY_FRACTION_LEN,
-                                RoundingMode.HALF_UP) : getQuantity();
+                        getQuantity().multiply(BigDecimal.TEN).divide(getOldQuantity(),
+                                MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP) : getQuantity();
                 stringBuilder.append("Q").append(q).append(EOL);
             }
             if (getCommission() != null && getCommission().compareTo(BigDecimal.ZERO) != 0)
@@ -432,7 +432,7 @@ public class Transaction {
                 subTotal = amount.add(commission).add(accruedInterest);
             else
                 subTotal = amount.subtract(commission).subtract(accruedInterest);
-            return subTotal.divide(quantity, MainModel.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+            return subTotal.divide(quantity, MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
         }, getTradeActionProperty(), getAmountProperty(), getQuantityProperty(), getCommissionProperty(),
                 getAccruedInterestProperty()));
     }

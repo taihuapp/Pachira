@@ -459,7 +459,7 @@ public class DaoManager {
                 + "SECURITYID integer NOT NULL, "
                 + "TICKER varchar(" + SECURITY_TICKER_LEN + ") NOT NULL, "
                 + "DATE date NOT NULL, "
-                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + MainModel.PRICE_FRACTION_LEN + "),"
+                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + MainModel.PRICE_QUANTITY_FRACTION_LEN + "),"
                 + "PRIMARY KEY (SECURITYID, TICKER, DATE));";
         executeUpdateQuery(sqlCmd);
 
@@ -538,9 +538,9 @@ public class DaoManager {
                 + "AMORTIZATIONID integer, "
                 + "TRADEACTION varchar(" + TRANSACTION_TRADEACTION_LEN + "), "
                 + "SECURITYID integer, "
-                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + MainModel.PRICE_FRACTION_LEN + "), "
-                + "QUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + MainModel.QUANTITY_FRACTION_LEN + "), "
-                + "OLDQUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + MainModel.QUANTITY_FRACTION_LEN + "), "  // used in stock split transactions
+                + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + MainModel.PRICE_QUANTITY_FRACTION_LEN + "), "
+                + "QUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + MainModel.PRICE_QUANTITY_FRACTION_LEN + "), "
+                + "OLDQUANTITY decimal(" + QUANTITY_TOTAL_LEN + "," + MainModel.PRICE_QUANTITY_FRACTION_LEN + "), "  // used in stock split transactions
                 + "TRANSFERREMINDER varchar(" + TRANSACTION_TRANSFER_REMINDER_LEN + "), "
                 + "COMMISSION decimal(20,4), "
                 + "ACCRUEDINTEREST decimal(20,4), "
@@ -555,7 +555,7 @@ public class DaoManager {
         sqlCmd = "create table LOTMATCH ("
                 + "TransID integer NOT NULL, "
                 + "MatchID integer NOT NULL, "
-                + "MatchQuantity decimal(" + QUANTITY_TOTAL_LEN + ","  + MainModel.QUANTITY_FRACTION_LEN + "), "
+                + "MatchQuantity decimal(" + QUANTITY_TOTAL_LEN + ","  + MainModel.PRICE_QUANTITY_FRACTION_LEN + "), "
                 + "Constraint UniquePair unique (TransID, MatchID));";
         executeUpdateQuery(sqlCmd);
 

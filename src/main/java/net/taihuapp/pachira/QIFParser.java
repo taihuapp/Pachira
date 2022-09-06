@@ -417,7 +417,7 @@ class QIFParser {
                 num = Integer.parseInt(tokens[1].substring(idx1+1, idx0));
             }
             p = new BigDecimal(whole).add(new BigDecimal(num).divide(new BigDecimal(den),
-                    MainModel.PRICE_FRACTION_LEN, RoundingMode.HALF_UP));
+                    MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP));
         }
         return new Pair<>(tokens[0].replace("\"", ""),
                 new Price(parseDate(tokens[2].replace("\"", "").trim()), p));

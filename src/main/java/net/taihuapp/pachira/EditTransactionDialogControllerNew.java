@@ -722,9 +722,9 @@ public class EditTransactionDialogControllerNew {
                     BigDecimal newLotQuantity, lotPrice;
                     if (oldLotQuantity.signum() != 0) {
                         newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
-                                MainModel.QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
+                                MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
                         lotPrice = costBasis.divide(newLotQuantity,
-                                MainModel.PRICE_FRACTION_LEN, RoundingMode.HALF_UP);
+                                MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
                     } else {
                         newLotQuantity = BigDecimal.ZERO;
                         lotPrice = BigDecimal.ZERO;

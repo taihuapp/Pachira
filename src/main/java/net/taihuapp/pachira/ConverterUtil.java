@@ -189,7 +189,7 @@ public class ConverterUtil {
 
     public static DecimalFormat getDollarCentFormatInstance() { return getDollarCentFormatInstance(0); }
 
-    static final int PRICE_QUANTITY_FRACTION_DISPLAY_LEN = 6;
+    static final int PRICE_QUANTITY_FRACTION_DISPLAY_LEN = 8;
 
     public static BigDecimalStringConverter getPriceQuantityStringConverterInstance() {
         return getPriceQuantityStringConverterInstance(0, PRICE_QUANTITY_FRACTION_DISPLAY_LEN); // min 0, max 6

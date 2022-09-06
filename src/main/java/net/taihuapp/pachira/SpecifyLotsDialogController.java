@@ -33,7 +33,6 @@ import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -114,9 +113,7 @@ public class SpecifyLotsDialogController {
                     }
                 }
 
-                boolean roundingOK = selectedQ.subtract(mTransaction.getQuantity())
-                        .setScale(MainModel.QUANTITY_FRACTION_LEN-1, RoundingMode.HALF_UP)
-                        .compareTo(BigDecimal.ZERO) == 0;
+                boolean roundingOK = selectedQ.compareTo(mTransaction.getQuantity()) == 0;
 
                 if (hasResidual && !roundingOK) {
                     // show warning dialog and go back

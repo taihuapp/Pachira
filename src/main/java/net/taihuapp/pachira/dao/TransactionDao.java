@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -89,7 +89,6 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         final String payee = resultSet.getString("PAYEE");
         final String memo = resultSet.getString("MEMO");
 
-        final BigDecimal price = resultSet.getBigDecimal("PRICE");
         final BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
         final BigDecimal oldQuantity = resultSet.getBigDecimal("OLDQUANTITY");
         final BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
@@ -108,7 +107,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         final String fitid = resultSet.getString("FITID");
 
         return new Transaction(id, aid, tDate, aDate, tradeAction, status, name, reference,
-                payee, price, quantity, oldQuantity, memo, commission, accruedInterest, amount,
+                payee, quantity, oldQuantity, memo, commission, accruedInterest, amount,
                 cid, tagID, matchID, matchSplitID, stList, fitid);
     }
 
@@ -126,7 +125,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
             preparedStatement.setInt(7, transaction.getCategoryID());
             preparedStatement.setInt(8, transaction.getTagID());
             preparedStatement.setString(9, transaction.getMemo());
-            preparedStatement.setBigDecimal(10, transaction.getPrice());
+            // parameter #10 is PRICE, no longer needed
             preparedStatement.setBigDecimal(11, transaction.getQuantity());
             preparedStatement.setBigDecimal(12, transaction.getCommission());
             preparedStatement.setInt(13, transaction.getMatchID());

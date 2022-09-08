@@ -83,7 +83,7 @@ public class MainTest {
             // on 1/1/2022, deposit 4794.45 to account
             final Transaction d0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 1),
                     null, DEPOSIT, Transaction.Status.UNCLEARED, "", "", "Deposit",
-                    null, null, null, "initial deposit",
+                    null, null, "initial deposit",
                     null, null, new BigDecimal("4794.45"),
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, d0, new ArrayList<>());
@@ -91,7 +91,7 @@ public class MainTest {
             // On 1/5/2022, buy 100 Z with $10 commission, total 1010
             final Transaction z0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 5),
                     null, BUY, Transaction.Status.UNCLEARED, securityZ.getName(), "", "",
-                    new BigDecimal("100"), new BigDecimal("100"), null, "",
+                    new BigDecimal("100"), null, "",
                     new BigDecimal("10"), BigDecimal.ZERO, new BigDecimal("1010"),
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, z0, new ArrayList<>());
@@ -103,7 +103,7 @@ public class MainTest {
             // On 1/5/2022, buy 20 A, $3.45 commission, total 2003.45
             final Transaction t0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 5),
                     null, BUY, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
-                    new BigDecimal("100"), new BigDecimal("20"), null, "",
+                    new BigDecimal("20"), null, "",
                     new BigDecimal("3.45"), BigDecimal.ZERO, new BigDecimal("2003.45"),
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, t0, new ArrayList<>());
@@ -111,7 +111,7 @@ public class MainTest {
             // On 1/7/2022, buy 0 A, $3 commission, total 3.00
             final Transaction t1 = new Transaction(-1, aid, LocalDate.of(2022, 1, 7),
                     null, BUY, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
-                    new BigDecimal("50"), BigDecimal.ZERO, null, "",
+                    BigDecimal.ZERO, null, "",
                     new BigDecimal("3"), BigDecimal.ZERO, new BigDecimal("3"),
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, t1, new ArrayList<>());
@@ -119,7 +119,7 @@ public class MainTest {
             // On 1/9/2022, buy 25 A with $3 commission, total $2528
             final Transaction t2 = new Transaction(-1, aid, LocalDate.of(2022, 1, 9),
                     null, BUY, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
-                    new BigDecimal("50"), new BigDecimal("25"), null, "",
+                    new BigDecimal("25"), null, "",
                     new BigDecimal("3"), BigDecimal.ZERO, new BigDecimal("2528"),
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, t2, new ArrayList<>());
@@ -138,7 +138,7 @@ public class MainTest {
             matchInfoList.add(new MatchInfo(t2.getID(), new BigDecimal("7")));
             final Transaction s0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 9),
                     null, SELL, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
-                    new BigDecimal("50"), q, null, "",
+                    q, null, "",
                     c, BigDecimal.ZERO, amount,
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, s0, matchInfoList);
@@ -146,7 +146,7 @@ public class MainTest {
             // add a stock split transaction for Z
             final Transaction zSplit = new Transaction(-1, aid, LocalDate.of(2022, 1, 15),
                     null, STKSPLIT, Transaction.Status.UNCLEARED, securityZ.getName(), "", "",
-                    new BigDecimal("1"), new BigDecimal("2"), new BigDecimal("1"), "2 for 1 split",
+                    new BigDecimal("2"), new BigDecimal("1"), "2 for 1 split",
                     null, BigDecimal.ZERO, new BigDecimal("110"),
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, zSplit, new ArrayList<>());

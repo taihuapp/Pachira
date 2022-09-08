@@ -35,7 +35,7 @@ public class RegExUtil {
     // this is used for price and quantity
     static Pattern getPriceQuantityInputRegEx() {
         // minus sign is not allowed in price and/or quantity field
-        return getDecimalInputRegEx(ConverterUtil.PRICE_QUANTITY_FRACTION_DISPLAY_LEN, false);
+        return getDecimalInputRegEx(MainModel.PRICE_QUANTITY_FRACTION_LEN, false);
     }
 
     // for currency input under locale

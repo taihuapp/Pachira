@@ -719,24 +719,19 @@ public class EditTransactionDialogControllerNew {
                     BigDecimal costBasis = li.getCostBasis();
                     BigDecimal oldLotQuantity = li.getQuantity();
 
-                    BigDecimal newLotQuantity, lotPrice;
-                    if (oldLotQuantity.signum() != 0) {
-                        newLotQuantity = oldLotQuantity.multiply(newShares).divide(oldShares,
-                                MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
-                        lotPrice = costBasis.divide(newLotQuantity,
-                                MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
-                    } else {
-                        newLotQuantity = BigDecimal.ZERO;
-                        lotPrice = BigDecimal.ZERO;
-                    }
+                    final BigDecimal newLotQuantity = (oldLotQuantity.signum() != 0) ?
+                            oldLotQuantity.multiply(newShares).divide(oldShares,
+                                    MainModel.PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+
                     transactionList.add(new Transaction(-1, account.getID(), tDate, li.getDate(), SHRSIN,
                             Transaction.Status.UNCLEARED, newSecurity.getName(), "", "",
-                            lotPrice, newLotQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO,
+                            newLotQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO,
                             BigDecimal.ZERO, costBasis, categoryID, tagID, matchID, matchSplitID, null, ""));
                 }
                 transactionList.add(new Transaction(-1, account.getID(), tDate, tDate, SHRSOUT,
                         Transaction.Status.UNCLEARED, oldSecurity.getName(), "", "",
-                        BigDecimal.ZERO, oldQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO, BigDecimal.ZERO,
+                        oldQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO, BigDecimal.ZERO,
                         BigDecimal.ZERO, categoryID, tagID, matchID, matchSplitID, null, ""));
             }
         }

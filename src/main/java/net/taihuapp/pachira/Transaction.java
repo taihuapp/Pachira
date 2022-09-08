@@ -640,7 +640,7 @@ public class Transaction {
     // for all transactions, the amount is the notional amount, either 0 or positive
     // tradeAction can not be null
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, Status s,
-                       String securityName, String reference, String payee, BigDecimal price,
+                       String securityName, String reference, String payee,
                        BigDecimal quantity, BigDecimal oldQuantity, String memo,
                        BigDecimal commission, BigDecimal accruedInterest, BigDecimal amount,
                        int categoryID, int tagID, int matchID, int matchSplitID, List<SplitTransaction> stList,
@@ -653,7 +653,6 @@ public class Transaction {
         mADateProperty.set(aDate);
         mSecurityNameProperty.set(securityName);
         mReferenceProperty.set(reference);
-        mPriceProperty.set(price);
         mCommissionProperty.set(commission);
         mAccruedInterestProperty.set(accruedInterest);
         mMemoProperty.set(memo);
@@ -680,7 +679,7 @@ public class Transaction {
     public Transaction(Transaction t0) {
         this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getStatus(),
                 t0.getSecurityName(),
-                t0.getReference(), t0.getPayeeProperty().get(), t0.getPrice(), t0.getQuantity(),
+                t0.getReference(), t0.getPayeeProperty().get(), t0.getQuantity(),
                 t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAccruedInterest(), t0.getAmount(),
                 t0.getCategoryID(), t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID(),
                 t0.getSplitTransactionList(), t0.getFITID());

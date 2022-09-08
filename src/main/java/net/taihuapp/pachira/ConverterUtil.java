@@ -189,10 +189,8 @@ public class ConverterUtil {
 
     public static DecimalFormat getDollarCentFormatInstance() { return getDollarCentFormatInstance(0); }
 
-    static final int PRICE_QUANTITY_FRACTION_DISPLAY_LEN = 8;
-
     public static BigDecimalStringConverter getPriceQuantityStringConverterInstance() {
-        return getPriceQuantityStringConverterInstance(0, PRICE_QUANTITY_FRACTION_DISPLAY_LEN); // min 0, max 6
+        return getPriceQuantityStringConverterInstance(0, MainModel.PRICE_QUANTITY_FRACTION_LEN); // min 0, max 8
     }
 
     // display price/quantity using with minimum of minFractionDigits and maximum of maxFractionDigits
@@ -215,7 +213,7 @@ public class ConverterUtil {
     }
 
     public static DecimalFormat getPriceQuantityFormatInstance() {
-        return getPriceQuantityFormatInstance(0, PRICE_QUANTITY_FRACTION_DISPLAY_LEN);  // default min 0, max 6
+        return getPriceQuantityFormatInstance(0, MainModel.PRICE_QUANTITY_FRACTION_LEN);  // default min 0, max 8
     }
 
     public static DecimalFormat getPriceQuantityFormatInstance(int minFractionDigits, int maxFractionDigits) {

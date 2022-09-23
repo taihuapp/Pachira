@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class MainTest {
     @BeforeEach
@@ -89,12 +90,19 @@ public class MainTest {
             mainModel.alterTransaction(null, d0, new ArrayList<>());
 
             // On 1/5/2022, buy 100 Z with $10 commission, total 1010
+            final BigDecimal badQuantity = BigDecimal.valueOf(200);
             final Transaction z0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 5),
                     null, BUY, Transaction.Status.UNCLEARED, securityZ.getName(), "", "",
-                    new BigDecimal("100"), null, "",
+                    badQuantity, null, "",
                     new BigDecimal("10"), BigDecimal.ZERO, new BigDecimal("1010"),
                     0, -1, -1, -1, new ArrayList<>(), "");
             mainModel.alterTransaction(null, z0, new ArrayList<>());
+
+            // testing update
+            final Transaction z0Copy = new Transaction(z0);
+            final BigDecimal quantity = BigDecimal.valueOf(100);
+            z0Copy.setQuantity(quantity);
+            mainModel.alterTransaction(z0, z0Copy, new ArrayList<>());
 
             // we should see 3 entries for the security holding list on 1/6/2022
             assert(mainModel.computeSecurityHoldings(account.getTransactionList(),
@@ -198,7 +206,7 @@ public class MainTest {
             final Optional<SecurityHolding> shZOptional2 = securityHoldingList2.stream()
                     .filter(sh -> sh.getSecurityName().equals(securityZ.getName())).findAny();
             assert(shZOptional2.isPresent());
-            assert(shZOptional2.get().getQuantity().compareTo(BigDecimal.valueOf(100))== 0);
+            assert(shZOptional2.get().getQuantity().compareTo(quantity)== 0);
 
             final List<SecurityHolding> securityHoldingList3 =
                     mainModel.computeSecurityHoldings(account.getTransactionList(),
@@ -208,7 +216,7 @@ public class MainTest {
             assert(shZOptional3.isPresent());
             assert(shZOptional3.get().getQuantity().compareTo(BigDecimal.valueOf(200))== 0);
         } catch (DaoException | ModelException | IOException e) {
-            System.err.println(e.getMessage());
+            fail(e.toString());
         }
     }
 }

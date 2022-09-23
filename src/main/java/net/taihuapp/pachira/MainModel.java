@@ -1291,9 +1291,9 @@ public class MainModel {
                 // check ADate for SHRSIN
                 if (newTTA == SHRSIN) {
                     final LocalDate aDate = newT.getADate();
-                    if (aDate == null || aDate.isAfter(newT.getTDate())) {
+                    if (aDate != null && aDate.isAfter(newT.getTDate())) {
                         throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
-                                "Acquisition date '" + aDate + "' should be on or before trade date '"
+                                "Acquisition date '" + aDate + "' should not be after the trade date '"
                                         + newT.getTDate() + "'", null);
                     }
                 }

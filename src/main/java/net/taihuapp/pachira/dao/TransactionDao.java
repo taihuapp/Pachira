@@ -60,8 +60,8 @@ public class TransactionDao extends Dao<Transaction, Integer> {
     @Override
     String[] getColumnNames() {
         return new String[]{ "ACCOUNTID", "DATE", "AMOUNT", "TRADEACTION", "SECURITYID", "STATUS", "CATEGORYID",
-                "TAGID", "MEMO", "PRICE", "QUANTITY", "COMMISSION", "MATCHTRANSACTIONID", "MATCHSPLITTRANSACTIONID",
-                "PAYEE", "ADATE", "OLDQUANTITY", "REFERENCE", "SPLITFLAG", "ACCRUEDINTEREST", "FITID" };
+                "TAGID", "MEMO", "FITID", "QUANTITY", "COMMISSION", "MATCHTRANSACTIONID", "MATCHSPLITTRANSACTIONID",
+                "PAYEE", "ADATE", "OLDQUANTITY", "REFERENCE", "SPLITFLAG", "ACCRUEDINTEREST" };
     }
 
     @Override
@@ -88,7 +88,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         final String reference = resultSet.getString("REFERENCE");
         final String payee = resultSet.getString("PAYEE");
         final String memo = resultSet.getString("MEMO");
-
+        final String fitid = resultSet.getString("FITID");
         final BigDecimal quantity = resultSet.getBigDecimal("QUANTITY");
         final BigDecimal oldQuantity = resultSet.getBigDecimal("OLDQUANTITY");
         final BigDecimal commission = resultSet.getBigDecimal("COMMISSION");
@@ -103,8 +103,6 @@ public class TransactionDao extends Dao<Transaction, Integer> {
 
         final boolean splitFlag = resultSet.getBoolean("SPLITFLAG");
         final List<SplitTransaction> stList = splitFlag ? tidSplitTransactionListMap.get(id) : new ArrayList<>();
-
-        final String fitid = resultSet.getString("FITID");
 
         return new Transaction(id, aid, tDate, aDate, tradeAction, status, name, reference,
                 payee, quantity, oldQuantity, memo, commission, accruedInterest, amount,
@@ -125,7 +123,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
             preparedStatement.setInt(7, transaction.getCategoryID());
             preparedStatement.setInt(8, transaction.getTagID());
             preparedStatement.setString(9, transaction.getMemo());
-            // parameter #10 is PRICE, no longer needed
+            preparedStatement.setString(10, transaction.getFITID());
             preparedStatement.setBigDecimal(11, transaction.getQuantity());
             preparedStatement.setBigDecimal(12, transaction.getCommission());
             preparedStatement.setInt(13, transaction.getMatchID());
@@ -136,9 +134,8 @@ public class TransactionDao extends Dao<Transaction, Integer> {
             preparedStatement.setString(18, transaction.getReference());
             preparedStatement.setBoolean(19, transaction.isSplit());
             preparedStatement.setBigDecimal(20, transaction.getAccruedInterest());
-            preparedStatement.setString(21, transaction.getFITID());
             if (withKey)
-                preparedStatement.setInt(22, transaction.getID());
+                preparedStatement.setInt(21, transaction.getID());
         } catch (DaoException e) {
             if (e.getCause() instanceof SQLException)
                 throw (SQLException) e.getCause();

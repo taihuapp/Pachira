@@ -981,7 +981,7 @@ public class MainModel {
 
     /**
      * compute security holdings for a given transaction up to the given date, excluding a given transaction
-     * the input list should have the same account id and ordered according the account type
+     * the input list should have the same account id and ordered according to the rule by the account type
      * @param tList - an observableList of transactions
      * @param date - the date to compute up to
      * @param exTid - the id of the transaction to be excluded.
@@ -992,8 +992,7 @@ public class MainModel {
             throws DaoException {
         // 'total cash' is the cash amount for the account to the last transaction in the tList
         // 'total cash now' is the cash amount for the account up to the 'date'
-        Currency usd = Currency.getInstance("USD");
-        int fractionDigits = usd.getDefaultFractionDigits();
+        final int fractionDigits = Currency.getInstance("USD").getDefaultFractionDigits();
         BigDecimal totalCash = BigDecimal.ZERO.setScale(fractionDigits, RoundingMode.HALF_UP);
         BigDecimal totalCashNow = totalCash;
         final Map<String, SecurityHolding> shMap = new HashMap<>();  // map of security name and securityHolding
@@ -1007,7 +1006,7 @@ public class MainModel {
 
             t.setBalance(totalCash); // set the cash balance for the transaction
 
-            if ((t.getTDate().equals(date) && t.getID() == exTid) || t.getTDate().isAfter(date))
+            if ((t.getID() == exTid) || t.getTDate().isAfter(date))
                 continue;
 
             final String name = t.getSecurityName();
@@ -1024,14 +1023,13 @@ public class MainModel {
 
         BigDecimal totalMarketValue = totalCashNow;
         BigDecimal totalCostBasis = totalCashNow;
-        SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
-        List<SecurityHolding> securityHoldingList = new ArrayList<>();
-        for (SecurityHolding securityHolding : shMap.values()) {
-            if (securityHolding.getQuantity().compareTo(BigDecimal.ZERO) == 0)
-                continue;  // zero holding, skip
-
-            securityHoldingList.add(securityHolding);
-
+        final SecurityPriceDao securityPriceDao =
+                (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
+        final List<SecurityHolding> securityHoldingList = shMap.values().stream()
+                .filter(sh -> sh.getQuantity().signum() != 0)
+                .sorted(Comparator.comparing(SecurityHolding::getSecurityName))
+                .collect(Collectors.toList());
+        for (SecurityHolding securityHolding : securityHoldingList) {
             Optional<Security> securityOptional = getSecurity(s ->
                     s.getName().equals(securityHolding.getSecurityName()));
             if (securityOptional.isPresent()) {

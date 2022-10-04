@@ -28,7 +28,9 @@ import java.time.LocalDate;
 
 public class SpecifyLotInfo extends SecurityLot {
 
+    // selected shares is always non-negative.
     private final ObjectProperty<BigDecimal> mSelectedSharesProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+    private final ObjectProperty<BigDecimal> selectedCostBasisProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> mRealizedPNLProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
     private final ObjectProperty<BigDecimal> proceedsProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
@@ -54,7 +56,7 @@ public class SpecifyLotInfo extends SecurityLot {
     BigDecimal getSelectedShares() {
         return getSelectedSharesProperty().get();
     }
-
+    BigDecimal getSelectedCostBasis() { return selectedCostBasisProperty.get(); }
     BigDecimal getProceeds() {
         return proceedsProperty.get();
     }
@@ -64,11 +66,24 @@ public class SpecifyLotInfo extends SecurityLot {
     }
 
     void updateSelectedShares(BigDecimal s, SecurityLot tradedLot) {
-        mSelectedSharesProperty.set(s);
+        if (getSelectedShares() != null && getSelectedShares().signum() != 0) {
+            // unwind the previous selection
+            if (getTradeAction() == Transaction.TradeAction.SHTSELL)
+                setQuantity(getQuantity().subtract(getSelectedShares()));
+            else
+                setQuantity(getQuantity().add(getSelectedShares()));
+            setCostBasis(getCostBasis().add(getSelectedCostBasis()));
+            mRealizedPNLProperty.set(BigDecimal.ZERO);
+            proceedsProperty.set(BigDecimal.ZERO);
+        }
+
         final BigDecimal tradedCostBasis = tradedLot.getCostBasis();
+        final BigDecimal costBasis = getCostBasis();
         getRealizedPNLProperty().set(SecurityLot.matchLots(this, tradedLot, s));
         // sell proceeds prorated to this lot is the difference of traded lot cost basis
         // before and after lot matching.
         proceedsProperty.set(tradedLot.getCostBasis().subtract(tradedCostBasis));
+        mSelectedSharesProperty.set(s);
+        selectedCostBasisProperty.set(costBasis.subtract(getCostBasis()));
     }
 }

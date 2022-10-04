@@ -20,19 +20,19 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.Stage;
-import javafx.util.converter.BigDecimalStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -148,19 +148,28 @@ public class SpecifyLotsDialogController {
         mMatchInfoList = matchInfoList;  // a link point to the input list
         mTransaction = t;
 
+        final DecimalFormat pqFormat = ConverterUtil.getPriceQuantityFormatInstance();
+        final DecimalFormat dcFormat = ConverterUtil.getDollarCentFormatInstance();
+        final BigDecimal totalAmt = mTransaction.getAmount();
+        final String amountStr = dcFormat.format(totalAmt);
+        final BigDecimal q = mTransaction.getQuantity();
+        final String qStr = pqFormat.format(q);
+        final BigDecimal costPerShare = totalAmt.divide(q, MainModel.PRICE_QUANTITY_FRACTION_LEN,
+                RoundingMode.HALF_UP);
+        final String cStr = pqFormat.format(costPerShare);
         if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
-            mMainLabel0.setText("" + mTransaction.getQuantity() + " shares of "
-                    + mTransaction.getSecurityName() + " sold at "
-                    + mTransaction.getPrice() + " per share");
+            mMainLabel0.setText(qStr + " shares of "
+                    + mTransaction.getSecurityName() + " sold for " + amountStr
+                    + " at " + cStr + " per share");
             mMainLabel1.setText("Please select share(s) to be sold");
         } else {
             // should be CVTSHRT
-            mMainLabel0.setText("" + mTransaction.getQuantity() + " shares of "
-                    + mTransaction.getSecurityName() + " bought at "
-                    + mTransaction.getPrice() + " per share");
+            mMainLabel0.setText(qStr + " shares of "
+                    + mTransaction.getSecurityName() + " bought for " + amountStr
+                    + " at " + cStr + " per share");
             mMainLabel1.setText("Please select share(s) to be covered");
         }
-        mTotalSharesLabel.setText(""+mTransaction.getQuantity());
+        mTotalSharesLabel.setText(qStr);
 
         Account account = mainModel.getAccount(a -> a.getID() == t.getAccountID()).orElse(null);
         if (account == null) {
@@ -198,12 +207,12 @@ public class SpecifyLotsDialogController {
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {
                     SpecifyLotInfo sli = row.getItem();
-                    final BigDecimal matchQuantity;
+                    BigDecimal matchQuantity = null;
                     if (sli.getSelectedShares() == null || (sli.getSelectedShares().signum() == 0)) {
                         // not selected, select as much as possible for this lot
-                        matchQuantity = mTransaction.getQuantity().subtract(getSelectedShares()).min(sli.getQuantity());
-                    } else {
-                        matchQuantity = null;
+                        matchQuantity = mTransaction.getQuantity().subtract(getSelectedShares());
+                        if (matchQuantity.abs().compareTo(sli.getQuantity().abs()) > 0)
+                            matchQuantity = sli.getQuantity();
                     }
                     sli.updateSelectedShares(matchQuantity, new SecurityLot(mTransaction, sli.getScale()));
                     updateSelectedShares();
@@ -214,20 +223,60 @@ public class SpecifyLotsDialogController {
         mDateColumn.setCellValueFactory(cellData -> new ReadOnlyObjectWrapper<>(cellData.getValue().getDate()));
         mTypeColumn.setCellValueFactory(cellData -> new ReadOnlyObjectWrapper<>(cellData.getValue().getTradeAction()));
         mPriceColumn.setCellValueFactory(cellData->cellData.getValue().getPriceProperty());
-        mQuantityColumn.setCellValueFactory(cellData->new SimpleObjectProperty<>(cellData.getValue().getQuantity().abs()));
+        mPriceColumn.setCellFactory(c -> new TableCell<>() {
+            @Override
+            protected void updateItem(BigDecimal item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty)
+                    setText("");
+                else {
+                    setText(ConverterUtil.getPriceQuantityStringConverterInstance().toString(item));
+                }
+            }
+        });
+        mPriceColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+        mQuantityColumn.setCellValueFactory(cd -> Bindings.createObjectBinding(() -> {
+            final SpecifyLotInfo sli = cd.getValue();
+            final BigDecimal quantity = sli.getQuantity() == null ? BigDecimal.ZERO : sli.getQuantity();
+            final BigDecimal selected = sli.getSelectedShares() == null ? BigDecimal.ZERO : sli.getSelectedShares();
+            // quantity is signed, but selected is always non-negative
+            return sli.getTradeAction() == Transaction.TradeAction.SHTSELL ?
+                    quantity.subtract(selected).negate() : quantity.add(selected);
+        }, cd.getValue().getQuantityProperty(), cd.getValue().getSelectedSharesProperty()));
+        mQuantityColumn.setCellFactory(c -> new TableCell<>() {
+            @Override
+            protected void updateItem(BigDecimal item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty)
+                    setText("");
+                else {
+                    setText(ConverterUtil.getPriceQuantityStringConverterInstance().toString(item));
+                }
+            }
+        });
+        mQuantityColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mSelectedColumn.setCellValueFactory(cellData->cellData.getValue().getSelectedSharesProperty());
         mPNLColumn.setCellValueFactory(cellData->cellData.getValue().getRealizedPNLProperty());
-
-        mSelectedColumn.setCellFactory(TextFieldTableCell.forTableColumn(new BigDecimalStringConverter()));
+        mPNLColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+        mSelectedColumn.setCellFactory(cell -> new EditableTableCell<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(),
+                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null));
+        mSelectedColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mSelectedColumn.setOnEditCommit(
                 event -> {
+                    BigDecimal ov = event.getOldValue();
+                    if (ov == null)
+                        ov = BigDecimal.ZERO;
                     BigDecimal nv = event.getNewValue();
                     if (nv == null)
                         nv = BigDecimal.ZERO;
                     SpecifyLotInfo sli = event.getRowValue();
-                    BigDecimal ava = sli.getQuantity();
-                    if (nv.compareTo(ava) > 0)
-                        nv = ava;
+                    final BigDecimal ava = sli.getQuantity().abs();
+                    final BigDecimal total = ava.add(ov);
+                    if (nv.compareTo(total) > 0)
+                        nv = total; // exceeded total
+                    if (sli.getTradeAction() == Transaction.TradeAction.SHTSELL)
+                        nv = nv.negate(); // short sale carries a negative sign
                     sli.updateSelectedShares(nv, new SecurityLot(mTransaction, sli.getScale()));
                     updateSelectedShares();
                 }
@@ -253,11 +302,13 @@ public class SpecifyLotsDialogController {
         final BigDecimal selected = getSelectedShares();
         final BigDecimal realizedPNL = getRealizedPnL();
 
-        mSelectedSharesLabel.setText("" + selected);
-        mPNLLabel.setText("" + realizedPNL);
+        final DecimalFormat pqFormat = ConverterUtil.getPriceQuantityFormatInstance();
+        final DecimalFormat dollarCentFormat = ConverterUtil.getDollarCentFormatInstance();
+        mSelectedSharesLabel.setText(pqFormat.format(selected));
+        mPNLLabel.setText(dollarCentFormat.format(realizedPNL));
         if (mTransaction.getQuantity() == null)
             mTransaction.setQuantity(BigDecimal.ZERO);
 
-        mRemainingSharesLabel.setText("" + (mTransaction.getQuantity().subtract(selected)));
+        mRemainingSharesLabel.setText(pqFormat.format(mTransaction.getQuantity().subtract(selected)));
     }
 }

@@ -1189,28 +1189,35 @@ public class ReportDialogController {
                     line.aName = account.getName();
                     line.sName = t.getSecurityName();
                     line.quantity = qpFormat.format(sli.getSelectedShares());
+                    final BigDecimal costBasis, proceeds;
+                    final BigDecimal realizedPNL = sli.getRealizedPNL();
                     if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
                         line.sDate = t.getTDate().toString();
                         line.bDate = sli.getDate().toString();
+                        proceeds = sli.getProceeds();
+                        costBasis = proceeds.subtract(realizedPNL);
                     } else {
+                        // short covering
                         line.sDate = sli.getDate().toString();
                         line.bDate = t.getTDate().toString();
+                        costBasis = sli.getProceeds().negate();
+                        proceeds = costBasis.add(realizedPNL);
                     }
-                    line.proceeds = dcFormat.format(sli.getProceeds());
-                    line.costBasis = dcFormat.format(sli.getProceeds().subtract(sli.getRealizedPNL()));
-                    line.realizedGL = dcFormat.format(sli.getRealizedPNL());
+                    line.proceeds = dcFormat.format(proceeds);
+                    line.costBasis = dcFormat.format(costBasis);
+                    line.realizedGL = dcFormat.format(realizedPNL);
                     if (sli.isShortTerm(t.getTDate())) {
                         detailSTGLines.add(line);
                         stgLotList.add(sli);
 
-                        totalSTCostBasis = totalSTCostBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
-                        totalSTPnL = totalSTPnL.add(sli.getRealizedPNL());
+                        totalSTCostBasis = totalSTCostBasis.add(costBasis);
+                        totalSTPnL = totalSTPnL.add(realizedPNL);
                     } else {
                         detailLTGLines.add(line);
                         ltgLotList.add(sli);
 
-                        totalLTCostBasis = totalLTCostBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
-                        totalLTPnL = totalLTPnL.add(sli.getRealizedPNL());
+                        totalLTCostBasis = totalLTCostBasis.add(costBasis);
+                        totalLTPnL = totalLTPnL.add(realizedPNL);
                     }
                 }
                 if (!stgLotList.isEmpty()) {
@@ -1232,13 +1239,15 @@ public class ReportDialogController {
                         // The covering transaction is a sell
                         line.sDate = t.getTDate().toString();
                         line.bDate = lotDateStr;
+                        line.costBasis = dcFormat.format(costBasis);
+                        line.proceeds = dcFormat.format(pnl.add(costBasis));
                     } else {
                         // The covering transaction is a short covering buy
                         line.bDate = t.getTDate().toString();
                         line.sDate = lotDateStr;
+                        line.costBasis = dcFormat.format(pnl.add(costBasis).negate());
+                        line.proceeds = dcFormat.format(costBasis.negate());
                     }
-                    line.costBasis = dcFormat.format(costBasis);
-                    line.proceeds = dcFormat.format(pnl.add(costBasis));
                     line.realizedGL = dcFormat.format(pnl);
                     transactionSTGLines.add(line);
                 }
@@ -1261,13 +1270,15 @@ public class ReportDialogController {
                         // the covering transaction is a sell
                         line.sDate = t.getTDate().toString();
                         line.bDate = lotDateStr;
+                        line.costBasis = dcFormat.format(costBasis);
+                        line.proceeds = dcFormat.format(costBasis.add(pnl));
                     } else {
                         // short covering buy
                         line.bDate = t.getTDate().toString();
                         line.sDate = lotDateStr;
+                        line.costBasis = dcFormat.format(costBasis.add(pnl).negate());
+                        line.proceeds = dcFormat.format(costBasis.negate());
                     }
-                    line.costBasis = dcFormat.format(costBasis);
-                    line.proceeds = dcFormat.format(costBasis.add(pnl));
                     line.realizedGL = dcFormat.format(pnl);
                     transactionLTGLines.add(line);
                 }
@@ -1314,7 +1325,7 @@ public class ReportDialogController {
         allLines.add(totalLine);
 
         for (Line line : allLines) {
-            aNameLen = Math.max(line.aName.length(), aNameLen);
+            aNameLen = Math.max(line.aName.length()+1, aNameLen);
             sNameLen = Math.max(line.sName.length(), sNameLen);
             quantityLen = Math.max(line.quantity.length(), quantityLen);
             bDateLen = Math.max(line.bDate.length(), bDateLen);
@@ -1335,7 +1346,7 @@ public class ReportDialogController {
                 + "%" + (gap+realizedGLLen) + "s"
                 + "\n";
 
-        final String s0 = new String(new char[aNameLen + (gap+sNameLen)
+        final String s0 = new String(new char[(aNameLen) + (gap+sNameLen)
                 + (gap+quantityLen) + (gap+bDateLen) + (gap+sDateLen) + (gap+proceedsLen)
                 + (gap+costBasisLen) + (gap+realizedGLLen)]).replace("\0", "=") + "\n";
         final String s1 = s0.replace("=", "-");

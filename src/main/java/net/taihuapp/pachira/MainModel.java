@@ -1443,6 +1443,16 @@ public class MainModel {
                                 xferT.setAmount(amount.negate());
                             }
                         } else if (!xferT.isCash()) {
+                            // non-cash, first check transfer account type
+                            final Optional<Account> xferAcctOpt = getAccount(a -> a.getID() == -newT.getCategoryID());
+                            if (xferAcctOpt.isEmpty()) {
+                                throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                        "Transfer account " + (-newT.getCategoryID()) + " does not exist", null);
+                            }
+                            if (!xferAcctOpt.get().getType().isGroup(Account.Type.Group.INVESTING)) {
+                                throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                        "Non-cash transaction can only placed in Investing account", null);
+                            }
                             // non-cash, check trade action compatibility
                             if (xferT.TransferTradeAction() != newT.getTradeAction()) {
                                 throw new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,

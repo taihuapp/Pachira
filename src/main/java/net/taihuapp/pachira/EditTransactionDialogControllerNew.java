@@ -814,6 +814,13 @@ public class EditTransactionDialogControllerNew {
         final int accountID = mTransaction.getAccountID();
         final int categoryID = mTransaction.getCategoryID();
 
+        if (mTotalTextField.isVisible() && mTransaction.getAmount() == null) {
+            mLogger.warn("Amount cannot be empty.");
+            showWarningDialog("Amount cannot be empty",
+                    "Please enter a valid amount");
+            return false;
+        }
+
         // check transfer account
         if (categoryID < 0) {
             if (accountID == -categoryID) {

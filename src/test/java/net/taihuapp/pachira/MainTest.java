@@ -32,8 +32,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -44,6 +46,22 @@ public class MainTest {
 
     @AfterEach
     void tearDown() { System.out.println("MainTest tearDown"); }
+
+    @Test
+    void testRegEx() {
+        final Pattern currencyPattern = RegExUtil.getCurrencyInputRegEx(Currency.getInstance("USD"), false);
+        // these are strings should be accepted
+        for (String s : List.of("", "0", "0.", "0.12", "123,456.78")) {
+            if (!currencyPattern.matcher(s).matches())
+                fail("'" + s + "' should be accepted but rejected");
+        }
+
+        // these are strings should be rejected
+        for (String s : List.of("0,.3", "0.1a", "123.456", "0.12.345")) {
+            if (currencyPattern.matcher(s).matches())
+                fail("'" + s + "' should be rejected but accepted");
+        }
+    }
 
     @Test
     void myTest() {

@@ -30,7 +30,6 @@ import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
 import net.taihuapp.pachira.dao.ReminderDao;
 import net.taihuapp.pachira.dao.ReminderTransactionDao;
-import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -42,8 +41,6 @@ import java.util.stream.Collectors;
  * a class to manage Reminders and Reminder Transactions
  */
 public class ReminderModel {
-
-    private static final Logger logger = Logger.getLogger(ReminderModel.class);
 
     private final MainModel mainModel; // we need a MainModel reference to handle transactions, accounts, etc
     private final Map<Integer, Reminder> reminderIdMap = new HashMap<>();
@@ -65,23 +62,13 @@ public class ReminderModel {
         // setup reminder transaction list
         final List<ReminderTransaction> rtList =
                 ((ReminderTransactionDao) daoManager.getDao(DaoManager.DaoType.REMINDER_TRANSACTION)).getAll();
-        final Set<Integer> missingReminderIdSet = new TreeSet<>();
         final Map<Integer, List<ReminderTransaction>> rtMap = new HashMap<>();
 
-        int cnt = 0;
         for (ReminderTransaction rt : rtList) {
             if (reminderIdMap.containsKey(rt.getReminderId())) {
                 reminderTransactions.add(rt); // add to the master list
                 rtMap.computeIfAbsent(rt.getReminderId(), k -> new ArrayList<>()).add(rt);
-            } else {
-                missingReminderIdSet.add(rt.getReminderId());
-                cnt++;
             }
-        }
-
-        if (cnt > 0) {
-            logger.warn(cnt + " reminder transaction without valid reminder.  Missing reminder ids: "
-                    + missingReminderIdSet);
         }
 
         updateReminderTransactionList();

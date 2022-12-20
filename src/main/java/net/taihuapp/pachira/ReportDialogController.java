@@ -55,15 +55,26 @@ public class ReportDialogController {
     public enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS, COSTBASIS }
     public enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
     public enum DatePeriod {
-        TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE,
-        WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
-        LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR,
-        LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD;
+        TODAY("Today"), YESTERDAY("Yesterday"), LASTEOM("End of Last Month"),
+        LASTEOQ("End of Last Quarter"), LASTEOY("End of Last Year"), CUSTOMDATE("Customized Date"),
+        WEEKTODATE("Week to Date"), MONTHTODATE("Month to Date"), QUARTERTODATE("Quarter to Date"),
+        YEARTODATE("Year to Date"), EPOCHTODATE("Epoch to Date"),
+        LASTWEEK("Last Week"), LASTMONTH("Last Month"), LASTQUARTER("Last Quarter"),
+        LASTYEAR("Last Year"), LAST7DAYS("Las 7 Days"), LAST30DAYS("Last 30 Days"),
+        LAST365DAYS("Last 365 Days"), CUSTOMPERIOD("Customized Period");
 
+        // these are the date settings
         static final EnumSet<DatePeriod> groupD = EnumSet.of(TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE);
+        // these are the period settings
         static final EnumSet<DatePeriod> groupP = EnumSet.of(WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE,
                 EPOCHTODATE, LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS,
                 CUSTOMPERIOD);
+
+        private final String value;
+        DatePeriod(String v) { value = v; }
+
+        @Override
+        public String toString() { return value; }
     }
 
     public enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }

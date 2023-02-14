@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import com.opencsv.exceptions.CsvException;
 import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
 import com.webcohesion.ofx4j.domain.data.common.TransactionType;
@@ -945,7 +946,7 @@ public class MainController {
             }
             DialogUtil.showInformationDialog(stage, "Import Prices", priceList.size() + " prices imported",
                     message.toString());
-        } catch (IOException e) {
+        } catch (IOException | CsvException e) {
             logAndDisplayException("Failed to open file " + file.getAbsolutePath() + " for read", e);
         } catch (DaoException e) {
             logAndDisplayException("Database exception " + e.getErrorCode(), e);

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
-            <version>4.5</version>
+            <version>5.7.1</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.openjfx/javafx -->
         <dependency>

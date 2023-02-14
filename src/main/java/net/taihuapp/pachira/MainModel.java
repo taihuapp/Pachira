@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -22,6 +22,7 @@ package net.taihuapp.pachira;
 
 import com.google.common.collect.ImmutableList;
 import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvException;
 import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.client.AccountStatement;
 import com.webcohesion.ofx4j.client.FinancialInstitution;
@@ -761,7 +762,8 @@ public class MainModel {
      * @param file - a file object of the csv file
      * @return - a Pair object of a list of accepted security prices and a list of rejected lines
      */
-    public Pair<List<Pair<Security, Price>>, List<String[]>> importPrices(File file) throws IOException, DaoException {
+    public Pair<List<Pair<Security, Price>>, List<String[]>> importPrices(File file)
+            throws IOException, CsvException, DaoException {
         final List<Pair<Security, Price>> priceList = new ArrayList<>();
         final List<String[]> skippedLines = new ArrayList<>();
 

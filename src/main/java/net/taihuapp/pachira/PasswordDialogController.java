@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -23,24 +23,25 @@ package net.taihuapp.pachira;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
 import javafx.stage.Stage;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class PasswordDialogController implements ChangeListener<String> {
 
-    private static final Logger mLogger = Logger.getLogger(PasswordDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(PasswordDialogController.class);
 
     enum MODE {ENTER, NEW, CHANGE}
 
     private Stage mDialogStage;
 
-    private List<String> mPasswords = new ArrayList<>();
+    final private List<String> mPasswords = new ArrayList<>();
 
     @FXML
     private Label mCurrentPasswordLabel;
@@ -87,7 +88,7 @@ public class PasswordDialogController implements ChangeListener<String> {
                 mOKButton.setVisible(true);
                 break;
             default:
-                mLogger.error("Unknown mode " + mode.toString());
+                mLogger.error("Unknown mode " + mode);
                 break;
         }
     }

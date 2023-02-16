@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -32,7 +32,8 @@ import javafx.stage.Stage;
 import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -44,7 +45,7 @@ import java.util.stream.Collectors;
 
 public class EditLoanDialogController {
 
-    private static final Logger logger = Logger.getLogger(EditLoanDialogController.class);
+    private static final Logger logger = LogManager.getLogger(EditLoanDialogController.class);
 
     private MainModel mainModel;
     private Loan loan;

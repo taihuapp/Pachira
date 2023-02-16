@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -28,7 +28,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -39,7 +40,7 @@ import java.util.Objects;
 
 public class SpecifyLotsDialogController {
 
-    private static final Logger mLogger = Logger.getLogger(SpecifyLotsDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(SpecifyLotsDialogController.class);
 
     private Transaction mTransaction;
     private List<MatchInfo> mMatchInfoList = null;

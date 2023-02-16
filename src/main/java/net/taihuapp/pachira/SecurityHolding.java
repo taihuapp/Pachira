@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -26,7 +26,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -39,7 +40,7 @@ public class SecurityHolding implements LotView {
     static final String TOTAL = "TOTAL";
     private final int decimalScale; // number of decimal places to use
     private final String securityName;
-    private static final Logger logger = Logger.getLogger(SecurityHolding.class);
+    private static final Logger logger = LogManager.getLogger(SecurityHolding.class);
 
     private final ObservableList<SecurityLot> securityLotList;
     private final ObjectProperty<BigDecimal> priceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -28,7 +28,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.security.KeyStoreException;
@@ -39,7 +40,7 @@ import java.util.List;
 
 public class DirectConnectionListDialogController {
 
-    private static final Logger mLogger = Logger.getLogger(DirectConnectionListDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(DirectConnectionListDialogController.class);
 
     private MainModel mainModel;
 

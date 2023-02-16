@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -32,7 +32,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.util.Callback;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.net.URL;
@@ -47,7 +48,7 @@ import java.util.Optional;
 
 class TransactionTableView extends TableView<Transaction> {
 
-    private static final Logger logger = Logger.getLogger(TransactionTableView.class);
+    private static final Logger logger = LogManager.getLogger(TransactionTableView.class);
 
     static final String CSS_FILE_NAME = "/css/TransactionTableView.css";
 

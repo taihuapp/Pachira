@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -31,7 +31,8 @@ import com.webcohesion.ofx4j.domain.data.common.TransactionType;
 import com.webcohesion.ofx4j.io.DefaultHandler;
 import com.webcohesion.ofx4j.io.OFXParseException;
 import com.webcohesion.ofx4j.io.nanoxml.NanoXMLOFXReader;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,7 +43,7 @@ import java.util.*;
 
 public class OFXBankStatementReader {
 
-    private static final Logger mLogger = Logger.getLogger(OFXBankStatementReader.class);
+    private static final Logger mLogger = LogManager.getLogger(OFXBankStatementReader.class);
     private String mWarning;
 
     static Date parseOFXDateTime(String dtString) {

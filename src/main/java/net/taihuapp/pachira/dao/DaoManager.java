@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,7 +24,8 @@ import net.taihuapp.pachira.Account;
 import net.taihuapp.pachira.MainModel;
 import net.taihuapp.pachira.SplitTransaction;
 import net.taihuapp.pachira.Transaction;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.h2.api.ErrorCode;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.RunScript;
@@ -87,7 +88,7 @@ public class DaoManager {
     private static final int QUANTITY_TOTAL_LEN = 20;
 
     // the logger
-    private static final Logger logger = Logger.getLogger(DaoManager.class);
+    private static final Logger logger = LogManager.getLogger(DaoManager.class);
 
     // the connection to the database
     private Connection connection = null;

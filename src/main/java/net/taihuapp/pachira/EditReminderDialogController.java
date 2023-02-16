@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -28,7 +28,8 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.controlsfx.control.textfield.TextFields;
 
 import java.io.IOException;
@@ -41,7 +42,7 @@ import java.util.stream.Collectors;
 
 public class EditReminderDialogController {
 
-    private static final Logger logger = Logger.getLogger(EditReminderDialogController.class);
+    private static final Logger logger = LogManager.getLogger(EditReminderDialogController.class);
 
     private ReminderModel reminderModel;
     private Reminder mReminder;

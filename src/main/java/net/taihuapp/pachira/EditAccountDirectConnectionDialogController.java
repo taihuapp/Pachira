@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -38,7 +38,8 @@ import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -52,7 +53,7 @@ import java.util.Arrays;
 
 public class EditAccountDirectConnectionDialogController {
 
-    private static final Logger mLogger = Logger.getLogger(EditAccountDirectConnectionDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(EditAccountDirectConnectionDialogController.class);
 
     private class DCInfoConverter extends StringConverter<DirectConnection> {
         public DirectConnection fromString(String s) {
@@ -145,7 +146,6 @@ public class EditAccountDirectConnectionDialogController {
         return true;
     }
 
-    //void setMainApp(MainApp mainApp, Stage stage, AccountDC adc) {
     void setMainModel(MainModel mainModel, AccountDC adc) {
 
         this.mainModel = mainModel;

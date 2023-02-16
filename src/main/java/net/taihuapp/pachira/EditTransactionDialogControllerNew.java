@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -34,7 +34,8 @@ import javafx.util.Pair;
 import javafx.util.converter.BigDecimalStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.controlsfx.control.textfield.TextFields;
 
 import java.io.IOException;
@@ -48,7 +49,7 @@ import java.util.stream.Collectors;
 import static net.taihuapp.pachira.Transaction.TradeAction.*;
 
 public class EditTransactionDialogControllerNew {
-    private static final Logger mLogger = Logger.getLogger(EditTransactionDialogControllerNew.class);
+    private static final Logger mLogger = LogManager.getLogger(EditTransactionDialogControllerNew.class);
 
     static class CategoryTransferAccountIDComboBoxWrapper {
         private final ComboBox<Integer> mComboBox;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -21,7 +21,8 @@
 package net.taihuapp.pachira;
 
 import javafx.util.Pair;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,7 +37,7 @@ import java.util.*;
 
 class QIFParser {
 
-    private static final Logger mLogger = Logger.getLogger(QIFParser.class);
+    private static final Logger mLogger = LogManager.getLogger(QIFParser.class);
 
     // These are the exportable lists show in the QIF99 spec
     // CLASS and TEMPLATE are not being used

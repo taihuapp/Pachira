@@ -49,7 +49,8 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.util.Pair;
 import net.taihuapp.pachira.dao.*;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -84,7 +85,7 @@ public class MainModel {
 
     public enum InsertMode { DB_ONLY, MEM_ONLY, BOTH }
 
-    private static final Logger logger = Logger.getLogger(MainModel.class);
+    private static final Logger logger = LogManager.getLogger(MainModel.class);
 
     private final DaoManager daoManager = DaoManager.getInstance();
     private final ObservableList<Account> accountList = FXCollections.observableArrayList(

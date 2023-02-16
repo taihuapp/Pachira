@@ -53,7 +53,8 @@ import javafx.util.Callback;
 import javafx.util.Pair;
 import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -76,7 +77,7 @@ import java.util.stream.Collectors;
 
 public class MainController {
 
-    private static final Logger mLogger = Logger.getLogger(MainController.class);
+    private static final Logger mLogger = LogManager.getLogger(MainController.class);
 
     private static final String ACKNOWLEDGE_TIMESTAMP = "ACKDT";
     private static final int MAX_OPENED_DB_HIST = 5; // keep max 5 opened files

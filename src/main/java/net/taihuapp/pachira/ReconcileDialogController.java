@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -39,7 +39,8 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.BigDecimalStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -86,7 +87,7 @@ public class ReconcileDialogController {
         }
     }
 
-    private static final Logger logger = Logger.getLogger(ReconcileDialogController.class);
+    private static final Logger logger = LogManager.getLogger(ReconcileDialogController.class);
 
     private MainModel mainModel;
 
@@ -272,7 +273,7 @@ public class ReconcileDialogController {
                 mLastDownloadDate =
                         adc.getLastDownloadDateTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                 mDownloadedLedgeBalance = adc.getLastDownloadLedgeBalance();
-                if (lastReconcileDate == null || mLastDownloadDate.compareTo(lastReconcileDate) >= 0) {
+                if (lastReconcileDate == null || !mLastDownloadDate.isBefore(lastReconcileDate)) {
                     mUseDownloadCheckBox.setDisable(false);
                 }
             }

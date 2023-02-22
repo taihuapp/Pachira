@@ -1,0 +1,34 @@
+0.8.3.5：
+
+h2 updated to 2.1.214 from 1.4.199. The database files are not backward compatible.
+To migrate old database file:
+  0. Make sure database file can be opened by Pachira-v0.8.3.4.  It will ensure DB_VERSION_VALUE is 12.
+  1. Export old database file using Pachira-v0.8.3.4 using
+  2. Edit output script to ???
+     a) Change DB_VERSION_VALUE 20
+         replacing the line
+           ('DBVERSION', '12')
+         with
+           ('DBVERSION', '20'),
+
+     b) SETTINGS table column names to SETTING_NAME, SETTING_VALUE
+         replacing the line
+           "NAME" VARCHAR(32) NOT NULL,
+         with
+           "SETTING_NAME" VARCHAR(32) NOT NULL,
+
+         replacing the line
+           "VALUE" VARCHAR(255) NOT NULL
+         with
+           "SETTING_VALUE" VARCHAR(255) NOT NULL
+
+         replacing the line
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_842" PRIMARY KEY("NAME");
+         with
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_842" PRIMARY KEY("SETTING_NAME");
+
+         replacing the line
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_84" UNIQUE("NAME");
+         with
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_84" UNIQUE("SETTING_NAME");
+

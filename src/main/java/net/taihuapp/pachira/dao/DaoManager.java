@@ -22,8 +22,6 @@ package net.taihuapp.pachira.dao;
 
 import net.taihuapp.pachira.Account;
 import net.taihuapp.pachira.MainModel;
-import net.taihuapp.pachira.SplitTransaction;
-import net.taihuapp.pachira.Transaction;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.h2.api.ErrorCode;
@@ -48,7 +46,7 @@ public class DaoManager {
 
     // constants
     private static final String DB_VERSION_NAME = "DBVERSION";
-    private static final int DB_VERSION_VALUE = 12; // required DB_VERSION
+    private static final int DB_VERSION_VALUE = 20; // required DB_VERSION
     private static final String DB_OWNER = "ADMPACHIRA";
     private static final String DB_POSTFIX = ".mv.db";
     private static final String URL_PREFIX = "jdbc:h2:";
@@ -312,7 +310,7 @@ public class DaoManager {
             final String errMsg;
             switch (e.getErrorCode()) {
                 case ErrorCode.DATABASE_NOT_FOUND_1: //
-                case ErrorCode.DATABASE_NOT_FOUND_2:
+                case ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1:
                     errorCode = DaoException.ErrorCode.DB_FILE_NOT_FOUND;
                     errMsg = "Database file " + fileName + " not found";
                     break;
@@ -365,7 +363,7 @@ public class DaoManager {
      * @throws SQLException - from jdbc operation
      */
     private void putSetting(String name, String value) throws SQLException {
-        executeUpdateQuery("merge into SETTINGS (NAME, VALUE) values ('" + name + "', '" + value + "')");
+        executeUpdateQuery("merge into SETTINGS (SETTING_NAME, SETTING_VALUE) values ('" + name + "', '" + value + "')");
     }
 
     /**
@@ -378,14 +376,14 @@ public class DaoManager {
         // earlier version of SETTINGS table has int as column type for VALUE
         // later it was changed to varchar(255).
         try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery("select VALUE from SETTINGS where NAME = '" + name + "'")) {
+             ResultSet resultSet = statement.executeQuery("select SETTING_VALUE from SETTINGS where SETTING_NAME = '" + name + "'")) {
             if (resultSet.next()) {
                 // found one or more rows
                 ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
                 if (resultSetMetaData.getColumnType(1) == Types.INTEGER) {
-                    return Optional.of(String.valueOf(resultSet.getInt("VALUE")));
+                    return Optional.of(String.valueOf(resultSet.getInt("SETTING_VALUE")));
                 } else {
-                    return Optional.of(resultSet.getString("VALUE"));
+                    return Optional.of(resultSet.getString("SETTING_VALUE"));
                 }
             }
         }
@@ -637,137 +635,16 @@ public class DaoManager {
             updateDB(oldV, newV-1); // recursively bring from oldV up.
 
         // need to run this to update DBVERSION
-        if (newV == 12) {
-            // add column to DISPLAYORDER to SAVEDREPORTS
-            executeUpdateQuery("alter table SAVEDREPORTS add column DISPLAYORDER int default "
-                    + Integer.MAX_VALUE + " not null");
-        } else if (newV == 11) {
-            executeUpdateQuery("alter table SPLITTRANSACTIONS add column TYPE varchar(16) default '"
-                    + SplitTransaction.Type.TXN.name() + "' not null");
-            executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TYPE drop DEFAULT");
-            executeUpdateQuery("alter table SPLITTRANSACTIONS alter column TRANSACTIONID rename to TYPE_ID");
-            executeUpdateQuery("alter table SPLITTRANSACTIONS modify AMOUNT decimal(20,4) not null");
-            executeUpdateQuery("alter table REMINDERS alter column BASEUNIT varchar(16)");
-            createLoanTables();
-        } else if (newV == 10) {
-            // change account table type column size
-            executeUpdateQuery("alter table ACCOUNTS alter column TYPE varchar(16) not null");
-            executeUpdateQuery("update ACCOUNTS set TYPE = 'CHECKING' where TYPE = 'SPENDING'");
-            executeUpdateQuery("update ACCOUNTS set TYPE = 'BROKERAGE' where TYPE = 'INVESTING'");
-            executeUpdateQuery("update ACCOUNTS set TYPE = 'HOUSE' where TYPE = 'PROPERTY'");
-            executeUpdateQuery("update ACCOUNTS set TYPE = 'LOAN' where TYPE = 'DEBT'");
-            executeUpdateQuery("alter table SETTINGS alter column VALUE varchar(255) not null");
-            executeUpdateQuery("alter table SPLITTRANSACTIONS drop column PAYEE");
-        } else if (newV == 9) {
-            // change PRICES table structure, remove duplicate, etc.
-            final String alterPRICESTableSQL = "alter table PRICES add TICKER varchar(16);"
-                    + "update PRICES p set p.TICKER = (select s.TICKER from SECURITIES s where s.ID = p.SECURITYID);"
-                    + "alter table PRICES drop primary key;"
-                    + "update PRICES set SECURITYID = 0 where length(TICKER) > 0;"
-                    + "create table NEWPRICES as select * from PRICES group by SECURITYID, TICKER, DATE;"
-                    + "drop table PRICES;"
-                    + "alter table NEWPRICES rename to PRICES;"
-                    + "alter table PRICES alter column SECURITYID int not null;"
-                    + "alter table PRICES alter column TICKER varchar(16) not null;"
-                    + "alter table PRICES alter column DATE date not null;"
-                    + "alter table PRICES add primary key (securityid, ticker, date);";
-            executeUpdateQuery(alterPRICESTableSQL);
-        } else if (newV == 8) {
-            // replace XIN to DEPOSIT AND XOUT to WITHDRAW in Transactions table
-            final String updateXIN = "update TRANSACTIONS set TRADEACTION = 'DEPOSIT' where TRADEACTION = 'XIN'";
-            final String updateXOUT = "update TRANSACTIONS set TRADEACTION = 'WITHDRAW' where TRADEACTION = 'XOUT'";
-            final String updateReminder = "update REMINDERS set (TYPE, CATEGORYID) = ('PAYMENT', -TRANSFERACCOUNTID) "
-                    + "where TYPE = 'TRANSFER'";
-            // first copy XIN and XOUT to temp table
-            // delete XIN and XOUT in savedreportdetails
-            // change XIN to DEPOSIT and XOUT to WITHDRAW in temp
-            // insert altered rows back to savedreportdetails if such a row doesn't already exist
-            final String updateSavedReportDetails = "create table TEMP as select * from SAVEDREPORTDETAILS "
-                    + "where ITEMVALUE = 'XIN' or ITEMVALUE = 'XOUT'; "
-                    + "delete from SAVEDREPORTDETAILS where  ITEMVALUE = 'XIN' or ITEMVALUE = 'XOUT'; "
-                    + "update TEMP set ITEMVALUE = ('DEPOSIT') where ITEMVALUE = 'XIN'; "
-                    + "update TEMP set ITEMVALUE = ('WITHDRAW') where ITEMVALUE = 'XOUT'; "
-                    + "insert into SAVEDREPORTDETAILS select * from TEMP t where not exists("
-                    + "select * from SAVEDREPORTDETAILS s where s.REPORTID = t.REPORTID and s.ITEMNAME = t.ITEMNAME);"
-                    + "drop table TEMP;";
-            final String alterTable = "alter table REMINDERS drop TRANSFERACCOUNTID";
-
-            executeUpdateQuery(updateXIN);
-            executeUpdateQuery(updateXOUT);
-            executeUpdateQuery(updateReminder);
-            executeUpdateQuery(alterTable);
-            executeUpdateQuery(updateSavedReportDetails);
-        } else if (newV == 7) {
-            alterAccountDCSTable();
-        } else if (newV == 6) {
-            createDirectConnectTables();
-
-            executeUpdateQuery("update TRANSACTIONS set MEMO = '' where MEMO is null");
-            executeUpdateQuery("alter table TRANSACTIONS alter column MEMO varchar("
-                    + TRANSACTION_MEMO_LEN + ") not null default''");
-
-            executeUpdateQuery("update TRANSACTIONS set REFERENCE = '' where REFERENCE is null");
-            executeUpdateQuery("alter table Transactions alter column REFERENCE varchar("
-                    + TRANSACTION_REF_LEN + ")");
-
-            executeUpdateQuery("update TRANSACTIONS set PAYEE = '' where PAYEE is null");
-            executeUpdateQuery("alter table Transactions alter column PAYEE varchar("
-                    + TRANSACTION_PAYEE_LEN + ")");
-
-            executeUpdateQuery("alter table TRANSACTIONS add (FITID varchar("
-                    + TRANSACTION_FITID_LEN + ") NOT NULL default '')");
-        } else if (newV == 5) {
-            final String updateSQL = "alter table TRANSACTIONS add (ACCRUEDINTEREST decimal(20, 4) default 0);";
-            executeUpdateQuery(updateSQL);
-        } else if (newV == 4) {
-            final String updateSQL = "alter table ACCOUNTS add (LASTRECONCILEDATE Date)";
-            executeUpdateQuery(updateSQL);
-        } else if (newV == 3) {
-            // cleared column was populated with int value of ascii code
-            // setup new STATUS column and set value according to the cleared column
-            // then drop cleared column
-            final String updateSQL0 = "alter table TRANSACTIONS add (STATUS varchar("
-                    + TRANSACTION_STATUS_LEN + ") NOT NULL default '" + Transaction.Status.UNCLEARED.name() + "')";
-            final String updateSQL1 = "update TRANSACTIONS set STATUS = "
-                    + "case CLEARED "
-                    + "when 42 then '" + Transaction.Status.CLEARED.name() + "'"// '*', cleared
-                    + "when 82 then '" + Transaction.Status.RECONCILED.name() + "'"// 'R', reconciled
-                    + "when 88 then '" + Transaction.Status.RECONCILED.name() + "'"// 'X', reconciled
-                    + "when 99 then '" + Transaction.Status.CLEARED.name() + "'"// 'c', cleared
-                    + "else '" + Transaction.Status.UNCLEARED.name() + "'" // default uncleared
-                    + "end";
-            final String updateSQL2 = "alter table TRANSACTIONS drop CLEARED";
-            final String updateSQL3 = "alter table SPLITTRANSACTIONS add (TAGID int)";
-            executeUpdateQuery(updateSQL0);
-            executeUpdateQuery(updateSQL1);
-            executeUpdateQuery(updateSQL2);
-            executeUpdateQuery(updateSQL3);
-        } else if (newV == 2) {
-            final String alterSQL = "alter table SAVEDREPORTS add (" +
-                    "PAYEECONTAINS varchar(80) NOT NULL default '', " +
-                    "PAYEEREGEX boolean NOT NULL default FALSE, " +
-                    "MEMOCONTAINS varchar(80) NOT NULL default '', " +
-                    "MEMOREGEX boolean NOT NULL default FALSE)";
-            executeUpdateQuery(alterSQL);
-        } else if (newV == 1) {
-            // converting self transferring transaction to DEPOSIT or WITHDRAW
-            // and set categoryid to 1 in invalid category.
-            final String updateSQL0 = "update TRANSACTIONS " +
-                    "set TRADEACTION = casewhen(tradeaction = 'XIN', 'DEPOSIT', 'WITHDRAW'), " +
-                    "categoryid = 1 where categoryid = -accountid and (tradeaction = 'XIN' or tradeaction = 'XOUT')";
-            final String updateSQL1 = "update TRANSACTIONS " +
-                    "set TRADEACTION = casewhen(TRADEACTION = 'WITHDRAW', 'XOUT', 'XIN') " +
-                    "where categoryid < 0 and categoryid <> - accountid and  " +
-                    "(tradeaction = 'DEPOSIT' OR TRADEACTION = 'WITHDRAW')";
-            executeUpdateQuery(updateSQL0);
-            executeUpdateQuery(updateSQL1);
-        } else {
-            throw new IllegalArgumentException("updateDBVersion called with unsupported versions, " +
-                    "old version: " + oldV + ", new version: " + newV + ".");
+        switch (newV) {
+            // template for update code
+            case 21:
+            case 22:
+                // do nothing for now.
+                break;
+            default:
+                throw new IllegalArgumentException("updateDBVersion called with unsupported versions, " +
+                        "old version: " + oldV + ", new version: " + newV + ".");
         }
-
-        // finally, we set DB_VERSION
-        putSetting(DB_VERSION_NAME, String.valueOf(DB_VERSION_VALUE));
     }
 
     // add LASTDOWNLOADLEDGEBAL column
@@ -845,9 +722,9 @@ public class DaoManager {
     // create settings table and populate database version
     private void createSettingsTable() throws SQLException {
         executeUpdateQuery("create table SETTINGS (" +
-                "NAME varchar(32) UNIQUE NOT NULL," +
-                "VALUE varchar(255) NOT NULL," +
-                "primary key (NAME))");
+                "SETTING_NAME varchar(32) UNIQUE NOT NULL," +
+                "SETTING_VALUE varchar(255) NOT NULL," +
+                "primary key (SETTING_NAME))");
     }
 
     // execute an update query on connection

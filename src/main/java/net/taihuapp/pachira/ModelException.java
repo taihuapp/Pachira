@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -41,6 +41,10 @@ public class ModelException extends Exception {
          * the DirectConnection is not valid
          */
         INVALID_DIRECT_CONNECTION,
+        /**
+         * the security is invalid
+         */
+        INVALID_SECURITY,
         /**
          * the account doesn't have DC
          */

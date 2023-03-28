@@ -146,7 +146,7 @@ public class ReconcileDialogController {
         ((Stage) mVBox.getScene().getWindow()).close();
     }
 
-    void setMainModel(MainModel mainModel) {
+    void setMainModel(MainModel mainModel) throws ModelException {
         this.mainModel = mainModel;
 
         Account account = mainModel.getCurrentAccount();
@@ -173,11 +173,11 @@ public class ReconcileDialogController {
             }
         }
 
-        Set<String> securityNameSet = transactionList.stream()
-                .map(Transaction::getSecurityName).filter(s -> (!s.isEmpty())).collect(Collectors.toSet());
-        Set<String> unreconciledSecurityNameSet = transactionList.stream()
+        final Set<Integer> securityIDSet = transactionList.stream()
+                .map(Transaction::getSecurityID).filter(i -> i > 0).collect(Collectors.toSet());
+        final Set<Integer> unreconciledSecurityIDSet = transactionList.stream()
                 .filter(t -> !t.getStatus().equals(Transaction.Status.RECONCILED))
-                .map(Transaction::getSecurityName).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+                .map(Transaction::getSecurityID).filter(i -> i > 0).collect(Collectors.toSet());
 
         SecurityBalance cashBalance = new SecurityBalance("CASH");
         cashBalance.getOpeningBalanceProperty().bind(Bindings.createObjectBinding(()
@@ -189,17 +189,20 @@ public class ReconcileDialogController {
 
         ObservableList<SecurityBalance> sbList = FXCollections.observableArrayList(sb
                 -> new Observable[] {sb.getBalanceDifferenceProperty()} );
-        for (String name : securityNameSet) {
+        for (Integer id : securityIDSet) {
+            final String name = mainModel.getSecurity(id).map(Security::getName)
+                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_SECURITY,
+                            "Cannot find security " + id, null));
             SecurityBalance sb = new SecurityBalance(name);
             sb.getOpeningBalanceProperty().bind(Bindings.createObjectBinding(()
                     -> transactionList.stream().filter(t -> t.getStatus().equals(Transaction.Status.RECONCILED)
-                    && t.getSecurityName().equals(name) && Transaction.hasQuantity(t.getTradeAction()))
+                    && t.getSecurityID().equals(id) && Transaction.hasQuantity(t.getTradeAction()))
                     .map(Transaction::getSignedQuantity).reduce(BigDecimal.ZERO, BigDecimal::add), transactionList));
             if ((sb.getOpeningBalance().compareTo(BigDecimal.ZERO) != 0)
-                    || unreconciledSecurityNameSet.contains(name)) {
+                    || unreconciledSecurityIDSet.contains(id)) {
                 sb.getClearedBalanceProperty().bind(Bindings.createObjectBinding(()
                                 -> transactionList.stream().filter(t -> t.getStatus().equals(Transaction.Status.CLEARED)
-                                && t.getSecurityName().equals(name) && Transaction.hasQuantity(t.getTradeAction()))
+                                && t.getSecurityID().equals(id) && Transaction.hasQuantity(t.getTradeAction()))
                                 .map(Transaction::getSignedQuantity).reduce(BigDecimal.ZERO, BigDecimal::add),
                         transactionList));
                 sbList.add(sb);

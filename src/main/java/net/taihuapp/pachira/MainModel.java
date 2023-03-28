@@ -66,6 +66,7 @@ import java.net.URL;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -401,7 +402,7 @@ public class MainModel {
                 final BigDecimal totalAmount = totalOldAmount.add(totalNewAmount);
                 final int aid = account.getID();
                 final Transaction t0 = new Transaction(aid, date, SHRSOUT, 0);
-                t0.setSecurityName(security.getName());
+                t0.setSecurityID(security.getID());
                 t0.setQuantity(numOfOldShares);
                 t0.setMemo(memo);
                 newTransactionList.add(t0);
@@ -415,7 +416,7 @@ public class MainModel {
                     // 1. move in old security with reduced cost basis
                     // 2. move in new security with correct new cost basis
                     final Transaction t1 = new Transaction(aid, date, SHRSIN, 0);
-                    t1.setSecurityName(security.getName());
+                    t1.setSecurityID(security.getID());
                     t1.setQuantity(li.getQuantity());
                     t1.setAmount(costBasis_i.subtract(newCostBasis_i));
                     t1.setADate(li.getDate());
@@ -423,7 +424,7 @@ public class MainModel {
                     newTransactionList.add(t1);
 
                     final Transaction t2 = new Transaction(aid, date, SHRSIN, 0);
-                    t2.setSecurityName(newSecurityName);
+                    t2.setSecurityID(newSecurity.getID());
                     t2.setQuantity(newQuantity_i);
                     t2.setAmount(newCostBasis_i);
                     t2.setADate(li.getDate());
@@ -463,8 +464,26 @@ public class MainModel {
      * @param predicate - search criteria
      * @return Optional
      */
-    public Optional<Security> getSecurity(Predicate<Security> predicate) {
+    private Optional<Security> getSecurity(Predicate<Security> predicate) {
         return securityList.stream().filter(predicate).findAny();
+    }
+
+    /**
+     * get security by its id
+     */
+    public Optional<Security> getSecurity(Integer sid) {
+        if (sid == null || sid <= 0)
+            return Optional.empty();
+        return getSecurity(s -> s.getID() == sid);
+    }
+
+    /**
+     * get security by its name
+     */
+    public Optional<Security> getSecurity(String name) {
+        if (name == null || name.isEmpty())
+            return Optional.empty();
+        return getSecurity(s -> s.getName().equals(name));
     }
 
     /**
@@ -485,14 +504,6 @@ public class MainModel {
                     getSecurityList().set(i, security);
                 }
             }
-        }
-
-        // update security name in transaction list
-        initTransactionList();
-
-        // update security holdings of accounts
-        for (Account account : getAccountList(a -> a.hasSecurity(security))) {
-            initAccount(account);
         }
     }
 
@@ -998,6 +1009,7 @@ public class MainModel {
         final int fractionDigits = Currency.getInstance("USD").getDefaultFractionDigits();
         BigDecimal totalCash = BigDecimal.ZERO.setScale(fractionDigits, RoundingMode.HALF_UP);
         BigDecimal totalCashNow = totalCash;
+        final Map<Integer, String> securityID2NameMap = new HashMap<>();
         final Map<String, SecurityHolding> shMap = new HashMap<>();  // map of security name and securityHolding
         final Map<String, List<Transaction>> stockSplitTransactionListMap = new HashMap<>();
 
@@ -1012,8 +1024,10 @@ public class MainModel {
             if ((t.getID() == exTid) || t.getTDate().isAfter(date))
                 continue;
 
-            final String name = t.getSecurityName();
-            if (name != null && !name.isEmpty()) {
+            final String name = securityID2NameMap.computeIfAbsent(t.getSecurityID(),
+                    k -> getSecurity(s -> s.getID() == t.getSecurityID())
+                            .map(Security::getName).orElse(""));
+            if (!name.isEmpty()) {
                 // it has a security name
                 final SecurityHolding securityHolding = shMap.computeIfAbsent(name,
                         n -> new SecurityHolding(n, fractionDigits));
@@ -1266,7 +1280,6 @@ public class MainModel {
             daoManager.beginTransaction();
             if (newT != null) {
                 final Transaction.TradeAction newTTA = newT.getTradeAction();
-
                 // check quantity
                 if (newTTA == SELL || newTTA == SHRSOUT || newTTA == CVTSHRT) {
                     // get account transaction list
@@ -1275,10 +1288,12 @@ public class MainModel {
                                     new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                             "Transaction '" + newT.getID() + "' has an invalid account ID ("
                                                     + newT.getAccountID() + ")", null));
+                    final String newTSecurityName = getSecurity(s -> s.getID() == newT.getSecurityID())
+                            .map(Security::getName).orElse("");
                     // compute security holdings
                     final BigDecimal quantity = computeSecurityHoldings(transactions, newT.getTDate(),
                             newT.getID())
-                            .stream().filter(sh -> sh.getSecurityName().equals(newT.getSecurityName()))
+                            .stream().filter(sh -> sh.getSecurityName().equals(newTSecurityName))
                             .map(SecurityHolding::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
                     if (((newTTA == SELL || newTTA == SHRSOUT) && quantity.compareTo(newT.getQuantity()) < 0)
                             || ((newTTA == CVTSHRT) && quantity.negate().compareTo(newT.getQuantity()) < 0)) {
@@ -1520,7 +1535,7 @@ public class MainModel {
                 final Security security;
                 final BigDecimal price;
                 if (!newT.isCash()) {
-                    security = getSecurity(s -> s.getName().equals(newT.getSecurityName())).orElse(null);
+                    security = getSecurity(s -> s.getID() == newT.getSecurityID()).orElse(null);
                     price = security == null ? null : newT.getPrice();
                 } else {
                     security = null;
@@ -1796,7 +1811,8 @@ public class MainModel {
             if (payee != null && payee.toLowerCase().contains(lowerSearchString))
                 return true;
 
-            final String securityName = t.getSecurityName();
+            final String securityName = getSecurity(s -> s.getID() == t.getSecurityID())
+                    .map(Security::getName).orElse(null);
             if (securityName != null && securityName.toLowerCase().contains(lowerSearchString))
                 return true;
 
@@ -2283,7 +2299,8 @@ public class MainModel {
         logger.info(message);
     }
 
-    void importFromQIF(File file, String defaultAccountName) throws IOException, ModelException, DaoException {
+    void importFromQIF(File file, String defaultAccountName)
+            throws IOException, ParseException, ModelException, DaoException {
         final QIFParser qifParser = new QIFParser(defaultAccountName);
         if (qifParser.parseFile(file) < 0)
             throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION,
@@ -2327,6 +2344,13 @@ public class MainModel {
                 entry.getValue().forEach(t -> t.setCategoryID(categoryID));
             }
 
+            final Map<String, Integer> securityNameIDMap = new HashMap<>();
+            getSecurityList().forEach(s -> securityNameIDMap.put(s.getName(), s.getID()));
+            for (Map.Entry<String, List<Transaction>> entry : qifParser.getSecurityNameTransactionMap().entrySet()) {
+                final int securityID = securityNameIDMap.getOrDefault(entry.getKey(), 0);
+                entry.getValue().forEach(t -> t.setSecurityID(securityID));
+            }
+
             for (Map.Entry<String, List<SplitTransaction>> entry :
                     qifParser.getCategoryNameSplitTransactionMap().entrySet()) {
                 final int categoryID = categoryNameIDMap.getOrDefault(entry.getKey(), 0);
@@ -2350,8 +2374,8 @@ public class MainModel {
             Map<String, Integer> accountNameIDMap = new HashMap<>();
             getAccountList(a -> true).forEach(a -> accountNameIDMap.put(a.getName(), a.getID()));
             Map<String, List<Transaction>> accountNameTransactionMap = qifParser.getAccountNameTransactionMap();
-            Map<String, Security> securityNameMap = new HashMap<>();
-            getSecurityList().forEach(security -> securityNameMap.put(security.getName(), security));
+            final Map<Integer, Security> securityIDMap = new HashMap<>();
+            getSecurityList().forEach(s -> securityIDMap.put(s.getID(), s));
             List<Pair<Security, Price>> tradePriceList = new ArrayList<>();
             for (Map.Entry<String, List<Transaction>> entry : accountNameTransactionMap.entrySet()) {
                 final int accountID = accountNameIDMap.getOrDefault(entry.getKey(), 0);
@@ -2363,7 +2387,7 @@ public class MainModel {
                     transactionDao.insert(t);
 
                     // save trade price
-                    Security security = securityNameMap.get(t.getSecurityName());
+                    Security security = securityIDMap.get(t.getSecurityID());
                     if (security != null) {
                         BigDecimal p = t.getPrice();
                         LocalDate d = t.getTDate();

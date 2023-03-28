@@ -178,7 +178,7 @@ public class SecurityHolding implements LotView {
             if (!matchInfoList.isEmpty()) {
                 // why matchInfoList isn't empty?
                 logger.warn("Can't find offsetting lots for " + t.getTradeAction() + " " + tradedQuantity
-                        + " shares of " + t.getSecurityName() + " on " + t.getTDate()
+                        + " shares of " + t.getSecurityID() + " on " + t.getTDate()
                         + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID());
             }
             return specifyLotInfoList;
@@ -231,11 +231,11 @@ public class SecurityHolding implements LotView {
             if (tradedLot.getCostBasis().compareTo(BigDecimal.ZERO) != 0) {
                 // something is wrong.
                 logger.warn("Can't find enough offset for " + t.getTradeAction() + " " + t.getQuantity()
-                        + " shares of " + t.getSecurityName() + " on " + t.getTDate()
+                        + " shares of " + t.getSecurityID() + " on " + t.getTDate()
                         + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID());
             } else {
                 logger.warn("Can't find enough offset for " + t.getTradeAction() + " " + t.getQuantity()
-                        + " shares of " + t.getSecurityName() + " on " + t.getTDate()
+                        + " shares of " + t.getSecurityID() + " on " + t.getTDate()
                         + " with transaction id = " + t.getID() + ", account id = " + t.getAccountID()
                         + System.lineSeparator()
                         + "    Remaining quantity:   " + tradedLot.getQuantity() + System.lineSeparator()

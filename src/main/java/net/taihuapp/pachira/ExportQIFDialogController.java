@@ -78,19 +78,19 @@ public class ExportQIFDialogController {
     @FXML
     private void handleExport() {
         final FileChooser fileChooser = new FileChooser();
-        String defaultFileName;
         try {
-            defaultFileName = mainModel.getDBFileName() + ".QIF";
+            final File defaultFile = new File(mainModel.getDBFileName() + ".QIF");
+            fileChooser.setTitle("Export to QIF file...");
+            fileChooser.setInitialDirectory(defaultFile.getParentFile());
+            fileChooser.setInitialFileName(defaultFile.getName());
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("qif files",
+                    "*.qif", "*.QIF"));
         } catch (DaoException e) {
             final String msg = e.getErrorCode() + " exception when calling getDBFileName";
             mLogger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
             return;
         }
-        fileChooser.setTitle("Export to QIF file...");
-        fileChooser.setInitialFileName(defaultFileName);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("qif files",
-                "*.qif", "*.QIF"));
         final File file = fileChooser.showSaveDialog(getStage());
         if (file == null)
             return;

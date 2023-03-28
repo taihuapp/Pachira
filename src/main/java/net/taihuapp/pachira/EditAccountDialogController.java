@@ -21,7 +21,10 @@
 package net.taihuapp.pachira;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.logging.log4j.LogManager;
@@ -41,7 +44,7 @@ public class EditAccountDialogController {
     @FXML
     private TextField mNameTextField;
     @FXML
-    private TextArea mDescriptionTextArea;
+    private TextField mDescriptionTextField;
     @FXML
     private CheckBox mHiddenFlagCheckBox;
 
@@ -67,7 +70,7 @@ public class EditAccountDialogController {
         }
 
         mNameTextField.setText(account == null ? "" : account.getName());
-        mDescriptionTextArea.setText(account == null ? "" : account.getDescription());
+        mDescriptionTextField.setText(account == null ? "" : account.getDescription());
         mHiddenFlagCheckBox.setSelected(account != null && account.getHiddenFlag());
     }
 
@@ -91,12 +94,12 @@ public class EditAccountDialogController {
 
         if (account == null) {
             account = new Account(0, mTypeChoiceBox.getValue(), name,
-                    mDescriptionTextArea.getText(), mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE,
+                    mDescriptionTextField.getText(), mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE,
                     null, BigDecimal.ZERO);
         } else {
             account.setName(name);
             account.setType(mTypeChoiceBox.getValue());
-            account.setDescription(mDescriptionTextArea.getText());
+            account.setDescription(mDescriptionTextField.getText());
             account.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
         }
 

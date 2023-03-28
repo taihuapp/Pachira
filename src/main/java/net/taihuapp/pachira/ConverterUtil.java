@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -107,24 +107,19 @@ public class ConverterUtil {
         }
     }
 
-    public static class SecurityConverter extends StringConverter<Security> {
-
+    public static class SecurityIDConverter extends StringConverter<Integer> {
         private final MainModel mainModel;
 
-        public SecurityConverter(MainModel mainModel) { this.mainModel = mainModel; }
+        public SecurityIDConverter(MainModel mainModel) { this.mainModel = mainModel; }
 
         @Override
-        public String toString(Security security) {
-            if (security == null)
-                return "";
-            return security.getName();
+        public String toString(Integer id) {
+            return mainModel.getSecurity(id).map(Security::getName).orElse("");
         }
 
         @Override
-        public Security fromString(String name) {
-            if (name == null || name.isEmpty())
-                return null;
-            return mainModel.getSecurity(security -> security.getName().equals(name)).orElse(null);
+        public Integer fromString(String name) {
+            return mainModel.getSecurity(name).map(Security::getID).orElse(0);
         }
     }
 

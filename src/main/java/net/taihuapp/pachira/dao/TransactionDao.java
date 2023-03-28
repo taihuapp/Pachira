@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -21,7 +21,6 @@
 package net.taihuapp.pachira.dao;
 
 import javafx.util.Pair;
-import net.taihuapp.pachira.Security;
 import net.taihuapp.pachira.SplitTransaction;
 import net.taihuapp.pachira.Transaction;
 
@@ -39,16 +38,12 @@ import java.util.Map;
 
 public class TransactionDao extends Dao<Transaction, Integer> {
 
-    private final SecurityDao securityDao;
     private final SplitTransactionListDao splitTransactionListDao;
     private final Map<Integer, List<SplitTransaction>> tidSplitTransactionListMap = new HashMap<>();
 
-    TransactionDao(Connection connection, SecurityDao securityDao,
-                   SplitTransactionListDao splitTransactionListDao) {
+    TransactionDao(Connection connection, SplitTransactionListDao splitTransactionListDao) {
         this.connection = connection;
-        this.securityDao = securityDao;
         this.splitTransactionListDao = splitTransactionListDao;
-
     }
 
     @Override
@@ -82,9 +77,6 @@ public class TransactionDao extends Dao<Transaction, Integer> {
                 Transaction.TradeAction.valueOf(resultSet.getString("TRADEACTION"));
         final Transaction.Status status = Transaction.Status.valueOf(resultSet.getString("STATUS"));
 
-        final String name = securityDao.get(resultSet.getInt("SECURITYID"))
-                .map(Security::getName).orElse("");
-
         final String reference = resultSet.getString("REFERENCE");
         final String payee = resultSet.getString("PAYEE");
         final String memo = resultSet.getString("MEMO");
@@ -96,6 +88,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         BigDecimal amount = resultSet.getBigDecimal("AMOUNT");
         if (amount == null)
             amount = BigDecimal.ZERO;
+        final int sid = resultSet.getInt("SECURITYID");
         final int cid = resultSet.getInt("CATEGORYID");
         final int tagID = resultSet.getInt("TAGID");
         final int matchID = resultSet.getInt("MATCHTRANSACTIONID");
@@ -104,7 +97,7 @@ public class TransactionDao extends Dao<Transaction, Integer> {
         final boolean splitFlag = resultSet.getBoolean("SPLITFLAG");
         final List<SplitTransaction> stList = splitFlag ? tidSplitTransactionListMap.get(id) : new ArrayList<>();
 
-        return new Transaction(id, aid, tDate, aDate, tradeAction, status, name, reference,
+        return new Transaction(id, aid, tDate, aDate, tradeAction, status, sid, reference,
                 payee, quantity, oldQuantity, memo, commission, accruedInterest, amount,
                 cid, tagID, matchID, matchSplitID, stList, fitid);
     }
@@ -112,35 +105,28 @@ public class TransactionDao extends Dao<Transaction, Integer> {
     @Override
     void setPreparedStatement(PreparedStatement preparedStatement, Transaction transaction, boolean withKey)
             throws SQLException {
-        try {
-            preparedStatement.setInt(1, transaction.getAccountID());
-            preparedStatement.setObject(2, transaction.getTDate());
-            preparedStatement.setBigDecimal(3, transaction.getAmount());
-            preparedStatement.setString(4, transaction.getTradeAction().name());
-            preparedStatement.setObject(5,
-                    securityDao.get(transaction.getSecurityName()).map(Security::getID).orElse(null));
-            preparedStatement.setString(6, transaction.getStatus().name());
-            preparedStatement.setInt(7, transaction.getCategoryID());
-            preparedStatement.setInt(8, transaction.getTagID());
-            preparedStatement.setString(9, transaction.getMemo());
-            preparedStatement.setString(10, transaction.getFITID());
-            preparedStatement.setBigDecimal(11, transaction.getQuantity());
-            preparedStatement.setBigDecimal(12, transaction.getCommission());
-            preparedStatement.setInt(13, transaction.getMatchID());
-            preparedStatement.setInt(14, transaction.getMatchSplitID());
-            preparedStatement.setString(15, transaction.getPayee());
-            preparedStatement.setObject(16, transaction.getADate());
-            preparedStatement.setBigDecimal(17, transaction.getOldQuantity());
-            preparedStatement.setString(18, transaction.getReference());
-            preparedStatement.setBoolean(19, transaction.isSplit());
-            preparedStatement.setBigDecimal(20, transaction.getAccruedInterest());
-            if (withKey)
-                preparedStatement.setInt(21, transaction.getID());
-        } catch (DaoException e) {
-            if (e.getCause() instanceof SQLException)
-                throw (SQLException) e.getCause();
-            throw new IllegalStateException("unexpected throwable: ", e);
-        }
+        preparedStatement.setInt(1, transaction.getAccountID());
+        preparedStatement.setObject(2, transaction.getTDate());
+        preparedStatement.setBigDecimal(3, transaction.getAmount());
+        preparedStatement.setString(4, transaction.getTradeAction().name());
+        preparedStatement.setInt(5, transaction.getSecurityID());
+        preparedStatement.setString(6, transaction.getStatus().name());
+        preparedStatement.setInt(7, transaction.getCategoryID());
+        preparedStatement.setInt(8, transaction.getTagID());
+        preparedStatement.setString(9, transaction.getMemo());
+        preparedStatement.setString(10, transaction.getFITID());
+        preparedStatement.setBigDecimal(11, transaction.getQuantity());
+        preparedStatement.setBigDecimal(12, transaction.getCommission());
+        preparedStatement.setInt(13, transaction.getMatchID());
+        preparedStatement.setInt(14, transaction.getMatchSplitID());
+        preparedStatement.setString(15, transaction.getPayee());
+        preparedStatement.setObject(16, transaction.getADate());
+        preparedStatement.setBigDecimal(17, transaction.getOldQuantity());
+        preparedStatement.setString(18, transaction.getReference());
+        preparedStatement.setBoolean(19, transaction.isSplit());
+        preparedStatement.setBigDecimal(20, transaction.getAccruedInterest());
+        if (withKey)
+            preparedStatement.setInt(21, transaction.getID());
     }
 
     @Override

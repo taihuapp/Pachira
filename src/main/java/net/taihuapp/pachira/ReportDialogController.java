@@ -310,7 +310,7 @@ public class ReportDialogController {
     }
 
     private Set<String> mapSecurityIDSetToNameSet(Set<Integer> idSet) {
-        return idSet.stream().map(id -> mainModel.getSecurity(s -> s.getID() == id)
+        return idSet.stream().map(id -> mainModel.getSecurity(id)
                 .map(Security::getName).orElse(NO_SECURITY)).collect(Collectors.toSet());
     }
 
@@ -768,10 +768,9 @@ public class ReportDialogController {
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                final String sName = (t.getSecurityName() == null || t.getSecurityName().isEmpty()) ?
-                        NO_SECURITY : t.getSecurityName();
-                final int sID = mainModel.getSecurity(security -> security.getName().equals(t.getSecurityName()))
-                            .map(Security::getID).orElse(0);
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                        .map(Security::getName).orElse(NO_SECURITY);
+                final int sID = t.getSecurityID() < 0 ? 0 : t.getSecurityID();
                 if (!mSetting.getSelectedSecurityIDSet().contains(sID))
                     continue;
 
@@ -1045,7 +1044,8 @@ public class ReportDialogController {
                 if(tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                String sName = t.getSecurityName().isEmpty() ? NO_SECURITY : t.getSecurityName();
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                        .map(Security::getName).orElse(NO_SECURITY);
                 if (securityNameSet.contains(sName)
                         && mSetting.getSelectedTradeActionSet().contains(t.getTradeAction())) {
                     Line line = new Line();
@@ -1181,14 +1181,17 @@ public class ReportDialogController {
             if (account == null)
                 continue;
             for (Transaction t : new FilteredList<>(account.getTransactionList(), p -> {
-                final String sName = p.getSecurityName().isEmpty() ? NO_SECURITY : p.getSecurityName();
+                final String sName = mainModel.getSecurity(p.getSecurityID())
+                                .map(Security::getName).orElse(NO_SECURITY);
                 return ((p.getTradeAction() == Transaction.TradeAction.SELL ||
                         p.getTradeAction() == Transaction.TradeAction.CVTSHRT) && securityNameSet.contains(sName) &&
                         (!p.getTDate().isBefore(mSetting.getStartDate())) &&
                         (!p.getTDate().isAfter(mSetting.getEndDate())));
             })) {
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                        .map(Security::getName).orElse("");
                 final SecurityHolding securityHolding = mainModel.computeSecurityHoldings(account.getTransactionList(),
-                        t.getTDate(), t.getID()).stream().filter(sh -> sh.getSecurityName().equals(t.getSecurityName()))
+                        t.getTDate(), t.getID()).stream().filter(sh -> sh.getSecurityName().equals(sName))
                         .findAny().orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                 account.getName() + " " + t.getTradeAction() + " " + t.getQuantity() + " on "
                                         + t.getTDate(), null));
@@ -1199,7 +1202,7 @@ public class ReportDialogController {
                 for (SpecifyLotInfo sli : matchLotList) {
                     Line line = new Line();
                     line.aName = account.getName();
-                    line.sName = t.getSecurityName();
+                    line.sName = sName;
                     line.quantity = qpFormat.format(sli.getSelectedShares());
                     final BigDecimal costBasis, proceeds;
                     final BigDecimal realizedPNL = sli.getRealizedPNL();
@@ -1235,7 +1238,7 @@ public class ReportDialogController {
                 if (!stgLotList.isEmpty()) {
                     Line line = new Line();
                     line.aName = account.getName();
-                    line.sName = t.getSecurityName();
+                    line.sName = sName;
                     line.quantity = qpFormat.format(t.getQuantity());
                     String lotDateStr = stgLotList.get(0).getDate().toString();
                     BigDecimal costBasis = BigDecimal.ZERO;
@@ -1266,7 +1269,7 @@ public class ReportDialogController {
                 if (!ltgLotList.isEmpty()) {
                     Line line = new Line();
                     line.aName = account.getName();
-                    line.sName = t.getSecurityName();
+                    line.sName = sName;
                     line.quantity = qpFormat.format(t.getQuantity());
                     String lotDateStr = ltgLotList.get(0).getDate().toString();
                     BigDecimal costBasis = BigDecimal.ZERO;
@@ -1467,7 +1470,8 @@ public class ReportDialogController {
                 if (tDate.isBefore(mSetting.getStartDate()))
                     continue;
 
-                final String sName = t.getSecurityName().isEmpty() ? NO_SECURITY : t.getSecurityName();
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                                .map(Security::getName).orElse(NO_SECURITY);
                 if (!securityNameSet.contains(sName))
                     continue;
                 if (payeePattern != null && !payeePattern.matcher(t.getPayee()).find())
@@ -1500,7 +1504,7 @@ public class ReportDialogController {
                     line.category = categoryIDConverter.toString(t.getCategoryID());
                     final BigDecimal amount = t.getCashAmount().add(t.getInvestAmount());
                     if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
-                        line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
+                        line.desc = sName;
                     } else {
                         line.desc = t.getPayee() == null ? "" : t.getPayee();
                     }

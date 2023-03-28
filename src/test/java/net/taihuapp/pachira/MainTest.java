@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -75,10 +75,12 @@ public class MainTest {
                     "11111111", true);
 
             // add two securities for testing
-            mainModel.mergeSecurity(new Security(-1, "A", "Test Stock A", Security.Type.STOCK));
-            mainModel.mergeSecurity(new Security(-1, "A1", "New Class for Test Stock A",
-                    Security.Type.STOCK));
-            mainModel.mergeSecurity(new Security(-1, "Z", "Test Stock Z", Security.Type.STOCK));
+            final String aName = "Test Stock A";
+            final String a1Name = "New Class for Test Stock A";
+            final String zName = "Test Stock Z";
+            mainModel.mergeSecurity(new Security(-1, "A", aName, Security.Type.STOCK));
+            mainModel.mergeSecurity(new Security(-1, "A1", a1Name, Security.Type.STOCK));
+            mainModel.mergeSecurity(new Security(-1, "Z", zName, Security.Type.STOCK));
             assert(mainModel.getSecurityList().size() == 3);
             mainModel.getSecurityList().forEach(s -> System.out.println(s.getID() + " " + s.getTicker()));
 
@@ -90,10 +92,10 @@ public class MainTest {
             assert(accountOptional.isPresent());
 
             // add a couple of securities
-            final Security securityA = mainModel.getSecurity(s -> s.getTicker().equals("A")).orElse(null);
+            final Security securityA = mainModel.getSecurity(aName).orElse(null);
             assert(securityA != null);
 
-            final Security securityZ = mainModel.getSecurity(s -> s.getTicker().equals("Z")).orElse(null);
+            final Security securityZ = mainModel.getSecurity(zName).orElse(null);
             assert(securityZ != null);
 
             // start trading
@@ -101,7 +103,7 @@ public class MainTest {
 
             // on 1/1/2022, deposit 4794.45 to account
             final Transaction d0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 1),
-                    null, DEPOSIT, Transaction.Status.UNCLEARED, "", "", "Deposit",
+                    null, DEPOSIT, Transaction.Status.UNCLEARED, -1, "", "Deposit",
                     null, null, "initial deposit",
                     null, null, new BigDecimal("4794.45"),
                     0, -1, -1, -1, new ArrayList<>(), "");
@@ -110,7 +112,7 @@ public class MainTest {
             // On 1/5/2022, buy 100 Z with $10 commission, total 1010
             final BigDecimal badQuantity = BigDecimal.valueOf(200);
             final Transaction z0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 5),
-                    null, BUY, Transaction.Status.UNCLEARED, securityZ.getName(), "", "",
+                    null, BUY, Transaction.Status.UNCLEARED, securityZ.getID(), "", "",
                     badQuantity, null, "",
                     new BigDecimal("10"), BigDecimal.ZERO, new BigDecimal("1010"),
                     0, -1, -1, -1, new ArrayList<>(), "");
@@ -128,7 +130,7 @@ public class MainTest {
 
             // On 1/5/2022, buy 20 A, $3.45 commission, total 2003.45
             final Transaction t0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 5),
-                    null, BUY, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
+                    null, BUY, Transaction.Status.UNCLEARED, securityA.getID(), "", "",
                     new BigDecimal("20"), null, "",
                     new BigDecimal("3.45"), BigDecimal.ZERO, new BigDecimal("2003.45"),
                     0, -1, -1, -1, new ArrayList<>(), "");
@@ -136,7 +138,7 @@ public class MainTest {
 
             // On 1/7/2022, buy 0 A, $3 commission, total 3.00
             final Transaction t1 = new Transaction(-1, aid, LocalDate.of(2022, 1, 7),
-                    null, BUY, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
+                    null, BUY, Transaction.Status.UNCLEARED, securityA.getID(), "", "",
                     BigDecimal.ZERO, null, "",
                     new BigDecimal("3"), BigDecimal.ZERO, new BigDecimal("3"),
                     0, -1, -1, -1, new ArrayList<>(), "");
@@ -144,7 +146,7 @@ public class MainTest {
 
             // On 1/9/2022, buy 25 A with $3 commission, total $2528
             final Transaction t2 = new Transaction(-1, aid, LocalDate.of(2022, 1, 9),
-                    null, BUY, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
+                    null, BUY, Transaction.Status.UNCLEARED, securityA.getID(), "", "",
                     new BigDecimal("25"), null, "",
                     new BigDecimal("3"), BigDecimal.ZERO, new BigDecimal("2528"),
                     0, -1, -1, -1, new ArrayList<>(), "");
@@ -163,7 +165,7 @@ public class MainTest {
             matchInfoList.add(new MatchInfo(t1.getID(), BigDecimal.ZERO));
             matchInfoList.add(new MatchInfo(t2.getID(), new BigDecimal("7")));
             final Transaction s0 = new Transaction(-1, aid, LocalDate.of(2022, 1, 9),
-                    null, SELL, Transaction.Status.UNCLEARED, securityA.getName(), "", "",
+                    null, SELL, Transaction.Status.UNCLEARED, securityA.getID(), "", "",
                     q, null, "",
                     c, BigDecimal.ZERO, amount,
                     0, -1, -1, -1, new ArrayList<>(), "");
@@ -171,7 +173,7 @@ public class MainTest {
 
             // add a stock split transaction for Z
             final Transaction zSplit = new Transaction(-1, aid, LocalDate.of(2022, 1, 15),
-                    null, STKSPLIT, Transaction.Status.UNCLEARED, securityZ.getName(), "", "",
+                    null, STKSPLIT, Transaction.Status.UNCLEARED, securityZ.getID(), "", "",
                     new BigDecimal("2"), new BigDecimal("1"), "2 for 1 split",
                     null, BigDecimal.ZERO, new BigDecimal("110"),
                     0, -1, -1, -1, new ArrayList<>(), "");

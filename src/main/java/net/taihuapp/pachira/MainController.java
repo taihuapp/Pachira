@@ -65,6 +65,7 @@ import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
+import java.text.ParseException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -1036,7 +1037,7 @@ public class MainController {
 
         try {
             getMainModel().importFromQIF(file, result.orElse(""));
-        } catch (DaoException | ModelException | IOException e) {
+        } catch (DaoException | ModelException | IOException | ParseException e) {
             final String msg = e.getClass().getName() + " exception when importing QIF file";
             mLogger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
@@ -1523,8 +1524,8 @@ public class MainController {
             controller.setMainModel(getMainModel());
             dialogStage.setOnCloseRequest(e -> controller.handleCancel());
             dialogStage.showAndWait();
-        } catch (IOException e) {
-            logAndDisplayException("IOException when opening reconcile dialog", e);
+        } catch (IOException | ModelException e) {
+            logAndDisplayException(e.getClass() + " when opening reconcile dialog", e);
         }
     }
 

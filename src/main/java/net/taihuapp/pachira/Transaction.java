@@ -50,6 +50,7 @@ public class Transaction {
         final boolean isBanking = !account.getType().isGroup(Account.Type.Group.INVESTING);
         final ConverterUtil.CategoryIDConverter converter = new ConverterUtil.CategoryIDConverter(mainModel);
         final String categoryOrTransferAccountName = converter.toString(getCategoryID());
+        final String securityName = new ConverterUtil.SecurityIDConverter(mainModel).toString(getSecurityID());
         final String tagName = (new ConverterUtil.TagIDConverter(mainModel)).toString(getTagID());
 
 
@@ -84,8 +85,8 @@ public class Transaction {
             }
 
             stringBuilder.append("N").append(taStr).append(EOL);
-            if (!getSecurityName().isEmpty())
-                stringBuilder.append("Y").append(getSecurityName()).append(EOL);
+            if (!securityName.isEmpty())
+                stringBuilder.append("Y").append(securityName).append(EOL);
             if (getPrice() != null && getPrice().compareTo(BigDecimal.ZERO) > 0)
                 stringBuilder.append("I").append(getPrice()).append(EOL);
             if (getQuantity() != null && getQuantity().compareTo(BigDecimal.ZERO) != 0) {
@@ -213,7 +214,7 @@ public class Transaction {
     private final ObjectProperty<LocalDate> mADateProperty = new SimpleObjectProperty<>(null);
     private final ObjectProperty<Status> mStatusProperty = new SimpleObjectProperty<>(Status.UNCLEARED);
     private final ObjectProperty<TradeAction> mTradeActionProperty = new SimpleObjectProperty<>(TradeAction.BUY);
-    private final StringProperty mSecurityNameProperty = new SimpleStringProperty("");
+    private final ObjectProperty<Integer> securityIDProperty = new SimpleObjectProperty<>(0);
     private final StringProperty mReferenceProperty = new SimpleStringProperty("");
     private final StringProperty mPayeeProperty = new SimpleStringProperty("");
     // amount property, this is the amount
@@ -284,7 +285,7 @@ public class Transaction {
     public TradeAction getTradeAction() { return getTradeActionProperty().get(); }
     void setTradeAction(TradeAction ta) { getTradeActionProperty().set(ta); }
 
-    StringProperty getSecurityNameProperty() { return mSecurityNameProperty; }
+    ObjectProperty<Integer> getSecurityIDProperty() { return securityIDProperty; }
 
     private void bindDescriptionProperty() {
         // first build a converter
@@ -457,8 +458,6 @@ public class Transaction {
     }
 
     StringProperty getDescriptionProperty() { return mDescriptionProperty; }
-    String getDescription() { return getDescriptionProperty().get(); }
-
     public LocalDate getADate() { return mADateProperty.get(); }
     public BigDecimal getPrice() { return mPriceProperty.get(); }
     public BigDecimal getQuantity() { return mQuantityProperty.get(); }
@@ -466,7 +465,7 @@ public class Transaction {
     public BigDecimal getCommission() { return getCommissionProperty().get(); }
     public BigDecimal getAccruedInterest() { return getAccruedInterestProperty().get(); }
     public BigDecimal getCostBasis() { return mInvestAmountProperty.get(); }
-    public String getSecurityName() { return mSecurityNameProperty.get();}
+    public Integer getSecurityID() { return getSecurityIDProperty().get(); }
     public BigDecimal getCashAmount() { return getCashAmountProperty().get(); }
     public BigDecimal getInvestAmount() { return getInvestAmountProperty().get(); }
     public List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
@@ -612,7 +611,7 @@ public class Transaction {
     @SuppressWarnings("SameParameterValue")
     void setAccruedInterest(BigDecimal ai) { mAccruedInterestProperty.set(ai); }
     void setCommission(BigDecimal c) { mCommissionProperty.set(c); }
-    void setSecurityName(String securityName) { mSecurityNameProperty.set(securityName); }
+    void setSecurityID(int sid) { getSecurityIDProperty().set(sid); }
     void setMemo(String memo) { mMemoProperty.set(memo); }
     public void setBalance(BigDecimal b) { mBalanceProperty.setValue(b); }
     void setCategoryID(int cid) { mCategoryIDProperty.setValue(cid); }
@@ -630,7 +629,7 @@ public class Transaction {
         mTradeActionProperty.set(ta);
         setCategoryID(categoryID);
         mTagIDProperty.set(0); // unused for now.
-        mSecurityNameProperty.set("");
+        setSecurityID(0);
 
         bindProperties();
         // bind description property now
@@ -641,7 +640,7 @@ public class Transaction {
     // for all transactions, the amount is the notional amount, either 0 or positive
     // tradeAction can not be null
     public Transaction(int id, int accountID, LocalDate tDate, LocalDate aDate, TradeAction ta, Status s,
-                       String securityName, String reference, String payee,
+                       int securityID, String reference, String payee,
                        BigDecimal quantity, BigDecimal oldQuantity, String memo,
                        BigDecimal commission, BigDecimal accruedInterest, BigDecimal amount,
                        int categoryID, int tagID, int matchID, int matchSplitID, List<SplitTransaction> stList,
@@ -652,7 +651,7 @@ public class Transaction {
         mMatchSplitID = matchSplitID;
         mTDateProperty.set(tDate);
         mADateProperty.set(aDate);
-        mSecurityNameProperty.set(securityName);
+        setSecurityID(securityID);
         mReferenceProperty.set(reference);
         mCommissionProperty.set(commission);
         mAccruedInterestProperty.set(accruedInterest);
@@ -679,7 +678,7 @@ public class Transaction {
     // copy constructor
     public Transaction(Transaction t0) {
         this(t0.getID(), t0.getAccountID(), t0.getTDate(), t0.getADate(), t0.getTradeAction(), t0.getStatus(),
-                t0.getSecurityName(),
+                t0.getSecurityID(),
                 t0.getReference(), t0.getPayeeProperty().get(), t0.getQuantity(),
                 t0.getOldQuantity(), t0.getMemo(), t0.getCommission(), t0.getAccruedInterest(), t0.getAmount(),
                 t0.getCategoryID(), t0.getTagID(), t0.getMatchID(), t0.getMatchSplitID(),

@@ -147,7 +147,7 @@ public class EditTransactionDialogControllerNew {
     @FXML
     private Label mSecurityNameLabel;
     @FXML
-    private ComboBox<Security> mSecurityComboBox;
+    private ComboBox<Integer> mSecurityComboBox;
     @FXML
     private Label mNewSecurityNameLabel;
     @FXML
@@ -155,7 +155,7 @@ public class EditTransactionDialogControllerNew {
     @FXML
     private Label mOldSecurityNameLabel;
     @FXML
-    private ComboBox<Security> mOldSecurityComboBox;
+    private ComboBox<Integer> mOldSecurityComboBox;
     @FXML
     private Label mReferenceLabel;
     @FXML
@@ -222,7 +222,7 @@ public class EditTransactionDialogControllerNew {
             mTransaction.getSplitTransactionList().clear();
 
         if (!mSecurityComboBox.isVisible())
-            mTransaction.setSecurityName("");
+            mTransaction.setSecurityID(0);
 
         if (!mReferenceTextField.isVisible())
             mTransaction.setReference("");
@@ -256,11 +256,11 @@ public class EditTransactionDialogControllerNew {
                 // 1) transaction is null, 2) transaction trade date is after mTransaction trade date
                 // 3) transaction trade date is the same as mTransaction trade date
                 //    AND transaction id is greater than mTransaction id
-                // 4) security name mismatch
+                // 4) security ID mismatch
                 if (transaction == null || transaction.getTDate().isAfter(mTransaction.getTDate())
                         || (transaction.getTDate().isEqual(mTransaction.getTDate())
                             && (transaction.getID() > mTransaction.getID()))
-                        || !transaction.getSecurityName().equals(mTransaction.getSecurityName())) {
+                        || !transaction.getSecurityID().equals(mTransaction.getSecurityID())) {
                     isOK = false;  // this is not good.
                     break;
                 }
@@ -411,33 +411,36 @@ public class EditTransactionDialogControllerNew {
         mReferenceLabel.visibleProperty().bind(mReferenceTextField.visibleProperty());
         mReferenceTextField.textProperty().bindBidirectional(mTransaction.getReferenceProperty());
 
-        ConverterUtil.SecurityConverter securityConverter = new ConverterUtil.SecurityConverter(mainModel);
-
         // security combobox
-        mSecurityComboBox.setConverter(securityConverter);
-        TreeSet<Security> allSecuritySet = new TreeSet<>(Comparator.comparing(Security::getName));
-        allSecuritySet.addAll(mainModel.getSecurityList());
-        defaultAccount.getCurrentSecurityList().forEach(allSecuritySet::remove); // remove account security list
-        mSecurityComboBox.getItems().add(null); // add a blank one first
-        mSecurityComboBox.getItems().addAll(defaultAccount.getCurrentSecurityList());
-        mSecurityComboBox.getItems().addAll(allSecuritySet);
+        mSecurityComboBox.setConverter(new ConverterUtil.SecurityIDConverter(mainModel));
+
+        final ConverterUtil.SecurityIDConverter securityIDConverter = new ConverterUtil.SecurityIDConverter(mainModel);
+        final TreeSet<Integer> allSecurityIDSet = new TreeSet<>(Comparator.comparing(securityIDConverter::toString));
+        allSecurityIDSet.addAll(mainModel.getSecurityList().stream().map(Security::getID).collect(Collectors.toSet()));
+        final TreeSet<Integer> accountSecurityIDSet = new TreeSet<>(Comparator.comparing(securityIDConverter::toString));
+        accountSecurityIDSet.addAll(defaultAccount.getCurrentSecurityList().stream()
+                .map(Security::getID).collect(Collectors.toSet()));
+
+        allSecurityIDSet.removeAll(accountSecurityIDSet); // exclude account securities
+
+        mSecurityComboBox.getItems().add(0); // add a blank one first
+        mSecurityComboBox.getItems().addAll(accountSecurityIDSet);
+        mSecurityComboBox.getItems().addAll(allSecurityIDSet);
         autoCompleteComboBox(mSecurityComboBox);
         mSecurityComboBox.visibleProperty().bind(mReferenceTextField.visibleProperty().not());
         mSecurityNameLabel.visibleProperty().bind(mSecurityComboBox.visibleProperty());
         mSecurityNameLabel.textProperty().bind(Bindings.createStringBinding(() ->
                 mTradeActionChoiceBox.getValue() == SHRCLSCVN ? "New Security:" : "Security Name:",
                 mTradeActionChoiceBox.valueProperty()));
-        Security currentSecurity = mainModel.getSecurity(s -> s.getName().equals(mTransaction.getSecurityName()))
-                .orElse(null);
-        Bindings.bindBidirectional(mTransaction.getSecurityNameProperty(), mSecurityComboBox.valueProperty(),
-                mSecurityComboBox.getConverter());
-        mSecurityComboBox.getSelectionModel().select(currentSecurity);
+        mSecurityComboBox.getSelectionModel().select(mTransaction.getSecurityID() <= 0 ?
+                Integer.valueOf(0) : mTransaction.getSecurityID());
+        Bindings.bindBidirectional(mTransaction.getSecurityIDProperty(), mSecurityComboBox.valueProperty());
 
         mNewSecurityNameTextField.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(CORPSPINOFF));
         mNewSecurityNameLabel.visibleProperty().bind(mNewSecurityNameTextField.visibleProperty());
 
         // old security stuff for Share class conversion
-        mOldSecurityComboBox.setConverter(securityConverter);
+        mOldSecurityComboBox.setConverter(new ConverterUtil.SecurityIDConverter(mainModel));
         mOldSecurityComboBox.getItems().addAll(mSecurityComboBox.getItems());
         autoCompleteComboBox(mOldSecurityComboBox);
         mOldSecurityComboBox.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(SHRCLSCVN));
@@ -586,7 +589,7 @@ public class EditTransactionDialogControllerNew {
     }
 
     private boolean enterCorpSpinOffTransaction() {
-        final Security oldSecurity = mSecurityComboBox.getValue();
+        final Security oldSecurity = mainModel.getSecurity(mSecurityComboBox.getValue()).orElse(null);
         if (oldSecurity == null) {
             DialogUtil.showWarningDialog(getStage(), "Empty Security",
                     "Corporate Spin-Off Needs A Security", "Please select a valid security.");
@@ -602,7 +605,7 @@ public class EditTransactionDialogControllerNew {
             return false;
         }
 
-        final Optional<Security> newSecurity = mainModel.getSecurity(s -> s.getName().equals(newSecurityName));
+        final Optional<Security> newSecurity = mainModel.getSecurity(newSecurityName);
         if (newSecurity.isPresent()) {
             final boolean isOK = DialogUtil.showConfirmationDialog(getStage(), "Spin-Off Security Exist",
                     "The spin-off security already exist.",
@@ -657,14 +660,14 @@ public class EditTransactionDialogControllerNew {
     private boolean enterShareClassConversionTransaction() {
         String header;
         // validate input data
-        Security newSecurity = mSecurityComboBox.getValue();
+        final Security newSecurity = mainModel.getSecurity(mSecurityComboBox.getValue()).orElse(null);
         if (newSecurity == null) {
             header = "Empty new security";
             mLogger.warn(header);
             showWarningDialog(header, "Please select a valid New Security.");
             return false;
         }
-        Security oldSecurity = mOldSecurityComboBox.getValue();
+        final Security oldSecurity = mainModel.getSecurity(mOldSecurityComboBox.getValue()).orElse(null);
         if (oldSecurity == null) {
             header = "Empty old security";
             mLogger.warn(header);
@@ -726,12 +729,12 @@ public class EditTransactionDialogControllerNew {
                             : BigDecimal.ZERO;
 
                     transactionList.add(new Transaction(-1, account.getID(), tDate, li.getDate(), SHRSIN,
-                            Transaction.Status.UNCLEARED, newSecurity.getName(), "", "",
+                            Transaction.Status.UNCLEARED, newSecurity.getID(), "", "",
                             newLotQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO,
                             BigDecimal.ZERO, costBasis, categoryID, tagID, matchID, matchSplitID, null, ""));
                 }
                 transactionList.add(new Transaction(-1, account.getID(), tDate, tDate, SHRSOUT,
-                        Transaction.Status.UNCLEARED, oldSecurity.getName(), "", "",
+                        Transaction.Status.UNCLEARED, oldSecurity.getID(), "", "",
                         oldQuantity, BigDecimal.ZERO, memo, BigDecimal.ZERO, BigDecimal.ZERO,
                         BigDecimal.ZERO, categoryID, tagID, matchID, matchSplitID, null, ""));
             }
@@ -861,6 +864,8 @@ public class EditTransactionDialogControllerNew {
         }
 
         // check to see if enough existing position to sell or cover
+        final String securityName = mainModel.getSecurity(mTransaction.getSecurityID()).
+                map(Security::getName).orElse("");
         if (ta == SELL || ta == SHRSOUT || ta == CVTSHRT) {
             Account account = mainModel.getAccount(a -> a.getID() == accountID).orElse(null);
             if (account == null) {
@@ -869,13 +874,13 @@ public class EditTransactionDialogControllerNew {
             }
 
             try {
-                List<SecurityHolding> securityHoldingList =
+                final List<SecurityHolding> securityHoldingList =
                         mainModel.computeSecurityHoldings(account.getTransactionList(),
                                 mTransaction.getTDate(), mTransaction.getID());
 
                 boolean hasEnough = false;
                 for (SecurityHolding sh : securityHoldingList) {
-                    if (sh.getSecurityName().equals(mTransaction.getSecurityName())) {
+                    if (sh.getSecurityName().equals(securityName)) {
                         // we have matching security position, check
                         // sh.getQuantity is signed, mTransaction getQuantity is always positive
                         if (((ta == SELL || ta == SHRSOUT) && sh.getQuantity()
@@ -925,8 +930,7 @@ public class EditTransactionDialogControllerNew {
         }
 
         // will this ever happen?
-        String securityName = mTransaction.getSecurityName();
-        Security security = mainModel.getSecurity(s -> s.getName().equals(securityName)).orElse(null);
+        Security security = mainModel.getSecurity(securityName).orElse(null);
         if (security == null) {
             if (!securityName.isEmpty()) {
                 String heading = "Invalid security name " + securityName;

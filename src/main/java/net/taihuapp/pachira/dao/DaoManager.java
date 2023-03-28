@@ -786,11 +786,10 @@ public class DaoManager {
             case SECURITY:
                 return daoMap.computeIfAbsent(daoType, o -> new SecurityDao(connection));
             case TRANSACTION: {
-                final SecurityDao securityDao = (SecurityDao) getDao(DaoType.SECURITY);
                 final SplitTransactionListDao splitTransactionListDao =
                         (SplitTransactionListDao) getDao(DaoType.SPLIT_TRANSACTION);
                 return daoMap.computeIfAbsent(daoType,
-                        o -> new TransactionDao(connection, securityDao, splitTransactionListDao));
+                        o -> new TransactionDao(connection, splitTransactionListDao));
             }
             case SPLIT_TRANSACTION:
                 return daoMap.computeIfAbsent(daoType, o -> new SplitTransactionListDao(connection));

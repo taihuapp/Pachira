@@ -134,8 +134,7 @@ public class HoldingsDialogController {
 
         mPriceColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPriceColumn.setOnEditCommit(event -> {
-            final Security security = mainModel.getSecurity(s -> s.getName()
-                    .equals(event.getRowValue().getValue().getLabel())).orElse(null);
+            final Security security = mainModel.getSecurity(event.getRowValue().getValue().getLabel()).orElse(null);
             if (security == null)
                 return;
             final LocalDate date = mDatePicker.getValue();

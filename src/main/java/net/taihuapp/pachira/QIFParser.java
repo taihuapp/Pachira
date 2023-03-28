@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
+import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -45,12 +47,14 @@ class QIFParser {
 
     private final Map<String, List<Transaction>> accountNameTransactionMap = new HashMap<>();
     private final Map<String, List<Transaction>> categoryNameTransactionMap = new HashMap<>();
+    private final Map<String, List<Transaction>> securityNameTransactionMap = new HashMap<>();
     private final Map<String, List<Transaction>> tagNameTransactionMap = new HashMap<>();
     private final Map<String, List<SplitTransaction>> categoryNameSplitTransactionMap = new HashMap<>();
     private final Map<String, List<SplitTransaction>> tagNameSplitTransactionMap = new HashMap<>();
 
     Map<String, List<Transaction>> getAccountNameTransactionMap() { return accountNameTransactionMap; }
     Map<String, List<Transaction>> getCategoryNameTransactionMap() { return categoryNameTransactionMap; }
+    Map<String, List<Transaction>> getSecurityNameTransactionMap() { return securityNameTransactionMap; }
     Map<String, List<Transaction>> getTagNameTransactionMap() { return tagNameTransactionMap; }
     Map<String, List<SplitTransaction>> getCategoryNameSplitTransactionMap() { return categoryNameSplitTransactionMap; }
     Map<String, List<SplitTransaction>> getTagNameSplitTransactionMap() { return tagNameSplitTransactionMap; }
@@ -182,10 +186,11 @@ class QIFParser {
         }
     }
 
-    Transaction parseTransactionFromBTLines(List<String> lines) throws ModelException {
+    Transaction parseTransactionFromBTLines(List<String> lines) throws ModelException, ParseException {
         Transaction t = new Transaction(-1, LocalDate.MIN, Transaction.TradeAction.WITHDRAW, 0);
         SplitTransaction splitTransaction = null;
         List<SplitTransaction> stList = new ArrayList<>();
+        final DecimalFormat dcFormat = ConverterUtil.getDollarCentFormatInstance();
         BigDecimal tAmount;
         for (String l : lines) {
             switch (l.charAt(0)) {
@@ -195,7 +200,7 @@ class QIFParser {
                 case 'T':
                 case 'U':
                     // T amount is always the same as U amount
-                    tAmount = new BigDecimal(l.substring(1).replace(",",""));
+                    tAmount = (BigDecimal) dcFormat.parse(l.substring(1));
                     t.setAmount(tAmount.abs());
                     t.setTradeAction(tAmount.signum() >= 0 ?
                             Transaction.TradeAction.DEPOSIT : Transaction.TradeAction.WITHDRAW );
@@ -270,11 +275,14 @@ class QIFParser {
         return t;
     }
 
-    Transaction parseTransactionFromTTLines(List<String> lines) throws ModelException {
+    Transaction parseTransactionFromTTLines(List<String> lines) throws ModelException, ParseException {
         Transaction t = new Transaction(-1, LocalDate.MIN, Transaction.TradeAction.WITHDRAW, 0);
         String actionStr = null;
         String categoryName = null;
         BigDecimal tAmount = null;
+        String securityName = null;
+        final DecimalFormat pqFormat = ConverterUtil.getPriceQuantityFormatInstance();
+        final DecimalFormat dcFormat = ConverterUtil.getDollarCentFormatInstance();
         for (String l : lines) {
             switch (l.charAt(0)) {
                 case 'D':
@@ -284,13 +292,13 @@ class QIFParser {
                     actionStr = l.substring(1).toUpperCase();
                     break;
                 case 'Y':
-                    t.setSecurityName(l.substring(1));
+                    securityName = l.substring(1);
                     break;
                 case 'I':
                     // price is ignored
                     break;
                 case 'Q':
-                    t.setQuantity(new BigDecimal(l.substring(1).replace(",", "")));
+                    t.setQuantity((BigDecimal) pqFormat.parse(l.substring(1)));
                     break;
                 case 'C':
                     t.setStatus(mapCharToStatus(l.charAt(1)));
@@ -302,7 +310,7 @@ class QIFParser {
                     t.setMemo(l.substring(1));
                     break;
                 case 'O':
-                    t.setCommission(new BigDecimal(l.substring(1).replace(",","")));
+                    t.setCommission((BigDecimal) dcFormat.parse(l.substring(1)));
                     break;
                 case 'L':
                     String[] names = l.substring(1).split("/");
@@ -318,7 +326,7 @@ class QIFParser {
                         tagNameTransactionMap.computeIfAbsent(names[1], k -> new ArrayList<>()).add(t);
                     break;
                 case 'T':
-                    tAmount = new BigDecimal(l.substring(1).replace(",",""));
+                    tAmount = (BigDecimal) dcFormat.parse(l.substring(1));
                     t.setAmount(tAmount);
                     break;
                 case 'U':
@@ -349,8 +357,8 @@ class QIFParser {
                 case "SHTSELLX":
                     actionStr = actionStr.substring(0, actionStr.length()-1);
                     if (categoryName == null || !(categoryName.startsWith("[") && categoryName.endsWith("]"))) {
-                        // it's a transfer transaction, but transfer account is not set
-                        // set to DELETED_ACCOUNT_NAME
+                        // it's a transfer transaction, but transfer account is not set,
+                        // set it to DELETED_ACCOUNT_NAME
                         categoryName = "[" + MainApp.DELETED_ACCOUNT_NAME + "]";
                     }
                     break;
@@ -377,6 +385,9 @@ class QIFParser {
 
             if (categoryName != null)
                 categoryNameTransactionMap.computeIfAbsent(categoryName, k -> new ArrayList<>()).add(t);
+
+            if (securityName != null)
+                securityNameTransactionMap.computeIfAbsent(securityName, k -> new ArrayList<>()).add(t);
         }
         return t;
     }
@@ -452,13 +463,13 @@ class QIFParser {
 
     // return -1 for some sort of failure
     //         0 for success
-    int parseFile(File qif) throws IOException, ModelException {
+    int parseFile(File qif) throws IOException, ModelException, ParseException {
         List<String> allLines = Files.readAllLines(qif.toPath());
         int nLines = allLines.size();
         if (nLines == 0)
             return 0;
 
-        // trim off white spaces
+        // trim white spaces
         for (int i = 0; i < nLines; i++) {
             String s = allLines.get(i).trim();
             allLines.set(i, s);

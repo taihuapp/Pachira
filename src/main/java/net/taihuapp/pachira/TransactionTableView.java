@@ -141,7 +141,8 @@ class TransactionTableView extends TableView<Transaction> {
                 mainModel.getAccount(a -> a.getID() == cd.getValue().getAccountID())
                         .map(Account::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
         mTransactionTradeActionColumn.setCellValueFactory(cd -> cd.getValue().getTradeActionProperty());
-        mTransactionSecurityNameColumn.setCellValueFactory(cd -> cd.getValue().getSecurityNameProperty());
+        mTransactionSecurityNameColumn.setCellValueFactory(cd -> mainModel.getSecurity(cd.getValue().getSecurityID())
+                    .map(Security::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
         mTransactionReferenceColumn.setCellValueFactory(cd -> cd.getValue().getReferenceProperty());
         mTransactionPayeeColumn.setCellValueFactory(cd -> cd.getValue().getPayeeProperty());
         mTransactionMemoColumn.setCellValueFactory(cd -> cd.getValue().getMemoProperty());

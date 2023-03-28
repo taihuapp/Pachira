@@ -158,15 +158,15 @@ public class SpecifyLotsDialogController {
         final BigDecimal costPerShare = totalAmt.divide(q, MainModel.PRICE_QUANTITY_FRACTION_LEN,
                 RoundingMode.HALF_UP);
         final String cStr = pqFormat.format(costPerShare);
+        final String securityName = mainModel.getSecurity(mTransaction.getSecurityID())
+                .map(Security::getName).orElse("");
         if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
-            mMainLabel0.setText(qStr + " shares of "
-                    + mTransaction.getSecurityName() + " sold for " + amountStr
+            mMainLabel0.setText(qStr + " shares of " + securityName + " sold for " + amountStr
                     + " at " + cStr + " per share");
             mMainLabel1.setText("Please select share(s) to be sold");
         } else {
             // should be CVTSHRT
-            mMainLabel0.setText(qStr + " shares of "
-                    + mTransaction.getSecurityName() + " bought for " + amountStr
+            mMainLabel0.setText(qStr + " shares of " + securityName + " bought for " + amountStr
                     + " at " + cStr + " per share");
             mMainLabel1.setText("Please select share(s) to be covered");
         }
@@ -181,7 +181,7 @@ public class SpecifyLotsDialogController {
                 t.getTDate(), t.getID());
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
         for (SecurityHolding s : shList) {
-            if (s.getSecurityName().equals(mTransaction.getSecurityName())) {
+            if (s.getSecurityName().equals(securityName)) {
                 // we found the right security
                 for (SecurityLot sl : s.getSecurityLotList()) {
                     mSpecifyLotInfoList.add(new SpecifyLotInfo(sl));

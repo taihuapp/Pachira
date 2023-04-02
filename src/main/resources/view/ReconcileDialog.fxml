@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018-2019.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -20,18 +20,10 @@
   ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   -->
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.CheckBox?>
-<?import javafx.scene.control.DatePicker?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.ColumnConstraints?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.layout.VBox?>
-
-<VBox fx:id="mVBox" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" spacing="5.0" xmlns="http://javafx.com/javafx/8.0.152" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.ReconcileDialogController">
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox fx:id="mVBox" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" spacing="5.0" xmlns="http://javafx.com/javafx/11" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.ReconcileDialogController">
    <children>
       <GridPane hgap="5.0" VBox.vgrow="NEVER">
          <columnConstraints>
@@ -72,13 +64,13 @@
       </GridPane>
       <TableView fx:id="mSecurityBalanceTableView" maxWidth="-Infinity">
         <columns>
-          <TableColumn fx:id="mSecurityNameTableColumn" prefWidth="150.0" />
+          <TableColumn fx:id="mSecurityNameTableColumn" prefWidth="150.0" sortable="false" />
           <TableColumn prefWidth="-1.0" text="Cash Amount/Security Shares Balance">
                <columns>
-                  <TableColumn fx:id="mOpeningBalanceTableColumn" prefWidth="120.0" text="Opening" />
-                  <TableColumn fx:id="mClearedBalanceTableColumn" prefWidth="120.0" text="Cleared" />
-                  <TableColumn fx:id="mEndingBalanceTableColumn" prefWidth="120.0" text="Ending" />
-                  <TableColumn fx:id="mBalanceDifferenceTableColumn" prefWidth="120.0" text="Difference" />
+                  <TableColumn fx:id="mOpeningBalanceTableColumn" prefWidth="120.0" sortable="false" text="Opening" />
+                  <TableColumn fx:id="mClearedBalanceTableColumn" prefWidth="120.0" sortable="false" text="Cleared" />
+                  <TableColumn fx:id="mEndingBalanceTableColumn" prefWidth="120.0" sortable="false" text="Ending" />
+                  <TableColumn fx:id="mBalanceDifferenceTableColumn" prefWidth="120.0" sortable="false" text="Difference" />
                </columns>
             </TableColumn>
         </columns>

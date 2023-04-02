@@ -1,6 +1,7 @@
+0.8.4.1:
+  Reworked reconcile account process.  Fixed a bug in reconcile account.  Simplified the Window.
+
 0.8.4.0:
-Need to test:
-  Transaction::toQIF
 
 0.8.3.5：
 

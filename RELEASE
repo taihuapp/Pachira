@@ -1,3 +1,6 @@
+0.8.4.2:
+  Disable sorting in Transaction tableview.
+
 0.8.4.1:
   Reworked reconcile account process.  Fixed a bug in reconcile account.  Simplified the Window.
 

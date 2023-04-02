@@ -39,6 +39,7 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -79,7 +80,7 @@ class TransactionTableView extends TableView<Transaction> {
 
         // add columns to TableView
         //setTableMenuButtonVisible(true);
-        getColumns().addAll(Arrays.asList(
+        List<TableColumn<Transaction, ?>> columns = Arrays.asList(
                 mTransactionStatusColumn,
                 mTransactionDateColumn,
                 mTransactionAccountColumn,
@@ -98,7 +99,10 @@ class TransactionTableView extends TableView<Transaction> {
                 mTransactionDepositColumn,
                 mTransactionBalanceColumn,
                 mTransactionAmountColumn
-        ));
+        );
+        columns.forEach(c -> c.setSortable(false));
+
+        getColumns().addAll(columns);
 
         // set preferred width for each column
         mTransactionStatusColumn.setPrefWidth(20);

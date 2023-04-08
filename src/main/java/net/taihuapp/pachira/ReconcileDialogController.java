@@ -169,7 +169,7 @@ public class ReconcileDialogController {
                             .subtract(sb.getOpeningBalance()));
                 }
             }
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             logger.error(e.getErrorCode() + " DaoException", e);
             throw new RuntimeException(e);
         }
@@ -204,19 +204,10 @@ public class ReconcileDialogController {
         final List<Transaction> reconciledTransactionList = transactionList
                 .filtered(t -> t.getStatus().equals(Transaction.Status.RECONCILED));
         final List<SecurityHolding> reconciledHoldings;
-        try {
-            reconciledHoldings = mainModel
-                    .computeSecurityHoldings(reconciledTransactionList, LocalDate.MAX, -1).stream()
-                    .filter(h -> !h.getLabel().equals(SecurityHolding.TOTAL)) // exclude TOTAL
-                    .collect(Collectors.toList());
-        } catch (DaoException e) {
-            final Stage stage = (Stage) mVBox.getScene().getWindow();
-            final String msg = "EaoException " + e.getErrorCode() + " on computeSecurityHoldings "
-                    + "for account id = " + account.getID() + ", account name = " + account.getName();
-            logger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
-            return;
-        }
+        reconciledHoldings = mainModel
+                .computeSecurityHoldings(reconciledTransactionList, LocalDate.MAX, -1).stream()
+                .filter(h -> !h.getLabel().equals(SecurityHolding.TOTAL)) // exclude TOTAL
+                .collect(Collectors.toList());
 
         final Set<String> reconciledSecurityNameSet = reconciledHoldings.stream()
                 .filter(h -> !h.getLabel().equals(SecurityHolding.CASH)) // exclude CASH

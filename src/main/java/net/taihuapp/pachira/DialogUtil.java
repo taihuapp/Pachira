@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -150,7 +150,7 @@ public class DialogUtil {
     }
 
     static void showSpecifyLotsDialog(MainModel mainModel, Stage parent, Transaction t,
-                                      List<MatchInfo> matchInfoList) throws IOException, DaoException {
+                                      List<MatchInfo> matchInfoList) throws IOException, ModelException {
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(MainApp.class.getResource("/view/SpecifyLotsDialog.fxml"));
 

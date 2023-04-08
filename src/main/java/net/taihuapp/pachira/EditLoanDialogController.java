@@ -393,10 +393,10 @@ public class EditLoanDialogController {
                         descriptionTextField.getText().trim());
             existingLoans.add(loan);
             setupAccountSection();
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             final String msg = "insert loan failed";
             logger.error(msg, e);
-            DialogUtil.showExceptionDialog(getStage(),"DaoException", msg, e.toString(), e);
+            DialogUtil.showExceptionDialog(getStage(),"ModelException", msg, e.toString(), e);
         }
 
         // create a transaction of the loan initiation

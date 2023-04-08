@@ -26,7 +26,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
-import net.taihuapp.pachira.dao.DaoException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -107,8 +106,8 @@ public class EditAccountDialogController {
         try {
             mainModel.insertUpdateAccount(account);
             close();
-        } catch (DaoException e) {
-            final String msg = e.getErrorCode() + " DaoException when insertUpdateAccount";
+        } catch (ModelException e) {
+            final String msg = e.getErrorCode() + " ModelException when insertUpdateAccount";
             logger.error(msg, e);
             DialogUtil.showExceptionDialog((Stage) mNameTextField.getScene().getWindow(),
                     "DaoException", msg, e.toString(), e);

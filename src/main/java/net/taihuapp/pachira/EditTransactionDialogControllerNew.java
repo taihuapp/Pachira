@@ -298,7 +298,7 @@ public class EditTransactionDialogControllerNew {
     // defaultAccount should be in accountList
     // taList is
     void setMainModel(MainModel mainModel, Transaction transaction, List<Account> accountList, Account defaultAccount,
-                      List<Transaction.TradeAction> taList) throws DaoException {
+                      List<Transaction.TradeAction> taList) {
         this.mainModel = mainModel;
 
         if (transaction == null) {
@@ -309,7 +309,13 @@ public class EditTransactionDialogControllerNew {
             mTransactionOrig = transaction.getID() > 0 ? transaction : null;
             mTransaction = new Transaction(transaction);
         }
-        mMatchInfoList = mainModel.getMatchInfoList(mTransaction.getID());
+        try {
+            mMatchInfoList = mainModel.getMatchInfoList(mTransaction.getID());
+        } catch (ModelException e) {
+            DialogUtil.showExceptionDialog(getStage(), "Failure", "Failed to get match info list",
+                    "Failed to get match info list for transaction id = " + mTransaction.getID(), e);
+            return;
+        }
 
         // setup controls
 
@@ -646,8 +652,8 @@ public class EditTransactionDialogControllerNew {
         try {
             return mainModel.enterCorpSpinOffTransaction(date, oldSecurity, newSecurityName, newShares,
                     oldSharePrice, newSharePrice, memo);
-        } catch (DaoException e) {
-            final String msg = "DaoException " + e.getErrorCode();
+        } catch (ModelException e) {
+            final String msg = "ModelException " + e.getErrorCode();
             mLogger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
             return false;
@@ -711,7 +717,7 @@ public class EditTransactionDialogControllerNew {
         List<SecurityHolding> shList;
         try {
             shList = mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, mTransaction.getID());
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             mLogger.error("Failed to computer Security holdings for Account " + account.getName(), e);
             return false;
         }
@@ -904,8 +910,8 @@ public class EditTransactionDialogControllerNew {
                     showWarningDialog(header, content);
                     return false;
                 }
-            } catch (DaoException e) {
-                mLogger.error("DaoException " + e.getErrorCode(), e);
+            } catch (ModelException e) {
+                mLogger.error("ModelException " + e.getErrorCode(), e);
                 DialogUtil.showExceptionDialog(getStage(), "Exception", "DaoException " + e.getErrorCode(),
                         e.toString(), e);
                 return false;
@@ -961,7 +967,7 @@ public class EditTransactionDialogControllerNew {
             mLogger.error("IOException on showSpecifyLotsDialog", e);
             DialogUtil.showExceptionDialog(stage, "IOException",
                     "IOException encountered on showSpecifyLotsDialog", e.getMessage(), e);
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             mLogger.error("DaoException " + e.getErrorCode() + " on showSpecifyLotsDialog", e);
             DialogUtil.showExceptionDialog(stage, "DaoException",
                     e.getErrorCode() + " on showSpecifyLotsDialog", e.toString(), e);

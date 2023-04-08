@@ -27,7 +27,6 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
-import net.taihuapp.pachira.dao.DaoException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -145,7 +144,7 @@ public class SpecifyLotsDialogController {
     private void handleCancel() { ((Stage) mLotInfoTableView.getScene().getWindow()).close(); }
 
     void setMainModel(MainModel mainModel, Transaction t, List<MatchInfo> matchInfoList)
-            throws DaoException {
+            throws ModelException {
         mMatchInfoList = matchInfoList;  // a link point to the input list
         mTransaction = t;
 

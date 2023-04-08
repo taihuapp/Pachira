@@ -1556,7 +1556,7 @@ public class ReportDialogController {
         return reportStr.toString();
     }
 
-    private String CostBasisReport() throws DaoException {
+    private String CostBasisReport() throws ModelException {
         final LocalDate date = mSetting.getEndDate();
         final String EOL = System.lineSeparator();
         final StringBuilder outputSB = new StringBuilder("Cost Basis as of " + date + EOL + EOL);
@@ -1664,7 +1664,7 @@ public class ReportDialogController {
         return outputSB.toString();
     }
 
-    private String NAVReport() throws DaoException {
+    private String NAVReport() throws ModelException {
         final LocalDate date = mSetting.getEndDate();
         StringBuilder outputStr = new StringBuilder("NAV Report as of " + date + "\n\n");
 

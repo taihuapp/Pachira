@@ -204,8 +204,8 @@ public class MainController {
                                 && !showChangeReconciledConfirmation())
                             return;
                         try {
-                                getMainModel().setTransactionStatus(row.getItem().getID(), status);
-                        } catch (DaoException | ModelException ex) {
+                            getMainModel().setTransactionStatus(row.getItem().getID(), status);
+                        } catch (ModelException ex) {
                             logAndDisplayException("SetTransactionStatus " + row.getItem().getID() + " " + status
                                     + " Exception", ex);
                         }

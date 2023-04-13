@@ -95,7 +95,10 @@ public class MainModel {
     private final ObjectProperty<Account> currentAccountProperty = new SimpleObjectProperty<>(null);
 
     // transactionList should be sorted according to getID
-    private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
+    // we want to expose transaction Status so when it changes it will trig sort.
+    private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList(
+            t -> new Observable[] { t.getStatusProperty() }
+    );
     private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
     private final ObservableList<Security> securityList = FXCollections.observableArrayList();
     private final ObservableList<Tag> tagList = FXCollections.observableArrayList();
@@ -305,11 +308,13 @@ public class MainModel {
         // transaction comparator for investing accounts
         final Comparator<Transaction> investingAccountTransactionComparator = Comparator
                 .comparing(Transaction::getTDate)
+                .thenComparing(Transaction::getStatus, Comparator.reverseOrder())
                 .thenComparing(Transaction::getID);
 
         // transaction comparator for other accounts
         final Comparator<Transaction> spendingAccountTransactionComparator = Comparator
                 .comparing(Transaction::getTDate)
+                .thenComparing(Transaction::getStatus, Comparator.reverseOrder())
                 .thenComparing(Transaction::cashFlow, Comparator.reverseOrder())
                 .thenComparing(Transaction::getID);
 
@@ -1265,16 +1270,22 @@ public class MainModel {
         return payeeSet;
     }
 
-    void setTransactionStatus(int tid, Transaction.Status newStatus) throws DaoException, ModelException {
+    void setTransactionStatus(int tid, Transaction.Status newStatus) throws ModelException {
         Transaction t = getTransactionByID(tid).orElseThrow(() ->
                 new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION, "Bad Transaction ID" + tid, null));
         Transaction.Status oldStatus = t.getStatus();
         t.setStatus(newStatus);
         try {
             ((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).update(t);
-        } catch (DaoException e) {
+            // change of status may trigger sort, need to update balance after sort
+            updateAccountBalance(a -> a.getID() == a.getID());
+        } catch (ModelException | DaoException e) {
             t.setStatus(oldStatus);
-            throw e;
+            if (e instanceof ModelException)
+                throw (ModelException) e;
+            else
+                throw new ModelException(ModelException.ErrorCode.FAIL_TO_UPDATE_TRANSACTION,
+                        "Failed to update transaction status in database", e);
         }
     }
 

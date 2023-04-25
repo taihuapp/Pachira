@@ -334,9 +334,10 @@ public class ReminderTransactionListDialogController {
                             .orElse(new ReadOnlyStringWrapper(""));
         });
         BooleanBinding visibility = Bindings.createBooleanBinding(() -> {
-            ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
-            return (rt != null) && !rt.isCompletedOrSkipped();
-        }, mReminderTransactionTableView.getSelectionModel().getSelectedItems());
+                    ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
+                    return (rt != null) && !rt.isCompletedOrSkipped();
+                }, mReminderTransactionTableView.getSelectionModel().selectedItemProperty(),
+                mReminderTransactionTableView.getSelectionModel().getSelectedItems());
 
         mEditButton.visibleProperty().bind(visibility);
         mDeleteButton.visibleProperty().bind(visibility);

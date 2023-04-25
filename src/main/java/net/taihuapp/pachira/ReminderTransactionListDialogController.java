@@ -324,10 +324,15 @@ public class ReminderTransactionListDialogController {
             }
         });
 
-        mAccountTableColumn.setCellValueFactory(cellData -> reminderModel.getMainModel().getAccount(account ->
-                        account.getID() == reminderModel.getReminder(cellData.getValue().getReminderId()).getAccountID())
-                .map(Account::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
-
+        mAccountTableColumn.setCellValueFactory(cellData -> {
+                    final ReminderTransaction rt = cellData.getValue();
+                    final MainModel mainModel = reminderModel.getMainModel();
+                    final Reminder reminder = reminderModel.getReminder(rt.getReminderId());
+                    final int accountID = mainModel.getTransaction(t -> t.getID() == rt.getTransactionID())
+                            .map(Transaction::getAccountID).orElse(reminder.getAccountID());
+                    return mainModel.getAccount(a -> a.getID() == accountID).map(Account::getNameProperty)
+                            .orElse(new ReadOnlyStringWrapper(""));
+        });
         BooleanBinding visibility = Bindings.createBooleanBinding(() -> {
             ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
             return (rt != null) && !rt.isCompletedOrSkipped();

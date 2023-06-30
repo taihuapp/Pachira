@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -28,8 +28,7 @@ import javafx.beans.property.StringProperty;
 import java.math.BigDecimal;
 
 /**
- * A class for split transactions
- *
+ * A class for split transactions.
  * Split transactions have a simpler structure than
  * a transaction.  It is essentially a cash transaction
  * But split transactions use different conventions.  So we are

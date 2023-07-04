@@ -114,13 +114,13 @@ public class AccountListDialogController {
         account.setHiddenFlag(!account.getHiddenFlag());
         try {
             mainModel.insertUpdateAccount(account);
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             // first put back
             account.setHiddenFlag(!account.getHiddenFlag());
             Stage stage = (Stage) mAccountTableView.getScene().getWindow();
-            final String msg = e.getErrorCode() + " DaoException when hide/unhide account " + account.getName();
+            final String msg = e.getErrorCode() + " ModelException when hide/unhide account " + account.getName();
             mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, "DaoException", msg, e.toString(), e);
+            DialogUtil.showExceptionDialog(stage, "ModelException", msg, e.toString(), e);
         }
     }
 

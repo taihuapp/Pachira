@@ -163,6 +163,8 @@ public class Transaction {
     }
 
     public enum Status {
+        // sorting is based on this order.
+        // do not change the order.
         UNCLEARED, CLEARED, RECONCILED;
 
         public char toChar() {

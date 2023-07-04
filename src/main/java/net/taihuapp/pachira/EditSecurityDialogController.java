@@ -25,7 +25,6 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
-import net.taihuapp.pachira.dao.DaoException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -64,7 +63,7 @@ public class EditSecurityDialogController {
         try {
             mainModel.mergeSecurity(mSecurity);
             stage.close();
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             final String msg = e.getErrorCode() + " when save security " + mSecurity;
             logger.error(msg, e);
             DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);

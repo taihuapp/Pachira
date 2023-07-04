@@ -26,7 +26,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
-import net.taihuapp.pachira.dao.DaoException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -76,10 +75,10 @@ public class EditAccountDialogController {
 
     @FXML
     private void handleOK() {
-        String name = mNameTextField.getText();
+        final String name = mNameTextField.getText();
         if (name == null || name.length() == 0 || MainApp.hasBannedCharacter(name)) {
             // we need to throw up a warning sign and go back
-            Alert alert = new Alert(Alert.AlertType.WARNING);
+            final Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Warning");
             if (name == null || name.length() == 0)
                 alert.setHeaderText("Account name cannot be empty");
@@ -88,6 +87,16 @@ public class EditAccountDialogController {
                 bcs = bcs.substring(1, bcs.length() - 1).replaceAll(",", ""); // take out [] and ,
                 alert.setHeaderText("Account name cannot contain any of:  " + bcs);
             }
+            alert.showAndWait();
+            return;
+        }
+
+        if (((account == null) || (name.compareTo(account.getName()) != 0))
+                && mainModel.getAccount(a -> a.getName().equals(name)).isPresent()) {
+            // name is used by another account already
+            final Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Warning");
+            alert.setHeaderText("Name '" + name + "' is already used.");
             alert.showAndWait();
             return;
         }
@@ -107,8 +116,8 @@ public class EditAccountDialogController {
         try {
             mainModel.insertUpdateAccount(account);
             close();
-        } catch (DaoException e) {
-            final String msg = e.getErrorCode() + " DaoException when insertUpdateAccount";
+        } catch (ModelException e) {
+            final String msg = e.getErrorCode() + " ModelException when insertUpdateAccount";
             logger.error(msg, e);
             DialogUtil.showExceptionDialog((Stage) mNameTextField.getScene().getWindow(),
                     "DaoException", msg, e.toString(), e);

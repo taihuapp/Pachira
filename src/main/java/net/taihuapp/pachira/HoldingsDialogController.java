@@ -82,8 +82,8 @@ public class HoldingsDialogController {
             // set initial sort order
             mNameColumn.setSortType(TreeTableColumn.SortType.ASCENDING);
             mSecurityHoldingTreeTableView.getSortOrder().add(mNameColumn);
-        } catch (DaoException e) {
-            final String msg = e.getErrorCode() + " DaoException";
+        } catch (ModelException e) {
+            final String msg = e.getErrorCode() + " ModelException";
             logger.error(msg, e);
             DialogUtil.showExceptionDialog((Stage) mMainPane.getScene().getWindow(), e.getClass().getName(),
                     msg, e.toString(), e);
@@ -168,7 +168,7 @@ public class HoldingsDialogController {
                 mainModel.mergeSecurityPrices(List.of(new Pair<>(security, new Price(date, newPrice))));
                 populateTreeTable();
                 mainModel.updateAccountBalance(a -> a.hasSecurity(security));
-            } catch (DaoException e) {
+            } catch (ModelException e) {
                 final String msg = "Failed to merge price: " + System.lineSeparator()
                         + "Security Name: " + security.getName() + System.lineSeparator()
                         + "Security Ticker: " + security.getTicker() + System.lineSeparator()

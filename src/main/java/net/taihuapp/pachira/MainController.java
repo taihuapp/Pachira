@@ -204,8 +204,8 @@ public class MainController {
                                 && !showChangeReconciledConfirmation())
                             return;
                         try {
-                                getMainModel().setTransactionStatus(row.getItem().getID(), status);
-                        } catch (DaoException | ModelException ex) {
+                            getMainModel().setTransactionStatus(row.getItem().getID(), status);
+                        } catch (ModelException ex) {
                             logAndDisplayException("SetTransactionStatus " + row.getItem().getID() + " " + status
                                     + " Exception", ex);
                         }
@@ -950,7 +950,7 @@ public class MainController {
                     message.toString());
         } catch (IOException | CsvException e) {
             logAndDisplayException("Failed to open file " + file.getAbsolutePath() + " for read", e);
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             logAndDisplayException("Database exception " + e.getErrorCode(), e);
         }
     }
@@ -1006,7 +1006,7 @@ public class MainController {
 
             getMainModel().importAccountStatement(getMainModel().getCurrentAccount(), statement);
 
-        } catch (DaoException | ModelException | IOException e) {
+        } catch (ModelException | IOException e) {
             logAndDisplayException(e.getClass().getName(), e);
         }
     }
@@ -1731,7 +1731,7 @@ public class MainController {
                     getMainModel().updateAccountBalance((account) -> true);
                     mTransactionTableView.refresh();
                 }
-            } catch (DaoException e){
+            } catch (ModelException e){
                 logAndDisplayException("UpdateAccountBalance Error", e);
             }
         });

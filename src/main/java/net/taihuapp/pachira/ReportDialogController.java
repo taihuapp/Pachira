@@ -1239,16 +1239,17 @@ public class ReportDialogController {
                     Line line = new Line();
                     line.aName = account.getName();
                     line.sName = sName;
-                    line.quantity = qpFormat.format(t.getQuantity());
                     String lotDateStr = stgLotList.get(0).getDate().toString();
                     BigDecimal costBasis = BigDecimal.ZERO;
                     BigDecimal pnl = BigDecimal.ZERO;
+                    BigDecimal quantity = BigDecimal.ZERO;
                     for (SpecifyLotInfo sli : stgLotList) {
                         if (!sli.getDate().isEqual(stgLotList.get(0).getDate()))
                             lotDateStr = "Various"; // more than one date
 
                         costBasis = costBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
                         pnl = pnl.add(sli.getRealizedPNL());
+                        quantity = quantity.add(sli.getSelectedShares());
                     }
                     if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
                         // The covering transaction is a sell
@@ -1263,6 +1264,7 @@ public class ReportDialogController {
                         line.costBasis = dcFormat.format(pnl.add(costBasis).negate());
                         line.proceeds = dcFormat.format(costBasis.negate());
                     }
+                    line.quantity = qpFormat.format(quantity);
                     line.realizedGL = dcFormat.format(pnl);
                     transactionSTGLines.add(line);
                 }
@@ -1270,16 +1272,17 @@ public class ReportDialogController {
                     Line line = new Line();
                     line.aName = account.getName();
                     line.sName = sName;
-                    line.quantity = qpFormat.format(t.getQuantity());
                     String lotDateStr = ltgLotList.get(0).getDate().toString();
                     BigDecimal costBasis = BigDecimal.ZERO;
                     BigDecimal pnl = BigDecimal.ZERO;
+                    BigDecimal quantity = BigDecimal.ZERO;
                     for (SpecifyLotInfo sli : ltgLotList) {
                         if (!sli.getDate().isEqual(ltgLotList.get(0).getDate()))
                             lotDateStr = "Various"; // more than one date
 
                         costBasis = costBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
                         pnl = pnl.add(sli.getRealizedPNL());
+                        quantity = quantity.add(sli.getSelectedShares());
                     }
                     if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
                         // the covering transaction is a sell
@@ -1294,6 +1297,7 @@ public class ReportDialogController {
                         line.costBasis = dcFormat.format(costBasis.add(pnl).negate());
                         line.proceeds = dcFormat.format(costBasis.negate());
                     }
+                    line.quantity = qpFormat.format(quantity);
                     line.realizedGL = dcFormat.format(pnl);
                     transactionLTGLines.add(line);
                 }
@@ -1556,7 +1560,7 @@ public class ReportDialogController {
         return reportStr.toString();
     }
 
-    private String CostBasisReport() throws DaoException {
+    private String CostBasisReport() throws ModelException {
         final LocalDate date = mSetting.getEndDate();
         final String EOL = System.lineSeparator();
         final StringBuilder outputSB = new StringBuilder("Cost Basis as of " + date + EOL + EOL);
@@ -1664,7 +1668,7 @@ public class ReportDialogController {
         return outputSB.toString();
     }
 
-    private String NAVReport() throws DaoException {
+    private String NAVReport() throws ModelException {
         final LocalDate date = mSetting.getEndDate();
         StringBuilder outputStr = new StringBuilder("NAV Report as of " + date + "\n\n");
 

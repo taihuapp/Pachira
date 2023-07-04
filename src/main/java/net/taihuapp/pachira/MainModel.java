@@ -95,7 +95,10 @@ public class MainModel {
     private final ObjectProperty<Account> currentAccountProperty = new SimpleObjectProperty<>(null);
 
     // transactionList should be sorted according to getID
-    private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
+    // we want to expose transaction Status so when it changes it will trig sort.
+    private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList(
+            t -> new Observable[] { t.getStatusProperty() }
+    );
     private final ObservableList<AccountDC> accountDCList = FXCollections.observableArrayList();
     private final ObservableList<Security> securityList = FXCollections.observableArrayList();
     private final ObservableList<Tag> tagList = FXCollections.observableArrayList();
@@ -263,9 +266,15 @@ public class MainModel {
         FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
     }
 
-    private void initAccountList() throws DaoException {
+    private void initAccountList() throws ModelException {
         AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
-        accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
+        try {
+            accountList.setAll(((AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT)).getAll());
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_GET_ACCOUNT_LIST,
+                    "Failed to retrieve account list from database", e);
+        }
+
         // make sure all account display orders are correct
 
         FXCollections.sort(accountList, Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder));
@@ -280,7 +289,12 @@ public class MainModel {
             }
             if (a.getDisplayOrder() != currentDisplayOrder) {
                 a.setDisplayOrder(currentDisplayOrder);
-                accountDao.update(a);
+                try {
+                    accountDao.update(a);
+                } catch (DaoException e) {
+                    throw new ModelException(ModelException.ErrorCode.FAIL_TO_UPDATE_ACCOUNT,
+                            "Failed to update account, id = " + a.getID() + ", name = " + a.getName(), e);
+                }
             }
             currentDisplayOrder++;
         }
@@ -290,15 +304,17 @@ public class MainModel {
         }
     }
 
-    private void initAccount(Account account) throws DaoException {
+    private void initAccount(Account account) throws ModelException {
         // transaction comparator for investing accounts
         final Comparator<Transaction> investingAccountTransactionComparator = Comparator
                 .comparing(Transaction::getTDate)
+                .thenComparing(Transaction::getStatus, Comparator.reverseOrder())
                 .thenComparing(Transaction::getID);
 
         // transaction comparator for other accounts
         final Comparator<Transaction> spendingAccountTransactionComparator = Comparator
                 .comparing(Transaction::getTDate)
+                .thenComparing(Transaction::getStatus, Comparator.reverseOrder())
                 .thenComparing(Transaction::cashFlow, Comparator.reverseOrder())
                 .thenComparing(Transaction::getID);
 
@@ -362,7 +378,7 @@ public class MainModel {
 
     boolean enterCorpSpinOffTransaction(final LocalDate date, final Security security, final String newSecurityName,
                                         final BigDecimal numOfShares, final BigDecimal sharePrice,
-                                        final BigDecimal newSharePrice, final String memo) throws DaoException {
+                                        final BigDecimal newSharePrice, final String memo) throws ModelException {
 
         final DaoManager daoManager = DaoManager.getInstance();
         final SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
@@ -453,7 +469,7 @@ public class MainModel {
                 daoManager.rollback();
             } catch (DaoException e1) {
                 e.addSuppressed(e1);
-                throw e;
+                throw new ModelException(ModelException.ErrorCode.DB_ACCESS_FAILURE, "Database error", e);
             }
             return false;
         }
@@ -489,21 +505,26 @@ public class MainModel {
     /**
      * insert or update security in database and master list
      * @param security - the input security
-     * @throws DaoException - from database operation
+     * @throws ModelException - from database operation
      */
-    void mergeSecurity(Security security) throws DaoException {
-        SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
-        if (security.getID() <= 0) {
-            security.setID(securityDao.insert(security));
-            getSecurityList().add(security);
-        } else {
-            securityDao.update(security);
-            for (int i = 0; i < getSecurityList().size(); i++) {
-                Security s = getSecurityList().get(i);
-                if (s.getID() == security.getID()) {
-                    getSecurityList().set(i, security);
+    void mergeSecurity(Security security) throws ModelException {
+        try {
+            SecurityDao securityDao = (SecurityDao) daoManager.getDao(DaoManager.DaoType.SECURITY);
+            if (security.getID() <= 0) {
+                security.setID(securityDao.insert(security));
+                getSecurityList().add(security);
+            } else {
+                securityDao.update(security);
+                for (int i = 0; i < getSecurityList().size(); i++) {
+                    Security s = getSecurityList().get(i);
+                    if (s.getID() == security.getID()) {
+                        getSecurityList().set(i, security);
+                    }
                 }
             }
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_UPDATE_SECURITY,
+                    "Failed to update security: " + security, e);
         }
     }
 
@@ -727,9 +748,9 @@ public class MainModel {
     /**
      * update account balances for the account fit the criteria
      * @param predicate - selecting criteria
-     * @throws DaoException - from computeSecurityHoldings
+     * @throws ModelException - from computeSecurityHoldings
      */
-    public void updateAccountBalance(Predicate<Account> predicate) throws DaoException {
+    public void updateAccountBalance(Predicate<Account> predicate) throws ModelException {
         final FilteredList<Account> filteredList = new FilteredList<>(accountList, predicate);
         for (Account account : filteredList) {
             ObservableList<Transaction> transactionList = account.getTransactionList();
@@ -759,14 +780,24 @@ public class MainModel {
     /**
      * insert or update a list of security and price pairs.
      * @param priceList - the input list
-     * @throws DaoException - from database operation
+     * @throws ModelException - from database operation
      */
-    void mergeSecurityPrices(List<Pair<Security, Price>> priceList) throws DaoException {
-        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).mergePricesToDB(priceList);
+    void mergeSecurityPrices(List<Pair<Security, Price>> priceList) throws ModelException {
+        try {
+            ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).mergePricesToDB(priceList);
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.SECURITY_PRICE_DB_FAILURE,
+                    "Failed to update prices", e);
+        }
     }
 
-    void deleteSecurityPrice(Security security, LocalDate date) throws DaoException {
-        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).delete(new Pair<>(security, date));
+    void deleteSecurityPrice(Security security, LocalDate date) throws ModelException {
+        try {
+            ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).delete(new Pair<>(security, date));
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.SECURITY_PRICE_DB_FAILURE,
+                    "Failed to delete security price for (" + security + ") on " + date, e);
+        }
     }
 
     /**
@@ -775,7 +806,7 @@ public class MainModel {
      * @return - a Pair object of a list of accepted security prices and a list of rejected lines
      */
     public Pair<List<Pair<Security, Price>>, List<String[]>> importPrices(File file)
-            throws IOException, CsvException, DaoException {
+            throws IOException, CsvException, ModelException {
         final List<Pair<Security, Price>> priceList = new ArrayList<>();
         final List<String[]> skippedLines = new ArrayList<>();
 
@@ -967,16 +998,22 @@ public class MainModel {
     /**
      * insert or update account to database and master list
      * @param account - the account to be inserted or updated
-     * @throws DaoException - from database operations
+     * @throws ModelException - from database operations
      */
-    void insertUpdateAccount(Account account) throws DaoException {
+    void insertUpdateAccount(Account account) throws ModelException {
         AccountDao accountDao = (AccountDao) daoManager.getDao(DaoManager.DaoType.ACCOUNT);
         final boolean isInsert = account.getID() <= 0;
-        if (isInsert) {
-            account.setDisplayOrder(getAccountList(a -> a.getType().equals(account.getType())).size());
-            account.setID(accountDao.insert(account));
-        } else
-            accountDao.update(account);
+        try {
+            if (isInsert) {
+                account.setDisplayOrder(getAccountList(a -> a.getType().equals(account.getType())).size());
+                account.setID(accountDao.insert(account));
+            } else
+                accountDao.update(account);
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_UPDATE_ACCOUNT,
+                    "Failed to insert/update account (id = " + account.getID() + ", name = " + account.getName(),
+                    e);
+        }
 
         if (isInsert) {
             initAccount(account);
@@ -1003,7 +1040,7 @@ public class MainModel {
      *           as a side effect, it will update running cash balance for each transaction
      */
     List<SecurityHolding> computeSecurityHoldings(List<Transaction> tList, LocalDate date, int exTid)
-            throws DaoException {
+            throws ModelException {
         // 'total cash' is the cash amount for the account to the last transaction in the tList
         // 'total cash now' is the cash amount for the account up to the 'date'
         final int fractionDigits = Currency.getInstance("USD").getDefaultFractionDigits();
@@ -1051,31 +1088,36 @@ public class MainModel {
                     s.getName().equals(securityHolding.getSecurityName()));
             if (securityOptional.isPresent()) {
                 final Security security = securityOptional.get();
-                Optional<Pair<Security, Price>> optionalSecurityPricePair =
-                        securityPriceDao.getLastPrice(new Pair<>(security, date));
-                if (optionalSecurityPricePair.isPresent()) {
-                    final Price price = optionalSecurityPricePair.get().getValue();
-                    BigDecimal p = price.getPrice();
-                    if (price.getDate().isBefore(date)) {
-                        // the price is not on the date, need to check if there are any
-                        // stock split between the date of the price and the date
-                        final List<Transaction> splitList = stockSplitTransactionListMap.get(security.getName());
-                        if (splitList != null) {
-                            // we have a list splits, check now
-                            // since this list is ordered by date, we start from the end
-                            for (int i = splitList.size(); i-- > 0; ) {
-                                final Transaction t = splitList.get(i);
-                                if (t.getTDate().isBefore(price.getDate()))
-                                    break; // we're done
-                                p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(),
-                                        PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
+                try {
+                    Optional<Pair<Security, Price>> optionalSecurityPricePair =
+                            securityPriceDao.getLastPrice(new Pair<>(security, date));
+                    if (optionalSecurityPricePair.isPresent()) {
+                        final Price price = optionalSecurityPricePair.get().getValue();
+                        BigDecimal p = price.getPrice();
+                        if (price.getDate().isBefore(date)) {
+                            // the price is not on the date, need to check if there are any
+                            // stock split between the date of the price and the date
+                            final List<Transaction> splitList = stockSplitTransactionListMap.get(security.getName());
+                            if (splitList != null) {
+                                // we have a list splits, check now
+                                // since this list is ordered by date, we start from the end
+                                for (int i = splitList.size(); i-- > 0; ) {
+                                    final Transaction t = splitList.get(i);
+                                    if (t.getTDate().isBefore(price.getDate()))
+                                        break; // we're done
+                                    p = p.multiply(t.getOldQuantity()).divide(t.getQuantity(),
+                                            PRICE_QUANTITY_FRACTION_LEN, RoundingMode.HALF_UP);
+                                }
                             }
                         }
-                    }
-                    securityHolding.setPrice(p);
+                        securityHolding.setPrice(p);
 
-                    totalMarketValue = totalMarketValue.add(securityHolding.getMarketValue());
-                    totalCostBasis = totalCostBasis.add(securityHolding.getCostBasis());
+                        totalMarketValue = totalMarketValue.add(securityHolding.getMarketValue());
+                        totalCostBasis = totalCostBasis.add(securityHolding.getCostBasis());
+                    }
+                } catch (DaoException e) {
+                    throw new ModelException(ModelException.ErrorCode.FAIL_TO_GET_SECURITY_PRICE,
+                            "Failed to get price for security (" + security + ") on " + date, e);
                 }
             }
         }
@@ -1103,11 +1145,16 @@ public class MainModel {
      * get MatchInfoList for a given transaction id
      * @param tid transaction id
      * @return list of MatchInfo for the transaction with id tid
-     * @throws DaoException - from Dao operations
+     * @throws ModelException - from Dao operations
      */
-    List<MatchInfo> getMatchInfoList(int tid) throws DaoException {
-        return ((PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO))
-                .get(tid).map(Pair::getValue).orElse(new ArrayList<>());
+    List<MatchInfo> getMatchInfoList(int tid) throws ModelException {
+        try {
+            return ((PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO))
+                    .get(tid).map(Pair::getValue).orElse(new ArrayList<>());
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_RETRIEVE_MATCH_INFO_LIST,
+                    "Failed to retrieve match info list for Transaction id " + tid, e);
+        }
     }
 
     public ObjectProperty<Account> getCurrentAccountProperty() { return currentAccountProperty; }
@@ -1174,7 +1221,7 @@ public class MainModel {
     }
 
     // loan is immutable, only insert, no update, unless delete
-    void insertLoan(Loan loan, String name, String description) throws DaoException {
+    void insertLoan(Loan loan, String name, String description) throws ModelException {
         final DaoManager daoManager = DaoManager.getInstance();
         final int aid = loan.getAccountID();
         Account newAccount = null;
@@ -1200,7 +1247,7 @@ public class MainModel {
             } catch (DaoException e1) {
                 e.addSuppressed(e1);
             }
-            throw e;
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_INSERT_LOAN, "Failed to insert loan " + name, e);
         }
     }
 
@@ -1223,16 +1270,22 @@ public class MainModel {
         return payeeSet;
     }
 
-    void setTransactionStatus(int tid, Transaction.Status newStatus) throws DaoException, ModelException {
+    void setTransactionStatus(int tid, Transaction.Status newStatus) throws ModelException {
         Transaction t = getTransactionByID(tid).orElseThrow(() ->
                 new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION, "Bad Transaction ID" + tid, null));
         Transaction.Status oldStatus = t.getStatus();
         t.setStatus(newStatus);
         try {
             ((TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION)).update(t);
-        } catch (DaoException e) {
+            // change of status may trigger sort, need to update balance after sort
+            updateAccountBalance(a -> a.getID() == a.getID());
+        } catch (ModelException | DaoException e) {
             t.setStatus(oldStatus);
-            throw e;
+            if (e instanceof ModelException)
+                throw (ModelException) e;
+            else
+                throw new ModelException(ModelException.ErrorCode.FAIL_TO_UPDATE_TRANSACTION,
+                        "Failed to update transaction status in database", e);
         }
     }
 
@@ -1997,7 +2050,7 @@ public class MainModel {
     }
 
     // Banking transaction logic is currently coded in.
-    Set<TransactionType> importAccountStatement(Account account, AccountStatement statement) throws DaoException {
+    Set<TransactionType> importAccountStatement(Account account, AccountStatement statement) throws ModelException {
         if (statement.getTransactionList() == null)
             return Collections.emptySet();  // didn't download any transaction, do nothing
 
@@ -2111,8 +2164,8 @@ public class MainModel {
             tobeImported.add(transaction);
         }
 
-        daoManager.beginTransaction();
         try {
+            daoManager.beginTransaction();
             for (Transaction t : tobeImported)
                 insertTransaction(t, InsertMode.DB_ONLY);
             daoManager.commit();
@@ -2126,7 +2179,8 @@ public class MainModel {
             } catch (DaoException e1) {
                 e.addSuppressed(e1);
             }
-            throw e;
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_UPDATE_TRANSACTION,
+                    "Failed to insert transaction", e);
         }
     }
 

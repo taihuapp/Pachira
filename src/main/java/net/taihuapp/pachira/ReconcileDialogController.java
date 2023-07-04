@@ -32,12 +32,10 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import javafx.util.converter.BigDecimalStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -169,7 +167,7 @@ public class ReconcileDialogController {
                             .subtract(sb.getOpeningBalance()));
                 }
             }
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             logger.error(e.getErrorCode() + " DaoException", e);
             throw new RuntimeException(e);
         }
@@ -204,19 +202,10 @@ public class ReconcileDialogController {
         final List<Transaction> reconciledTransactionList = transactionList
                 .filtered(t -> t.getStatus().equals(Transaction.Status.RECONCILED));
         final List<SecurityHolding> reconciledHoldings;
-        try {
-            reconciledHoldings = mainModel
-                    .computeSecurityHoldings(reconciledTransactionList, LocalDate.MAX, -1).stream()
-                    .filter(h -> !h.getLabel().equals(SecurityHolding.TOTAL)) // exclude TOTAL
-                    .collect(Collectors.toList());
-        } catch (DaoException e) {
-            final Stage stage = (Stage) mVBox.getScene().getWindow();
-            final String msg = "EaoException " + e.getErrorCode() + " on computeSecurityHoldings "
-                    + "for account id = " + account.getID() + ", account name = " + account.getName();
-            logger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
-            return;
-        }
+        reconciledHoldings = mainModel
+                .computeSecurityHoldings(reconciledTransactionList, LocalDate.MAX, -1).stream()
+                .filter(h -> !h.getLabel().equals(SecurityHolding.TOTAL)) // exclude TOTAL
+                .collect(Collectors.toList());
 
         final Set<String> reconciledSecurityNameSet = reconciledHoldings.stream()
                 .filter(h -> !h.getLabel().equals(SecurityHolding.CASH)) // exclude CASH
@@ -396,7 +385,10 @@ public class ReconcileDialogController {
         mOpeningBalanceTableColumn.setCellFactory(converter);
         mClearedBalanceTableColumn.setCellFactory(converter);
         mBalanceDifferenceTableColumn.setCellFactory(converter);
-        mEndingBalanceTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new BigDecimalStringConverter()));
+        mEndingBalanceTableColumn.setCellFactory(cell -> new EditableTableCell<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(),
+                c -> RegExUtil.getPriceQuantityInputRegEx()
+                                .matcher(c.getControlNewText()).matches() ? c : null));
         mEndingBalanceTableColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
 
         // javafx DatePicker is not aware of edited value in its TextField

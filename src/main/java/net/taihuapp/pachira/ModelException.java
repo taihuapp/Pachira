@@ -34,6 +34,14 @@ public class ModelException extends Exception {
          */
         INVALID_TRANSACTION,
         /**
+         * fail to insert transaction
+         */
+        FAIL_TO_UPDATE_TRANSACTION,
+        /**
+         *
+         */
+        FAIL_TO_RETRIEVE_MATCH_INFO_LIST,
+        /**
          * the lotInfo is not valid
          */
         INVALID_LOT_INFO,
@@ -45,6 +53,18 @@ public class ModelException extends Exception {
          * the security is invalid
          */
         INVALID_SECURITY,
+        /**
+         * fail to update security
+         */
+        FAIL_TO_UPDATE_SECURITY,
+        /**
+         * fail to get price for security
+         */
+        FAIL_TO_GET_SECURITY_PRICE,
+        /**
+         * fail to update prices
+         */
+        SECURITY_PRICE_DB_FAILURE,
         /**
          * the account doesn't have DC
          */
@@ -70,9 +90,25 @@ public class ModelException extends Exception {
          */
         LOAN_PAYMENT_NOT_FOUND,
         /**
+         * fail to insert loan to db
+         */
+        FAIL_TO_INSERT_LOAN,
+        /**
          * can't find DELETED_ACCOUNT
          */
-        MISSING_DELETED_ACCOUNT
+        MISSING_DELETED_ACCOUNT,
+        /**
+         * failed get account list from database
+         */
+        FAIL_TO_GET_ACCOUNT_LIST,
+        /**
+         * Failed to update account in db
+         */
+        FAIL_TO_UPDATE_ACCOUNT,
+        /**
+         * general database failure
+         */
+        DB_ACCESS_FAILURE
     }
 
     private final ErrorCode errorCode;

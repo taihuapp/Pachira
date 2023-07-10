@@ -387,7 +387,7 @@ public class ReconcileDialogController {
         mBalanceDifferenceTableColumn.setCellFactory(converter);
         mEndingBalanceTableColumn.setCellFactory(cell -> new EditableTableCell<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(),
-                c -> RegExUtil.getPriceQuantityInputRegEx()
+                c -> RegExUtil.getPriceQuantityInputRegEx(true)
                                 .matcher(c.getControlNewText()).matches() ? c : null));
         mEndingBalanceTableColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
 

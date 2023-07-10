@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -33,9 +33,9 @@ public class RegExUtil {
     static final Pattern NON_NEGATIVE_INTEGER_REG_EX = Pattern.compile("^(0|([1-9]+\\d*))?$");
 
     // this is used for price and quantity
-    static Pattern getPriceQuantityInputRegEx() {
+    static Pattern getPriceQuantityInputRegEx(boolean allowNegative) {
         // minus sign is not allowed in price and/or quantity field
-        return getDecimalInputRegEx(MainModel.PRICE_QUANTITY_FRACTION_LEN, false);
+        return getDecimalInputRegEx(MainModel.PRICE_QUANTITY_FRACTION_LEN, allowNegative);
     }
 
     // for currency input under locale

@@ -110,7 +110,7 @@ public class HoldingsDialogController {
 
         mPriceColumn.setCellFactory(col -> new EditableTreeTableCell<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(),
-                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null) {
+                c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null) {
             @Override
             public void updateItem(BigDecimal item, boolean empty) {
                 final TreeTableRow<LotView> treeTableRow = getTreeTableRow();

@@ -479,7 +479,7 @@ public class EditTransactionDialogControllerNew {
         // shares
         final TextFormatter<BigDecimal> sharesTextFormatter = new TextFormatter<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(), null,
-                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null);
         mSharesTextField.setTextFormatter(sharesTextFormatter);
         sharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getQuantityProperty());
         mSharesTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
@@ -501,7 +501,7 @@ public class EditTransactionDialogControllerNew {
         // old shares
         final TextFormatter<BigDecimal> oldSharesTextFormatter = new TextFormatter<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(), null,
-                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null);
+                c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null);
         mOldSharesTextField.setTextFormatter(oldSharesTextFormatter);
         oldSharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getOldQuantityProperty());
         mOldSharesTextField.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(STKSPLIT)

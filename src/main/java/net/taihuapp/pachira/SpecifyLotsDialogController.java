@@ -260,7 +260,7 @@ public class SpecifyLotsDialogController {
         mPNLColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mSelectedColumn.setCellFactory(cell -> new EditableTableCell<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(),
-                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null));
+                c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null));
         mSelectedColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mSelectedColumn.setOnEditCommit(
                 event -> {

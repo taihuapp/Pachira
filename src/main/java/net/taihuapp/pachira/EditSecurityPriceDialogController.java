@@ -92,7 +92,7 @@ public class EditSecurityPriceDialogController {
 
         mPricePriceTableColumn.setCellFactory(col -> new EditableTableCell<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(),
-                c -> RegExUtil.getPriceQuantityInputRegEx().matcher(c.getControlNewText()).matches() ? c : null));
+                c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null));
         mPricePriceTableColumn.setOnEditCommit(event -> {
             LocalDate date = event.getRowValue().getDate();
             BigDecimal newPrice = event.getNewValue();

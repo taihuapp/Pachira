@@ -30,6 +30,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import net.taihuapp.pachira.dao.DaoException;
@@ -61,6 +62,8 @@ public class ReminderTransactionListDialogController {
     private TableColumn<ReminderTransaction, String> mStatusTableColumn;
     @FXML
     private TableColumn<ReminderTransaction, LocalDate> mDueDateTableColumn;
+    @FXML
+    private TableColumn<ReminderTransaction, Boolean> autoColumn;
     @FXML
     private TableColumn<ReminderTransaction, String> mAccountTableColumn;
     @FXML
@@ -323,6 +326,13 @@ public class ReminderTransactionListDialogController {
                 }
             }
         });
+
+        autoColumn.setCellValueFactory(cd -> {
+            final ReminderTransaction rt = cd.getValue();
+            final Reminder reminder = reminderModel.getReminder(rt.getReminderId());
+            return reminder.getIsAutoProperty();
+        });
+        autoColumn.setCellFactory(c -> new CheckBoxTableCell<>());
 
         mAccountTableColumn.setCellValueFactory(cellData -> {
                     final ReminderTransaction rt = cellData.getValue();

@@ -48,7 +48,7 @@ public class DaoManager {
 
     // constants
     private static final String DB_VERSION_NAME = "DBVERSION";
-    private static final int DB_VERSION_VALUE = 20; // required DB_VERSION
+    private static final int DB_VERSION_VALUE = 21; // required DB_VERSION
     private static final String DB_OWNER = "ADMPACHIRA";
     private static final String DB_POSTFIX = ".mv.db";
     private static final String URL_PREFIX = "jdbc:h2:";
@@ -663,6 +663,7 @@ public class DaoManager {
                 + "ALERTDAYS integer NOT NULL, "
                 + "ISDOM boolean NOT NULL, "
                 + "ISFWD boolean NOT NULL, "
+                + "ISAUTO boolean NOT NULL, "
                 + "primary key (ID));";
         executeUpdateQuery(sqlCmd);
 
@@ -690,7 +691,10 @@ public class DaoManager {
             updateDB(oldV, newV-1); // recursively bring from oldV up.
 
         // need to run this to update DBVERSION
-        if (newV == 20) {
+        if (newV == 21) {
+            // add ISAUTO column in reminders
+            executeUpdateQuery("alter table REMINDERS add ISAUTO boolean default false not null");
+        } else if (newV == 20) {
             // change column names for settings table
             executeUpdateQuery("alter table SETTINGS rename column NAME to SETTING_NAME");
             // VALUE seems reserved, need to quote it

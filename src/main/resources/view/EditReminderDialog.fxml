@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -23,7 +23,7 @@
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditReminderDialogController">
+<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/11" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditReminderDialogController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" maxWidth="110.0" minWidth="10.0" prefWidth="110.0" />
         <ColumnConstraints hgrow="SOMETIMES" maxWidth="280.0" minWidth="10.0" prefWidth="280.0" />
@@ -158,5 +158,6 @@
         <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="3" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="3" />
         <DatePicker fx:id="mEndDatePicker" GridPane.columnIndex="4" GridPane.rowIndex="6" />
       <Button mnemonicParsing="false" onAction="#handleSplit" text="Split" GridPane.columnIndex="3" GridPane.rowIndex="7" />
+      <CheckBox fx:id="isAutoCheckBox" mnemonicParsing="false" text="Auto Processing" GridPane.columnIndex="4" GridPane.halignment="RIGHT" GridPane.rowIndex="7" />
     </children>
 </GridPane>

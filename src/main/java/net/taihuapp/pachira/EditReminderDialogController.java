@@ -101,6 +101,8 @@ public class EditReminderDialogController {
     private RadioButton mFixedAmountRadioButton;
     @FXML
     private RadioButton mEstimateAmountRadioButton;
+    @FXML
+    private CheckBox isAutoCheckBox;
 
     private Stage getStage() { return (Stage) mPayeeTextField.getScene().getWindow(); }
 
@@ -275,6 +277,8 @@ public class EditReminderDialogController {
         mDSDescriptionLabel.textProperty().bind(mReminder.getDateSchedule().getDescriptionProperty());
 
         mEstimateAmountRadioButton.setSelected(mReminder.getEstimateCount() > 0);
+
+        isAutoCheckBox.setSelected(mReminder.isAuto());
     }
 
     private Predicate<Integer> categoryIDPredicate() {
@@ -373,6 +377,8 @@ public class EditReminderDialogController {
                     "Alert days has to be an non-negative integer");
             return;
         }
+
+        mReminder.setIsAuto(isAutoCheckBox.isSelected());
 
         final List<SplitTransaction> stList = mReminder.getSplitTransactionList();
         if (mReminder.getType() == Reminder.Type.LOAN_PAYMENT) {

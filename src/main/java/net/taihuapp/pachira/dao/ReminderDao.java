@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -53,7 +53,7 @@ public class ReminderDao extends Dao<Reminder, Integer> {
     @Override
     String[] getColumnNames() {
         return new String[]{ "TYPE", "PAYEE", "AMOUNT", "ESTCOUNT", "ACCOUNTID", "CATEGORYID", "TAGID",
-                "MEMO", "STARTDATE", "ENDDATE", "BASEUNIT", "NUMPERIOD", "ALERTDAYS", "ISDOM", "ISFWD" };
+                "MEMO", "STARTDATE", "ENDDATE", "BASEUNIT", "NUMPERIOD", "ALERTDAYS", "ISDOM", "ISFWD", "ISAUTO" };
     }
 
     @Override
@@ -80,11 +80,12 @@ public class ReminderDao extends Dao<Reminder, Integer> {
         final int alertDays = resultSet.getInt("ALERTDAYS");
         final boolean isDOM = resultSet.getBoolean("ISDOM");
         final boolean isFWD = resultSet.getBoolean("ISFWD");
+        final boolean isAuto = resultSet.getBoolean("ISAUTO");
 
         DateSchedule dateSchedule = new DateSchedule(baseUnit, numPeriod, startDate, endDate, isDOM, isFWD);
         return new Reminder(id, type, payee, amount, estCount, accountID, categoryID, tagID, memo, alertDays,
                 dateSchedule, splitTransactionListDao.get(new Pair<>(SplitTransaction.Type.REM, id))
-                .map(Pair::getValue).orElse(new ArrayList<>()));
+                .map(Pair::getValue).orElse(new ArrayList<>()), isAuto);
     }
 
     @Override
@@ -104,8 +105,9 @@ public class ReminderDao extends Dao<Reminder, Integer> {
         preparedStatement.setInt(13, reminder.getAlertDays());
         preparedStatement.setBoolean(14, reminder.getDateSchedule().isDOMBased());
         preparedStatement.setBoolean(15, reminder.getDateSchedule().isForward());
+        preparedStatement.setBoolean(16, reminder.isAuto());
         if (withKey)
-            preparedStatement.setInt(16, reminder.getID());
+            preparedStatement.setInt(17, reminder.getID());
     }
 
     @Override

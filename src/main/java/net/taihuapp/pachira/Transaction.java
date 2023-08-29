@@ -395,12 +395,12 @@ public class Transaction {
                 case REINVMD:
                 case REINVSH:
                 case SHRSIN:
-                    return getAmount();
+                    return getAmount().subtract(getAccruedInterest());
                 case SELL:
                 case SHTSELL:
                 case SHRSOUT:
                 case RTRNCAP:
-                    return getAmount().negate();
+                    return getAmount().subtract(getAccruedInterest()).negate();
                 case CGLONG:
                 case CGMID:
                 case CGSHORT:
@@ -656,7 +656,7 @@ public class Transaction {
         setSecurityID(securityID);
         mReferenceProperty.set(reference);
         mCommissionProperty.set(commission);
-        mAccruedInterestProperty.set(accruedInterest);
+        mAccruedInterestProperty.set(accruedInterest == null ? BigDecimal.ZERO : accruedInterest);
         mMemoProperty.set(memo);
         mCategoryIDProperty.set(categoryID);
         mTagIDProperty.set(tagID);

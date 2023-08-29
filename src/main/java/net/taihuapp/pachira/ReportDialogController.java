@@ -793,6 +793,24 @@ public class ReportDialogController {
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                         securityIncomeMap.put(sName, income);
                         income.realized = income.realized.add(realized);
+                        if (t.getAccruedInterest().signum() != 0) {
+                            fieldUsed.interest = BigDecimal.ONE;
+                            if (t.getTradeAction() == Transaction.TradeAction.SELL)
+                                income.interest = income.interest.add(t.getAccruedInterest());
+                            else
+                                income.interest = income.interest.subtract(t.getAccruedInterest());
+                        }
+                        break;
+                    case BUY:
+                    case SHTSELL:
+                        if (t.getAccruedInterest().signum() != 0) {
+                            fieldUsed.interest = BigDecimal.ONE;
+                            if (t.getTradeAction() == Transaction.TradeAction.BUY)
+                                income.interest = income.interest.subtract(t.getAccruedInterest());
+                            else
+                                income.interest = income.interest.add(t.getAccruedInterest());
+                            securityIncomeMap.put(sName, income);
+                        }
                         break;
                     case DIV:
                     case REINVDIV:
@@ -835,11 +853,9 @@ public class ReportDialogController {
                         income.misc_inc = income.misc_inc.add(t.getAmount());
                         break;
                     case RTRNCAP:
-                    case SHTSELL:
                     case MARGINT:
                     case DEPOSIT:
                     case WITHDRAW:
-                    case BUY:
                     case STKSPLIT:
                     case SHRSIN:
                     case SHRSOUT:

@@ -20,8 +20,6 @@
 
 package net.taihuapp.pachira;
 
-import impl.org.controlsfx.autocompletion.AutoCompletionTextFieldBinding;
-import impl.org.controlsfx.autocompletion.SuggestionProvider;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -36,6 +34,7 @@ import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.controlsfx.control.textfield.AutoCompletionBinding;
 import org.controlsfx.control.textfield.TextFields;
 
 import java.io.IOException;
@@ -54,8 +53,8 @@ public class EditTransactionDialogControllerNew {
     static class CategoryTransferAccountIDComboBoxWrapper {
         private final ComboBox<Integer> mComboBox;
         private final FilteredList<Integer> mFilteredCTIDList;
-        private final SuggestionProvider<String> mProvider;
 
+        private AutoCompletionBinding<String> categoryComboBoxAutoCompletionBinding;
         // the input combobox should be a naked one.
         CategoryTransferAccountIDComboBoxWrapper(final ComboBox<Integer> comboBox, final MainModel mainModel) {
             mComboBox = comboBox;
@@ -64,37 +63,30 @@ public class EditTransactionDialogControllerNew {
             mComboBox.setConverter(new ConverterUtil.CategoryIDConverter(mainModel));
 
             // populate combobox items
-            ObservableList<Integer> idList = FXCollections.observableArrayList();
+            final ObservableList<Integer> idList = FXCollections.observableArrayList();
+            // add 0 first for no-category
             idList.add(0);
-            for (Category category : mainModel.getCategoryList())
-                idList.add(category.getID());
-            for (Account account : mainModel.getAccountList(a -> !a.getHiddenFlag()
-                            && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME),
-                    Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)))
-                idList.add(-account.getID());
+            // now add all the categories
+            mainModel.getCategoryList().forEach(c -> idList.add(c.getID()));
+            // finally add all the accounts
+            mainModel.getAccountList(a -> !a.getHiddenFlag() && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME),
+                    Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder))
+                    .forEach(a -> idList.add(-a.getID()));
 
             mFilteredCTIDList = new FilteredList<>(idList);
             mComboBox.setItems(mFilteredCTIDList);
 
-            // set autocompletion
-            mComboBox.setEditable(true);
-            List<String> strList = new ArrayList<>();
-            for (Integer integer : mFilteredCTIDList) {
-                strList.add(mComboBox.getConverter().toString(integer));
-            }
-
-            // setup autocompletion
-            mProvider = SuggestionProvider.create(strList);
-            new AutoCompletionTextFieldBinding<>(comboBox.getEditor(), mProvider);
+            categoryComboBoxAutoCompletionBinding = autoCompleteComboBox(comboBox);
         }
 
         void setFilter(Predicate<Integer> predicate) {
             Integer selectedValue = mComboBox.getSelectionModel().getSelectedItem();
 
             mFilteredCTIDList.setPredicate(predicate);
-            mProvider.clearSuggestions();
-            mProvider.addPossibleSuggestions(mFilteredCTIDList.stream()
-                    .map(i -> mComboBox.getConverter().toString(i)).collect(Collectors.toList()));
+            if (categoryComboBoxAutoCompletionBinding != null)
+                categoryComboBoxAutoCompletionBinding.dispose();
+
+            categoryComboBoxAutoCompletionBinding = autoCompleteComboBox(mComboBox);
 
             if (selectedValue != null && predicate.test(selectedValue)) {
                 mComboBox.getSelectionModel().select(selectedValue);
@@ -274,13 +266,10 @@ public class EditTransactionDialogControllerNew {
         }
     }
 
-    private static <T> void autoCompleteComboBox(ComboBox<T> comboBox) {
-        List<String> strList = new ArrayList<>();
-        for (T t : comboBox.getItems()) {
-            strList.add(comboBox.getConverter().toString(t));
-        }
+    private static <T> AutoCompletionBinding<String> autoCompleteComboBox(ComboBox<T> comboBox) {
         comboBox.setEditable(true);
-        TextFields.bindAutoCompletion(comboBox.getEditor(), strList);
+        return TextFields.bindAutoCompletion(comboBox.getEditor(), comboBox.getItems().stream()
+                .map(c -> comboBox.getConverter().toString(c)).collect(Collectors.toList()));
     }
 
     private static void showWarningDialog(String header, String content) {

@@ -108,7 +108,11 @@ public class ModelException extends Exception {
         /**
          * general database failure
          */
-        DB_ACCESS_FAILURE
+        DB_ACCESS_FAILURE,
+        /**
+         * Ill-formatted Transaction CSV file
+         */
+        ILL_FORMATTED_TRANSACTION_CSV
     }
 
     private final ErrorCode errorCode;

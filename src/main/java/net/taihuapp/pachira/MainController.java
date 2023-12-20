@@ -1895,4 +1895,50 @@ public class MainController {
         else
             DialogUtil.showExceptionDialog(stage, "", msg, "", null);
     }
+
+    @FXML
+    private void handleImportTransactions() {
+        final FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
+                Arrays.asList("*.csv", "*.CSV")));
+        fileChooser.setTitle("Import Transactions from CSV file...");
+        final Stage stage = getStage();
+        final File file = fileChooser.showOpenDialog(stage);
+        if (file == null)
+            return; // user cancelled it
+
+        try {
+            Pair<List<String[]>, List<String[]>> importOutput = getMainModel().importTransactionsCSV(file);
+            String title = "Import Transaction";
+            List<String[]> importedLines = importOutput.getKey();
+            List<String[]> skippedLines = importOutput.getValue();
+            StringBuilder sb = new StringBuilder();
+            sb.append("Imported Lines: ").append(System.lineSeparator());
+            for (String[] line : importedLines) {
+                for (String s : line) {
+                    sb.append(s).append(',');
+                }
+                sb.append(System.lineSeparator());
+            }
+            sb.append(System.lineSeparator());
+
+            sb.append("Skipped Lines: ").append(System.lineSeparator());
+            for (String[] line : skippedLines) {
+                for (String s : line) {
+                    sb.append(s).append(',');
+                }
+                sb.append(System.lineSeparator());
+            }
+            sb.append(System.lineSeparator());
+
+            DialogUtil.showInformationDialog(getStage(), title,
+                    "Imported " + importedLines.size() + " lines, " +
+                            "Skipped " + skippedLines.size() + " lines.",
+                    sb.toString());
+        } catch (IOException | CsvException | ModelException e) {
+            final String msg = e.getClass().getName() + " exception when importing transaction csv file";
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+        }
+    }
 }

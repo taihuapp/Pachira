@@ -2545,4 +2545,136 @@ public class MainModel {
 
         return stringBuilder.toString();
     }
+
+    enum ImportTransactionField {
+        ACCOUNT("Account Name"), DATE("Date"), ACTION("Action"),
+        SECURITY("Security Name"), AMOUNT("Amount"), QUANTITY("Quantity");
+
+        private final String label;
+
+        ImportTransactionField(String v) { label = v; }
+
+        @Override
+        public String toString() { return label; }
+
+        public static ImportTransactionField fromString(String s) {
+            for (ImportTransactionField f : ImportTransactionField.values()) {
+                if (f.toString().equals(s))
+                    return f;
+            }
+            final StringBuilder sb = new StringBuilder(s);
+            sb.append(" is not a valid import field.  Valid import fields are:").append(System.lineSeparator());
+            for (ImportTransactionField f : ImportTransactionField.values())
+                sb.append(f.toString()).append(System.lineSeparator());
+            throw new IllegalArgumentException(sb.toString());
+        }
+    }
+
+    // return
+    Pair<List<String[]>, List<String[]>> importTransactionsCSV(File csvFile)
+            throws IOException, CsvException, ModelException {
+        final CSVReader reader = new CSVReader(new FileReader(csvFile));
+        final List<String[]> lines = reader.readAll();
+        final List<String[]> skippedLines = new ArrayList<>();
+        final List<String[]> importedLines = new ArrayList<>();
+        final List<Transaction> toBeImported = new ArrayList<>();
+
+        if (lines.size() < 2) {
+            return new Pair<>(importedLines, skippedLines);
+        }
+
+        // parse header
+        final Map<ImportTransactionField, Integer> columnMap = new HashMap<>();
+        try {
+            int i = 0;
+            for (String s : lines.get(0)) {
+                columnMap.put(ImportTransactionField.fromString(s), i++);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new ModelException(ModelException.ErrorCode.ILL_FORMATTED_TRANSACTION_CSV, "Bad column name", e);
+        }
+
+        final Set<Transaction.TradeAction> supported = Set.of(BUY, SELL, DIV, REINVDIV, INTINC, REINVINT);
+        final List<String> datePatterns = Arrays.asList("M/d/yyyy", "M/d/yy");
+        for (String[] line : lines.subList(1, lines.size())) { // skip the header line
+            final int accountID = getAccount(a -> a.getName()
+                    .equals(line[columnMap.get(ImportTransactionField.ACCOUNT)]))
+                    .map(Account::getID).orElse(0);
+
+            if (accountID <= 0) {
+                skippedLines.add(line);
+                continue;
+            }
+            LocalDate date = null;
+            for (String pattern : datePatterns) {
+                try {
+                    date = LocalDate.parse(line[columnMap.get(ImportTransactionField.DATE)],
+                            DateTimeFormatter.ofPattern(pattern));
+                    break;
+                } catch (DateTimeParseException ignored) {
+                    // do nothing
+                }
+            }
+
+            if (date == null) {
+                skippedLines.add(line);
+                continue;
+            }
+
+            final Transaction.TradeAction tradeAction;
+            final StringBuilder sb = new StringBuilder();
+            sb.append("Supported action:").append(System.lineSeparator());
+            for (Transaction.TradeAction ta : supported) {
+                sb.append(ta.name()).append(System.lineSeparator());
+            }
+
+            try {
+                tradeAction = Transaction.TradeAction.valueOf(line[columnMap.get(ImportTransactionField.ACTION)]);
+            } catch (IllegalArgumentException e) {
+                throw new ModelException(ModelException.ErrorCode.ILL_FORMATTED_TRANSACTION_CSV, sb.toString(), e);
+            }
+            if (!supported.contains(tradeAction)) {
+                throw new ModelException(ModelException.ErrorCode.ILL_FORMATTED_TRANSACTION_CSV, sb.toString(), null);
+            }
+
+            final int securityID = getSecurity(s -> s.getName()
+                    .equals(line[columnMap.get(ImportTransactionField.SECURITY)]))
+                    .map(Security::getID).orElse(0);
+
+            final BigDecimal amount = new BigDecimal(line[columnMap.get(ImportTransactionField.AMOUNT)]);
+            final BigDecimal quantity = new BigDecimal(line[columnMap.get(ImportTransactionField.QUANTITY)]);
+
+            final Transaction t = new Transaction(accountID, date, tradeAction, 0);
+            t.setAmount(amount);
+            t.setQuantity(quantity);
+            if (securityID > 0)
+                t.setSecurityID(securityID);
+            toBeImported.add(t);
+            importedLines.add(line);
+        }
+
+        try {
+            final Set<Integer> accountIDSet = new HashSet<>();
+            daoManager.beginTransaction();
+            for (Transaction t : toBeImported) {
+                insertTransaction(t, InsertMode.DB_ONLY);
+                accountIDSet.add(t.getAccountID());
+            }
+            daoManager.commit();
+            transactionList.addAll(toBeImported);
+            // transactionList need to be ordered by ID
+            FXCollections.sort(transactionList, Comparator.comparing(Transaction::getID));
+            updateAccountBalance(a -> accountIDSet.contains(a.getID()));
+        } catch (DaoException e) {
+            try {
+                daoManager.rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_UPDATE_TRANSACTION,
+                    "Failed to insert transaction", e);
+        }
+
+        return new Pair<>(importedLines, skippedLines);
+    }
 }

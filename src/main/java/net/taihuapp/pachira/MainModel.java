@@ -2547,8 +2547,8 @@ public class MainModel {
     }
 
     enum ImportTransactionField {
-        ACCOUNT("Account Name"), DATE("Date"), ACTION("Action"),
-        SECURITY("Security Name"), AMOUNT("Amount"), QUANTITY("Quantity");
+        ACCOUNT("Account Name"), DATE("Date"), ACTION("Action"), CATEGORY("Category"),
+        PAYEE("Payee"), SECURITY("Security Name"), AMOUNT("Amount"), QUANTITY("Quantity");
 
         private final String label;
 
@@ -2594,7 +2594,8 @@ public class MainModel {
             throw new ModelException(ModelException.ErrorCode.ILL_FORMATTED_TRANSACTION_CSV, "Bad column name", e);
         }
 
-        final Set<Transaction.TradeAction> supported = Set.of(BUY, SELL, DIV, REINVDIV, INTINC, REINVINT);
+        final Set<Transaction.TradeAction> supported = Set.of(BUY, SELL, DIV, REINVDIV, INTINC, REINVINT,
+                DEPOSIT, WITHDRAW);
         final List<String> datePatterns = Arrays.asList("M/d/yyyy", "M/d/yy");
         for (String[] line : lines.subList(1, lines.size())) { // skip the header line
             final int accountID = getAccount(a -> a.getName()
@@ -2641,12 +2642,23 @@ public class MainModel {
                     .equals(line[columnMap.get(ImportTransactionField.SECURITY)]))
                     .map(Security::getID).orElse(0);
 
-            final BigDecimal amount = new BigDecimal(line[columnMap.get(ImportTransactionField.AMOUNT)]);
-            final BigDecimal quantity = new BigDecimal(line[columnMap.get(ImportTransactionField.QUANTITY)]);
+            final int categoryID = getCategory(c -> c.getName()
+                    .equals(line[columnMap.get(ImportTransactionField.CATEGORY)]))
+                    .map(Category::getID).orElse(0);
 
-            final Transaction t = new Transaction(accountID, date, tradeAction, 0);
-            t.setAmount(amount);
-            t.setQuantity(quantity);
+
+            final Transaction t = new Transaction(accountID, date, tradeAction, categoryID);
+
+            final String amtStr = line[columnMap.get(ImportTransactionField.AMOUNT)];
+            if (!amtStr.isEmpty())
+                t.setAmount(new BigDecimal(amtStr));
+            final String quantityStr = line[columnMap.get(ImportTransactionField.QUANTITY)];
+            if (!quantityStr.isEmpty())
+                t.setQuantity(new BigDecimal(quantityStr));
+            final String payeeStr = line[columnMap.get(ImportTransactionField.PAYEE)];
+            if (!payeeStr.isEmpty())
+                t.setPayee(payeeStr);
+
             if (securityID > 0)
                 t.setSecurityID(securityID);
             toBeImported.add(t);

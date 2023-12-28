@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -55,6 +55,11 @@ class SearchResultDialog {
         )) {
             tc.setVisible(false);
         }
+
+        // make date and account column sortable
+        searchTransactionTableView.mTransactionDateColumn.setSortable(true);
+        searchTransactionTableView.mTransactionAccountColumn.setSortable(true);
+
         Callback<TableView<Transaction>, TableRow<Transaction>> callback = searchTransactionTableView.getRowFactory();
         searchTransactionTableView.setRowFactory(tv -> {
             TableRow<Transaction> row = callback.call(tv);

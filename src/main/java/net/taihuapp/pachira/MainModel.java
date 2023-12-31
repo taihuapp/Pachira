@@ -2594,6 +2594,13 @@ public class MainModel {
             throw new ModelException(ModelException.ErrorCode.ILL_FORMATTED_TRANSACTION_CSV, "Bad column name", e);
         }
 
+        for (ImportTransactionField itf : ImportTransactionField.values()) {
+            if (columnMap.get(itf) == null) {
+                throw new ModelException(ModelException.ErrorCode.ILL_FORMATTED_TRANSACTION_CSV,
+                        "Missing " + itf + " column", null);
+            }
+        }
+
         final Set<Transaction.TradeAction> supported = Set.of(BUY, SELL, DIV, REINVDIV, INTINC, REINVINT,
                 DEPOSIT, WITHDRAW);
         final List<String> datePatterns = Arrays.asList("M/d/yyyy", "M/d/yy");

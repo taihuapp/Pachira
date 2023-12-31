@@ -1936,7 +1936,7 @@ public class MainController {
                             "Skipped " + skippedLines.size() + " lines.",
                     sb.toString());
         } catch (IOException | CsvException | ModelException e) {
-            final String msg = e.getClass().getName() + " exception when importing transaction csv file";
+            final String msg = file.getName() + " " + e.getMessage();
             mLogger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -2602,6 +2602,7 @@ public class MainModel {
         }
 
         final Set<Transaction.TradeAction> supported = Set.of(BUY, SELL, DIV, REINVDIV, INTINC, REINVINT,
+                CGLONG, CGMID, CGSHORT, REINVLG, REINVMD, REINVSH,
                 DEPOSIT, WITHDRAW);
         final List<String> datePatterns = Arrays.asList("M/d/yyyy", "M/d/yy");
         for (String[] line : lines.subList(1, lines.size())) { // skip the header line

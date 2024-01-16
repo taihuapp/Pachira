@@ -2658,11 +2658,27 @@ public class MainModel {
             final Transaction t = new Transaction(accountID, date, tradeAction, categoryID);
 
             final String amtStr = line[columnMap.get(ImportTransactionField.AMOUNT)];
-            if (!amtStr.isEmpty())
+            if (amtStr.isEmpty()) {
+                // don't have an amount, skip
+                skippedLines.add(line);
+                continue;
+            } else {
+                // set amount
                 t.setAmount(new BigDecimal(amtStr));
+            }
+
             final String quantityStr = line[columnMap.get(ImportTransactionField.QUANTITY)];
-            if (!quantityStr.isEmpty())
+            if (quantityStr.isEmpty()) {
+                // no quantity
+                if (Transaction.hasQuantity(tradeAction)) {
+                    // quantity is needed but not available, skip the line
+                    skippedLines.add(line);
+                    continue;
+                }
+            } else {
+                // set quantity
                 t.setQuantity(new BigDecimal(quantityStr));
+            }
             final String payeeStr = line[columnMap.get(ImportTransactionField.PAYEE)];
             if (!payeeStr.isEmpty())
                 t.setPayee(payeeStr);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -60,7 +60,6 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -151,31 +150,8 @@ public class MainApp extends Application {
     ObservableList<Security> getSecurityList() { return mSecurityList; }
 
 
-    Account getAccountByID(int id) {
-        for (Account a : getAccountList(null, null, false)) {
-            if (a.getID() == id)
-                return a;
-        }
-        return null;
-    }
 
-    Security getSecurityByID(int id) {
-        for (Security s : getSecurityList()) {
-            if (s.getID() == id)
-                return s;
-        }
-        return null;
-    }
-
-    Security getSecurityByName(String name) {
-        for (Security s : getSecurityList()) {
-            if (s.getName().equals(name))
-                return s;
-        }
-        return null;
-    }
-
-    // Given a transaction t, find a index location in (sorted by ID) mTransactionList
+    // Given a transaction t, find an index location in (sorted by ID) mTransactionList
     // for the matching ID.
     private int getTransactionIndex(Transaction t) {
         return Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
@@ -530,7 +506,7 @@ public class MainApp extends Application {
     //     corresponding values are the List of SplitTransaction for the given TransactionID
     // if input tid != 0, returns a Map with one single entry
     // values in TRANSACTIONID column could be either positive or negative
-    // a negative TRANSACTIONID value means the the splittransaction belongs to a Reminder Transaction
+    // a negative TRANSACTIONID value means the splittransaction belongs to a Reminder Transaction
     // instead of a normal transaction
     private Map<Integer, List<SplitTransaction>> loadSplitTransactions(int tidIn) {
         Map<Integer, List<SplitTransaction>> stListMap = new HashMap<>();
@@ -1082,7 +1058,7 @@ public class MainApp extends Application {
                 + "ID integer NOT NULL AUTO_INCREMENT (10), "
                 + "NAME varchar(128) UNIQUE NOT NULL, "
                 + "FIID integer NOT NULL, "
-                + "USERNAME varchar(256), "   // encrypted user name
+                + "USERNAME varchar(256), "   // encrypted username
                 + "PASSWORD varchar(256), "   // encrypted password
                 + "primary key (ID))";
         sqlCreateTable(sqlCmd);
@@ -1117,7 +1093,8 @@ public class MainApp extends Application {
             loader.setLocation(MainApp.class.getResource("/view/MainLayout.fxml"));
             mPrimaryStage.setScene(new Scene(loader.load()));
             mPrimaryStage.show();
-            //((MainController) loader.getController()).setMainApp(this);
+            MainController controller = loader.getController();
+            controller.setHostServices(getHostServices());
         } catch (IOException e) {
             mLogger.error("IOException", e);
         }
@@ -1132,52 +1109,8 @@ public class MainApp extends Application {
         }
     }
 
-    void mergeAccountDCToDB(AccountDC adc) throws SQLException {
-        try (Statement statement = getConnection().createStatement()) {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
-            TimeZone tzUTC = TimeZone.getTimeZone("UTC");
-            dateFormat.setTimeZone(tzUTC);
-            timeFormat.setTimeZone(tzUTC);
-            String dateString = dateFormat.format(adc.getLastDownloadDateTime());
-            String timeString = timeFormat.format(adc.getLastDownloadDateTime());
-            BigDecimal ledgeBal = adc.getLastDownloadLedgeBalance();
-            if (ledgeBal != null) {
-                statement.executeUpdate(
-                        "merge into ACCOUNTDCS (ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
-                                + "LASTDOWNLOADDATE, LASTDOWNLOADTIME, LASTDOWNLOADLEDGEBAL) values ("
-                                + adc.getAccountID() + ", "
-                                + "'" + adc.getAccountType() + "', "
-                                + adc.getDCID() + ", "
-                                + "'" + adc.getRoutingNumber() + "', "
-                                + "'" + adc.getEncryptedAccountNumber() + "', "
-                                + "'" + dateString + "', "
-                                + "'" + timeString + "', "
-                                + ledgeBal + ")");
-            } else {
-                statement.executeUpdate(
-                        "merge into ACCOUNTDCS (ACCOUNTID, ACCOUNTTYPE, DCID, ROUTINGNUMBER, ACCOUNTNUMBER, "
-                                + "LASTDOWNLOADDATE, LASTDOWNLOADTIME) values ("
-                                + adc.getAccountID() + ", "
-                                + "'" + adc.getAccountType() + "', "
-                                + adc.getDCID() + ", "
-                                + "'" + adc.getRoutingNumber() + "', "
-                                + "'" + adc.getEncryptedAccountNumber() + "', "
-                                + "'" + dateString + "', "
-                                + "'" + timeString + "')");
-            }
-        }
-    }
-
     // FIDataList
     ObservableList<DirectConnection.FIData> getFIDataList() { return mFIDataList; }
-    DirectConnection.FIData getFIDataByName(String s) {
-        for (DirectConnection.FIData fiData : getFIDataList()) {
-            if (fiData.getName().equals(s))
-                return fiData;
-        }
-        return null;
-    }
     DirectConnection.FIData getFIDataByID(int id) {
         for (DirectConnection.FIData fiData : getFIDataList()) {
             if (id == fiData.getID())
@@ -1188,18 +1121,6 @@ public class MainApp extends Application {
 
     // DCInfoList
     ObservableList<DirectConnection> getDCInfoList() { return mDCInfoList; }
-    DirectConnection getDCInfoByName(String s) {
-        for (DirectConnection dc : getDCInfoList())
-            if (dc.getName().equals(s))
-                return dc;
-        return null;
-    }
-    DirectConnection getDCInfoByID(int id) {
-        for (DirectConnection dc : getDCInfoList())
-            if (dc.getID() == id)
-                return dc;
-        return null;
-    }
 
     @Override
     public void stop() {
@@ -1218,7 +1139,7 @@ public class MainApp extends Application {
         initMainLayout();
         mExecutorService.scheduleAtFixedRate(() -> {
             // check if current date property is still correct.
-            if (CURRENT_DATE_PROPERTY.get().compareTo(LocalDate.now()) != 0) {
+            if (!CURRENT_DATE_PROPERTY.get().isEqual(LocalDate.now())) {
                 Platform.runLater(() -> CURRENT_DATE_PROPERTY.set(LocalDate.now()));
             }
         }, 15, 15, TimeUnit.SECONDS);

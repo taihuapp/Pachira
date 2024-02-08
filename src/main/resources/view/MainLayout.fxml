@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -147,6 +147,7 @@
                   </Menu>
                 <Menu mnemonicParsing="false" text="Help">
                   <items>
+                        <MenuItem mnemonicParsing="false" onAction="#showHelpContent" text="Show Help Content" />
                         <Menu mnemonicParsing="false" text="SQL Conversion">
                           <items>
                               <MenuItem mnemonicParsing="false" onAction="#handleDBToSQL" text="DB to SQL" />

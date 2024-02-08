@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Direct-Connection.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<p>Pachira can connect to financial institutions by utilizing Direct Connect.  All related functionalities are under the menu 'Direct Connect'.</p>
+
+<p>Please note, there are certain risks using 'Direct Connect', according to this <a href="https://blog.securityinnovation.com/digital-side-door">blog article by Steven Danneman</a>.</p>
+
+<h3>Master Password</h3>
+
+<p>In Pachira, all direct connection information are protected with a separate 'Master Password'.  To setup a master password, simply select 'Direct Connect -> Create Master Password'.  One can change or delete a master password.  Deleting a master password would delete all the direct connection information protected by the Master Password.</p>
+
+<h3>Financial Institutions</h3>
+
+<p>Direct Connect provides a link between a Pachira account and an account within a particular financial institution.  Once a master password is setup, one need to manage the list of financial institutions.</p>
+
+<p>Select Direct Connect -> Financial Institutions will bring up a dialog for managing the list of financial institutions.  The top panel is the list of financial institutions can be used in Pachira.  The bottom panel contains a list of pre-loaded financial institutions.  To use any in the bottom panel, select it and click import.  It will show up in the top panel and ready to be used.</p>
+
+<p>If a financial institution is not in the pre-loaded list, one can look it up at  <a href="https://wiki.gnucash.org/wiki/OFX_Direct_Connect_Bank_Settings">Gnucash Wiki</a> or at <a href="https://www.ofxhome.com/">OFX Home</a>.  </p>
+
+<h3>Direct Connections</h3>
+
+<p>Once a financial institution is setup in Pachira, Direct Connection(s) can be added to the financial institution, by selecting 'Direct Connect -> Direct Connections'.  Each direct connection have its own name, a corresponding financial institution, a user name, and a password.  Multiple direct connections with different user name and password combinations can be associated with a single financial institution.</p>
+
+<h3>Account Direct Connection</h3>
+
+<p>Once a direct connection is properly setup, one can link it to an Pachira account.  First select the account in the main window.  Then select 'Direct Connect -> Set Account Direct Connection'.  It brings up a 'Edit Direct Connection' dialog, select the appropriate direct connection, the available accounts for that direct connection will be listed.  Select the right one and click save.</p>
+
+<h3>Download Account Transactions</h3>
+
+<p>After link an account to a direct connection, the account transactions now can be downloaded.  Note that the download only download transactions since the later of the previous download, or last account reconciliation date.</p>
+
+<p>If one manually entered transactions before the download, the downloaded transactions will still show up as duplicates.  One can right click the download transaction and select 'merge'.</p>
+
+<h3>Alternative to Direct Connect</h3>
+
+<p>If for whatever reason one does not want to or cannot use Direct Connect.  There is an alternative to download transactions using web access.  Many financial institutions allow online users to export transactions in Microsoft Money (.OFX) format through web browsers.  Pachira can import the downloaded .OFX files.  But please try not to mix downloading with Direct Connect and importing web downloaded .OFX files.  Some institutions (PNC for example) use different transaction ID in Direct Connect and in web downloaded .OFX files.</p>
+
+<hr />
+
+<p>Prev: <a href="/wiki/Import-Transaction-CSV">Import Transaction CSV</a></p>
+
+</body>
+</html>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Key-Concepts-in-Pachira.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<p>There are a few key concepts in Pachira.</p>
+
+<ul>
+<li>Database</li>
+<li><a href="/wiki/Account">Account</a></li>
+<li>Transaction</li>
+<li>Category</li>
+<li><a href="/wiki/Reminder">Reminder</a></li>
+</ul>
+
+<p>For those Quicken users, these concepts are very similar to the ones in Quicken.  All information are stored in an encrypted database.  You can have more than one databases.  A database contains a list of accounts and a list of transactions.  Each transaction belongs to one of these accounts.  Each transaction can also have an assigned category.</p>
+
+<hr />
+
+<p>Prev: <a href="/wiki/Moving-from-Quicken-to-Pachira">Moving from Quicken to Pachira</a></p>
+
+<p>Next: <a href="/wiki/Account">Account</a></p>
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Home.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<h3>Welcome to the Pachira wiki!</h3>
+
+<p>Pachira is an open source personal finance management application.  It is intended as a replacement of Quicken.</p>
+
+<p>Pachira is written in Java with JavaFX.  It runs on computers with Java and JavaFX run time, which can be Windows, Linux, and macOS X.</p>
+
+<h3>Why Pachira?</h3>
+
+<ul>
+<li>Privacy: Pachira runs on your own computer.  The data resides on your own computer.  You own your data, you control your data.</li>
+<li>Free: Pachira is an open source application, it is free, you don't have to pay annual subscription to anybody.</li>
+<li>Multi-platform: Pachira works on different operating systems, the same application, same data file can be used in Windows, Linux, and macOS X.</li>
+</ul>
+
+<p><br/><br/></p>
+
+<p><img src="./images/pic1.png"/>
+<figcaption>Pachira Screenshot</figcaption></p>
+
+<p><br/><br/></p>
+
+<p>Next: <a href="/wiki/Installation">Installation</a></p>
+
+</body>
+</html>

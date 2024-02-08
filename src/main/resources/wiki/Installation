@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Installation.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<h2>Install Pachira</h2>
+
+<p>Installing Pachira is very simple.  To install Pachira, simply go to <a href="https://github.com/taihuapp/Pachira/releases/latest">the latest release page</a>, download Pachira.zip package, unpack it in desired directory on your own computer.</p>
+
+<p>For Java/JavaFX programmers, you can clone the git repository, then build and
+install on your own computer.</p>
+
+<h2>Run Pachira</h2>
+
+<p>For Windows, locate Pachira installation directory, double click <code>runPachira.bat</code>
+to run.</p>
+
+<p>For Linux/Mac, locate Pachira installation directory, run the shell script <code>runPachira.sh</code></p>
+
+<h2>Install Java 11</h2>
+
+<p>Pachira needs Java 11 (or newer version) and JavaFX 11 (or newer version) to run.</p>
+
+<p>There are many places to find instructions to install Java 11.  You can use
+the links here or google your own instructions.</p>
+
+<p><a href="https://java.tutorials24x7.com/blog/how-to-install-java-11-on-windows">How To Install Java 11 On Windows</a></p>
+
+<p><a href="https://www.digitalocean.com/community/tutorials/how-to-install-java-with-apt-on-ubuntu-20-04">How To Install Java with Apt on Ubuntu 20.04</a></p>
+
+<p><a href="https://www.digitalocean.com/community/tutorials/how-to-install-java-with-apt-on-ubuntu-18-04">How To Install Java with Apt on Ubuntu 18.04</a></p>
+
+<p><a href="https://medium.com/w-logs/installing-java-11-on-macos-with-homebrew-7f73c1e9fadf">Installing Java 11 on MacOS with HomeBrew</a></p>
+
+<h2>Install JavaFX SDK</h2>
+
+<p>JavaFX SDK can be downloaded from <a href="https://gluonhq.com/products/javafx/">Gluon</a>. Simply download
+the package, unpack in any directory you like and set environment variable PATH_TO_FX to
+the lib subdirectory.  For example, if you unpack the JavaFX SDK for Windows at
+<code>C:\Program Files\Java\javafx-sdk-11.0.2\</code>, then set environment variable PATH<em>TO</em>FX to
+<code>C:\Program Files\Java\javafx-sdk-11.0.2\lib</code></p>
+
+<p><a href="https://gluonhq.com/download/javafx-11-0-2-sdk-windows/">Download JavaFX Windows SDK 11.0.2</a></p>
+
+<p><a href="https://gluonhq.com/download/javafx-11-0-2-sdk-linux/">Download JavaFX Linux SDK 11.0.2</a></p>
+
+<p><a href="https://gluonhq.com/download/javafx-11-0-2-sdk-mac">Download JavaFX MacOS X SDK 11.0.2</a></p>
+
+<h2>Build Pachira on your own Computer</h2>
+
+<p>The following commands clones and builds Pachira on a Ubuntu 20.04:</p>
+
+<p><code>sudo apt update &amp;&amp; sudo apt upgrade</code></p>
+
+<p><code>sudo apt install git maven openjdk-11-jdk openjfx</code></p>
+
+<p><code>git clone https://github.com/taihuapp/Pachira</code></p>
+
+<p><code>cd Pachira; mvn install</code></p>
+
+<p>After successful completion of these commands, a copy of Pachira will be build in the directory <code>target</code>.
+You can copy the directory <code>target</code> to your desired location and run the command <code>runPachira.sh</code> inside it.</p>
+
+<hr />
+
+<p>Prev: <a href="/wiki/Home">Home</a></p>
+
+<p>Next: <a href="/wiki/Moving-from-Quicken-to-Pachira">Moving from Quicken to Pachira</a></p>
+
+</body>
+</html>

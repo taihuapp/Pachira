@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,6 +24,7 @@ import com.opencsv.exceptions.CsvException;
 import com.webcohesion.ofx4j.OFXException;
 import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
 import com.webcohesion.ofx4j.domain.data.common.TransactionType;
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -63,6 +64,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.text.ParseException;
@@ -85,6 +87,10 @@ public class MainController {
     private static final String KEY_OPENED_DB_PREFIX = "OPENEDDB#";
 
     private MainModel mainModel = null;
+
+    private HostServices hostServices;
+
+    public void setHostServices(HostServices hs) { hostServices = hs; }
 
     @FXML
     private Menu mRecentDBMenu;
@@ -1853,6 +1859,18 @@ public class MainController {
             }
         }
         return fileNameList;
+    }
+
+    @FXML
+    private void showHelpContent() {
+        Platform.runLater(() -> {
+            URL url = MainApp.class.getResource("/wiki/index");
+            if (url == null)
+                DialogUtil.showExceptionDialog(getStage(), "Resource not found", "/wiki/index not found",
+                        "", null);
+            else
+                hostServices.showDocument(url.toString());
+        });
     }
 
     private void showSplashScreen(boolean firstTime) {

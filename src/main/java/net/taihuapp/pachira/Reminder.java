@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,10 +20,7 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,7 +29,7 @@ import java.util.List;
 
 public class Reminder {
 
-    public enum Type { PAYMENT, DEPOSIT }
+    public enum Type { PAYMENT, DEPOSIT, LOAN_PAYMENT }
 
     private int mID = -1;
     private final ObjectProperty<Type> mTypeProperty = new SimpleObjectProperty<>(Type.PAYMENT);
@@ -45,23 +42,27 @@ public class Reminder {
     private final StringProperty mMemoProperty = new SimpleStringProperty("");
     private final List<SplitTransaction> mSplitTransactionList = new ArrayList<>();
     private final DateSchedule mDateSchedule;
+    private final ObjectProperty<Integer> alertDaysProperty = new SimpleObjectProperty<>(3);
+    private final BooleanProperty isAutoProperty = new SimpleBooleanProperty(false);
 
     // default constructor
     public Reminder() {
 
         // default monthly schedule, starting today, no end, counting day of month forward.
         mDateSchedule = new DateSchedule(DateSchedule.BaseUnit.MONTH, 1, LocalDate.now(), null,
-                3, true, true);
+                true, true);
     }
 
     // copy constructor
     Reminder(Reminder r) {
         this(r.getID(), r.getType(), r.getPayee(), r.getAmount(), r.getEstimateCount(), r.getAccountID(),
-                r.getCategoryID(), r.getTagID(), r.getMemo(), r.getDateSchedule(), r.getSplitTransactionList());
+                r.getCategoryID(), r.getTagID(), r.getMemo(), r.getAlertDays(), r.getDateSchedule(),
+                r.getSplitTransactionList(), r.isAuto());
     }
 
     public Reminder(int id, Type type, String payee, BigDecimal amount, int estCnt, int accountID, int categoryID,
-                    int tagID, String memo, DateSchedule ds, List<SplitTransaction> stList) {
+                    int tagID, String memo, int ad, DateSchedule ds, List<SplitTransaction> stList,
+                    boolean isAuto) {
         mID = id;
         mTypeProperty.set(type);
         mPayeeProperty.set(payee);
@@ -71,7 +72,9 @@ public class Reminder {
         mCategoryIDProperty.set(categoryID);
         mTagIDProperty.set(tagID);
         mMemoProperty.set(memo);
+        alertDaysProperty.set(ad);
         mDateSchedule = ds;
+        isAutoProperty.set(isAuto);
 
         for (SplitTransaction st : stList)
             mSplitTransactionList.add(new SplitTransaction(st));
@@ -108,10 +111,17 @@ public class Reminder {
     StringProperty getMemoProperty() { return mMemoProperty; }
     public String getMemo() { return getMemoProperty().get(); }
 
-    List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
+    ObjectProperty<Integer> getAlertDaysProperty() { return alertDaysProperty; }
+    public Integer getAlertDays() { return getAlertDaysProperty().get(); }
+
+    public List<SplitTransaction> getSplitTransactionList() { return mSplitTransactionList; }
     void setSplitTransactionList(List<SplitTransaction> stList) {
         mSplitTransactionList.clear();
         for (SplitTransaction st : stList)
             mSplitTransactionList.add(new SplitTransaction(st));
     }
+
+    public BooleanProperty getIsAutoProperty() { return isAutoProperty; }
+    public boolean isAuto() { return getIsAutoProperty().get(); }
+    void setIsAuto(boolean isAuto) { isAutoProperty.set(isAuto); }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import javafx.beans.binding.Bindings;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -30,7 +31,8 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -38,7 +40,7 @@ import java.util.Comparator;
 
 public class AccountListDialogController {
 
-    private static final Logger mLogger = Logger.getLogger(AccountListDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(AccountListDialogController.class);
 
     private MainModel mainModel;
 
@@ -60,6 +62,8 @@ public class AccountListDialogController {
     private Button mMoveUpButton;
     @FXML
     private Button mMoveDownButton;
+    @FXML
+    private Button hideButton;
 
     @FXML
     private void handleNew() {
@@ -110,13 +114,13 @@ public class AccountListDialogController {
         account.setHiddenFlag(!account.getHiddenFlag());
         try {
             mainModel.insertUpdateAccount(account);
-        } catch (DaoException e) {
+        } catch (ModelException e) {
             // first put back
             account.setHiddenFlag(!account.getHiddenFlag());
             Stage stage = (Stage) mAccountTableView.getScene().getWindow();
-            final String msg = e.getErrorCode() + " DaoException when hide/unhide account " + account.getName();
+            final String msg = e.getErrorCode() + " ModelException when hide/unhide account " + account.getName();
             mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, "DaoException", msg, e.toString(), e);
+            DialogUtil.showExceptionDialog(stage, "ModelException", msg, e.toString(), e);
         }
     }
 
@@ -200,6 +204,14 @@ public class AccountListDialogController {
                     || (newAccount.getType() != mAccountTableView.getItems().get(nv.intValue()+1).getType()));
         });
 
+        hideButton.textProperty().bind(Bindings.createStringBinding(() -> {
+            final Account account = mAccountTableView.getSelectionModel().selectedItemProperty().get();
+            if (account != null && account.getHiddenFlag())
+                return "Unhide";
+            return "Hide";
+        }, mAccountTableView.getSelectionModel().selectedItemProperty()));
+        hideButton.disableProperty().bind(mAccountTableView.getSelectionModel().selectedItemProperty().isNull());
+
         mAccountNameTableColumn.setCellValueFactory(cellData -> cellData.getValue().getNameProperty());
         mAccountTypeTableColumn.setCellValueFactory(cellData -> cellData.getValue().getTypeProperty());
         mAccountBalanceTableColumn.setCellValueFactory(cellData -> cellData.getValue().getCurrentBalanceProperty());
@@ -211,8 +223,8 @@ public class AccountListDialogController {
                 if (item == null || empty) {
                     setText("");
                 } else {
-                    // format
-                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                    // format, balances always have scale of 2.
+                    setText(ConverterUtil.getDollarCentFormatInstance().format(item));
                 }
                 setStyle("-fx-alignment: CENTER-RIGHT;");
             }

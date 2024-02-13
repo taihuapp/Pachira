@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Import-Transaction-CSV.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<p>In pachira, transactions can also be imported through .csv files.
+This is quite convenient for handle certain repetitive transactions.</p>
+
+<p>First create a csv file with following column headings on the first row:</p>
+
+<ul>
+<li>Account Name</li>
+<li>Date</li>
+<li>Action</li>
+<li>Category</li>
+<li>Payee</li>
+<li>Security Name</li>
+<li>Amount</li>
+<li>Quantity</li>
+</ul>
+
+<p>The remaining file would contain transactions to be imported.
+Any line with empty Account Name or empty Date would be skipped.
+Currently, only the following Action types are supported:</p>
+
+<table>
+    <tr><th align="left">Action</th><th align="left">Description</th></tr>
+    <tr><td>BUY   </td><td>Buy shares </td></tr>
+    <tr><td>SELL  </td><td>Sale shares</td></tr>
+    <tr><td>DIV</td><td>Cash dividend</td></tr>
+    <tr><td>REINVDIV</td><td>Reinvest dividend</td></tr>
+    <tr><td>INTINC</td><td>Interest income</td></tr>
+    <tr><td>REINVINT</td><td>Reinvest interest</td></tr>
+    <tr><td>CGLONG</td><td>Long-term capital gain</td></tr>
+    <tr><td>CGMID</td><td>Mid-term capital gain</td></tr>
+    <tr><td>CGSHORT</td><td>Short-term capital gain</td></tr>
+    <tr><td>REINVLG</td><td>Reinvest long-term capital gain</td></tr>
+    <tr><td>REINVMD</td><td>Reinvest mid-term capital gain</td></tr>
+    <tr><td>REINVSH</td><td>Reinvest short-term capital gain</td></tr>
+    <tr><td>DEPOSIT</td><td>Deposit into the account</td></tr>
+    <tr><td>WITHDRAW</td><td>Withdraw from the account</td></tr>
+</table>
+
+<p>Once the csv file is ready, in Pachira, select 
+File -> Import... -> Transactions - CSV
+to import the transactions.</p>
+
+<p><img src="/wiki/images/import-transaction-csv.png" alt="A sample csv file" title="" /></p>
+<hr />
+
+<p>Prev: <a href="/wiki/Reminder">Reminder</a></p>
+
+<p>Next: <a href="/wiki/Direct-Connection">Direct Connection</a></p>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,8 +20,8 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
@@ -87,7 +87,7 @@ public class DirectConnection {
 
     private int mID;
     private final StringProperty mNameProperty = new SimpleStringProperty("");
-    private final IntegerProperty mFIIDProperty = new SimpleIntegerProperty(-1);
+    private final ObjectProperty<Integer> mFIIDProperty = new SimpleObjectProperty<>(-1);
     private String mEncryptedUserName;
     private String mEncryptedPassword;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -21,21 +21,21 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
-import javafx.scene.layout.TilePane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,25 +51,37 @@ import java.util.stream.Collectors;
 
 public class ReportDialogController {
 
-    private static final Logger mLogger = Logger.getLogger(ReportDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(ReportDialogController.class);
 
-    public enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS }
+    public enum ReportType { NAV, INVESTINCOME, INVESTTRANS, BANKTRANS, CAPITALGAINS, COSTBASIS }
     public enum Frequency { DAILY, MONTHLY, QUARTERLY, ANNUAL }
     public enum DatePeriod {
-        TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE,
-        WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
-        LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR,
-        LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD;
+        TODAY("Today"), YESTERDAY("Yesterday"), LASTEOM("End of Last Month"),
+        LASTEOQ("End of Last Quarter"), LASTEOY("End of Last Year"), CUSTOMDATE("Customized Date"),
+        WEEKTODATE("Week to Date"), MONTHTODATE("Month to Date"), QUARTERTODATE("Quarter to Date"),
+        YEARTODATE("Year to Date"), EPOCHTODATE("Epoch to Date"),
+        LASTWEEK("Last Week"), LASTMONTH("Last Month"), LASTQUARTER("Last Quarter"),
+        LASTYEAR("Last Year"), LAST7DAYS("Las 7 Days"), LAST30DAYS("Last 30 Days"),
+        LAST365DAYS("Last 365 Days"), CUSTOMPERIOD("Customized Period");
 
-        static EnumSet<DatePeriod> groupD = EnumSet.of(TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE);
-        static EnumSet<DatePeriod> groupP = EnumSet.of(WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE, EPOCHTODATE,
-                LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS, CUSTOMPERIOD);
+        // these are the date settings
+        static final EnumSet<DatePeriod> groupD = EnumSet.of(TODAY, YESTERDAY, LASTEOM, LASTEOQ, LASTEOY, CUSTOMDATE);
+        // these are the period settings
+        static final EnumSet<DatePeriod> groupP = EnumSet.of(WEEKTODATE, MONTHTODATE, QUARTERTODATE, YEARTODATE,
+                EPOCHTODATE, LASTWEEK, LASTMONTH, LASTQUARTER, LASTYEAR, LAST7DAYS, LAST30DAYS, LAST365DAYS,
+                CUSTOMPERIOD);
+
+        private final String value;
+        DatePeriod(String v) { value = v; }
+
+        @Override
+        public String toString() { return value; }
     }
 
     public enum ItemName { ACCOUNTID, CATEGORYID, SECURITYID, TRADEACTION }
 
-    private static final String NOSECURITY = "(No Security)";
-    private static final String NOCATEGORY = "(No Category)";
+    private static final String NO_SECURITY = "(No Security)";
+    private static final String NO_CATEGORY = "(No Category)";
 
     public static class Setting {
         private int mID;
@@ -87,7 +99,10 @@ public class ReportDialogController {
         private Boolean mPayeeRegEx = false;
         private String mMemoContains = "";
         private Boolean mMemoRegEx = false;
-
+        private final ObjectProperty<Integer> displayOrderProperty = new SimpleObjectProperty<>(Integer.MAX_VALUE);
+        public ObjectProperty<Integer> getDisplayOrderProperty() { return displayOrderProperty; }
+        public int getDisplayOrder() { return getDisplayOrderProperty().get(); }
+        public void setDisplayOrder(int order) { getDisplayOrderProperty().set(order); }
 
         Setting(ReportType type) {
             this(-1, type);
@@ -98,6 +113,7 @@ public class ReportDialogController {
             mType = type;
             switch (type) {
                 case NAV:
+                case COSTBASIS:
                     mDatePeriod = DatePeriod.TODAY;
                     break;
                 case INVESTINCOME:
@@ -190,6 +206,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Account, BooleanProperty>, String> mAccountTableColumn;
     @FXML
     private TableColumn<Pair<Account, BooleanProperty>, Boolean> mAccountSelectedTableColumn;
+    @FXML
+    private TextField accountFilterTextField;
 
     @FXML
     private Tab mCategoriesTab;
@@ -199,6 +217,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, String> mCategoryTableColumn;
     @FXML
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, Boolean> mCategorySelectedTableColumn;
+    @FXML
+    private TextField categoryFilterTextField;
 
     @FXML
     private Tab mSecuritiesTab;
@@ -208,6 +228,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, String> mSecurityTableColumn;
     @FXML
     private TableColumn<Pair<Pair<String, Integer>, BooleanProperty>, Boolean> mSecuritySelectedTableColumn;
+    @FXML
+    private TextField securityFilterTextField;
 
     @FXML
     private Tab mTradeActionTab;
@@ -217,6 +239,8 @@ public class ReportDialogController {
     private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, String> mTradeActionTableColumn;
     @FXML
     private TableColumn<Pair<Transaction.TradeAction, BooleanProperty>, Boolean> mTradeActionSelectedTableColumn;
+    @FXML
+    private TextField tradeActionFilterTextField;
 
     @FXML
     private Tab mTextMatchTab;
@@ -230,8 +254,6 @@ public class ReportDialogController {
     private CheckBox mMemoRegExCheckBox;
 
     @FXML
-    private TilePane mRightTilePane;
-    @FXML
     TextArea mReportTextArea;
     @FXML
     Button mShowReportButton;
@@ -241,8 +263,14 @@ public class ReportDialogController {
     Button mShowSettingButton;
     @FXML
     Button mSaveSettingButton;
+    @FXML
+    Button setAllButton;
+    @FXML
+    Button clearAllButton;
 
     private MainModel mainModel;
+
+    private Stage getStage() { return (Stage) mTabPane.getScene().getWindow(); }
 
     void setMainModel(MainModel mainModel, Setting setting) {
 
@@ -250,32 +278,49 @@ public class ReportDialogController {
         this.mainModel = mainModel;
 
         // set window title
-        ((Stage) mTabPane.getScene().getWindow()).setTitle(mSetting.getType() + " Report");
+        Stage stage = getStage();
 
         switch (mSetting.getType()) {
             case NAV:
+                stage.setTitle("NAV Report");
                 setupNAVReport();
                 break;
             case INVESTINCOME:
+                stage.setTitle("Investment Income Report");
                 setupInvestIncomeReport();
                 break;
             case INVESTTRANS:
+                stage.setTitle("Investment Transaction Report");
                 setupInvestTransactionReport();
                 break;
             case BANKTRANS:
+                stage.setTitle("Banking Transaction Report");
                 setupBankTransactionReport();
                 break;
             case CAPITALGAINS:
+                stage.setTitle("Capital Gains Report");
                 setupCapitalGainsReport();
                 break;
+            case COSTBASIS:
+                stage.setTitle("Cost Basis Report");
+                setupCostBasisReport();
             default:
                 break;
         }
     }
 
     private Set<String> mapSecurityIDSetToNameSet(Set<Integer> idSet) {
-        return idSet.stream().map(id -> mainModel.getSecurity(s -> s.getID() == id)
-                .map(Security::getName).orElse(NOSECURITY)).collect(Collectors.toSet());
+        return idSet.stream().map(id -> mainModel.getSecurity(id)
+                .map(Security::getName).orElse(NO_SECURITY)).collect(Collectors.toSet());
+    }
+
+    private void setupCostBasisReport() {
+        setupDatesTab(false); // just one date
+        setupAccountsTab(Set.of(Account.Type.Group.INVESTING)); // show all invest accounts
+        mCategoriesTab.setDisable(true);
+        setupSecuritiesTab();
+        mTradeActionTab.setDisable(true);
+        mTextMatchTab.setDisable(true);
     }
 
     private void setupCapitalGainsReport() {
@@ -301,7 +346,7 @@ public class ReportDialogController {
         setupAccountsTab(Set.of(Account.Type.Group.INVESTING)); // show investing accounts only
         mCategoriesTab.setDisable(true);
         setupSecuritiesTab();
-        setupTradeActionTab();
+        mTradeActionTab.setDisable(true); // report doesn't depend on trade action selection.
         mTextMatchTab.setDisable(true);
     }
 
@@ -359,7 +404,7 @@ public class ReportDialogController {
     // show accounts with group included in groupSet
     private void setupAccountsTab(Set<Account.Type.Group> groupSet) {
         // a list of Pair<Pair<account, displayOrder>, selected>
-        ObservableList<Pair<Account, BooleanProperty>> abList = FXCollections.observableArrayList();
+        final ObservableList<Pair<Account, BooleanProperty>> abList = FXCollections.observableArrayList();
 
         for (Account account : mainModel.getAccountList(a -> groupSet.contains(a.getType().getGroup())
                 && !a.getName().equals(MainModel.DELETED_ACCOUNT_NAME))) {
@@ -367,7 +412,25 @@ public class ReportDialogController {
                     new SimpleBooleanProperty(mSetting.getSelectedAccountIDSet().contains(account.getID()))));
         }
 
-        mAccountSelectionTableView.setItems(abList);
+        // create a filtered list
+        final FilteredList<Pair<Account, BooleanProperty>> filteredList = new FilteredList<>(abList);
+        // create a pattern binding depending on the text field
+        final ObjectBinding<Pattern> patternObjectBinding = Bindings.createObjectBinding(() ->
+                Pattern.compile(accountFilterTextField.getText().trim(),
+                        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                accountFilterTextField.textProperty());
+        // bind the filtered list predicate property, the selected accounts and account name contains
+        // the filter text will be shown
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                        e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().getName()).find(),
+                patternObjectBinding));
+        // create a sorted list
+        final SortedList<Pair<Account, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+        // bind the comparator
+
+        mAccountSelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mAccountSelectionTableView.comparatorProperty());
+
         mAccountTableColumn.setCellValueFactory(cd -> cd.getValue().getKey().getNameProperty());
         mAccountSelectedTableColumn.setCellValueFactory(cd -> cd.getValue().getValue());
         mAccountSelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mAccountSelectedTableColumn));
@@ -375,9 +438,10 @@ public class ReportDialogController {
     }
 
     private void setupCategoriesTab() {
-        ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
-        boolean newSetting = mSetting.getID() < 0;  // we pre-select all categories for new setting
-        sibList.add(new Pair<>(new Pair<>(NOCATEGORY, 0),
+        final ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList =
+                FXCollections.observableArrayList();
+        final boolean newSetting = mSetting.getID() < 0;  // we pre-select all categories for new setting
+        sibList.add(new Pair<>(new Pair<>(NO_CATEGORY, 0),
                 new SimpleBooleanProperty(newSetting
                         || mSetting.getSelectedCategoryIDSet().contains(0))));
         for (Category c : mainModel.getCategoryList()) {
@@ -391,7 +455,23 @@ public class ReportDialogController {
                     new SimpleBooleanProperty(newSetting
                             || mSetting.getSelectedCategoryIDSet().contains(-a.getID()))));
         }
-        mCategorySelectionTableView.setItems(sibList);
+
+        final FilteredList<Pair<Pair<String, Integer>, BooleanProperty>> filteredList = new FilteredList<>(sibList);
+        // create a pattern binding depending on the text field
+        final ObjectBinding<Pattern>  patternObjectBinding = Bindings.createObjectBinding(() ->
+                        Pattern.compile(categoryFilterTextField.getText().trim(),
+                                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                categoryFilterTextField.textProperty());
+        // bind the filteredList predicate property
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                        e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().getKey()).find(),
+                patternObjectBinding));
+        // set up a sorted list
+        final SortedList<Pair<Pair<String, Integer>, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+
+        mCategorySelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mCategorySelectionTableView.comparatorProperty());
+
         mCategoryTableColumn.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().getKey().getKey()));
         mCategorySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
@@ -400,16 +480,34 @@ public class ReportDialogController {
     }
 
     private void setupSecuritiesTab() {
-        ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList = FXCollections.observableArrayList();
-        boolean newSetting = mSetting.getID() < 0;
-        sibList.add(new Pair<>(new Pair<>(NOSECURITY, 0),
+        final ObservableList<Pair<Pair<String, Integer>, BooleanProperty>> sibList =
+                FXCollections.observableArrayList();
+        final boolean newSetting = mSetting.getID() < 0;
+        sibList.add(new Pair<>(new Pair<>(NO_SECURITY, 0),
                 new SimpleBooleanProperty(newSetting || mSetting.getSelectedSecurityIDSet().contains(0))));
         for (Security s : mainModel.getSecurityList()) {
             sibList.add(new Pair<>(new Pair<>(s.getNameProperty().get(), s.getID()),
                     new SimpleBooleanProperty(newSetting
                             || mSetting.getSelectedSecurityIDSet().contains(s.getID()))));
         }
-        mSecuritySelectionTableView.setItems(sibList);
+
+        // create a filtered list
+        final FilteredList<Pair<Pair<String, Integer>, BooleanProperty>> filteredList= new FilteredList<>(sibList);
+        // create a pattern binding depending on the text field
+        final ObjectBinding<Pattern> patternObjectBinding = Bindings.createObjectBinding(() ->
+                Pattern.compile(securityFilterTextField.getText().trim(),
+                        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                securityFilterTextField.textProperty());
+        // bind the filteredList predicate property
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().getKey()).find(),
+                patternObjectBinding));
+        // set up a sorted list
+        final SortedList<Pair<Pair<String, Integer>, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+
+        mSecuritySelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mSecuritySelectionTableView.comparatorProperty());
+
         mSecurityTableColumn.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().getKey().getKey()));
         mSecuritySelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
@@ -418,15 +516,30 @@ public class ReportDialogController {
     }
 
     private void setupTradeActionTab() {
-        ObservableList<Pair<Transaction.TradeAction, BooleanProperty>> tabList = FXCollections.observableArrayList();
-        boolean newSetting = mSetting.getID() < 0;
+        final ObservableList<Pair<Transaction.TradeAction, BooleanProperty>> tabList = FXCollections.observableArrayList();
+        final boolean newSetting = mSetting.getID() < 0;
         for (Transaction.TradeAction ta : Transaction.TradeAction.values()) {
             tabList.add(new Pair<>(ta, new SimpleBooleanProperty(newSetting
                     || mSetting.getSelectedTradeActionSet().contains(ta))));
         }
-        mTradeActionSelectionTableView.setItems(tabList);
+
+        final FilteredList<Pair<Transaction.TradeAction, BooleanProperty>> filteredList = new FilteredList<>(tabList);
+        // create a pattern bind depending on the text field
+        final ObjectBinding<Pattern> patternObjectBinding = Bindings.createObjectBinding(() ->
+                Pattern.compile(tradeActionFilterTextField.getText().trim(),
+                        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.LITERAL),
+                tradeActionFilterTextField.textProperty());
+        // bind the filteredList predicate property
+        filteredList.predicateProperty().bind(Bindings.createObjectBinding(() ->
+                e -> e.getValue().get() || patternObjectBinding.get().matcher(e.getKey().toString()).find(),
+                patternObjectBinding));
+        final SortedList<Pair<Transaction.TradeAction, BooleanProperty>> sortedList = new SortedList<>(filteredList);
+
+        mTradeActionSelectionTableView.setItems(sortedList);
+        sortedList.comparatorProperty().bind(mTradeActionSelectionTableView.comparatorProperty());
+
         mTradeActionTableColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getKey().name()));
+                new SimpleStringProperty(cellData.getValue().getKey().toString()));
         mTradeActionSelectedTableColumn.setCellValueFactory(cellData->cellData.getValue().getValue());
         mTradeActionSelectedTableColumn.setCellFactory(CheckBoxTableCell.forTableColumn(mTradeActionSelectedTableColumn));
         mTradeActionSelectedTableColumn.setEditable(true);
@@ -484,6 +597,9 @@ public class ReportDialogController {
                 case CAPITALGAINS:
                     mReportTextArea.setText(CapitalGainsReport());
                     break;
+                case COSTBASIS:
+                    mReportTextArea.setText(CostBasisReport());
+                    break;
                 default:
                     mReportTextArea.setText("Report type " + mSetting.getType() + " not implemented yet");
                     break;
@@ -495,8 +611,7 @@ public class ReportDialogController {
         } catch (DaoException | ModelException e) {
             final String msg =  e.getClass().getName() + " when showing report";
             mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog((Stage) mTabPane.getScene().getWindow(), e.getClass().getName(),
-                    msg, e.toString(), e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
         }
     }
 
@@ -581,12 +696,11 @@ public class ReportDialogController {
             tiDialog.setHeaderText("Overwrite existing report setting, or input a new name to save under:");
         }
 
-        Stage stage = (Stage) mTabPane.getScene().getWindow();
         Optional<String> result = tiDialog.showAndWait();
         if (result.isPresent()) {
             String settingName = result.get();
             if (settingName.length() == 0 || settingName.length() > MainModel.SAVEDREPORTS_NAME_LEN) {
-                DialogUtil.showWarningDialog(stage, "Warning", "Bad Report Setting Name",
+                DialogUtil.showWarningDialog(getStage(), "Warning", "Bad Report Setting Name",
                         "Name length should be between 1 and " + MainModel.SAVEDREPORTS_NAME_LEN);
             } else {
                 if (!result.get().equals(mSetting.getName())) {
@@ -600,22 +714,17 @@ public class ReportDialogController {
                 } catch (DaoException e) {
                     final String msg = e.getErrorCode() + " when saving report setting";
                     mLogger.error(msg, e);
-                    DialogUtil.showExceptionDialog((Stage) mTabPane.getScene().getWindow(), e.getClass().getName(),
-                            msg, e.toString(), e);
+                    DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
                 }
             }
         }
     }
 
-    void close() { ((Stage) mTabPane.getScene().getWindow()).close(); }
+    void close() { getStage().close(); }
 
     private String InvestIncomeReport() throws DaoException, ModelException {
         StringBuilder reportStr = new StringBuilder("Investment Income Report from "
                 + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
-        if (mSetting.getSelectedTradeActionSet().isEmpty()) {
-            reportStr.append("No TradeAction selected.");
-            return reportStr.toString();
-        }
 
         class Income {
             private BigDecimal dividend = BigDecimal.ZERO;
@@ -642,7 +751,6 @@ public class ReportDialogController {
             }
         }
 
-        final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
         Income fieldUsed = new Income(); // use this to keep track the field being used
         List<Map<String, Income>> accountSecurityIncomeList = new ArrayList<>();
         for (Account account : mainModel.getAccountList(a -> a.getType().isGroup(Account.Type.Group.INVESTING)
@@ -660,10 +768,9 @@ public class ReportDialogController {
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                final String sName = (t.getSecurityName() == null || t.getSecurityName().isEmpty()) ?
-                    NOSECURITY : t.getSecurityName();
-                final int sID = mainModel.getSecurity(security -> security.getName().equals(t.getSecurityName()))
-                            .map(Security::getID).orElse(0);
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                        .map(Security::getName).orElse(NO_SECURITY);
+                final int sID = t.getSecurityID() < 0 ? 0 : t.getSecurityID();
                 if (!mSetting.getSelectedSecurityIDSet().contains(sID))
                     continue;
 
@@ -674,17 +781,36 @@ public class ReportDialogController {
                     case SELL:
                     case CVTSHRT:
                         fieldUsed.realized = BigDecimal.ONE;
+                        final SecurityHolding securityHolding =
+                                mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, t.getID())
+                                        .stream().filter(sh -> sh.getSecurityName().equals(sName)).findAny()
+                                        .orElseThrow(() ->
+                                                new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                                "Cannot find security holding for " + t.getTradeAction() + " "
+                                                        + t.getQuantity() + " of " + sName, null));
+                        final BigDecimal realized = securityHolding.processTransaction(t,
+                                mainModel.getMatchInfoList(t.getID())).stream().map(SpecifyLotInfo::getRealizedPNL)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
                         securityIncomeMap.put(sName, income);
-                        BigDecimal realized = mainModel.calcRealizedGain(t);
-                        if (realized == null) {
-                            reportStr.append("**********************\n" + "* Lot Matching Error *\n" + "* Account:  ")
-                                    .append(account.getName()).append("\n").append("* Date:     ").append(t.getTDate())
-                                    .append("\n").append("* Security: ").append(t.getSecurityName()).append("\n")
-                                    .append("* Action:   ").append(t.getTradeAction().name()).append("\n")
-                                    .append("* Quantity: ").append(qpFormat.format(t.getQuantity())).append("\n");
-                            return reportStr.toString();
-                        }
                         income.realized = income.realized.add(realized);
+                        if (t.getAccruedInterest().signum() != 0) {
+                            fieldUsed.interest = BigDecimal.ONE;
+                            if (t.getTradeAction() == Transaction.TradeAction.SELL)
+                                income.interest = income.interest.add(t.getAccruedInterest());
+                            else
+                                income.interest = income.interest.subtract(t.getAccruedInterest());
+                        }
+                        break;
+                    case BUY:
+                    case SHTSELL:
+                        if (t.getAccruedInterest().signum() != 0) {
+                            fieldUsed.interest = BigDecimal.ONE;
+                            if (t.getTradeAction() == Transaction.TradeAction.BUY)
+                                income.interest = income.interest.subtract(t.getAccruedInterest());
+                            else
+                                income.interest = income.interest.add(t.getAccruedInterest());
+                            securityIncomeMap.put(sName, income);
+                        }
                         break;
                     case DIV:
                     case REINVDIV:
@@ -727,11 +853,9 @@ public class ReportDialogController {
                         income.misc_inc = income.misc_inc.add(t.getAmount());
                         break;
                     case RTRNCAP:
-                    case SHTSELL:
                     case MARGINT:
                     case DEPOSIT:
                     case WITHDRAW:
-                    case BUY:
                     case STKSPLIT:
                     case SHRSIN:
                     case SHRSOUT:
@@ -936,7 +1060,8 @@ public class ReportDialogController {
                 if(tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                String sName = t.getSecurityName().isEmpty() ? NOSECURITY : t.getSecurityName();
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                        .map(Security::getName).orElse(NO_SECURITY);
                 if (securityNameSet.contains(sName)
                         && mSetting.getSelectedTradeActionSet().contains(t.getTradeAction())) {
                     Line line = new Line();
@@ -1041,9 +1166,9 @@ public class ReportDialogController {
         }
 
         BigDecimal totalSTCostBasis = BigDecimal.ZERO;
-        BigDecimal totalSTProceeds = BigDecimal.ZERO;
+        BigDecimal totalSTPnL = BigDecimal.ZERO;
         BigDecimal totalLTCostBasis = BigDecimal.ZERO;
-        BigDecimal totalLTProceeds = BigDecimal.ZERO;
+        BigDecimal totalLTPnL = BigDecimal.ZERO;
 
         final List<Line> detailLTGLines = new ArrayList<>();  // long term gain details
         final List<Line> detailSTGLines = new ArrayList<>();  // short term gain details
@@ -1060,136 +1185,137 @@ public class ReportDialogController {
         title.costBasis = "Cost Basis";
         title.realizedGL = "Realized G/L";
 
-        final List<String> errMsgs = new ArrayList<>();
-
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
         // selected security tab has only IDs, transaction contains security name only,
         // convert ID's to names
-        Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
+        final Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
 
-        final LocalDate sDate1 = mSetting.mStartDate.minusDays(1); // one day before start date
-        final LocalDate eDate1 = mSetting.mEndDate.plusDays(1); // one day after end date
         for (int accountID : mSetting.getSelectedAccountIDSet()) {
-            Account account = mainModel.getAccount(a -> a.getID() == accountID).orElse(null);
+            final Account account = mainModel.getAccount(a -> a.getID() == accountID).orElse(null);
             if (account == null)
                 continue;
             for (Transaction t : new FilteredList<>(account.getTransactionList(), p -> {
-                final String sName = p.getSecurityName().isEmpty() ? NOSECURITY : p.getSecurityName();
-                return (securityNameSet.contains(sName) &&
-                        (p.getTradeAction() == Transaction.TradeAction.SELL ||
-                                p.getTradeAction() == Transaction.TradeAction.CVTSHRT) &&
-                        p.getTDate().isAfter(sDate1) && p.getTDate().isBefore(eDate1));
+                final String sName = mainModel.getSecurity(p.getSecurityID())
+                                .map(Security::getName).orElse(NO_SECURITY);
+                return ((p.getTradeAction() == Transaction.TradeAction.SELL ||
+                        p.getTradeAction() == Transaction.TradeAction.CVTSHRT) && securityNameSet.contains(sName) &&
+                        (!p.getTDate().isBefore(mSetting.getStartDate())) &&
+                        (!p.getTDate().isAfter(mSetting.getEndDate())));
             })) {
-                BigDecimal matchedQuantity = BigDecimal.ZERO;
-                CapitalGainItem transactionSTG = null; // keep track short term gain for the transaction
-                CapitalGainItem transactionLTG = null; // keep track long term gain for the transaction
-                for (CapitalGainItem cgi : mainModel.getCapitalGainItemList(t)) {
-                    matchedQuantity = matchedQuantity.add(cgi.getQuantity());
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                        .map(Security::getName).orElse("");
+                final SecurityHolding securityHolding = mainModel.computeSecurityHoldings(account.getTransactionList(),
+                        t.getTDate(), t.getID()).stream().filter(sh -> sh.getSecurityName().equals(sName))
+                        .findAny().orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
+                                account.getName() + " " + t.getTradeAction() + " " + t.getQuantity() + " on "
+                                        + t.getTDate(), null));
+                final List<SpecifyLotInfo> matchLotList =
+                        securityHolding.processTransaction(t, mainModel.getMatchInfoList(t.getID()));
+                final List<SpecifyLotInfo> stgLotList = new ArrayList<>();
+                final List<SpecifyLotInfo> ltgLotList = new ArrayList<>();
+                for (SpecifyLotInfo sli : matchLotList) {
                     Line line = new Line();
                     line.aName = account.getName();
-                    line.sName = t.getSecurityName();
-                    line.quantity = qpFormat.format(cgi.getQuantity());
-                    Transaction matchT = cgi.getMatchTransaction();
+                    line.sName = sName;
+                    line.quantity = qpFormat.format(sli.getSelectedShares());
+                    final BigDecimal costBasis, proceeds;
+                    final BigDecimal realizedPNL = sli.getRealizedPNL();
                     if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
                         line.sDate = t.getTDate().toString();
-                        line.bDate = matchT.getTDate().toString();
+                        line.bDate = sli.getDate().toString();
+                        proceeds = sli.getProceeds();
+                        costBasis = proceeds.subtract(realizedPNL);
                     } else {
-                        line.sDate = matchT.getTDate().toString();
+                        // short covering
+                        line.sDate = sli.getDate().toString();
                         line.bDate = t.getTDate().toString();
+                        costBasis = sli.getProceeds().negate();
+                        proceeds = costBasis.add(realizedPNL);
                     }
-                    line.proceeds = dcFormat.format(cgi.getProceeds());
-                    line.costBasis = dcFormat.format(cgi.getCostBasis());
-                    line.realizedGL = dcFormat.format(cgi.getProceeds().subtract(cgi.getCostBasis()));
-                    if (cgi.isShortTerm()) {
+                    line.proceeds = dcFormat.format(proceeds);
+                    line.costBasis = dcFormat.format(costBasis);
+                    line.realizedGL = dcFormat.format(realizedPNL);
+                    if (sli.isShortTerm(t.getTDate())) {
                         detailSTGLines.add(line);
-                        if (transactionSTG == null) {
-                            transactionSTG = new CapitalGainItem(cgi);
-                        } else {
-                            if ((transactionSTG.getMatchTransaction() != null) &&
-                                    !transactionSTG.getMatchTransaction().getTDate().equals(
-                                            cgi.getMatchTransaction().getTDate())) {
-                                // matching transactions on multiple days, set to null
-                                transactionSTG.setMatchTransaction(null);
-                            }
-                            transactionSTG.setCostBasis(transactionSTG.getCostBasis().add(cgi.getCostBasis()));
-                            transactionSTG.setProceeds(transactionSTG.getProceeds().add(cgi.getProceeds()));
-                        }
+                        stgLotList.add(sli);
 
-                        totalSTCostBasis = totalSTCostBasis.add(cgi.getCostBasis());
-                        totalSTProceeds = totalSTProceeds.add(cgi.getProceeds());
+                        totalSTCostBasis = totalSTCostBasis.add(costBasis);
+                        totalSTPnL = totalSTPnL.add(realizedPNL);
                     } else {
                         detailLTGLines.add(line);
-                        if (transactionLTG == null) {
-                            transactionLTG = new CapitalGainItem(cgi);
-                        } else {
-                            if ((transactionLTG.getMatchTransaction() != null) &&
-                                    !transactionLTG.getMatchTransaction().getTDate().equals(
-                                            cgi.getMatchTransaction().getTDate())) {
-                                // matching transactions on multiple days, set to null
-                                transactionLTG.setMatchTransaction(null);
-                            }
-                            transactionLTG.setCostBasis(transactionLTG.getCostBasis().add(cgi.getCostBasis()));
-                            transactionLTG.setProceeds(transactionLTG.getProceeds().add(cgi.getProceeds()));
-                        }
+                        ltgLotList.add(sli);
 
-                        totalLTCostBasis = totalLTCostBasis.add(cgi.getCostBasis());
-                        totalLTProceeds = totalLTProceeds.add(cgi.getProceeds());
+                        totalLTCostBasis = totalLTCostBasis.add(costBasis);
+                        totalLTPnL = totalLTPnL.add(realizedPNL);
                     }
                 }
-                if (transactionSTG != null) {
+                if (!stgLotList.isEmpty()) {
                     Line line = new Line();
                     line.aName = account.getName();
-                    line.sName = t.getSecurityName();
-                    line.quantity = qpFormat.format(t.getQuantity());
-                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
-                        line.sDate = t.getTDate().toString();
-                        if (transactionSTG.getMatchTransaction() == null)
-                            line.bDate = "Various";
-                        else
-                            line.bDate = transactionSTG.getMatchTransaction().getTDate().toString();
-                    } else {
-                        line.bDate = t.getTDate().toString();
-                        if (transactionSTG.getMatchTransaction() == null)
-                            line.sDate = "Various";
-                        else
-                            line.sDate = transactionSTG.getMatchTransaction().getTDate().toString();
+                    line.sName = sName;
+                    String lotDateStr = stgLotList.get(0).getDate().toString();
+                    BigDecimal costBasis = BigDecimal.ZERO;
+                    BigDecimal pnl = BigDecimal.ZERO;
+                    BigDecimal quantity = BigDecimal.ZERO;
+                    for (SpecifyLotInfo sli : stgLotList) {
+                        if (!sli.getDate().isEqual(stgLotList.get(0).getDate()))
+                            lotDateStr = "Various"; // more than one date
+
+                        costBasis = costBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
+                        pnl = pnl.add(sli.getRealizedPNL());
+                        quantity = quantity.add(sli.getSelectedShares());
                     }
-                    line.costBasis = dcFormat.format(transactionSTG.getCostBasis());
-                    line.proceeds = dcFormat.format(transactionSTG.getProceeds());
-                    line.realizedGL =
-                            dcFormat.format(transactionSTG.getProceeds().subtract(transactionSTG.getCostBasis()));
+                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
+                        // The covering transaction is a sell
+                        line.sDate = t.getTDate().toString();
+                        line.bDate = lotDateStr;
+                        line.costBasis = dcFormat.format(costBasis);
+                        line.proceeds = dcFormat.format(pnl.add(costBasis));
+                    } else {
+                        // The covering transaction is a short covering buy
+                        line.bDate = t.getTDate().toString();
+                        line.sDate = lotDateStr;
+                        line.costBasis = dcFormat.format(pnl.add(costBasis).negate());
+                        line.proceeds = dcFormat.format(costBasis.negate());
+                    }
+                    line.quantity = qpFormat.format(quantity);
+                    line.realizedGL = dcFormat.format(pnl);
                     transactionSTGLines.add(line);
                 }
-                if (transactionLTG != null) {
+                if (!ltgLotList.isEmpty()) {
                     Line line = new Line();
                     line.aName = account.getName();
-                    line.sName = t.getSecurityName();
-                    line.quantity = qpFormat.format(t.getQuantity());
-                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
-                        line.sDate = t.getTDate().toString();
-                        if (transactionLTG.getMatchTransaction() == null)
-                            line.bDate = "Various";
-                        else
-                            line.bDate = transactionLTG.getMatchTransaction().getTDate().toString();
-                    } else {
-                        line.bDate = t.getTDate().toString();
-                        if (transactionLTG.getMatchTransaction() == null)
-                            line.sDate = "Various";
-                        else
-                            line.sDate = transactionLTG.getMatchTransaction().getTDate().toString();
+                    line.sName = sName;
+                    String lotDateStr = ltgLotList.get(0).getDate().toString();
+                    BigDecimal costBasis = BigDecimal.ZERO;
+                    BigDecimal pnl = BigDecimal.ZERO;
+                    BigDecimal quantity = BigDecimal.ZERO;
+                    for (SpecifyLotInfo sli : ltgLotList) {
+                        if (!sli.getDate().isEqual(ltgLotList.get(0).getDate()))
+                            lotDateStr = "Various"; // more than one date
+
+                        costBasis = costBasis.add(sli.getProceeds().subtract(sli.getRealizedPNL()));
+                        pnl = pnl.add(sli.getRealizedPNL());
+                        quantity = quantity.add(sli.getSelectedShares());
                     }
-                    line.costBasis = dcFormat.format(transactionLTG.getCostBasis());
-                    line.proceeds = dcFormat.format(transactionLTG.getProceeds());
-                    line.realizedGL =
-                            dcFormat.format(transactionLTG.getProceeds().subtract(transactionLTG.getCostBasis()));
+                    if (t.getTradeAction().equals(Transaction.TradeAction.SELL)) {
+                        // the covering transaction is a sell
+                        line.sDate = t.getTDate().toString();
+                        line.bDate = lotDateStr;
+                        line.costBasis = dcFormat.format(costBasis);
+                        line.proceeds = dcFormat.format(costBasis.add(pnl));
+                    } else {
+                        // short covering buy
+                        line.bDate = t.getTDate().toString();
+                        line.sDate = lotDateStr;
+                        line.costBasis = dcFormat.format(costBasis.add(pnl).negate());
+                        line.proceeds = dcFormat.format(costBasis.negate());
+                    }
+                    line.quantity = qpFormat.format(quantity);
+                    line.realizedGL = dcFormat.format(pnl);
                     transactionLTGLines.add(line);
-                }
-                if (!matchedQuantity.equals(t.getQuantity())) {
-                    errMsgs.add(account.getName() + " " + t.getTradeAction() + " "
-                            + t.getQuantity() + ", matched " + matchedQuantity + ". Difference = "
-                            + t.getQuantity().subtract(matchedQuantity));
                 }
             }
         }
@@ -1200,23 +1326,19 @@ public class ReportDialogController {
         totalSTGLine.aName = "Overall";
         totalSTGLine.sName = "Short Term";
         totalSTGLine.costBasis = dcFormat.format(totalSTCostBasis);
-        totalSTGLine.proceeds = dcFormat.format(totalSTProceeds);
-        totalSTGLine.realizedGL = dcFormat.format(totalSTProceeds.subtract(totalSTCostBasis));
+        totalSTGLine.proceeds = dcFormat.format(totalSTCostBasis.add(totalSTPnL));
+        totalSTGLine.realizedGL = dcFormat.format(totalSTPnL);
 
         totalLTGLine.aName = "Overall";
         totalLTGLine.sName = "Long Term";
         totalLTGLine.costBasis = dcFormat.format(totalLTCostBasis);
-        totalLTGLine.proceeds = dcFormat.format(totalLTProceeds);
-        totalLTGLine.realizedGL = dcFormat.format(totalLTProceeds.subtract(totalLTCostBasis));
+        totalLTGLine.proceeds = dcFormat.format(totalLTCostBasis.add(totalLTPnL));
+        totalLTGLine.realizedGL = dcFormat.format(totalLTPnL);
 
         totalLine.aName = "Overall";
         totalLine.costBasis = dcFormat.format(totalLTCostBasis.add(totalSTCostBasis));
-        totalLine.proceeds = dcFormat.format(totalLTProceeds.add(totalSTProceeds));
-        totalLine.realizedGL = dcFormat.format(totalLTProceeds.subtract(totalLTCostBasis)
-                .add(totalSTProceeds).subtract(totalSTCostBasis));
-
-        final Line total = new Line();
-        total.aName = "Total";
+        totalLine.proceeds = dcFormat.format(totalLTCostBasis.add(totalLTPnL).add(totalSTCostBasis).add(totalSTPnL));
+        totalLine.realizedGL = dcFormat.format(totalLTPnL.add(totalSTPnL));
 
         int aNameLen = 12;
         int sNameLen = 24;
@@ -1238,7 +1360,7 @@ public class ReportDialogController {
         allLines.add(totalLine);
 
         for (Line line : allLines) {
-            aNameLen = Math.max(line.aName.length(), aNameLen);
+            aNameLen = Math.max(line.aName.length()+1, aNameLen);
             sNameLen = Math.max(line.sName.length(), sNameLen);
             quantityLen = Math.max(line.quantity.length(), quantityLen);
             bDateLen = Math.max(line.bDate.length(), bDateLen);
@@ -1259,7 +1381,7 @@ public class ReportDialogController {
                 + "%" + (gap+realizedGLLen) + "s"
                 + "\n";
 
-        final String s0 = new String(new char[aNameLen + (gap+sNameLen)
+        final String s0 = new String(new char[(aNameLen) + (gap+sNameLen)
                 + (gap+quantityLen) + (gap+bDateLen) + (gap+sDateLen) + (gap+proceedsLen)
                 + (gap+costBasisLen) + (gap+realizedGLLen)]).replace("\0", "=") + "\n";
         final String s1 = s0.replace("=", "-");
@@ -1267,13 +1389,6 @@ public class ReportDialogController {
         StringBuilder reportSB = new StringBuilder("Capital Gains Report from ")
                 .append(mSetting.getStartDate()).append(" to ").append(mSetting.getEndDate()).append("\n")
                 .append("Generated on ").append(LocalDate.now()).append("\n");
-
-        if (!errMsgs.isEmpty()) {
-            reportSB.append("\n*** Start of Error Messages ***\n");
-            for (String s : errMsgs)
-                reportSB.append(s).append("\n");
-            reportSB.append("*** End of Error Messages ***\n");
-        }
 
         reportSB.append("\n").append(title.format(formatStr)).append(s0);
         if (!detailSTGLines.isEmpty())
@@ -1356,6 +1471,8 @@ public class ReportDialogController {
         title.amount = "Amount";
         lineList.add(title);
 
+        ConverterUtil.CategoryIDConverter categoryIDConverter = new ConverterUtil.CategoryIDConverter(mainModel);
+
         BigDecimal totalAmount = BigDecimal.ZERO;
         final DecimalFormat dcFormat = new DecimalFormat("#,##0.00"); // formatter for dollar & cents
         final Pattern payeePattern = mSetting.getPayeeContains().isEmpty() ?
@@ -1367,15 +1484,34 @@ public class ReportDialogController {
         for (Account account : mSetting.getSelectedAccountList(mainModel)) {
             for (Transaction t : account.getTransactionList()) {
                 LocalDate tDate = t.getTDate();
-                if (tDate.isBefore(mSetting.getStartDate()))
-                    continue;
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
 
-                final String sName = t.getSecurityName().isEmpty() ? NOSECURITY : t.getSecurityName();
-                if (mSetting.getSelectedCategoryIDSet().contains(t.getCategoryID())
-                        && securityNameSet.contains(sName)
-                        && ((payeePattern == null) || payeePattern.matcher(t.getPayee()).find())
+                if (tDate.isBefore(mSetting.getStartDate()))
+                    continue;
+
+                final String sName = mainModel.getSecurity(t.getSecurityID())
+                                .map(Security::getName).orElse(NO_SECURITY);
+                if (!securityNameSet.contains(sName))
+                    continue;
+                if (payeePattern != null && !payeePattern.matcher(t.getPayee()).find())
+                    continue;
+
+                if (t.isSplit()) {
+                    for (SplitTransaction st : t.getSplitTransactionList()) {
+                        if (mSetting.getSelectedCategoryIDSet().contains(st.getCategoryID())
+                            && ((memoPattern == null) || memoPattern.matcher(st.getMemo()).find())) {
+                            Line line = new Line();
+                            line.date = tDate.toString();
+                            line.aName = account.getName();
+                            line.memo = st.getMemo() == null ? "" : st.getMemo();
+                            line.category = categoryIDConverter.toString(st.getCategoryID());
+                            line.amount = dcFormat.format(st.getAmount());
+                            totalAmount = totalAmount.add(st.getAmount());
+                            lineList.add(line);
+                        }
+                    }
+                } else if (mSetting.getSelectedCategoryIDSet().contains(t.getCategoryID())
                         && ((memoPattern == null) || memoPattern.matcher(t.getMemo()).find())) {
                     Line line = new Line();
                     line.date = tDate.toString();
@@ -1385,16 +1521,12 @@ public class ReportDialogController {
                     else
                         line.num = t.getReference() == null ? "" : t.getReference();
                     line.memo = t.getMemo() == null ? "" : t.getMemo();
-                    line.category = mainModel.getCategory(c -> c.getID() == t.getCategoryID()).map(Category::getName)
-                            .orElse(mainModel.getAccount(a -> a.getID() == -t.getCategoryID())
-                                    .map(a -> "[" + a.getName() + "]").orElse(""));
-                    BigDecimal amount;
+                    line.category = categoryIDConverter.toString(t.getCategoryID());
+                    final BigDecimal amount = t.getCashAmount().add(t.getInvestAmount());
                     if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
-                        line.desc = t.getSecurityName() == null ? "" : t.getSecurityName();
-                        amount = t.getCashAmount();
+                        line.desc = sName;
                     } else {
                         line.desc = t.getPayee() == null ? "" : t.getPayee();
-                        amount = t.getDepositProperty().get().subtract(t.getPaymentProperty().get());
                     }
                     line.amount = dcFormat.format(amount);
                     totalAmount = totalAmount.add(amount);
@@ -1444,7 +1576,115 @@ public class ReportDialogController {
         return reportStr.toString();
     }
 
-    private String NAVReport() throws DaoException {
+    private String CostBasisReport() throws ModelException {
+        final LocalDate date = mSetting.getEndDate();
+        final String EOL = System.lineSeparator();
+        final StringBuilder outputSB = new StringBuilder("Cost Basis as of " + date + EOL + EOL);
+        final Set<String> securityNameSet = mapSecurityIDSetToNameSet(mSetting.getSelectedSecurityIDSet());
+
+        final String nameHeader = "Name";
+        final String pHeader = "Price";
+        final String qHeader = "Quantity";
+        final String mvHeader = "Market Value";
+        final String cbHeader = "Cost Basis";
+        final String pnlHeader = "P&L";
+        int nameLen = 12; // dates will take 10 and 2 space indent
+        int pLen = pHeader.length();
+        int qLen = qHeader.length();
+        int mvLen = mvHeader.length();
+        int cbLen = cbHeader.length();
+        int pnlLen = pnlHeader.length();
+
+        final DecimalFormat pqFormatter = ConverterUtil.getPriceQuantityFormatInstance();
+
+        // compute holdings and calculate column width
+        final Map<Integer, List<SecurityHolding>> accountSecurityHoldingMap = new HashMap<>();
+        final DecimalFormat decimalFormat = ConverterUtil.getDollarCentFormatInstance();
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
+            final List<SecurityHolding> shList =  mainModel.computeSecurityHoldings(account.getTransactionList(),
+                    date, -1).stream().filter(sh -> securityNameSet.contains(sh.getSecurityName()))
+                    .collect(Collectors.toList());
+            for (SecurityHolding sh : shList) {
+                final int len = sh.getSecurityName().length();
+                if (len > nameLen)
+                    nameLen = len;
+                final String pString = pqFormatter.format(sh.getPrice());
+                if (pString.length() > pLen)
+                    pLen = pString.length();
+                final String qString = pqFormatter.format(sh.getQuantity());
+                if (qString.length() > qLen)
+                    qLen = qString.length();
+                final String mvString = decimalFormat.format(sh.getMarketValue());
+                if (mvString.length() > mvLen)
+                    mvLen = mvString.length();
+                final String cbString = decimalFormat.format(sh.getCostBasis());
+                if (cbString.length() > cbLen)
+                    cbLen = cbString.length();
+                final String pnlString = decimalFormat.format(sh.getPnL());
+                if (pnlString.length() > pnlLen)
+                    pnlLen = pnlString.length();
+                for (SecurityLot lot : sh.getSecurityLotList()) {
+                    final String lotPString = pqFormatter.format(lot.getPrice());
+                    if (lotPString.length() > pLen)
+                        pLen = lotPString.length();
+                    final String lotQString = pqFormatter.format(lot.getQuantity());
+                    if (lotQString.length() > qLen)
+                        qLen = lotQString.length();
+                    final String lotMVString = decimalFormat.format(lot.getMarketValue());
+                    if (lotMVString.length() > mvLen)
+                        mvLen = lotMVString.length();
+                    final String lotCBString = decimalFormat.format(lot.getCostBasis());
+                    if (lotCBString.length() > cbLen)
+                        cbLen = lotCBString.length();
+                    final String lotPnLString = decimalFormat.format(lot.getPnL());
+                    if (lotPnLString.length() > pnlLen)
+                        pnlLen = lotPnLString.length();
+                }
+            }
+            accountSecurityHoldingMap.put(account.getID(), shList);
+        }
+
+        // prepare report
+        final int lineLen = nameLen + 4 + pLen + 2 + qLen + 2 + mvLen + 2 + cbLen + 2 + pnlLen;
+        final String separator = new String(new char[lineLen]).replace("\0", "=");
+        outputSB.append(String.format("  %-" + nameLen + "s", nameHeader))
+                .append(String.format("  %" + pLen + "s", pHeader))
+                .append(String.format("  %" + qLen + "s", qHeader))
+                .append(String.format("  %" + mvLen + "s", mvHeader))
+                .append(String.format("  %" + cbLen + "s", cbHeader))
+                .append(String.format("  %" + pnlLen + "s", pnlHeader))
+
+                .append(EOL);
+        outputSB.append(separator).append(EOL).append(EOL);
+        for (Account account : mSetting.getSelectedAccountList(mainModel)) {
+            outputSB.append(account.getName()).append(EOL);
+            final List<SecurityHolding> shList = accountSecurityHoldingMap.get(account.getID());
+            for (SecurityHolding sh : shList) {
+                outputSB.append(String.format("  %-" + nameLen + "s", sh.getLabel()))
+                        .append(String.format("  %" + pLen + "s", pqFormatter.format(sh.getPrice())))
+                        .append(String.format("  %" + qLen + "s", pqFormatter.format(sh.getQuantity())))
+                        .append(String.format("  %" + mvLen + "s", decimalFormat.format(sh.getMarketValue())))
+                        .append(String.format("  %" + cbLen + "s", decimalFormat.format(sh.getCostBasis())))
+                        .append(String.format("  %" + pnlLen + "s", decimalFormat.format(sh.getPnL())))
+                        .append(EOL);
+                for (SecurityLot lot : sh.getSecurityLotList()) {
+                    outputSB.append(String.format("    %-" + (nameLen-2) + "s", lot.getLabel()))
+                            .append(String.format("  %" + pLen + "s", pqFormatter.format(lot.getPrice())))
+                            .append(String.format("  %" + qLen + "s", pqFormatter.format(lot.getQuantity())))
+                            .append(String.format("  %" + mvLen + "s", decimalFormat.format(lot.getMarketValue())))
+                            .append(String.format("  %" + cbLen + "s", decimalFormat.format(lot.getCostBasis())))
+                            .append(String.format("  %" + pnlLen + "s", decimalFormat.format(lot.getPnL())))
+                            .append(EOL);
+                }
+                outputSB.append(EOL);
+            }
+            outputSB.append(separator).append(EOL).append(EOL);
+        }
+
+        return outputSB.toString();
+    }
+
+    private String NAVReport() throws ModelException {
         final LocalDate date = mSetting.getEndDate();
         StringBuilder outputStr = new StringBuilder("NAV Report as of " + date + "\n\n");
 
@@ -1630,14 +1870,17 @@ public class ReportDialogController {
         mReportTextArea.setVisible(false);
         mReportTextArea.setStyle("-fx-font-family: monospace");
 
-        // bind the visibility of mRightTilePane to either mDatesTab and mTextTab is not visible
-        mRightTilePane.visibleProperty().bind(Bindings.createBooleanBinding(()
-                        -> (mTabPane.getSelectionModel().getSelectedItem() != mDatesTab) &&
-                        (mTabPane.getSelectionModel().getSelectedItem() != mTextMatchTab),
-                mTabPane.getSelectionModel().selectedItemProperty()));
+        setAllButton.visibleProperty().bind(mAccountsTab.selectedProperty().or(mCategoriesTab.selectedProperty())
+                .or(mSecuritiesTab.selectedProperty()).or(mTradeActionTab.selectedProperty()));
+        clearAllButton.visibleProperty().bind(setAllButton.visibleProperty());
+
+        accountFilterTextField.visibleProperty().bind(mAccountsTab.selectedProperty());
+        categoryFilterTextField.visibleProperty().bind(mCategoriesTab.selectedProperty());
+        securityFilterTextField.visibleProperty().bind(mSecuritiesTab.selectedProperty());
+        tradeActionFilterTextField.visibleProperty().bind(mTradeActionTab.selectedProperty());
 
         // the javafx DatePicker isn't aware of the edited value of its own text field.
-        // DatePickerUtil.CaptureEditedDate is a work around for it.
+        // DatePickerUtil.CaptureEditedDate is a workaround for it.
         DatePickerUtil.captureEditedDate(mStartDatePicker);
         DatePickerUtil.captureEditedDate(mEndDatePicker);
     }

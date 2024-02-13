@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -20,21 +20,10 @@
   ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   -->
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ChoiceBox?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.DatePicker?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.RadioButton?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.ToggleButton?>
-<?import javafx.scene.layout.ColumnConstraints?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.RowConstraints?>
-
-<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditReminderDialogController">
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/11" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditReminderDialogController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" maxWidth="110.0" minWidth="10.0" prefWidth="110.0" />
         <ColumnConstraints hgrow="SOMETIMES" maxWidth="280.0" minWidth="10.0" prefWidth="280.0" />
@@ -56,17 +45,29 @@
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
-        <Label text="Reminder Type" />
+        <Label text="Reminder Type">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin></Label>
         <ChoiceBox fx:id="mTypeChoiceBox" prefWidth="200.0" GridPane.columnIndex="1" />
-        <Label text="Payee/Payer" GridPane.rowIndex="1" />
+        <Label text="Payee/Payer" GridPane.rowIndex="1">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin></Label>
         <TextField fx:id="mPayeeTextField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-        <Label text="Amount" GridPane.rowIndex="2" />
-        <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+        <Label fx:id="amountLabel" text="Amount" GridPane.rowIndex="2">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin></Label>
+        <HBox fx:id="fixedAmountHBox" alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
             <children>
                 <RadioButton fx:id="mFixedAmountRadioButton" mnemonicParsing="false" selected="true" text="Fixed at">
                     <HBox.margin>
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                     </HBox.margin>
+               <toggleGroup>
+                  <ToggleGroup fx:id="amount_group" />
+               </toggleGroup>
                 </RadioButton>
                 <TextField fx:id="mAmountTextField" alignment="CENTER_RIGHT">
                     <HBox.margin>
@@ -74,38 +75,50 @@
                     </HBox.margin></TextField>
             </children>
         </HBox>
-        <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+        <HBox fx:id="estimateHBox" alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
             <children>
-                <RadioButton fx:id="mEstimateAmountRadioButton" mnemonicParsing="false" text="Estimate from last">
+                <RadioButton fx:id="mEstimateAmountRadioButton" mnemonicParsing="false" text="Estimate from last" toggleGroup="$amount_group">
                     <HBox.margin>
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                     </HBox.margin>
                 </RadioButton>
-                <TextField fx:id="mEstimateNumOccurrenceTextField" prefWidth="30.0">
+                <TextField fx:id="mEstimateNumOccurrenceTextField" alignment="CENTER" prefWidth="40.0">
                     <HBox.margin>
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                     </HBox.margin></TextField>
-                <Label text="Occurrence">
+                <Label fx:id="occurrenceLabel" text="Occurrence">
                     <HBox.margin>
                         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                     </HBox.margin>
                 </Label>
             </children>
         </HBox>
-        <Label fx:id="mAccountIDLabel" text="Account" GridPane.rowIndex="4" />
+        <Label fx:id="mAccountIDLabel" text="Account" GridPane.rowIndex="4">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin></Label>
         <ComboBox fx:id="mAccountIDComboBox" maxWidth="1.7976931348623157E308" prefHeight="25.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-        <Label fx:id="mCategoryIDLabel" text="Category" GridPane.rowIndex="5" />
+        <Label fx:id="mCategoryIDLabel" text="Category" GridPane.rowIndex="5">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin></Label>
         <ComboBox fx:id="mCategoryIDComboBox" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-        <Label text="Tag" GridPane.rowIndex="6" />
+        <Label text="Tag" GridPane.rowIndex="6">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin></Label>
         <ComboBox fx:id="mTagIDComboBox" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="6" />
-        <Label text="Memo" GridPane.rowIndex="7" />
+        <Label text="Memo" GridPane.rowIndex="7">
+         <GridPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </GridPane.margin></Label>
         <TextField fx:id="mMemoTextField" GridPane.columnIndex="1" GridPane.rowIndex="7" />
         <Label text="Next due date" GridPane.columnIndex="3" />
         <DatePicker fx:id="mStartDatePicker" GridPane.columnIndex="4" GridPane.columnSpan="2" />
         <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="3" GridPane.columnSpan="2" GridPane.rowIndex="1">
             <children>
                 <Label text="Alert me " />
-                <TextField fx:id="mAlertDayTextField" prefHeight="25.0" prefWidth="32.0" />
+                <TextField fx:id="mAlertDayTextField" alignment="CENTER" prefHeight="25.0" prefWidth="42.0" />
                 <Label text=" days in advance" />
             </children>
         </HBox>
@@ -113,35 +126,38 @@
         <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="4" GridPane.columnSpan="2" GridPane.rowIndex="2">
             <children>
                 <Label text="Every " />
-                <TextField fx:id="mNumPeriodTextField" prefHeight="25.0" prefWidth="50.0" />
+                <TextField fx:id="mNumPeriodTextField" prefWidth="40.0" />
                 <ChoiceBox fx:id="mBaseUnitChoiceBox" prefWidth="150.0" />
             </children>
         </HBox>
         <Label text="End on" GridPane.columnIndex="3" GridPane.rowIndex="6" />
         <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="9">
             <children>
-                <Button mnemonicParsing="false" onAction="#handleSave" text="Save" />
-                <Button mnemonicParsing="false" onAction="#handleClose" text="Close" />
+                <Button mnemonicParsing="false" onAction="#handleSave" text="Save">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin></Button>
+                <Button mnemonicParsing="false" onAction="#handleClose" text="Close">
+               <HBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </HBox.margin></Button>
             </children>
         </HBox>
-        <ToggleButton fx:id="mDOMToggleButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Count days of the quarter" GridPane.columnIndex="4" GridPane.rowIndex="4">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin></ToggleButton>
-        <ToggleButton fx:id="mDOWToggleButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Count day of the week" GridPane.columnIndex="4" GridPane.rowIndex="5">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin></ToggleButton>
-        <ToggleButton fx:id="mFWDToggleButton" mnemonicParsing="false" text="Forward" GridPane.columnIndex="5" GridPane.rowIndex="4">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin></ToggleButton>
-        <ToggleButton fx:id="mREVToggleButton" mnemonicParsing="false" text="Reverse" GridPane.columnIndex="5" GridPane.rowIndex="5">
-            <GridPane.margin>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </GridPane.margin></ToggleButton>
-        <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="4" GridPane.columnSpan="2" GridPane.rowIndex="3" />
+      <RadioButton fx:id="domRadioButton" mnemonicParsing="false" selected="true" text="Count days of the quarter" GridPane.columnIndex="4" GridPane.rowIndex="4">
+         <toggleGroup>
+            <ToggleGroup fx:id="m_w_group" />
+         </toggleGroup>
+      </RadioButton>
+      <RadioButton fx:id="fwdRadioButton" mnemonicParsing="false" selected="true" text="Forward" GridPane.columnIndex="5" GridPane.rowIndex="4">
+         <toggleGroup>
+            <ToggleGroup fx:id="fwd_rev_group" />
+         </toggleGroup>
+      </RadioButton>
+      <RadioButton fx:id="dowRadioButton" mnemonicParsing="false" text="Count day of the week" toggleGroup="$m_w_group" GridPane.columnIndex="4" GridPane.rowIndex="5" />
+      <RadioButton fx:id="revRadioButton" mnemonicParsing="false" text="Reverse" toggleGroup="$fwd_rev_group" GridPane.columnIndex="5" GridPane.rowIndex="5" />
+        <Label fx:id="mDSDescriptionLabel" text="This is a very long label over two columns" GridPane.columnIndex="3" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="3" />
         <DatePicker fx:id="mEndDatePicker" GridPane.columnIndex="4" GridPane.rowIndex="6" />
       <Button mnemonicParsing="false" onAction="#handleSplit" text="Split" GridPane.columnIndex="3" GridPane.rowIndex="7" />
+      <CheckBox fx:id="isAutoCheckBox" mnemonicParsing="false" text="Auto Processing" GridPane.columnIndex="4" GridPane.halignment="RIGHT" GridPane.rowIndex="7" />
     </children>
 </GridPane>

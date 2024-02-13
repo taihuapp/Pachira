@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -23,18 +23,19 @@
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.ReminderTransactionListDialogController">
+<BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="400.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/11" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.ReminderTransactionListDialogController">
    <center>
       <TableView fx:id="mReminderTransactionTableView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
         <columns>
-          <TableColumn fx:id="mStatusTableColumn" prefWidth="60.0" text="Status" />
-          <TableColumn fx:id="mDueDateTableColumn" prefWidth="90.0" text="Due" />
-            <TableColumn fx:id="mAccountTableColumn" prefWidth="140.0" text="Account" />
-            <TableColumn fx:id="mTypeTableColumn" prefWidth="65.0" text="Type" />
-            <TableColumn fx:id="mPayeeTableColumn" prefWidth="150.0" text="Payee/Payer" />
-            <TableColumn fx:id="mAmountTableColumn" text="Amount" />
-            <TableColumn fx:id="mTagTableColumn" prefWidth="75.0" text="Tag" />
-            <TableColumn fx:id="mFrequencyTableColumn" prefWidth="140.0" text="Frequency" />
+          <TableColumn fx:id="mStatusTableColumn" prefWidth="60.0" sortable="false" text="Status" />
+          <TableColumn fx:id="mDueDateTableColumn" prefWidth="90.0" sortable="false" text="Due" />
+           <TableColumn fx:id="autoColumn" prefWidth="40.0" sortable="false" text="Auto" />
+           <TableColumn fx:id="mAccountTableColumn" prefWidth="140.0" sortable="false" text="Account" />
+           <TableColumn fx:id="mTypeTableColumn" prefWidth="65.0" sortable="false" text="Type" />
+           <TableColumn fx:id="mPayeeTableColumn" prefWidth="150.0" sortable="false" text="Payee/Payer" />
+           <TableColumn fx:id="mAmountTableColumn" sortable="false" text="Amount" />
+           <TableColumn fx:id="mTagTableColumn" prefWidth="75.0" sortable="false" text="Tag" />
+           <TableColumn fx:id="mFrequencyTableColumn" prefWidth="140.0" sortable="false" text="Frequency" />
         </columns>
       </TableView>
    </center>

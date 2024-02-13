@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -125,7 +125,7 @@ public class DialogUtil {
         alert.setHeaderText(header);
         alert.setContentText(content);
 
-        // work around for non resizable alert dialog truncates message
+        // work around for non-resizable alert dialog truncates message
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(480, 320);
 
@@ -150,7 +150,7 @@ public class DialogUtil {
     }
 
     static void showSpecifyLotsDialog(MainModel mainModel, Stage parent, Transaction t,
-                                      List<SecurityHolding.MatchInfo> matchInfoList) throws IOException, DaoException {
+                                      List<MatchInfo> matchInfoList) throws IOException, ModelException {
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(MainApp.class.getResource("/view/SpecifyLotsDialog.fxml"));
 
@@ -165,7 +165,7 @@ public class DialogUtil {
     }
 
     static List<SplitTransaction> showSplitTransactionsDialog(MainModel mainModel, Stage parent, int accountID,
-                                                              List<SplitTransaction> stList,
+                                                              List<SplitTransaction> stList, String message,
                                                               BigDecimal netAmount) throws IOException {
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(MainApp.class.getResource("/view/SplitTransactionsDialog.fxml"));
@@ -177,7 +177,7 @@ public class DialogUtil {
         dialogStage.setScene(new Scene(loader.load()));
         dialogStage.setUserData(false);
         SplitTransactionsDialogController controller = loader.getController();
-        controller.setMainModel(mainModel, accountID, stList, netAmount);
+        controller.setMainModel(mainModel, accountID, stList, message, netAmount);
         dialogStage.showAndWait();
         return controller.getSplitTransactionList();
     }

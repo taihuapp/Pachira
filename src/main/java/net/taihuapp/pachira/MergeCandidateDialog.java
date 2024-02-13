@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,44 +20,26 @@
 
 package net.taihuapp.pachira;
 
-import javafx.collections.ObservableList;
-import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Callback;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.time.LocalDate;
+import java.net.URL;
 import java.util.Arrays;
 
 class MergeCandidateDialog {
+
+    private static final Logger logger = LogManager.getLogger(MergeCandidateDialog.class);
+
     private final Stage mDialogStage;
     private Transaction mSelectedTransaction = null;
-
-    static class MergeCandidateTransactionTableView extends TransactionTableView {
-        @Override
-        final void setColumnVisibility() {
-            for (TableColumn<Transaction, ?> tc : Arrays.asList(
-                    mTransactionAccountColumn,
-                    mTransactionDescriptionColumn,
-                    mTransactionBalanceColumn
-            )) {
-                tc.setVisible(false);
-            }
-        }
-
-        @Override
-        final void setColumnSortability() {} // all columns remain sortable
-
-        MergeCandidateTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
-            super(mainModel, tList);}
-    }
 
     private void handleClose() { mDialogStage.close(); }
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
@@ -66,11 +48,22 @@ class MergeCandidateDialog {
     MergeCandidateDialog(MainModel mainModel, Stage stage, final Transaction downloadedTransaction) {
         mDialogStage = stage;
 
-        MergeCandidateTransactionTableView mergeCandidateTransactionTableView =
-                new MergeCandidateTransactionTableView(mainModel,
+        TransactionTableView mergeCandidateTransactionTableView =
+                new TransactionTableView(mainModel,
                         mainModel.getMergeCandidateTransactionList(downloadedTransaction));
+        for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                mergeCandidateTransactionTableView.mTransactionAccountColumn,
+                mergeCandidateTransactionTableView.mTransactionDescriptionColumn,
+                mergeCandidateTransactionTableView.mTransactionBalanceColumn
+        )) {
+            tc.setVisible(false);
+        }
+
+        Callback<TableView<Transaction>, TableRow<Transaction>> callback =
+                mergeCandidateTransactionTableView.getRowFactory();
         mergeCandidateTransactionTableView.setRowFactory(tv -> {
-            TableRow<Transaction> row = new TableRow<>();
+            TableRow<Transaction> row = callback.call(tv);
+
             // double click select the merge candidate
             row.setOnMouseClicked(e -> {
                 if ((e.getClickCount() == 2) && (!row.isEmpty())) {
@@ -78,15 +71,8 @@ class MergeCandidateDialog {
                     handleClose();
                 }
             });
-            PseudoClass future = PseudoClass.getPseudoClass("future");
-            row.itemProperty().addListener((obs, oTransaction, nTransaction) ->
-                    row.pseudoClassStateChanged(future, (nTransaction != null)
-                    && nTransaction.getTDate().isAfter(LocalDate.now())));
             return row;
         });
-
-        mergeCandidateTransactionTableView.getStylesheets().add(getClass()
-                .getResource("/css/TransactionTableView.css").toExternalForm());
 
         Label infoLabel = new Label();
         infoLabel.setText("Found " + mergeCandidateTransactionTableView.getItems().size()
@@ -128,5 +114,17 @@ class MergeCandidateDialog {
             mergeCandidateTransactionTableView.getSelectionModel().select(0);  // select the very first
         mDialogStage.setScene(new Scene(vBox));
         mergeButton.requestFocus();
+
+        final String cssFileName = "/css/TransactionTableView.css";
+        final URL cssUrl = getClass().getResource(cssFileName);
+        if (cssUrl != null) {
+            mergeCandidateTransactionTableView.getStylesheets().add(cssUrl.toExternalForm());
+        } else {
+            final String msg = getClass() + ".getResource(" + cssFileName + ") returns null";
+            NullPointerException npe = new NullPointerException(msg);
+            logger.error(msg, npe);
+            DialogUtil.showWarningDialog(mDialogStage, "Error", "Unable to get css", msg);
+            throw npe;
+        }
     }
 }

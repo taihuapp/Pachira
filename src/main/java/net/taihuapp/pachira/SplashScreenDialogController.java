@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -27,7 +27,8 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -37,7 +38,7 @@ import java.time.Instant;
 
 public class SplashScreenDialogController {
 
-    private static final Logger mLogger = Logger.getLogger(SplashScreenDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(SplashScreenDialogController.class);
 
     private Instant acknowledgeInstant;
 
@@ -99,7 +100,7 @@ public class SplashScreenDialogController {
 
     @FXML
     void handleStop() {
-        // this means user has NOT given a acknowledgement.  Stop everything
+        // this means user has NOT given an acknowledgement.  Stop everything
         Platform.exit();
         System.exit(0);
     }

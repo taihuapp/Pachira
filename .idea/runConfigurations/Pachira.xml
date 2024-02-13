@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Pachira" type="JarApplication">
     <option name="JAR_PATH" value="$PROJECT_DIR$/target/Pachira.jar" />
-    <option name="VM_PARAMETERS" value="-Dlog4j.configuration=file:log4j.properties.debug --module-path=/usr/share/openjfx/lib --add-modules=javafx.fxml,javafx.controls --add-exports javafx.base/com.sun.javafx.event=ALL-UNNAMED" />
+    <option name="VM_PARAMETERS" value="-Dlog4j2.configurationFile=log4j2-debug.xml --module-path=${PATH_TO_FX} --add-modules=javafx.fxml,javafx.controls --add-exports javafx.base/com.sun.javafx.event=ALL-UNNAMED" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="ALTERNATIVE_JRE_PATH" value="11" />

@@ -1,0 +1,50 @@
+0.8.4.2:
+  add back support for all old DBVERSION
+  To migrate from 0.8.3.4 and prior, need to export database into SQL using the old version
+  of Pachira:
+    Help -> SQL Conversion -> DB to SQL
+  Then using the new version of Pachira to convert SQL to DB
+    Help -> SQL Conversion -> SQL to DB
+  Note, the SQL file is not password protected, you can remove it after your conversion.
+
+  Many other small enhancements and bug fixes.
+
+0.8.4.1:
+  Reworked reconcile account process.  Fixed a bug in reconcile account.  Simplified the Window.
+
+0.8.4.0:
+
+0.8.3.5：
+
+h2 updated to 2.1.214 from 1.4.199. The database files are not backward compatible.
+To migrate old database file:
+  0. Make sure database file can be opened by Pachira-v0.8.3.4.  It will ensure DB_VERSION_VALUE is 12.
+  1. Export old database file using Pachira-v0.8.3.4 using
+  2. Edit output script to ???
+     a) Change DB_VERSION_VALUE 20
+         replacing the line
+           ('DBVERSION', '12')
+         with
+           ('DBVERSION', '20'),
+
+     b) SETTINGS table column names to SETTING_NAME, SETTING_VALUE
+         replacing the line
+           "NAME" VARCHAR(32) NOT NULL,
+         with
+           "SETTING_NAME" VARCHAR(32) NOT NULL,
+
+         replacing the line
+           "VALUE" VARCHAR(255) NOT NULL
+         with
+           "SETTING_VALUE" VARCHAR(255) NOT NULL
+
+         replacing the line
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_842" PRIMARY KEY("NAME");
+         with
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_842" PRIMARY KEY("SETTING_NAME");
+
+         replacing the line
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_84" UNIQUE("NAME");
+         with
+           ALTER TABLE "PUBLIC"."SETTINGS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_84" UNIQUE("SETTING_NAME");
+

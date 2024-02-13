@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -28,15 +28,20 @@ import javafx.beans.property.StringProperty;
 import java.math.BigDecimal;
 
 /**
- * A class for split transactions
- *
+ * A class for split transactions.
  * Split transactions have a simpler structure than
- * a full blown transactions.  It is essentially a cash transaction
+ * a transaction.  It is essentially a cash transaction
  * But split transactions use different conventions.  So we are
  * using a separate class for it.
  */
 
 public class SplitTransaction {
+    public enum Type {
+        TXN, // Transaction
+        REM, // reminder
+        LOAN // loan
+    }
+
     private int mID;
 
     // positive for Category ID
@@ -48,7 +53,7 @@ public class SplitTransaction {
     // amount can be positive or negative
     // positive means cash into account, similar to XIN/DEPOSIT in Transaction class
     // negative means cash out of account, XOUT/WITHDRAW
-    private final ObjectProperty<BigDecimal> mAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  // this is amount
+    private final ObjectProperty<BigDecimal> mAmountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);  //the amount
 
     private int mMatchID;  // the id of the transaction is matched up to this split transaction
 

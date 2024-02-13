@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,34 +20,30 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
+import javafx.beans.Observable;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
-import javafx.util.converter.BigDecimalStringConverter;
 
 import java.math.BigDecimal;
+import java.util.Currency;
 import java.util.List;
 
 public class SplitTransactionsDialogController {
 
-    private class TagToStringConverter extends StringConverter<Integer> {
-        public Integer fromString(String name) {
-            return mainModel.getTag(tag -> tag.getName().equals(name)).map(Tag::getID).orElse(0);
-        }
-        public String toString(Integer tagId) {
-            return mainModel.getTag(tag -> tag.getID() == tagId).map(Tag::getName).orElse("");
-        }
-    }
-
-    private MainModel mainModel;
     private BigDecimal mNetAmount;
     private boolean mIsCanceled = true; // default to be true
 
+    @FXML
+    BorderPane borderPane;
     @FXML
     private TableView<SplitTransaction> mSplitTransactionsTableView;
     @FXML
@@ -73,10 +69,11 @@ public class SplitTransactionsDialogController {
     @FXML
     private Button mOKButton;
 
-    // the content of stList is copied, the original content is unchanged.
-    void setMainModel(MainModel mainModel, int accountID, List<SplitTransaction> stList, BigDecimal netAmount) {
+    private final ObjectProperty<BigDecimal> amountProperty = new SimpleObjectProperty<>(null);
 
-        this.mainModel = mainModel;
+    // the content of stList is copied, the original content is unchanged.
+    void setMainModel(MainModel mainModel, int accountID, List<SplitTransaction> stList, String message,
+                      BigDecimal netAmount) {
 
         mNetAmount = netAmount;
 
@@ -84,7 +81,7 @@ public class SplitTransactionsDialogController {
                 .setFilter(false, accountID);
         mCategoryIDComboBox.getSelectionModel().selectFirst();
 
-        mTagIDComboBox.setConverter(new TagToStringConverter());
+        mTagIDComboBox.setConverter(new ConverterUtil.TagIDConverter(mainModel));
         mTagIDComboBox.getItems().clear();
         mTagIDComboBox.getItems().add(0);
         for (Tag tag : mainModel.getTagList())
@@ -93,10 +90,14 @@ public class SplitTransactionsDialogController {
 
         mSplitTransactionsTableView.setEditable(true);
         mSplitTransactionsTableView.getItems().clear();
+        mSplitTransactionsTableView.setItems(FXCollections.observableArrayList(st ->
+                new Observable[]{ st.getAmountProperty()})); // expose amount field
         for (SplitTransaction st : stList) {
             mSplitTransactionsTableView.getItems().add(new SplitTransaction(st.getID(), st.getCategoryID(),
                     st.getTagID(), st.getMemo(), st.getAmount(), st.getMatchID()));
         }
+        mSplitTransactionsTableView.getItems().addListener((ListChangeListener<SplitTransaction>) change ->
+                updateRemainingAmount());
 
         mCategoryTableColumn.setCellValueFactory(cd -> cd.getValue().getCategoryIDProperty());
         mCategoryTableColumn.setCellFactory(ComboBoxTableCell.forTableColumn(mCategoryIDComboBox.getConverter(),
@@ -108,16 +109,37 @@ public class SplitTransactionsDialogController {
 
         mMemoTableColumn.setCellValueFactory(cd -> cd.getValue().getMemoProperty());
         mMemoTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-        mMemoTableColumn.setOnEditCommit(e
-                -> e.getTableView().getItems().get(e.getTablePosition().getRow()).setMemo(e.getNewValue()));
 
+        final Currency usd = Currency.getInstance("USD");
         mAmountTableColumn.setCellValueFactory(cd->cd.getValue().getAmountProperty());
-        mAmountTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new BigDecimalStringConverter()));
-        mAmountTableColumn.setOnEditCommit(e -> {
-            e.getTableView().getItems().get(e.getTablePosition().getRow()).setAmount(e.getNewValue());
-            updateRemainingAmount();
-        });
+        mAmountTableColumn.setCellFactory(cell -> new EditableTableCell<>(
+                ConverterUtil.getCurrencyAmountStringConverterInstance(usd),
+                c -> RegExUtil.getCurrencyInputRegEx(Currency.getInstance("USD"), true)
+                        .matcher(c.getControlNewText()).matches() ? c : null));
         mAmountTableColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+
+        // setup amount text field
+        final TextFormatter<BigDecimal> textFormatter = new TextFormatter<>(
+                ConverterUtil.getCurrencyAmountStringConverterInstance(usd), null,
+                c -> RegExUtil.getCurrencyInputRegEx(usd, true).matcher(c.getControlNewText())
+                        .matches() ? c : null);
+        mAmountTextField.setTextFormatter(textFormatter);
+        textFormatter.valueProperty().bindBidirectional(amountProperty);
+
+        if (!message.isBlank()) {
+            // added textarea to show message
+            TextArea textArea = new TextArea(message);
+            textArea.setEditable(false); // no editing
+            textArea.setWrapText(true); // wrapping text
+            textArea.setPrefRowCount(1+message.length()/100); // roughly 100 char per line.
+
+            borderPane.setTop(textArea);
+            BorderPane.setMargin(textArea, new Insets(5,5,5,5));
+        }
+
+        // disable delete button if nothing is selected
+        mDeleteButton.disableProperty().bind(mSplitTransactionsTableView.getSelectionModel()
+                .selectedItemProperty().isNull());
 
         updateRemainingAmount();
     }
@@ -128,13 +150,18 @@ public class SplitTransactionsDialogController {
         return mSplitTransactionsTableView.getItems();
     }
 
+    // update remaining amount and set up the buttons
     private void updateRemainingAmount() {
-        BigDecimal remainingAmount = mNetAmount;
-        for (SplitTransaction st : mSplitTransactionsTableView.getItems()) {
-            remainingAmount = remainingAmount.add(st.getAmount());
+        if (mNetAmount == null) {
+            // we are not restricted by total amount
+            amountProperty.set(BigDecimal.ZERO);
+        } else {
+            // remaining amount = -(netAmount + sum(st.Amount))
+            amountProperty.set(mSplitTransactionsTableView.getItems().stream()
+                    .map(SplitTransaction::getAmount).reduce(mNetAmount, BigDecimal::add).negate());
+            mOKButton.setDisable(amountProperty.get().compareTo(BigDecimal.ZERO) != 0);
+            mAddButton.setDisable(amountProperty.get().compareTo(BigDecimal.ZERO) == 0);
         }
-        remainingAmount = remainingAmount.negate();
-        mAmountTextField.setText(remainingAmount.toPlainString());
     }
 
     @FXML
@@ -148,21 +175,6 @@ public class SplitTransactionsDialogController {
         mTagTableColumn.widthProperty().addListener((ob, o, n) -> mTagIDComboBox.setPrefWidth(n.doubleValue()));
         mMemoTableColumn.widthProperty().addListener((ob, o, n) -> mMemoTextField.setPrefWidth(n.doubleValue()));
         mAmountTableColumn.widthProperty().addListener((ob, o, n) -> mAmountTextField.setPrefWidth(n.doubleValue()));
-
-        BooleanBinding remaining = Bindings.createBooleanBinding(() -> {
-            try {
-                return (new BigDecimal(mAmountTextField.getText())).compareTo(BigDecimal.ZERO) != 0;
-            } catch (NumberFormatException e) {
-                return true;
-            }
-        }, mAmountTextField.textProperty());
-
-        mAddButton.disableProperty().bind(remaining.not());
-        mOKButton.disableProperty().bind(remaining.and(Bindings.isEmpty(mSplitTransactionsTableView.getItems()).not()));
-
-        mDeleteButton.disableProperty().bind(Bindings.createBooleanBinding(()
-                        -> (mSplitTransactionsTableView.getSelectionModel().getSelectedItem() == null),
-                mSplitTransactionsTableView.getSelectionModel().getSelectedItems()));
     }
 
     @FXML
@@ -181,15 +193,13 @@ public class SplitTransactionsDialogController {
     private void handleAdd() {
         mSplitTransactionsTableView.getItems().add(new SplitTransaction(-1, mCategoryIDComboBox.getValue(),
                 mTagIDComboBox.getValue(), mMemoTextField.getText(),
-                new BigDecimal(mAmountTextField.getText()), -1));
+                amountProperty.get(), -1));
         mMemoTextField.setText("");
-        updateRemainingAmount();
     }
 
     @FXML
     private void handleDelete() {
         SplitTransaction st = mSplitTransactionsTableView.getSelectionModel().getSelectedItem();
         mSplitTransactionsTableView.getItems().remove(st);
-        updateRemainingAmount();
     }
 }

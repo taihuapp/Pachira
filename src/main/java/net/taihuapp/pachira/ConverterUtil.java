@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -21,6 +21,14 @@
 package net.taihuapp.pachira;
 
 import javafx.util.StringConverter;
+import javafx.util.converter.BigDecimalStringConverter;
+
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Currency;
 
 public class ConverterUtil {
     public static class TagIDConverter extends StringConverter<Integer> {
@@ -99,24 +107,116 @@ public class ConverterUtil {
         }
     }
 
-    public static class SecurityConverter extends StringConverter<Security> {
-
+    public static class SecurityIDConverter extends StringConverter<Integer> {
         private final MainModel mainModel;
 
-        public SecurityConverter(MainModel mainModel) { this.mainModel = mainModel; }
+        public SecurityIDConverter(MainModel mainModel) { this.mainModel = mainModel; }
 
         @Override
-        public String toString(Security security) {
-            if (security == null)
-                return "";
-            return security.getName();
+        public String toString(Integer id) {
+            return mainModel.getSecurity(id).map(Security::getName).orElse("");
         }
 
         @Override
-        public Security fromString(String name) {
-            if (name == null || name.isEmpty())
-                return null;
-            return mainModel.getSecurity(security -> security.getName().equals(name)).orElse(null);
+        public Integer fromString(String name) {
+            return mainModel.getSecurity(name).map(Security::getID).orElse(0);
         }
+    }
+
+    // format currency amount
+    // if fractionDigits >= 0, the format instance will show fractionDigits.
+    // otherwise, use currency default
+    public static DecimalFormat getCurrencyAmountFormatInstance(Currency currency, int fractionDigits) {
+        final DecimalFormat decimalFormat = (DecimalFormat) NumberFormat.getCurrencyInstance();
+        decimalFormat.setParseBigDecimal(true);  // we will be dealing with BigDecimal
+        decimalFormat.setCurrency(currency);
+        DecimalFormatSymbols decimalFormatSymbols = decimalFormat.getDecimalFormatSymbols();
+        decimalFormatSymbols.setCurrencySymbol("");  // don't show the currency symbol
+        decimalFormat.setDecimalFormatSymbols(decimalFormatSymbols);
+        if (fractionDigits >= 0) {
+            decimalFormat.setMinimumFractionDigits(fractionDigits);
+            decimalFormat.setMaximumFractionDigits(fractionDigits);
+        } else {
+            decimalFormat.setMinimumFractionDigits(currency.getDefaultFractionDigits());
+            decimalFormat.setMaximumFractionDigits(currency.getDefaultFractionDigits());
+        }
+        return decimalFormat;
+    }
+
+    // format currency amount shows the number of digits according to currency default
+    public static BigDecimalStringConverter getCurrencyAmountStringConverterInstance(Currency currency) {
+        return getCurrencyAmountStringConverterInstance(currency, -1);
+    }
+
+    public static BigDecimalStringConverter getCurrencyAmountStringConverterInstance(Currency currency,
+                                                                                     int maxFractionDigits) {
+        final DecimalFormat decimalFormat = getCurrencyAmountFormatInstance(currency, maxFractionDigits);
+
+        return new BigDecimalStringConverter() {
+            @Override
+            public BigDecimal fromString(String s) {
+                try {
+                    return s == null ? null : (BigDecimal) decimalFormat.parse(s);
+                } catch (ParseException e) {
+                    return null;
+                }
+            }
+
+            @Override
+            public String toString(BigDecimal b) { return b == null ? null : decimalFormat.format(b); }
+        };
+    }
+
+    // format dollar and cents without the dollar sign, minimum 2 digits and maximum maxFractionDigits
+    // after decimal places, with ',' for thousands group
+    public static DecimalFormat getDollarCentFormatInstance(int maxFractionDigits) {
+        final DecimalFormat decimalFormat = (DecimalFormat) NumberFormat.getCurrencyInstance();
+        Currency usd = Currency.getInstance("USD");
+        decimalFormat.setCurrency(usd);
+        DecimalFormatSymbols decimalFormatSymbols = decimalFormat.getDecimalFormatSymbols();
+        decimalFormatSymbols.setCurrencySymbol("");  // don't want to show $ sign
+        decimalFormat.setDecimalFormatSymbols(decimalFormatSymbols);
+        decimalFormat.setMinimumFractionDigits(usd.getDefaultFractionDigits());
+        decimalFormat.setMaximumFractionDigits(Math.max(maxFractionDigits, usd.getDefaultFractionDigits()));
+        decimalFormat.setParseBigDecimal(true);
+        return decimalFormat;
+    }
+
+    public static DecimalFormat getDollarCentFormatInstance() { return getDollarCentFormatInstance(0); }
+
+    public static BigDecimalStringConverter getPriceQuantityStringConverterInstance() {
+        return getPriceQuantityStringConverterInstance(0, MainModel.PRICE_QUANTITY_FRACTION_LEN); // min 0, max 8
+    }
+
+    // display price/quantity using with minimum of minFractionDigits and maximum of maxFractionDigits
+    public static BigDecimalStringConverter getPriceQuantityStringConverterInstance(int minFractionDigits,
+                                                                                    int maxFractionDigits) {
+        final DecimalFormat decimalFormat = getPriceQuantityFormatInstance(minFractionDigits, maxFractionDigits);
+
+        return new BigDecimalStringConverter() {
+            @Override
+            public BigDecimal fromString(String s) {
+                try {
+                    return s == null ? null : (BigDecimal) decimalFormat.parse(s);
+                } catch (ParseException e) {
+                    return null;
+                }
+            }
+            @Override
+            public String toString(BigDecimal b) { return b == null ? null : decimalFormat.format(b); }
+        };
+    }
+
+    public static DecimalFormat getPriceQuantityFormatInstance() {
+        return getPriceQuantityFormatInstance(0, MainModel.PRICE_QUANTITY_FRACTION_LEN);  // default min 0, max 8
+    }
+
+    public static DecimalFormat getPriceQuantityFormatInstance(int minFractionDigits, int maxFractionDigits) {
+        final DecimalFormat decimalFormat = new DecimalFormat();
+        decimalFormat.setMinimumFractionDigits(minFractionDigits);
+        decimalFormat.setMaximumFractionDigits(maxFractionDigits);
+        decimalFormat.setParseBigDecimal(true);
+
+        return decimalFormat;
     }
 }

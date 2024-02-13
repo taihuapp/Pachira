@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -22,17 +22,24 @@ package net.taihuapp.pachira;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
+import javafx.css.PseudoClass;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.util.Callback;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
+import java.net.URL;
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,7 +47,11 @@ import java.util.Optional;
  * This TableView is derived and used in multiple places.
  */
 
-abstract class TransactionTableView extends TableView<Transaction> {
+class TransactionTableView extends TableView<Transaction> {
+
+    private static final Logger logger = LogManager.getLogger(TransactionTableView.class);
+
+    static final String CSS_FILE_NAME = "/css/TransactionTableView.css";
 
     MainModel mainModel;
 
@@ -64,12 +75,12 @@ abstract class TransactionTableView extends TableView<Transaction> {
     protected TableColumn<Transaction, BigDecimal> mTransactionAmountColumn = new TableColumn<>("Amount");
 
     // constructor
-    TransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
-        this.mainModel = mainModel;
+    TransactionTableView(MainModel m, ObservableList<Transaction> tList) {
+        mainModel = m;
 
         // add columns to TableView
         //setTableMenuButtonVisible(true);
-        getColumns().addAll(Arrays.asList(
+        List<TableColumn<Transaction, ?>> columns = Arrays.asList(
                 mTransactionStatusColumn,
                 mTransactionDateColumn,
                 mTransactionAccountColumn,
@@ -88,7 +99,10 @@ abstract class TransactionTableView extends TableView<Transaction> {
                 mTransactionDepositColumn,
                 mTransactionBalanceColumn,
                 mTransactionAmountColumn
-        ));
+        );
+        columns.forEach(c -> c.setSortable(false));
+
+        getColumns().addAll(columns);
 
         // set preferred width for each column
         mTransactionStatusColumn.setPrefWidth(20);
@@ -131,7 +145,8 @@ abstract class TransactionTableView extends TableView<Transaction> {
                 mainModel.getAccount(a -> a.getID() == cd.getValue().getAccountID())
                         .map(Account::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
         mTransactionTradeActionColumn.setCellValueFactory(cd -> cd.getValue().getTradeActionProperty());
-        mTransactionSecurityNameColumn.setCellValueFactory(cd -> cd.getValue().getSecurityNameProperty());
+        mTransactionSecurityNameColumn.setCellValueFactory(cd -> mainModel.getSecurity(cd.getValue().getSecurityID())
+                    .map(Security::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
         mTransactionReferenceColumn.setCellValueFactory(cd -> cd.getValue().getReferenceProperty());
         mTransactionPayeeColumn.setCellValueFactory(cd -> cd.getValue().getPayeeProperty());
         mTransactionMemoColumn.setCellValueFactory(cd -> cd.getValue().getMemoProperty());
@@ -176,18 +191,15 @@ abstract class TransactionTableView extends TableView<Transaction> {
                             setText("");
                         } else {
                             // format
-                            DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
-                            df.setMinimumFractionDigits(0);
-                            setText(df.format(item));
+                            setText(ConverterUtil.getPriceQuantityFormatInstance().format(item));
                         }
                         setStyle("-fx-alignment: CENTER-RIGHT;");
                     }
                 };
             }
         });
-        
-        Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
+
+        final Callback<TableColumn<Transaction, BigDecimal>, TableCell<Transaction, BigDecimal>> dollarCentsCF =
                 new Callback<>() {
                     @Override
                     public TableCell<Transaction, BigDecimal> call(TableColumn<Transaction, BigDecimal> param) {
@@ -200,7 +212,8 @@ abstract class TransactionTableView extends TableView<Transaction> {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(item.signum() == 0 ? "" : MainModel.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(item.signum() == 0 ?
+                                            "" : ConverterUtil.getDollarCentFormatInstance().format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }
@@ -211,18 +224,67 @@ abstract class TransactionTableView extends TableView<Transaction> {
         mTransactionDepositColumn.setCellFactory(dollarCentsCF);
         mTransactionInvestAmountColumn.setCellFactory(dollarCentsCF);
         mTransactionCashAmountColumn.setCellFactory(dollarCentsCF);
-        mTransactionBalanceColumn.setCellFactory(dollarCentsCF);
+        mTransactionBalanceColumn.setCellFactory(cell -> new TableCell<>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+
+                    if (item == null || empty) {
+                        setText("");
+                    } else {
+                        // format
+                        setText(ConverterUtil.getDollarCentFormatInstance().format(item));
+                    }
+                    setStyle("-fx-alignment: CENTER-RIGHT;");
+                }
+            }
+        );
         mTransactionAmountColumn.setCellFactory(dollarCentsCF);
+
+        final URL cssUrl = getClass().getResource(CSS_FILE_NAME);
+        if (cssUrl != null) {
+            getStylesheets().add(cssUrl.toExternalForm());
+
+            // set row style to highlight future transactions and reconciled transactions
+            setRowFactory(tv -> {
+                final TableRow<Transaction> row = new TableRow<>();
+
+                final PseudoClass reconciled = PseudoClass.getPseudoClass("reconciled");
+                final PseudoClass future = PseudoClass.getPseudoClass("future");
+                final ChangeListener<Transaction.Status> statusChangeListener = (obs, ov, nv) ->
+                        row.pseudoClassStateChanged(reconciled, nv == Transaction.Status.RECONCILED);
+                final ChangeListener<LocalDate> dateChangeListener = (obs, ov, nv) ->
+                        row.pseudoClassStateChanged(future, nv.isAfter(LocalDate.now()));
+                row.itemProperty().addListener((obs, ov, nv) -> {
+                    if (nv != null) {
+                        // we have a row to display
+                        row.pseudoClassStateChanged(reconciled, nv.getStatus() == Transaction.Status.RECONCILED);
+                        row.pseudoClassStateChanged(future, nv.getTDate().isAfter(LocalDate.now()));
+                        nv.getStatusProperty().addListener(statusChangeListener);
+                        nv.getTDateProperty().addListener(dateChangeListener);
+                    } else {
+                        row.pseudoClassStateChanged(reconciled, false);
+                        row.pseudoClassStateChanged(future, false);
+                    }
+                    if (ov != null) {
+                        ov.getStatusProperty().removeListener(statusChangeListener);
+                        ov.getTDateProperty().removeListener(dateChangeListener);
+                    }
+                });
+                return row;
+            });
+        } else {
+            // failed to get css url, log and ignore.
+            logger.error(getClass() + ".getResource(" + CSS_FILE_NAME + ") returns null");
+        }
 
         SortedList<Transaction> sortedList = new SortedList<>(tList);
         setItems(sortedList);
         sortedList.comparatorProperty().bind(comparatorProperty());
-
-        setColumnVisibility();
-        setColumnSortability();
     }
 
-    // by default, all columns are visible and sortable
-    abstract void setColumnVisibility();
-    abstract void setColumnSortability();
+    void updateMainModel(MainModel m) {
+        mainModel = m;
+        setItems(new SortedList<>(FXCollections.observableArrayList()));
+    }
 }

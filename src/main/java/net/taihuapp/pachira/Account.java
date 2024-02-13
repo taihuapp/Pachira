@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -35,7 +35,7 @@ import static net.taihuapp.pachira.QIFUtil.EOR;
 public class Account {
 
     /*
-     * Accounts are separated into four groups, and each groups are consisted with several
+     * Accounts are separated into four groups, and each group are consisted with several
      * types
      *    Banking
      *        Checking
@@ -142,20 +142,20 @@ public class Account {
 
     private final ObjectProperty<Type> mTypeProperty = new SimpleObjectProperty<>();
 
-    private final IntegerProperty mID;
+    private int mID;
     private final StringProperty mName;
     private final StringProperty mDescription;
     private final ObjectProperty<BigDecimal> mCurrentBalance;
     private ObservableList<Transaction> mTransactionList = null;
     private final BooleanProperty mHiddenFlag = new SimpleBooleanProperty(false);
-    private final IntegerProperty mDisplayOrder = new SimpleIntegerProperty(Integer.MAX_VALUE);
+    private final ObjectProperty<Integer> mDisplayOrder = new SimpleObjectProperty<>(Integer.MAX_VALUE);
     private final ObservableList<Security> mCurrentSecurityList;
     private final ObjectProperty<LocalDate> mLastReconcileDateProperty = new SimpleObjectProperty<>(null);
 
     // detailed constructor
     public Account(int id, Type type, String name, String description, Boolean hidden, Integer displayOrder,
                    LocalDate lrDate, BigDecimal balance) {
-        mID = new SimpleIntegerProperty(id);
+        mID = id;
         mTypeProperty.set(type);
         mName = new SimpleStringProperty(name);
         mDescription = new SimpleStringProperty(description);
@@ -191,16 +191,15 @@ public class Account {
         return false;
     }
 
-    private IntegerProperty getIDProperty() { return mID; }
-    public int getID() { return getIDProperty().get(); }
+    public int getID() { return mID; }
     // AccountDao needs setID
-    public void setID(int id) { getIDProperty().set(id); }
+    public void setID(int id) { mID = id; }
 
     public BooleanProperty getHiddenFlagProperty() { return mHiddenFlag; }
     public Boolean getHiddenFlag() { return getHiddenFlagProperty().get(); }
     void setHiddenFlag(boolean h) { getHiddenFlagProperty().set(h); }
 
-    public IntegerProperty getDisplayOrderProperty() { return mDisplayOrder; }
+    public ObjectProperty<Integer> getDisplayOrderProperty() { return mDisplayOrder; }
     public Integer getDisplayOrder() { return getDisplayOrderProperty().get(); }
     void setDisplayOrder(int d) { mDisplayOrder.set(d); }
 
@@ -224,32 +223,8 @@ public class Account {
     public LocalDate getLastReconcileDate() { return getLastReconcileDateProperty().get();  }
     void setLastReconcileDate(LocalDate d) { getLastReconcileDateProperty().set(d); }
 
-    // update balance field for each transaction for non INVESTING account
-    // no-op for INVESTING accounts
-    public void updateTransactionListBalance() {
-        BigDecimal b = new BigDecimal(0);
-        boolean accountBalanceIsSet = false;
-        for (Transaction t : getTransactionList()) {
-            if (!getType().isGroup(Type.Group.INVESTING) && !accountBalanceIsSet
-                    && t.getTDateProperty().get().isAfter(LocalDate.now())) {
-                // this is a future transaction.  if account current balance is not set
-                // set it before process this future transaction
-                setCurrentBalance(b);
-                accountBalanceIsSet = true;
-            }
-            BigDecimal amount = t.getCashAmountProperty().get();
-            if (amount != null) {
-                b = b.add(amount);
-                t.setBalance(b);
-            }
-        }
-        // at the end of the list, if the account balance still not set, set it now.
-        if (!accountBalanceIsSet && (!getType().isGroup(Type.Group.INVESTING)))
-            setCurrentBalance(b);
-    }
-
     public String toString() {
-        return "mID:" + mID.get() + ";mType:" +
+        return "mID:" + mID + ";mType:" +
                 (getType() == null ? "Null Type" : getType().name()) + ";mName:" +
                 mName.get() + ";mDescription:" + mDescription.get();
     }

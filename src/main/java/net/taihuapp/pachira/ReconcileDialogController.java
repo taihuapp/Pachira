@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -32,17 +32,15 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import javafx.util.converter.BigDecimalStringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -50,31 +48,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ReconcileDialogController {
-
-    static class ReconcileTransactionTableView extends TransactionTableView {
-        @Override
-        final void setColumnVisibility() {
-            for (TableColumn<Transaction, ?> tc : Arrays.asList(
-                    mTransactionAccountColumn,
-                    mTransactionDescriptionColumn,
-                    mTransactionInvestAmountColumn,
-                    mTransactionMemoColumn,
-                    mTransactionCashAmountColumn,
-                    mTransactionPaymentColumn,
-                    mTransactionDepositColumn,
-                    mTransactionBalanceColumn
-            )) {
-                tc.setVisible(false);
-            }
-        }
-
-        @Override
-        final void setColumnSortability() {}  // all columns remains sortable
-
-        ReconcileTransactionTableView(MainModel mainModel, ObservableList<Transaction> tList) {
-            super(mainModel, tList);
-        }
-    }
 
     static class SecurityBalance {
         final StringProperty mNameProperty = new SimpleStringProperty("");
@@ -112,10 +85,12 @@ public class ReconcileDialogController {
         }
     }
 
-    private static final Logger logger = Logger.getLogger(ReconcileDialogController.class);
+    private static final Logger logger = LogManager.getLogger(ReconcileDialogController.class);
 
     private MainModel mainModel;
 
+    private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList(t
+            -> new Observable[] {t.getStatusProperty()});
     @FXML
     private VBox mVBox;
     @FXML
@@ -140,7 +115,7 @@ public class ReconcileDialogController {
     private LocalDate mLastDownloadDate = null;
     private BigDecimal mDownloadedLedgeBalance = null;
 
-    private ReconcileTransactionTableView mTransactionTableView;
+    private TransactionTableView mTransactionTableView;
     private final Map<Integer, Transaction.Status> mOriginalStatusMap = new HashMap<>();
 
     // Mark all unreconciled transaction as cleared
@@ -149,6 +124,7 @@ public class ReconcileDialogController {
             if (!t.getTDate().isAfter(mEndDatePicker.getValue()))
                 t.setStatus(Transaction.Status.CLEARED);
         });
+        updateClearedBalance();
     }
 
     private void handleFinish() {
@@ -171,12 +147,38 @@ public class ReconcileDialogController {
         ((Stage) mVBox.getScene().getWindow()).close();
     }
 
-    void setMainModel(MainModel mainModel) {
+    // update the cleared balance for the items in the TableView.
+    // Obviously, it should be called after the table is populated.
+    private void updateClearedBalance() {
+        try {
+            final List<SecurityHolding> holdings = mainModel.computeSecurityHoldings(transactionList
+                    .filtered(t -> !t.getStatus().equals(Transaction.Status.UNCLEARED)), LocalDate.MAX, -1);
+            for (SecurityBalance sb : mSecurityBalanceTableView.getItems()) {
+                if (sb.getName().equals(SecurityHolding.CASH)) {
+                    // cash doesn't have quantity, get market value
+                    sb.getClearedBalanceProperty().set(holdings.stream()
+                            .filter(h -> h.getSecurityName().equals(sb.getName())).findAny()
+                            .map(SecurityHolding::getCostBasis).orElse(BigDecimal.ZERO)
+                            .subtract(sb.getOpeningBalance()));
+                } else {
+                    sb.getClearedBalanceProperty().set(holdings.stream()
+                            .filter(h -> h.getSecurityName().equals(sb.getName())).findAny()
+                            .map(SecurityHolding::getQuantity).orElse(BigDecimal.ZERO)
+                            .subtract(sb.getOpeningBalance()));
+                }
+            }
+        } catch (ModelException e) {
+            logger.error(e.getErrorCode() + " DaoException", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    void setMainModel(MainModel mainModel) throws ModelException {
         this.mainModel = mainModel;
 
-        Account account = mainModel.getCurrentAccount();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
-        LocalDate lastReconcileDate = account.getLastReconcileDate();
+        final Account account = mainModel.getCurrentAccount();
+        final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
+        final LocalDate lastReconcileDate = account.getLastReconcileDate();
         if (lastReconcileDate == null) {
             mPrevDateLabel.setText("NA");
             mEndDatePicker.setValue(LocalDate.now());
@@ -186,9 +188,7 @@ public class ReconcileDialogController {
         }
 
         // process transaction list and calculate balances
-        // make sure we are observe STATUS property
-        ObservableList<Transaction> transactionList = FXCollections.observableArrayList(t
-                -> new Observable[] {t.getStatusProperty()});
+        // make sure we are observing STATUS property
         transactionList.addAll(account.getTransactionList());
 
         // keep original Status in case we want to undo
@@ -198,54 +198,102 @@ public class ReconcileDialogController {
             }
         }
 
-        Set<String> securityNameSet = transactionList.stream()
-                .map(Transaction::getSecurityName).filter(s -> (!s.isEmpty())).collect(Collectors.toSet());
-        Set<String> unreconciledSecurityNameSet = transactionList.stream()
+        // count all RECONCILED transactions as opening position
+        final List<Transaction> reconciledTransactionList = transactionList
+                .filtered(t -> t.getStatus().equals(Transaction.Status.RECONCILED));
+        final List<SecurityHolding> reconciledHoldings;
+        reconciledHoldings = mainModel
+                .computeSecurityHoldings(reconciledTransactionList, LocalDate.MAX, -1).stream()
+                .filter(h -> !h.getLabel().equals(SecurityHolding.TOTAL)) // exclude TOTAL
+                .collect(Collectors.toList());
+
+        final Set<String> reconciledSecurityNameSet = reconciledHoldings.stream()
+                .filter(h -> !h.getLabel().equals(SecurityHolding.CASH)) // exclude CASH
+                .map(SecurityHolding::getSecurityName).collect(Collectors.toSet());
+
+        final Set<Integer> unreconciledSecurityIDSet = transactionList.stream()
                 .filter(t -> !t.getStatus().equals(Transaction.Status.RECONCILED))
-                .map(Transaction::getSecurityName).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+                .map(Transaction::getSecurityID).filter(i -> i > 0).collect(Collectors.toSet());
+        final Set<String> unreconciledSecurityNameSet = new HashSet<>();
+        for (Integer id : unreconciledSecurityIDSet) {
+            unreconciledSecurityNameSet.add(mainModel.getSecurity(id).map(Security::getName)
+                    .orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_SECURITY,
+                            "Cannot find security " + id, null)));
+        }
 
-        SecurityBalance cashBalance = new SecurityBalance("CASH");
-        cashBalance.getOpeningBalanceProperty().bind(Bindings.createObjectBinding(()
-                -> transactionList.stream().filter(t -> t.getStatus().equals(Transaction.Status.RECONCILED))
-                .map(Transaction::getCashAmount).reduce(BigDecimal.ZERO, BigDecimal::add), transactionList));
-        cashBalance.getClearedBalanceProperty().bind(Bindings.createObjectBinding(()
-                -> transactionList.stream().filter(t->t.getStatus().equals(Transaction.Status.CLEARED))
-                .map(Transaction::getCashAmount).reduce(BigDecimal.ZERO, BigDecimal::add), transactionList));
-
-        ObservableList<SecurityBalance> sbList = FXCollections.observableArrayList(sb
+        final SecurityBalance cashBalance = new SecurityBalance("CASH");
+        cashBalance.getOpeningBalanceProperty().set(BigDecimal.ZERO);
+        cashBalance.getClearedBalanceProperty().set(BigDecimal.ZERO);
+        final ObservableList<SecurityBalance> sbList = FXCollections.observableArrayList(sb
                 -> new Observable[] {sb.getBalanceDifferenceProperty()} );
-        for (String name : securityNameSet) {
-            SecurityBalance sb = new SecurityBalance(name);
-            sb.getOpeningBalanceProperty().bind(Bindings.createObjectBinding(()
-                    -> transactionList.stream().filter(t -> t.getStatus().equals(Transaction.Status.RECONCILED)
-                    && t.getSecurityName().equals(name) && Transaction.hasQuantity(t.getTradeAction()))
-                    .map(Transaction::getSignedQuantity).reduce(BigDecimal.ZERO, BigDecimal::add), transactionList));
-            if ((sb.getOpeningBalance().compareTo(BigDecimal.ZERO) != 0)
-                    || unreconciledSecurityNameSet.contains(name)) {
-                sb.getClearedBalanceProperty().bind(Bindings.createObjectBinding(()
-                                -> transactionList.stream().filter(t -> t.getStatus().equals(Transaction.Status.CLEARED)
-                                && t.getSecurityName().equals(name) && Transaction.hasQuantity(t.getTradeAction()))
-                                .map(Transaction::getSignedQuantity).reduce(BigDecimal.ZERO, BigDecimal::add),
-                        transactionList));
+        for (SecurityHolding sh : reconciledHoldings) {
+            if (sh.getSecurityName().equals(SecurityHolding.CASH)) {
+                cashBalance.getOpeningBalanceProperty().set(sh.getMarketValue());
+            } else {
+                final SecurityBalance sb = new SecurityBalance(sh.getSecurityName());
+                sb.getOpeningBalanceProperty().set(sh.getQuantity());
                 sbList.add(sb);
             }
         }
+        // loop through names in unreconciledSecurityNameSet but not in reconciledSecurityNameSet
+        for (String name : unreconciledSecurityNameSet.stream().filter(s -> !reconciledSecurityNameSet.contains(s))
+                .collect(Collectors.toSet())) {
+            final SecurityBalance sb = new SecurityBalance(name);
+            sb.getOpeningBalanceProperty().set(BigDecimal.ZERO);
+            sb.getClearedBalanceProperty().set(BigDecimal.ZERO);
+            sbList.add(sb);
+        }
+
         sbList.sort(Comparator.comparing(SecurityBalance::getName));
         sbList.add(cashBalance);
 
         mSecurityBalanceTableView.setItems(sbList);
 
+        // calculated initial cleared balance
+        updateClearedBalance();
 
-        mTransactionTableView = new ReconcileTransactionTableView(mainModel,
+        mTransactionTableView = new TransactionTableView(mainModel,
                 transactionList.filtered(t -> !t.getStatus().equals(Transaction.Status.RECONCILED)));
+
+        for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                mTransactionTableView.mTransactionAccountColumn,
+                mTransactionTableView.mTransactionDescriptionColumn,
+                mTransactionTableView.mTransactionInvestAmountColumn,
+                mTransactionTableView.mTransactionMemoColumn,
+                mTransactionTableView.mTransactionCashAmountColumn,
+                mTransactionTableView.mTransactionPaymentColumn,
+                mTransactionTableView.mTransactionDepositColumn,
+                mTransactionTableView.mTransactionBalanceColumn
+        )) {
+            tc.setVisible(false);
+        }
+        for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                mTransactionTableView.mTransactionSecurityNameColumn,
+                mTransactionTableView.mTransactionQuantityColumn
+        )) {
+            tc.setVisible(account.getType().isGroup(Account.Type.Group.INVESTING));
+        }
+
+        for (TableColumn<Transaction, ?> tc : Arrays.asList(
+                mTransactionTableView.mTransactionReferenceColumn,
+                mTransactionTableView.mTransactionPayeeColumn,
+                mTransactionTableView.mTransactionCategoryColumn
+        )) {
+            tc.setVisible(!account.getType().isGroup(Account.Type.Group.INVESTING));
+        }
+
+
+        Callback<TableView<Transaction>, TableRow<Transaction>> callback
+                = mTransactionTableView.getRowFactory();
         mTransactionTableView.setRowFactory(tv -> {
-            final TableRow<Transaction> row = new TableRow<>();
+            final TableRow<Transaction> row = callback.call(tv);
             row.setOnMouseClicked(e -> {
                 if (!row.isEmpty()) {
                     if (row.getItem().getStatus().equals(Transaction.Status.CLEARED))
                         row.getItem().setStatus(Transaction.Status.UNCLEARED);
                     else
                         row.getItem().setStatus(Transaction.Status.CLEARED);
+                    updateClearedBalance();
                 }
             });
             return row;
@@ -284,7 +332,7 @@ public class ReconcileDialogController {
                 mLastDownloadDate =
                         adc.getLastDownloadDateTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                 mDownloadedLedgeBalance = adc.getLastDownloadLedgeBalance();
-                if (lastReconcileDate == null || mLastDownloadDate.compareTo(lastReconcileDate) >= 0) {
+                if (lastReconcileDate == null || !mLastDownloadDate.isBefore(lastReconcileDate)) {
                     mUseDownloadCheckBox.setDisable(false);
                 }
             }
@@ -327,10 +375,7 @@ public class ReconcileDialogController {
                             setText("");
                         } else {
                             // format
-                            DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
-                            df.setMinimumFractionDigits(0);
-                            setText(df.format(item));
+                            setText(ConverterUtil.getPriceQuantityFormatInstance().format(item));
                         }
                         setStyle("-fx-alignment: CENTER-RIGHT;");
                     }
@@ -340,7 +385,10 @@ public class ReconcileDialogController {
         mOpeningBalanceTableColumn.setCellFactory(converter);
         mClearedBalanceTableColumn.setCellFactory(converter);
         mBalanceDifferenceTableColumn.setCellFactory(converter);
-        mEndingBalanceTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new BigDecimalStringConverter()));
+        mEndingBalanceTableColumn.setCellFactory(cell -> new EditableTableCell<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(),
+                c -> RegExUtil.getPriceQuantityInputRegEx(true)
+                                .matcher(c.getControlNewText()).matches() ? c : null));
         mEndingBalanceTableColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
 
         // javafx DatePicker is not aware of edited value in its TextField

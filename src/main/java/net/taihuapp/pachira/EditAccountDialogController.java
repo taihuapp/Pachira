@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -21,16 +21,19 @@
 package net.taihuapp.pachira;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.TextField;
 import javafx.stage.Stage;
-import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
 
 public class EditAccountDialogController {
 
-    private static final Logger logger = Logger.getLogger(EditAccountDialogController.class);
+    private static final Logger logger = LogManager.getLogger(EditAccountDialogController.class);
 
     private Account account;
     private MainModel mainModel;
@@ -40,7 +43,7 @@ public class EditAccountDialogController {
     @FXML
     private TextField mNameTextField;
     @FXML
-    private TextArea mDescriptionTextArea;
+    private TextField mDescriptionTextField;
     @FXML
     private CheckBox mHiddenFlagCheckBox;
 
@@ -66,16 +69,16 @@ public class EditAccountDialogController {
         }
 
         mNameTextField.setText(account == null ? "" : account.getName());
-        mDescriptionTextArea.setText(account == null ? "" : account.getDescription());
+        mDescriptionTextField.setText(account == null ? "" : account.getDescription());
         mHiddenFlagCheckBox.setSelected(account != null && account.getHiddenFlag());
     }
 
     @FXML
     private void handleOK() {
-        String name = mNameTextField.getText();
+        final String name = mNameTextField.getText();
         if (name == null || name.length() == 0 || MainApp.hasBannedCharacter(name)) {
             // we need to throw up a warning sign and go back
-            Alert alert = new Alert(Alert.AlertType.WARNING);
+            final Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Warning");
             if (name == null || name.length() == 0)
                 alert.setHeaderText("Account name cannot be empty");
@@ -88,14 +91,24 @@ public class EditAccountDialogController {
             return;
         }
 
+        if (((account == null) || (name.compareTo(account.getName()) != 0))
+                && mainModel.getAccount(a -> a.getName().equals(name)).isPresent()) {
+            // name is used by another account already
+            final Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Warning");
+            alert.setHeaderText("Name '" + name + "' is already used.");
+            alert.showAndWait();
+            return;
+        }
+
         if (account == null) {
             account = new Account(0, mTypeChoiceBox.getValue(), name,
-                    mDescriptionTextArea.getText(), mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE,
+                    mDescriptionTextField.getText(), mHiddenFlagCheckBox.isSelected(), Integer.MAX_VALUE,
                     null, BigDecimal.ZERO);
         } else {
             account.setName(name);
             account.setType(mTypeChoiceBox.getValue());
-            account.setDescription(mDescriptionTextArea.getText());
+            account.setDescription(mDescriptionTextField.getText());
             account.setHiddenFlag(mHiddenFlagCheckBox.isSelected());
         }
 
@@ -103,8 +116,8 @@ public class EditAccountDialogController {
         try {
             mainModel.insertUpdateAccount(account);
             close();
-        } catch (DaoException e) {
-            final String msg = e.getErrorCode() + " DaoException when insertUpdateAccount";
+        } catch (ModelException e) {
+            final String msg = e.getErrorCode() + " ModelException when insertUpdateAccount";
             logger.error(msg, e);
             DialogUtil.showExceptionDialog((Stage) mNameTextField.getScene().getWindow(),
                     "DaoException", msg, e.toString(), e);

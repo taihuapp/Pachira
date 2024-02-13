@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -26,7 +26,8 @@ import javafx.scene.control.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -36,7 +37,7 @@ import java.util.List;
 
 public class ExportQIFDialogController {
 
-    private static final Logger mLogger = Logger.getLogger(ExportQIFDialogController.class);
+    private static final Logger mLogger = LogManager.getLogger(ExportQIFDialogController.class);
 
     private MainModel mainModel;
 
@@ -77,19 +78,19 @@ public class ExportQIFDialogController {
     @FXML
     private void handleExport() {
         final FileChooser fileChooser = new FileChooser();
-        String defaultFileName;
         try {
-            defaultFileName = mainModel.getDBFileName() + ".QIF";
+            final File defaultFile = new File(mainModel.getDBFileName() + ".QIF");
+            fileChooser.setTitle("Export to QIF file...");
+            fileChooser.setInitialDirectory(defaultFile.getParentFile());
+            fileChooser.setInitialFileName(defaultFile.getName());
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("qif files",
+                    "*.qif", "*.QIF"));
         } catch (DaoException e) {
             final String msg = e.getErrorCode() + " exception when calling getDBFileName";
             mLogger.error(msg, e);
             DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
             return;
         }
-        fileChooser.setTitle("Export to QIF file...");
-        fileChooser.setInitialFileName(defaultFileName);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("qif files",
-                "*.qif", "*.QIF"));
         final File file = fileChooser.showSaveDialog(getStage());
         if (file == null)
             return;

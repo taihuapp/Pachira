@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Account.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<p>Account is one of the most important concept in Pachira.  Typically, an account is setup to mimic a real life account in a financial organization.  It would be easier to organize Pachira accounts according to the periodic statements from financial organizations.</p>
+
+<p>Currently, Pachira supports four types accounts, each types with several sub-types:</p>
+
+<ul>
+<li>Spending
+<ul>
+<li>Checking</li>
+<li>Savings</li>
+<li>Credit Card</li>
+<li>Cash</li>
+</ul></li>
+<li>Investing
+<ul>
+<li>Brokerage</li>
+<li>IRA</li>
+<li>401K/403b</li>
+<li>529 Plan</li>
+</ul></li>
+<li>Property
+<ul>
+<li>House</li>
+<li>Vehicle</li>
+<li>Other Asset</li>
+</ul></li>
+<li>Debt
+<ul>
+<li>Loan</li>
+<li>Other Liability</li>
+</ul></li>
+</ul>
+
+<hr />
+
+<p>Prev: <a href="/wiki/Key-Concepts-in-Pachira">Key Concepts</a></p>
+
+<p>Next: <a href="/wiki/Reminder">Reminder</a></p>
+
+</body>
+</html>

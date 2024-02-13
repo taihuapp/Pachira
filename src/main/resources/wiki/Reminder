@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Reminder.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<p>For regularly occurred banking transactions, such as paychecks, utility bills, credit card bills, etc, it is more convenient to setup a reminder.  Selecting menu 'Edit -> Bill &amp; Income Reminders' opens up a reminder transaction dialog box.  Clicking button 'New' will open a edit reminder window, choose the desired setting, then 'Save' to save the reminder.</p>
+
+<p>Once a reminder is saved, one can click 'Enter' button to enter the regularly schedule transaction, or 'Skip' if that's what needed. </p>
+
+<p><img src="https://github.com/taihuapp/Pachira/wiki/images/reminder.png" alt="" title="" /></p>
+
+<hr />
+
+<p>Prev: <a href="/wiki/Account">Account</a></p>
+
+<p>Next: <a href="/wiki/Import-Transaction-CSV">Import Transaction CSV</a></p>
+
+</body>
+</html>

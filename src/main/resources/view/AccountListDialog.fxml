@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -23,7 +23,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.AccountListDialogController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.AccountListDialogController">
     <bottom>
         <TilePane hgap="5.0" prefRows="1" BorderPane.alignment="CENTER">
             <children>
@@ -31,6 +31,7 @@
                 <Button fx:id="mEditButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleEdit" text="Edit" />
                 <Button fx:id="mMoveUpButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleMoveUp" text="Move Up" />
                 <Button fx:id="mMoveDownButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleMoveDown" text="Move Down" />
+            <Button fx:id="hideButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleUnhide" text="Hide" />
                 <Button defaultButton="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClose" text="Close" />
             </children>
             <padding>
@@ -51,7 +52,7 @@
           <TableColumn fx:id="mAccountNameTableColumn" minWidth="40.0" prefWidth="200.0" sortable="false" text="Name" />
           <TableColumn fx:id="mAccountTypeTableColumn" prefWidth="100.0" sortable="false" text="Type" />
             <TableColumn fx:id="mAccountBalanceTableColumn" prefWidth="150.0" sortable="false" text="Balance" />
-            <TableColumn fx:id="mAccountHiddenFlagTableColumn" maxWidth="75.0" prefWidth="75.0" sortable="false" text="Hidden" />
+            <TableColumn fx:id="mAccountHiddenFlagTableColumn" editable="false" maxWidth="75.0" prefWidth="75.0" sortable="false" text="Hidden" />
         </columns>
          <BorderPane.margin>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />

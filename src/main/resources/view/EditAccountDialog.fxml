@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -23,7 +23,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="223.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditAccountDialogController">
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="223.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.EditAccountDialogController">
     <children>
         <GridPane hgap="5.0" vgap="5.0" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="5.0" AnchorPane.rightAnchor="5.0" AnchorPane.topAnchor="5.0">
             <columnConstraints>
@@ -44,9 +44,9 @@
                 <ChoiceBox fx:id="mTypeChoiceBox" prefWidth="150.0" GridPane.columnIndex="1" />
                 <Label text="Account Name" GridPane.rowIndex="1" />
                 <TextField fx:id="mNameTextField" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="1" />
+            <TextField fx:id="mDescriptionTextField" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="2" />
                 <Label text="Description" GridPane.rowIndex="2" />
-                <TextArea fx:id="mDescriptionTextArea" prefHeight="78.0" prefWidth="248.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="2" GridPane.rowSpan="3" />
-                <ButtonBar GridPane.columnIndex="1" GridPane.rowIndex="5" GridPane.columnSpan="2">
+                <ButtonBar GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="5">
                     <buttons>
                         <Button mnemonicParsing="false" onAction="#handleOK" text="OK" />
                         <Button mnemonicParsing="false" onAction="#handleCancel" text="Cancel" />

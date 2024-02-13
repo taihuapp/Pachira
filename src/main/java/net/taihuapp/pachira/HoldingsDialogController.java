@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,30 +20,27 @@
 
 package net.taihuapp.pachira;
 
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Pair;
-import javafx.util.StringConverter;
 import net.taihuapp.pachira.dao.DaoException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 public class HoldingsDialogController {
 
-    private static final Logger logger = Logger.getLogger(HoldingsDialogController.class);
+    private static final Logger logger = LogManager.getLogger(HoldingsDialogController.class);
 
     private MainModel mainModel;
 
@@ -52,41 +49,41 @@ public class HoldingsDialogController {
     @FXML
     private DatePicker mDatePicker;
     @FXML
-    private TreeTableView<LotHolding> mSecurityHoldingTreeTableView;
+    private TreeTableView<LotView> mSecurityHoldingTreeTableView;
     @FXML
-    private TreeTableColumn<LotHolding, String> mNameColumn;
+    private TreeTableColumn<LotView, String> mNameColumn;
     @FXML
-    private TreeTableColumn<LotHolding, BigDecimal> mPriceColumn;
+    private TreeTableColumn<LotView, BigDecimal> mPriceColumn;
     @FXML
-    private TreeTableColumn<LotHolding, BigDecimal> mQuantityColumn;
+    private TreeTableColumn<LotView, BigDecimal> mQuantityColumn;
     @FXML
-    private TreeTableColumn<LotHolding, BigDecimal> mMarketValueColumn;
+    private TreeTableColumn<LotView, BigDecimal> mMarketValueColumn;
     @FXML
-    private TreeTableColumn<LotHolding, BigDecimal> mCostBasisColumn;
+    private TreeTableColumn<LotView, BigDecimal> mCostBasisColumn;
     @FXML
-    private TreeTableColumn<LotHolding, BigDecimal> mPNLColumn;
+    private TreeTableColumn<LotView, BigDecimal> mPNLColumn;
     @FXML
-    private TreeTableColumn<LotHolding, BigDecimal> mPctReturnColumn;
+    private TreeTableColumn<LotView, BigDecimal> mPctReturnColumn;
 
     private ListChangeListener<Transaction> mTransactionListChangeListener = null;
 
     private void populateTreeTable() {
         try {
-            mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(new SecurityHolding("Root")));
-            for (LotHolding l : mainModel.computeSecurityHoldings(mainModel.getCurrentAccount().getTransactionList(),
-                    mDatePicker.getValue(), -1)) {
-                TreeItem<LotHolding> t = new TreeItem<>(l);
+            mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(new SecurityHolding(SecurityHolding.TOTAL, 2)));
+            for (SecurityHolding h : mainModel.computeSecurityHoldings(mainModel.getCurrentAccount().getTransactionList(),
+                            mDatePicker.getValue(), -1)) {
+                TreeItem<LotView> t = new TreeItem<>(h);
                 mSecurityHoldingTreeTableView.getRoot().getChildren().add(t);
-                for (LotHolding l1 : ((SecurityHolding) l).getLotInfoList()) {
-                    t.getChildren().add(new TreeItem<>(l1));
+                for (SecurityLot securityLot : h.getSecurityLotList()) {
+                    t.getChildren().add(new TreeItem<>(securityLot));
                 }
             }
 
             // set initial sort order
             mNameColumn.setSortType(TreeTableColumn.SortType.ASCENDING);
             mSecurityHoldingTreeTableView.getSortOrder().add(mNameColumn);
-        } catch (DaoException e) {
-            final String msg = e.getErrorCode() + " DaoException";
+        } catch (ModelException e) {
+            final String msg = e.getErrorCode() + " ModelException";
             logger.error(msg, e);
             DialogUtil.showExceptionDialog((Stage) mMainPane.getScene().getWindow(), e.getClass().getName(),
                     msg, e.toString(), e);
@@ -105,68 +102,43 @@ public class HoldingsDialogController {
         mSecurityHoldingTreeTableView.setSortMode(TreeSortMode.ONLY_FIRST_LEVEL);
         mSecurityHoldingTreeTableView.setEditable(true);
 
-        mNameColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, String> p) ->
+        mNameColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotView, String> p) ->
                 new ReadOnlyStringWrapper(p.getValue().getValue().getLabel()));
 
         mPriceColumn.setCellValueFactory(p -> p.getValue().getValue().getPriceProperty());
         mPriceColumn.setComparator(null);
 
-        mPriceColumn.setCellFactory(new Callback<>() {
+        mPriceColumn.setCellFactory(col -> new EditableTreeTableCell<>(
+                ConverterUtil.getPriceQuantityStringConverterInstance(),
+                c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null) {
             @Override
-            public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding,
-                    BigDecimal> paramTreeTableColumn) {
-                return new TextFieldTreeTableCell<>(new StringConverter<BigDecimal>() {
-                    @Override
-                    public String toString(BigDecimal object) {
-                        if (object == null)
-                            return null;
-                        // format to 6 decimal places
-                        DecimalFormat df = new DecimalFormat();
-                        df.setMaximumFractionDigits(MainModel.PRICE_FRACTION_DISPLAY_LEN);
-                        df.setMinimumFractionDigits(0);
-                        return df.format(object);
+            public void updateItem(BigDecimal item, boolean empty) {
+                final TreeTableRow<LotView> treeTableRow = getTreeTableRow();
+                boolean isTotalOrCash = false;
+                if (treeTableRow != null) {
+                    final TreeItem<LotView> treeItem = treeTableRow.getTreeItem();
+                    if (treeItem != null) {
+                        final String label = treeItem.getValue().getLabel();
+                        isTotalOrCash = label.equals(SecurityHolding.TOTAL)
+                                || label.equals(SecurityHolding.CASH);
+                        setEditable(mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) <= 1
+                                && !isTotalOrCash); // it seems the setEditable need to be called again and again
                     }
-
-                    @Override
-                    public BigDecimal fromString(String string) {
-                        BigDecimal result;
-                        try {
-                            result = new BigDecimal(string);
-                        } catch (NumberFormatException | NullPointerException e) {
-                            result = null;
-                        }
-                        return result;
-                    }
-                }) {
-                    @Override
-                    public void updateItem(BigDecimal item, boolean empty) {
-                        TreeTableRow<LotHolding> treeTableRow = getTreeTableRow();
-                        boolean isTotalOrCash = false;
-                        if (treeTableRow != null) {
-                            TreeItem<LotHolding> treeItem = treeTableRow.getTreeItem();
-                            if (treeItem != null) {
-                                final String label = treeItem.getValue().getLabel();
-                                isTotalOrCash = label.equals("TOTAL") || label.equals("CASH");
-                                setEditable(mSecurityHoldingTreeTableView.getTreeItemLevel(treeItem) <= 1
-                                        && !isTotalOrCash); // it seems the setEditable need to be called again and again
-                            }
-                        }
-                        if (isTotalOrCash)
-                            super.updateItem(null, empty); // don't show price for TOTAL or CASH
-                        else
-                            super.updateItem(item, empty);
-                    }
-                };
+                }
+                if (isTotalOrCash)
+                    super.updateItem(null, empty); // don't show price for TOTAL or CASH
+                else
+                    super.updateItem(item, empty);
             }
         });
+
         mPriceColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPriceColumn.setOnEditCommit(event -> {
-            Security security = mainModel.getSecurity(s -> s.getName()
-                    .equals(event.getRowValue().getValue().getSecurityName())).orElse(null);
+            final Security security = mainModel.getSecurity(event.getRowValue().getValue().getLabel()).orElse(null);
             if (security == null)
                 return;
-            LocalDate date = mDatePicker.getValue();
-            BigDecimal newPrice = event.getNewValue();
+            final LocalDate date = mDatePicker.getValue();
+            final BigDecimal newPrice = event.getNewValue();
             if (newPrice == null || newPrice.signum() < 0) {
                 DialogUtil.showWarningDialog((Stage) mSecurityHoldingTreeTableView.getScene().getWindow(),
                         "Warning!", "Bad input price, change discarded!",
@@ -196,7 +168,7 @@ public class HoldingsDialogController {
                 mainModel.mergeSecurityPrices(List.of(new Pair<>(security, new Price(date, newPrice))));
                 populateTreeTable();
                 mainModel.updateAccountBalance(a -> a.hasSecurity(security));
-            } catch (DaoException e) {
+            } catch (ModelException e) {
                 final String msg = "Failed to merge price: " + System.lineSeparator()
                         + "Security Name: " + security.getName() + System.lineSeparator()
                         + "Security Ticker: " + security.getTicker() + System.lineSeparator()
@@ -209,10 +181,10 @@ public class HoldingsDialogController {
             }
         });
 
-        Callback<TreeTableColumn<LotHolding, BigDecimal>, TreeTableCell<LotHolding, BigDecimal>> dollarCentsCF =
+        Callback<TreeTableColumn<LotView, BigDecimal>, TreeTableCell<LotView, BigDecimal>> dollarCentsCF =
                 new Callback<>() {
                     @Override
-                    public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding, BigDecimal> column) {
+                    public TreeTableCell<LotView, BigDecimal> call(TreeTableColumn<LotView, BigDecimal> column) {
                         return new TreeTableCell<>() {
                             @Override
                             protected void updateItem(BigDecimal item, boolean empty) {
@@ -222,7 +194,7 @@ public class HoldingsDialogController {
                                     setText("");
                                 } else {
                                     // format
-                                    setText(MainModel.DOLLAR_CENT_FORMAT.format(item));
+                                    setText(ConverterUtil.getDollarCentFormatInstance().format(item));
                                 }
                                 setStyle("-fx-alignment: CENTER-RIGHT;");
                             }
@@ -230,11 +202,10 @@ public class HoldingsDialogController {
                     }
                 };
 
-        mQuantityColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getQuantity()));
+        mQuantityColumn.setCellValueFactory(p -> p.getValue().getValue().getQuantityProperty());
         mQuantityColumn.setCellFactory(new Callback<>() {
             @Override
-            public TreeTableCell<LotHolding, BigDecimal> call(TreeTableColumn<LotHolding, BigDecimal> param) {
+            public TreeTableCell<LotView, BigDecimal> call(TreeTableColumn<LotView, BigDecimal> param) {
                 return new TreeTableCell<>() {
                     @Override
                     protected void updateItem(BigDecimal item, boolean empty) {
@@ -244,10 +215,7 @@ public class HoldingsDialogController {
                             setText("");
                         } else {
                             // format
-                            DecimalFormat df = new DecimalFormat();
-                            df.setMaximumFractionDigits(MainModel.QUANTITY_FRACTION_DISPLAY_LEN);
-                            df.setMinimumFractionDigits(0);
-                            setText(df.format(item));
+                            setText(ConverterUtil.getPriceQuantityFormatInstance().format(item));
                         }
                         setStyle("-fx-alignment: CENTER-RIGHT;");
                     }
@@ -256,23 +224,19 @@ public class HoldingsDialogController {
         });
         mQuantityColumn.setComparator(null);
 
-        mMarketValueColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getMarketValue()));
+        mMarketValueColumn.setCellValueFactory(p -> p.getValue().getValue().getMarketValueProperty());
         mMarketValueColumn.setCellFactory(dollarCentsCF);
         mMarketValueColumn.setComparator(null);
 
-        mCostBasisColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getCostBasis()));
+        mCostBasisColumn.setCellValueFactory(p -> p.getValue().getValue().getCostBasisProperty());
         mCostBasisColumn.setCellFactory(dollarCentsCF);
         mCostBasisColumn.setComparator(null);
 
-        mPNLColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPNL()));
+        mPNLColumn.setCellValueFactory(p -> p.getValue().getValue().getPnLProperty());
         mPNLColumn.setCellFactory(dollarCentsCF);
         mPNLColumn.setComparator(null);
 
-        mPctReturnColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<LotHolding, BigDecimal> p) ->
-                new ReadOnlyObjectWrapper<>(p.getValue().getValue().getPctRet()));
+        mPctReturnColumn.setCellValueFactory(p -> p.getValue().getValue().getRoRProperty());
         mPctReturnColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
         mPctReturnColumn.setComparator(null);
 

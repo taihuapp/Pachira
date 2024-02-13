@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  ~ Copyright (C) 2018.  Guangliang He.  All Rights Reserved.
+  ~ Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This file is part of Pachira.
@@ -23,51 +23,17 @@
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/8.0.152" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.ReportDialogController">
-   <bottom>
-      <TilePane BorderPane.alignment="CENTER">
-         <children>
-            <Button fx:id="mShowReportButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleShowReport" text="Show Report">
-               <TilePane.margin>
-                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-               </TilePane.margin>
-            </Button>
-            <Button fx:id="mSaveReportButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSaveReport" text="Save Report">
-               <TilePane.margin>
-                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-               </TilePane.margin>
-            </Button>
-            <Button fx:id="mShowSettingButton" mnemonicParsing="false" onAction="#handleShowSetting" text="Show Setting">
-               <TilePane.margin>
-                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-               </TilePane.margin>
-            </Button>
-            <Button fx:id="mSaveSettingButton" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSaveSetting" text="Save Setting">
-               <TilePane.margin>
-                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-               </TilePane.margin>
-            </Button>
-            <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClose" text="Close">
-               <TilePane.margin>
-                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-               </TilePane.margin>
-            </Button>
-         </children>
-         <BorderPane.margin>
-            <Insets />
-         </BorderPane.margin>
-      </TilePane>
-   </bottom>
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="450.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/11" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.taihuapp.pachira.ReportDialogController">
    <center>
       <StackPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" BorderPane.alignment="CENTER">
          <children>
-            <HBox prefHeight="100.0" prefWidth="200.0">
+            <VBox>
                <children>
-                  <TabPane fx:id="mTabPane" prefHeight="200.0" prefWidth="200.0" tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS">
+                  <TabPane fx:id="mTabPane" maxHeight="1.7976931348623157E308" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
                     <tabs>
                       <Tab fx:id="mDatesTab" text="Dates">
                            <content>
-                              <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
+                              <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="400.0">
                                  <children>
                                     <Label fx:id="mDatePeriodLabel" text="As Of">
                                        <VBox.margin>
@@ -111,10 +77,10 @@
                       </Tab>
                         <Tab fx:id="mAccountsTab" text="Accounts">
                            <content>
-                              <TableView fx:id="mAccountSelectionTableView" editable="true" prefHeight="300.0" prefWidth="400.0">
+                              <TableView fx:id="mAccountSelectionTableView" editable="true" prefHeight="400.0" prefWidth="400.0">
                                  <columns>
-                                    <TableColumn fx:id="mAccountTableColumn" prefWidth="350.0" sortable="false" text="Account" />
                                     <TableColumn fx:id="mAccountSelectedTableColumn" minWidth="30.0" prefWidth="30.0" sortable="false" />
+                                    <TableColumn fx:id="mAccountTableColumn" prefWidth="350.0" sortable="false" text="Account" />
                                  </columns>
                               </TableView>
                            </content>
@@ -123,8 +89,8 @@
                           <content>
                               <TableView fx:id="mCategorySelectionTableView" editable="true" prefHeight="300.0" prefWidth="400.0">
                                  <columns>
-                                    <TableColumn fx:id="mCategoryTableColumn" prefWidth="350.0" text="Category" />
                                     <TableColumn fx:id="mCategorySelectedTableColumn" minWidth="30.0" prefWidth="30.0" />
+                                    <TableColumn fx:id="mCategoryTableColumn" prefWidth="350.0" text="Category" />
                                  </columns>
                               </TableView>
                           </content>
@@ -133,8 +99,8 @@
                           <content>
                               <TableView fx:id="mSecuritySelectionTableView" editable="true" prefHeight="300.0" prefWidth="400.0">
                                  <columns>
-                                    <TableColumn fx:id="mSecurityTableColumn" prefWidth="350.0" text="Security" />
                                     <TableColumn fx:id="mSecuritySelectedTableColumn" minWidth="30.0" prefWidth="30.0" />
+                                    <TableColumn fx:id="mSecurityTableColumn" prefWidth="350.0" text="Security" />
                                  </columns>
                               </TableView>
                           </content>
@@ -143,17 +109,17 @@
                           <content>
                               <TableView fx:id="mTradeActionSelectionTableView" editable="true" prefHeight="300.0" prefWidth="400.0">
                                  <columns>
-                                    <TableColumn fx:id="mTradeActionTableColumn" prefWidth="350.0" text="Action" />
                                     <TableColumn fx:id="mTradeActionSelectedTableColumn" minWidth="30.0" prefWidth="30.0" />
+                                    <TableColumn fx:id="mTradeActionTableColumn" prefWidth="350.0" text="Action" />
                                  </columns>
                               </TableView>
                           </content>
                         </Tab>
                         <Tab fx:id="mTextMatchTab" text="Text Match">
                           <content>
-                            <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                            <AnchorPane maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                                  <children>
-                                    <GridPane layoutX="113.0" layoutY="84.0" AnchorPane.bottomAnchor="171.0" AnchorPane.leftAnchor="5.0" AnchorPane.rightAnchor="5.0" AnchorPane.topAnchor="10.0">
+                                    <GridPane layoutX="113.0" layoutY="84.0" AnchorPane.bottomAnchor="160.0" AnchorPane.leftAnchor="5.0" AnchorPane.rightAnchor="5.0" AnchorPane.topAnchor="10.0">
                                       <columnConstraints>
                                         <ColumnConstraints hgrow="SOMETIMES" maxWidth="502.0" minWidth="10.0" prefWidth="453.0" />
                                           <ColumnConstraints hgrow="SOMETIMES" maxWidth="274.0" minWidth="10.0" prefWidth="27.0" />
@@ -185,29 +151,57 @@
                         </Tab>
                     </tabs>
                   </TabPane>
-                  <TilePane fx:id="mRightTilePane" alignment="CENTER" prefColumns="1" prefHeight="400.0" prefRows="2">
+                  <HBox>
                      <children>
-                        <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSelectAll" text="Select All">
-                           <TilePane.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </TilePane.margin>
-                        </Button>
-                        <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClearAll" text="Clear All">
-                           <TilePane.margin>
-                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                           </TilePane.margin>
-                        </Button>
+                        <TilePane alignment="CENTER_LEFT" prefColumns="3">
+                           <children>
+                              <Button fx:id="setAllButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSelectAll" text="Select All">
+                                 <TilePane.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </TilePane.margin>
+                              </Button>
+                              <Button fx:id="clearAllButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClearAll" text="Clear All">
+                                 <TilePane.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </TilePane.margin>
+                              </Button>
+                           </children>
+                        </TilePane>
+                        <StackPane>
+                           <children>
+                               <TextField fx:id="accountFilterTextField">
+                                 <StackPane.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </StackPane.margin>
+                               </TextField>
+                               <TextField fx:id="categoryFilterTextField">
+                                 <StackPane.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </StackPane.margin>
+                               </TextField>
+                               <TextField fx:id="securityFilterTextField">
+                                 <StackPane.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </StackPane.margin>
+                               </TextField>
+                               <TextField fx:id="tradeActionFilterTextField">
+                                 <StackPane.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                 </StackPane.margin>
+                               </TextField>
+                           </children>
+                        </StackPane>
                      </children>
-                     <opaqueInsets>
+                     <VBox.margin>
                         <Insets />
-                     </opaqueInsets>
-                  </TilePane>
+                     </VBox.margin>
+                  </HBox>
                </children>
-            </HBox>
-            <TextArea fx:id="mReportTextArea" editable="false" prefHeight="200.0" prefWidth="200.0" visible="false">
                <StackPane.margin>
                   <Insets />
                </StackPane.margin>
+            </VBox>
+            <TextArea fx:id="mReportTextArea" editable="false" prefHeight="200.0" prefWidth="200.0" visible="false">
                <padding>
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                </padding>
@@ -215,4 +209,35 @@
          </children>
       </StackPane>
    </center>
+   <bottom>
+      <TilePane BorderPane.alignment="CENTER">
+         <children>
+            <Button fx:id="mShowReportButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleShowReport" text="Show Report">
+               <TilePane.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </TilePane.margin>
+            </Button>
+            <Button fx:id="mSaveReportButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSaveReport" text="Save Report">
+               <TilePane.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </TilePane.margin>
+            </Button>
+            <Button fx:id="mShowSettingButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleShowSetting" text="Show Setting">
+               <TilePane.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </TilePane.margin>
+            </Button>
+            <Button fx:id="mSaveSettingButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleSaveSetting" text="Save Setting">
+               <TilePane.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </TilePane.margin>
+            </Button>
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleClose" text="Close">
+               <TilePane.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </TilePane.margin>
+            </Button>
+         </children>
+      </TilePane>
+   </bottom>
 </BorderPane>

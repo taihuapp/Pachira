@@ -47,7 +47,7 @@ abstract class Dao<T, K> {
     abstract String[] getColumnNames();
 
     /**
-     * @return true if key is auto generated, false other wise.
+     * @return true if key is auto generated, false otherwise.
      */
     abstract boolean autoGenKey();
 

@@ -20,7 +20,6 @@
 
 package net.taihuapp.pachira;
 
-import com.google.common.collect.ImmutableList;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import com.webcohesion.ofx4j.OFXException;
@@ -453,7 +452,7 @@ public class MainModel {
             for (Transaction t : newTransactionList)
                 t.setID(transactionDao.insert(t));
 
-            mergeSecurityPrices(ImmutableList.of(new Pair<>(newSecurity, new Price(date, newSharePrice)),
+            mergeSecurityPrices(List.of(new Pair<>(newSecurity, new Price(date, newSharePrice)),
                     new Pair<>(security, new Price(date, sharePrice))));
 
             daoManager.commit();

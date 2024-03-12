@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -34,9 +34,9 @@ import java.util.Optional;
 
 /**
  * Security prices
- * For securities with an nonempty Ticker, the security id column is set to 0 and
+ * For securities with a nonempty Ticker, the security id column is set to 0 and
  * the prices are key by the ticker and the date
- *
+ * <p>
  * For securities with empty ticker, the prices are key by the security id and the date
  */
 public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, LocalDate>> {

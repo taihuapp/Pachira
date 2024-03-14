@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -27,10 +27,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
 import javafx.css.PseudoClass;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 import javafx.util.Callback;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -149,6 +146,20 @@ class TransactionTableView extends TableView<Transaction> {
                     .map(Security::getNameProperty).orElse(new ReadOnlyStringWrapper("")));
         mTransactionReferenceColumn.setCellValueFactory(cd -> cd.getValue().getReferenceProperty());
         mTransactionPayeeColumn.setCellValueFactory(cd -> cd.getValue().getPayeeProperty());
+        // add tooltip to payee column
+        mTransactionPayeeColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (item == null || empty) {
+                    setText("");
+                } else {
+                    setText(item);
+                    setTooltip(new Tooltip(item));
+                }
+            }
+        });
         mTransactionMemoColumn.setCellValueFactory(cd -> cd.getValue().getMemoProperty());
         mTransactionCategoryColumn.setCellValueFactory(cd -> {
             Transaction t = cd.getValue();
@@ -164,6 +175,20 @@ class TransactionTableView extends TableView<Transaction> {
                 return Bindings.concat("[", accountOptional.get().getNameProperty(), "]");
 
             return new ReadOnlyStringWrapper("");
+        });
+        // add tooltip to category column
+        mTransactionCategoryColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (item == null || empty) {
+                    setText("");
+                } else {
+                    setText(item);
+                    setTooltip(new Tooltip(item));
+                }
+            }
         });
         mTransactionDescriptionColumn.setCellValueFactory(cd -> cd.getValue().getDescriptionProperty());
         mTransactionTagColumn.setCellValueFactory(cd -> mainModel.getTag(t -> t.getID() == cd.getValue().getTagID())

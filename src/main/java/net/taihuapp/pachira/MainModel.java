@@ -1259,13 +1259,12 @@ public class MainModel {
      * @return all payees in a sorted set with case-insensitive ordering.
      */
     public SortedSet<String> getPayeeSet() {
-        SortedSet<String> payeeSet = new TreeSet<>(Comparator.comparing(String::toLowerCase));
+        SortedSet<String> payeeSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        // we care only 3 years of transactions
+        final LocalDate cutOffDate = LocalDate.now().minusYears(3);
+        payeeSet.addAll(transactionList.filtered(t -> ((!t.getPayee().isBlank()) && t.getTDate().isAfter(cutOffDate)))
+                .stream().map(Transaction::getPayee).collect(Collectors.toList()));
 
-        for (Transaction transaction : transactionList) {
-            final String payee = transaction.getPayee();
-            if (payee != null && !payee.isEmpty())
-                payeeSet.add(payee);
-        }
         return payeeSet;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -70,7 +70,7 @@ public class EditSecurityPriceDialogController {
         this.mainModel = mainModel;
         this.security = security;
         try {
-            priceList.setAll(mainModel.getSecurityPriceList(security));
+            priceList.setAll(mainModel.getSecurityPriceList(security.getID()));
         } catch (DaoException e) {
             final String msg = "Failed to get security prices for " + security;
             logger.error(msg, e);
@@ -117,7 +117,7 @@ public class EditSecurityPriceDialogController {
                 }
             }
             try {
-                mainModel.mergeSecurityPrices(List.of(new Pair<>(this.security, new Price(date, newPrice))));
+                mainModel.mergeSecurityPrices(List.of(new Pair<>(this.security.getID(), new Price(date, newPrice))));
                 event.getRowValue().setPrice(newPrice);
                 mainModel.updateAccountBalance(a -> a.hasSecurity(this.security));
             } catch (ModelException e) {
@@ -170,7 +170,7 @@ public class EditSecurityPriceDialogController {
             return; // how did we get here
 
         try {
-            mainModel.deleteSecurityPrice(this.security, priceList.get(index).getDate());
+            mainModel.deleteSecurityPrice(this.security.getID(), priceList.get(index).getDate());
             priceList.remove(index);
             mainModel.updateAccountBalance(a -> a.hasSecurity(this.security));
         } catch (ModelException e) {

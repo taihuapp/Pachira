@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -749,8 +749,8 @@ public class EditTransactionDialogControllerNew {
             mainModel.alterTransaction(null, mTransactionOrig, mMatchInfoList);
 
             // save price for the new security if there isn't a price for the same day
-            if (mainModel.getSecurityPrice(new Pair<>(newSecurity, tDate)).isEmpty()) {
-                mainModel.insertSecurityPrice(new Pair<>(newSecurity, new Price(tDate, newPrice)));
+            if (mainModel.getSecurityPrice(new Pair<>(newSecurity.getID(), tDate)).isEmpty()) {
+                mainModel.insertSecurityPrice(new Pair<>(newSecurity.getID(), new Price(tDate, newPrice)));
             }
 
             daoManager.commit();

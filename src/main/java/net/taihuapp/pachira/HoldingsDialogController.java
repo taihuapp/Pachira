@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -165,7 +165,7 @@ public class HoldingsDialogController {
             }
 
             try {
-                mainModel.mergeSecurityPrices(List.of(new Pair<>(security, new Price(date, newPrice))));
+                mainModel.mergeSecurityPrices(List.of(new Pair<>(security.getID(), new Price(date, newPrice))));
                 populateTreeTable();
                 mainModel.updateAccountBalance(a -> a.hasSecurity(security));
             } catch (ModelException e) {

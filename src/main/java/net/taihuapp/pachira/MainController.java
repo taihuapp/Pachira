@@ -944,8 +944,8 @@ public class MainController {
             return;  // user cancelled it
 
         try {
-            Pair<List<Pair<Security, Price>>, List<String[]>> outputPair = getMainModel().importPrices(file);
-            List<Pair<Security, Price>> priceList = outputPair.getKey();
+            Pair<List<Pair<Integer, Price>>, List<String[]>> outputPair = getMainModel().importPrices(file);
+            List<Pair<Integer, Price>> priceList = outputPair.getKey();
             List<String[]> rejectLines = outputPair.getValue();
             StringBuilder message = new StringBuilder();
             if (rejectLines.size() > 0) {
@@ -1908,10 +1908,21 @@ public class MainController {
     private void logAndDisplayException(final String msg, final Exception e) {
         Stage stage = getStage();
         mLogger.error(msg, e);
-        if (e != null)
-            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
-        else
-            DialogUtil.showExceptionDialog(stage, "", msg, "", null);
+        String exceptionName;
+        StringBuilder message = new StringBuilder();
+        if (e != null) {
+            exceptionName = e.getClass().getName();
+            message.append(e.getClass().getName()).append(" ").append(e.getMessage()).append(System.lineSeparator());
+            Throwable cause = e.getCause();
+            while (cause != null) {
+                message.append(cause.getClass().getName()).append(" ").append(cause.getMessage())
+                        .append(System.lineSeparator());
+                cause = cause.getCause();
+            }
+        } else {
+            exceptionName = "";
+        }
+        DialogUtil.showExceptionDialog(stage, exceptionName, msg, message.toString(), e);
     }
 
     @FXML

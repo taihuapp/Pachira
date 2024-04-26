@@ -155,6 +155,8 @@
                         <configuration>
                             <executable>cp</executable>
                             <arguments>
+                                <argument>-rp</argument>
+                                <argument>${project.build.scriptSourceDirectory}/wiki</argument>
                                 <argument>${project.build.scriptSourceDirectory}/runPachira.sh</argument>
                                 <argument>${project.build.scriptSourceDirectory}/runPachira.bat</argument>
                                 <argument>${project.build.directory}</argument>

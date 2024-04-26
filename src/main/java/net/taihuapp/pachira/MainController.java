@@ -64,7 +64,8 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.text.ParseException;
@@ -1864,12 +1865,14 @@ public class MainController {
     @FXML
     private void showHelpContent() {
         Platform.runLater(() -> {
-            URL url = MainApp.class.getResource("/wiki/index");
-            if (url == null)
-                DialogUtil.showExceptionDialog(getStage(), "Resource not found", "/wiki/index not found",
-                        "", null);
-            else
-                hostServices.showDocument(url.toString());
+            try {
+                String pachiraDir = new File(MainApp.class.getProtectionDomain()
+                        .getCodeSource().getLocation().toURI()).getParent();
+                Path wikiIndexPath = Path.of(pachiraDir, "wiki", "index.html");
+                hostServices.showDocument(wikiIndexPath.toUri().toString());
+            } catch (URISyntaxException e) {
+                logAndDisplayException("Bad codebase.", e);
+            }
         });
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -238,6 +238,20 @@ public class ReminderTransactionListDialogController {
                 reminderModel.getReminder(cellData.getValue().getReminderId()).getTypeProperty());
         mPayeeTableColumn.setCellValueFactory(cellData ->
                 reminderModel.getReminder(cellData.getValue().getReminderId()).getPayeeProperty());
+        mPayeeTableColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (item == null || empty) {
+                    setText("");
+                } else {
+                    setText(item);
+                    setTooltip(new Tooltip(item));
+                }
+            }
+        });
+
         mAmountTableColumn.setCellValueFactory(cellData ->
                 reminderModel.getReminderTransactionAmountProperty(cellData.getValue()));
         mAmountTableColumn.setCellFactory(column -> new TableCell<>() {

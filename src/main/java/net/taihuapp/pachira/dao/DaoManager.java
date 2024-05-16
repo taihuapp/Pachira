@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -26,7 +26,6 @@ import net.taihuapp.pachira.SplitTransaction;
 import net.taihuapp.pachira.Transaction;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.h2.api.ErrorCode;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.RunScript;
 
@@ -48,7 +47,7 @@ public class DaoManager {
 
     // constants
     private static final String DB_VERSION_NAME = "DBVERSION";
-    private static final int DB_VERSION_VALUE = 21; // required DB_VERSION
+    private static final int DB_VERSION_VALUE = 22; // required DB_VERSION
     private static final String DB_OWNER = "ADMPACHIRA";
     private static final String DB_POSTFIX = ".mv.db";
     private static final String URL_PREFIX = "jdbc:h2:";
@@ -272,13 +271,17 @@ public class DaoManager {
                 // new database, init
                 initDB();
             } else {
+                // there is no rollback for altering database structure,
+                // so we are not going to try database rollback if something goes wrong,
+                // just discard the changes and restart from backup.
                 // existing database, bring it up to date
-                DaoManager daoManager = DaoManager.getInstance();
+                String backupFileName = "";
                 try {
-                    daoManager.beginTransaction();
-
                     final int dbVersion;
                     if (!hasSettingsTable()) {
+                        logger.info("Start backup...");
+                        backupFileName = backup();
+                        logger.info("Backup to " + backupFileName + " complete.");
                         createSettingsTable();
                         putSetting(DB_VERSION_NAME, "0");
                         dbVersion = 0;
@@ -297,52 +300,24 @@ public class DaoManager {
                         dbVersion = getDBVersionOld();
                     }
 
-                    if (dbVersion < DB_VERSION_VALUE) {
+                    if ((dbVersion < DB_VERSION_VALUE) && (dbVersion != 0)) {
                         logger.info("Start backup...");
-                        final String backupFileName = backup();
+                        backupFileName = backup();
                         logger.info("Backup to " + backupFileName + " complete.");
                         updateDB(dbVersion, DB_VERSION_VALUE);
                         logger.info("Update DB to " + DB_VERSION_VALUE + " from " + dbVersion + " complete");
                     }
-                    daoManager.commit();
-                } catch (DaoException e) {
-                    logger.error("Update to " + DB_VERSION_VALUE + " failed", e);
-                    try {
-                        daoManager.rollback();
-                    } catch (DaoException e1) {
-                        e.addSuppressed(e1);
-                    }
-
-                    throw e;
+                } catch (DaoException | SQLException e) {
+                    // update database failed.
+                    throw new DaoException(DaoException.ErrorCode.FAIL_TO_UPDATE_DB,
+                            "Database update failed.  Please restore from " + backupFileName
+                                    + " and use previous version of Pachira", e);
                 }
             }
         } catch (ClassNotFoundException e) {
             throw new DaoException(DaoException.ErrorCode.DB_DRIVER_NOT_FOUND, "Can't find h2 driver", e);
         } catch (SQLException e) {
-            final DaoException.ErrorCode errorCode;
-            final String errMsg;
-            switch (e.getErrorCode()) {
-                case ErrorCode.DATABASE_NOT_FOUND_1: //
-                case ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1:
-                    errorCode = DaoException.ErrorCode.DB_FILE_NOT_FOUND;
-                    errMsg = "Database file " + fileName + " not found";
-                    break;
-                case ErrorCode.FILE_ENCRYPTION_ERROR_1:
-                case ErrorCode.WRONG_PASSWORD_FORMAT:
-                case ErrorCode.WRONG_USER_OR_PASSWORD:
-                    errorCode = DaoException.ErrorCode.BAD_PASSWORD;
-                    errMsg = "Wrong password";
-                    break;
-                case ErrorCode.DATABASE_ALREADY_OPEN_1: // 90020
-                    errorCode = DaoException.ErrorCode.FAIL_TO_OPEN_CONNECTION;
-                    errMsg = "Database is opened by other process.  Please close the other process";
-                    break;
-                default:
-                    errorCode = DaoException.ErrorCode.FAIL_TO_OPEN_CONNECTION;
-                    errMsg = "Failed to open " + fileName;
-                    break;
-            }
-            throw new DaoException(errorCode, errMsg, e);
+            throw DaoException.fromSQLException(e);
         }
     }
 
@@ -496,25 +471,24 @@ public class DaoManager {
                 null, BigDecimal.ZERO));
 
         // securities table
+        // Ticker can be either empty, or unique if not empty.
+        // emtpy ticker is converted to null in DB
         //  starts from 1
         sqlCmd = "create table SECURITIES ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure starts with 1
-                + "TICKER varchar(" + SECURITY_TICKER_LEN + ") NOT NULL, "
+                + "TICKER varchar(" + SECURITY_TICKER_LEN + ") UNIQUE, "
                 + "NAME varchar(" + SECURITY_NAME_LEN + ") UNIQUE NOT NULL, "
                 + "TYPE varchar(16) NOT NULL, "
                 + "primary key (ID));";
         executeUpdateQuery(sqlCmd);
 
         // Price Table
-        // a price can be keyed by its ticker or its security id.
-        // On insert, if the ticker is not empty, then security id is set to 0, otherwise, a real security id is used.
-        // On retrieve, return either ticker match or security id match.
+        // a price is keyed by its security id and the date
         sqlCmd = "create table PRICES ("
                 + "SECURITYID integer NOT NULL, "
-                + "TICKER varchar(" + SECURITY_TICKER_LEN + ") NOT NULL, "
                 + "DATE date NOT NULL, "
                 + "PRICE decimal(" + PRICE_TOTAL_LEN + "," + MainModel.PRICE_QUANTITY_FRACTION_LEN + "),"
-                + "PRIMARY KEY (SECURITYID, TICKER, DATE));";
+                + "PRIMARY KEY (SECURITYID, DATE));";
         executeUpdateQuery(sqlCmd);
 
         // Category Table
@@ -691,7 +665,22 @@ public class DaoManager {
             updateDB(oldV, newV-1); // recursively bring from oldV up.
 
         // need to run this to update DBVERSION
-        if (newV == 21) {
+        if (newV == 22) {
+            // update from 21 to 22
+            // first drop not null on TICKER column in SECURITY table
+            executeUpdateQuery("alter table SECURITIES alter column TICKER varchar("
+                    + SECURITY_TICKER_LEN  + ") null");
+            executeUpdateQuery("update SECURITIES set TICKER = null where ticker = ''");
+            executeUpdateQuery("alter table SECURITIES add constraint unique_ticker unique(TICKER)");
+
+            // update prices table
+            executeUpdateQuery("update prices p set p.securityid = "
+                    + "(select s.id from securities s where s.ticker = p.ticker) "
+                    + "where exists  (select * from securities s where s.ticker = p.ticker)");
+            executeUpdateQuery("alter table PRICES drop primary key");
+            executeUpdateQuery("alter table PRICES drop column TICKER");
+            executeUpdateQuery("alter table PRICES add primary key (SECURITYID, DATE)");
+        } else if (newV == 21) {
             // add ISAUTO column in reminders
             executeUpdateQuery("alter table REMINDERS add ISAUTO boolean default false not null");
         } else if (newV == 20) {
@@ -966,7 +955,7 @@ public class DaoManager {
 
     // getter for various Dao class objects
     public enum DaoType {
-        ACCOUNT, SECURITY, TRANSACTION, SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITY_PRICE, FIDATA,
+        ACCOUNT, SECURITY, TRANSACTION, SPLIT_TRANSACTION, PAIR_TID_MATCH_INFO, SECURITYID_PRICE, FIDATA,
         ACCOUNT_DC, DIRECT_CONNECTION, TAG, CATEGORY, REMINDER, REMINDER_TRANSACTION, REPORT_SETTING, REPORT_DETAIL,
         LOAN, LOAN_TRANSACTION
     }
@@ -989,8 +978,8 @@ public class DaoManager {
                 return daoMap.computeIfAbsent(daoType, o -> new SplitTransactionListDao(connection));
             case PAIR_TID_MATCH_INFO:
                 return daoMap.computeIfAbsent(daoType, o -> new PairTidMatchInfoListDao(connection));
-            case SECURITY_PRICE:
-                return daoMap.computeIfAbsent(daoType, o -> new SecurityPriceDao(connection));
+            case SECURITYID_PRICE:
+                return daoMap.computeIfAbsent(daoType, o -> new SecurityIDPriceDao(connection));
             case FIDATA:
                 return daoMap.computeIfAbsent(daoType, o -> new FIDataDao(connection));
             case ACCOUNT_DC:

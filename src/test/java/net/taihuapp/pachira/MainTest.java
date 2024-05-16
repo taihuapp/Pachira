@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -20,6 +20,7 @@
 
 package net.taihuapp.pachira;
 
+import javafx.util.Pair;
 import net.taihuapp.pachira.dao.DaoException;
 import net.taihuapp.pachira.dao.DaoManager;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +28,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -198,9 +201,10 @@ public class MainTest {
 
             // compute holdings for 1/9/2022, exclude s0
             // we should not see Cash entry
+            LocalDate localDate20220109 = LocalDate.of(2022, 1, 9);
             final List<SecurityHolding> securityHoldingList1 =
                     mainModel.computeSecurityHoldings(account.getTransactionList(),
-                            LocalDate.of(2022, 1, 9), s0.getID());
+                            localDate20220109, s0.getID());
             assert(securityHoldingList1.size() == 4);  // A, Z, cash, total
             assert(securityHoldingList1.stream().anyMatch(sh -> sh.getSecurityName().equals(SecurityHolding.TOTAL)));
             assert(securityHoldingList1.stream().anyMatch(sh -> sh.getSecurityName().equals(SecurityHolding.CASH)));
@@ -235,8 +239,32 @@ public class MainTest {
                     .filter(sh -> sh.getSecurityName().equals(securityZ.getName())).findAny();
             assert(shZOptional3.isPresent());
             assert(shZOptional3.get().getQuantity().compareTo(BigDecimal.valueOf(200))== 0);
+
+            // check prices table
+            List<Price> aPrices = mainModel.getSecurityPriceList(securityA.getID());
+            assert(aPrices.size() == 2); // should have two prices
+
+            Optional<Pair<Integer, Price>> aPrice20220109 =
+                    mainModel.getSecurityPrice(new Pair<>(securityA.getID(), localDate20220109));
+            assert(aPrice20220109.isPresent());
+            assert(aPrice20220109.get().getValue().getPrice().compareTo(new BigDecimal("101")) == 0);
+
+            Optional<Pair<Integer, Price>> aPrice20220110 =
+                    mainModel.getSecurityLastPrice(new Pair<>(securityA.getID(),
+                            LocalDate.of(2022, 1, 10)));
+            assert(aPrice20220110.isPresent());
+            assert(aPrice20220110.get().getValue().getPrice().compareTo(new BigDecimal("101")) == 0);
+            mainModel.mergeSecurityPrices(List.of(new Pair<>(securityA.getID(),
+                    new Price(localDate20220109, new BigDecimal("102")))));
+            aPrice20220110 = mainModel.getSecurityLastPrice(new Pair<>(securityA.getID(),
+                    LocalDate.of(2022, 1, 10)));
+            assert(aPrice20220110.isPresent() && aPrice20220110.get().getValue()
+                    .getPrice().compareTo(new BigDecimal("102")) == 0);
         } catch (DaoException | ModelException | IOException e) {
-            fail(e.toString());
+            StringWriter stringWriter = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(stringWriter);
+            e.printStackTrace(printWriter);
+            fail(stringWriter.toString());
         }
     }
 }

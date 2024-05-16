@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -49,13 +49,18 @@ public class SecurityDao extends Dao<Security, Integer> {
 
     @Override
     Security fromResultSet(ResultSet resultSet) throws SQLException {
-        return new Security(resultSet.getInt("ID"), resultSet.getString("TICKER"),
-                resultSet.getString("NAME"), Security.Type.valueOf(resultSet.getString("TYPE")));
+        int id = resultSet.getInt("ID");
+        String ticker = resultSet.getString("TICKER");
+        String name = resultSet.getString("NAME");
+        Security.Type type = Security.Type.valueOf(resultSet.getString("TYPE"));
+        // if ticker is null, make it an empty string
+        return new Security(id, ticker == null ? "" : ticker, name, type);
     }
 
     @Override
     void setPreparedStatement(PreparedStatement preparedStatement, Security security, boolean withKey) throws SQLException {
-        preparedStatement.setString(1, security.getTicker());
+        String ticker = security.getTicker();
+        preparedStatement.setString(1, ticker.isBlank() ? null : ticker);
         preparedStatement.setString(2, security.getName());
         preparedStatement.setString(3, security.getType().name());
         if (withKey)

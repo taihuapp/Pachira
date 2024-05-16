@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -22,7 +22,6 @@ package net.taihuapp.pachira.dao;
 
 import javafx.util.Pair;
 import net.taihuapp.pachira.Price;
-import net.taihuapp.pachira.Security;
 
 import java.math.BigDecimal;
 import java.sql.*;
@@ -34,14 +33,11 @@ import java.util.Optional;
 
 /**
  * Security prices
- * For securities with an nonempty Ticker, the security id column is set to 0 and
- * the prices are key by the ticker and the date
- *
- * For securities with empty ticker, the prices are key by the security id and the date
+ * The prices are keyed by the security id and the date
  */
-public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, LocalDate>> {
+public class SecurityIDPriceDao extends Dao<Pair<Integer, Price>, Pair<Integer, LocalDate>> {
 
-    SecurityPriceDao(Connection connection) { this.connection = connection; }
+    SecurityIDPriceDao(Connection connection) { this.connection = connection; }
 
     @Override
     String getTableName() { return "PRICES"; }
@@ -60,20 +56,19 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
     boolean autoGenKey() { return true; }
 
     @Override
-    Pair<Security, LocalDate> getKeyValue(Pair<Security, Price> securityPricePair) {
-        return new Pair<>(securityPricePair.getKey(), securityPricePair.getValue().getDate());
+    Pair<Integer, LocalDate> getKeyValue(Pair<Integer, Price> securityIDPricePair) {
+        return new Pair<>(securityIDPricePair.getKey(), securityIDPricePair.getValue().getDate());
     }
 
     @Override
-    Pair<Security, Price> fromResultSet(ResultSet resultSet) throws SQLException {
+    Pair<Integer, Price> fromResultSet(ResultSet resultSet) throws SQLException {
         Price price = new Price(resultSet.getObject("Date", LocalDate.class), resultSet.getBigDecimal("PRICE"));
-        Security security = new Security(resultSet.getInt("ID"), resultSet.getString("TICKER"), "",
-                null);
-        return new Pair<>(security, price);
+        Integer securityID = resultSet.getInt("ID");
+        return new Pair<>(securityID, price);
     }
 
     @Override
-    void setPreparedStatement(PreparedStatement preparedStatement, Pair<Security, Price> pricePair, boolean withKey) {
+    void setPreparedStatement(PreparedStatement preparedStatement, Pair<Integer, Price> pricePair, boolean withKey) {
         throw new IllegalArgumentException("setPreparedStatement() should not be called for " + getClass().getName());
     }
 
@@ -83,76 +78,57 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
     }
 
     @Override
-    public Optional<Pair<Security, Price>> get(Pair<Security, LocalDate> securityLocalDatePair) throws DaoException {
-        final Security security = securityLocalDatePair.getKey();
-        final LocalDate date = securityLocalDatePair.getValue();
-        final String ticker = security.getTicker();
-        final int securityID = security.getID();
-        final String sqlCmd;
-        if (ticker.isEmpty())
-            sqlCmd = "SELECT * FROM " + getTableName() + " where SECURITYID = ? AND DATE = ?";
-        else
-            sqlCmd = "SELECT * FROM " + getTableName() + " where TICKER = ? AND DATE = ?";
+    public Optional<Pair<Integer, Price>> get(Pair<Integer, LocalDate> securityIDLocalDatePair) throws DaoException {
+        final Integer securityID = securityIDLocalDatePair.getKey();
+        final LocalDate date = securityIDLocalDatePair.getValue();
+        final String sqlCmd = "SELECT * FROM " + getTableName() + " where SECURITYID = ? AND DATE = ?";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
-            if (ticker.isEmpty())
-                preparedStatement.setInt(1, securityID);
-            else
-                preparedStatement.setString(1, ticker);
+            preparedStatement.setInt(1, securityID);
             preparedStatement.setObject(2, date);
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
                     // found it
                     Price p = new Price(date, resultSet.getBigDecimal("PRICE"));
-                    return Optional.of(new Pair<>(security, p));
+                    return Optional.of(new Pair<>(securityID, p));
                 }
                 return Optional.empty();
             }
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET,
-                    "Failed to get price for '" + ticker + "'(" + securityID + ") on " + date, e);
+                    "Failed to get price for (" + securityID + ") on " + date, e);
         }
     }
 
     @Override
-    public int delete(Pair<Security, LocalDate> securityDatePair) throws DaoException {
-        Security security = securityDatePair.getKey();
-        final String ticker = security.getTicker();
-        final int id = security.getID();
-        final LocalDate date = securityDatePair.getValue();
-        final String sqlCmd;
-        if (ticker.isEmpty()) {
-            sqlCmd = "DELETE FROM " + getTableName() + " WHERE SECURITYID = ? AND DATE = ?";
-        } else {
-            sqlCmd = "DELETE FROM " + getTableName() + " WHERE TICKER = ? AND DATE = ?";
-        }
+    public int delete(Pair<Integer, LocalDate> securityIDDatePair) throws DaoException {
+        final int id = securityIDDatePair.getKey();
+        final LocalDate date = securityIDDatePair.getValue();
+        final String sqlCmd = "DELETE FROM " + getTableName() + " WHERE SECURITYID = ? AND DATE = ?";
+
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
-            if (ticker.isEmpty())
-                preparedStatement.setInt(1, id);
-            else
-                preparedStatement.setString(1, ticker);
+            preparedStatement.setInt(1, id);
             preparedStatement.setObject(2, date);
 
             return preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_DELETE,
-                    "Failed to delete prices for '" + ticker + "'(" + id + ") on " + date, e);
+                    "Failed to delete prices for (" + id + ") on " + date, e);
         }
     }
 
     @Override
-    public List<Pair<Security, Price>> getAll() throws DaoException {
-        final String sqlCmd = "SELECT * FROM " + getTableName() + " ORDER BY TICKER, SECURITYID, DATE";
+    public List<Pair<Integer, Price>> getAll() throws DaoException {
+        final String sqlCmd = "SELECT * FROM " + getTableName() + " ORDER BY SECURITYID, DATE";
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sqlCmd)) {
-            List<Pair<Security, Price>> fullList = new ArrayList<>();
+            List<Pair<Integer, Price>> fullList = new ArrayList<>();
             while (resultSet.next()) {
                 final int securityID = resultSet.getInt("SECURITYID");
-                final String ticker = resultSet.getString("TICKER");
                 final LocalDate date = resultSet.getObject("DATE", LocalDate.class);
                 final BigDecimal p = resultSet.getBigDecimal("PRICE");
-                fullList.add(new Pair<>(new Security(securityID, ticker, "", null), new Price(date, p)));
+                fullList.add(new Pair<>(securityID, new Price(date, p)));
             }
             return fullList;
         } catch (SQLException e) {
@@ -161,34 +137,31 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
     }
 
     @Override
-    public Pair<Security, LocalDate> insert(Pair<Security, Price> securityPricePair) throws DaoException {
-        mergePricesToDB(Collections.singletonList(securityPricePair));
-        return new Pair<>(securityPricePair.getKey(), securityPricePair.getValue().getDate());
+    public Pair<Integer, LocalDate> insert(Pair<Integer, Price> securityIDPricePair) throws DaoException {
+        mergePricesToDB(Collections.singletonList(securityIDPricePair));
+        return new Pair<>(securityIDPricePair.getKey(), securityIDPricePair.getValue().getDate());
     }
 
     @Override
-    public int update(Pair<Security, Price> securityPricePair) throws DaoException {
-        mergePricesToDB(Collections.singletonList(securityPricePair));
+    public int update(Pair<Integer, Price> securityIDPricePair) throws DaoException {
+        mergePricesToDB(Collections.singletonList(securityIDPricePair));
         return 1;
     }
 
-    public void mergePricesToDB(List<Pair<Security, Price>> pairList) throws DaoException {
+    public void mergePricesToDB(List<Pair<Integer, Price>> pairList) throws DaoException {
         final String sqlCmd = "MERGE INTO " + getTableName()
-                + " (SECURITYID, TICKER, DATE, PRICE) values (?, ?, ?, ?)";
+                + " (SECURITYID, DATE, PRICE) values (?, ?, ?)";
 
         DaoManager daoManager = DaoManager.getInstance();
         try {
             daoManager.beginTransaction();
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
-                for (Pair<Security, Price> pair : pairList) {
-                    final Security security = pair.getKey();
-                    final String ticker = security.getTicker();
-                    final int id = ticker.isEmpty() ? security.getID() : 0;
+                for (Pair<Integer, Price> pair : pairList) {
+                    final int id = pair.getKey();
                     final Price price = pair.getValue();
                     preparedStatement.setInt(1, id);
-                    preparedStatement.setString(2, ticker);
-                    preparedStatement.setObject(3, price.getDate());
-                    preparedStatement.setBigDecimal(4, price.getPrice());
+                    preparedStatement.setObject(2, price.getDate());
+                    preparedStatement.setBigDecimal(3, price.getPrice());
 
                     preparedStatement.executeUpdate();
                 }
@@ -209,22 +182,16 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
 
     /**
      * get prices for the given security in a list ordered by date
-     * @param security - the given security
+     * @param securityID - id of the given security
      * @return - a list of prices
      * @throws DaoException - database operations
      */
-    public List<Price> get(Security security) throws DaoException {
-        final String ticker = security.getTicker();
-        final int id = security.getID();
-        final String sqlCmd = ticker.isEmpty() ?
-                "SELECT * FROM " + getTableName() + " WHERE SECURITYID = ? ORDER BY DATE" :
-                "SELECT * FROM " + getTableName() + " WHERE TICKER = ? ORDER BY DATE";
+    public List<Price> get(int securityID) throws DaoException {
+        final String sqlCmd = "SELECT * FROM " + getTableName() + " WHERE SECURITYID = ? ORDER BY DATE";
+
         List<Price> priceList = new ArrayList<>();
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
-            if (ticker.isEmpty())
-                preparedStatement.setInt(1, id);
-            else
-                preparedStatement.setString(1, ticker);
+            preparedStatement.setInt(1, securityID);
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 while (resultSet.next()) {
@@ -236,48 +203,38 @@ public class SecurityPriceDao extends Dao<Pair<Security, Price>, Pair<Security, 
             }
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET,
-                    "Failed to get prices for '" + ticker + "'(" + id + ")", e);
+                    "Failed to get prices for (" + securityID+ ")", e);
         }
     }
 
     /**
      * get price for the given security on the given date
-     * @param securityDatePair - input security and date
+     * @param securityIDDatePair - input security and date
      * @return - optional price
      * @throws DaoException - from database operations
      */
-    public Optional<Pair<Security, Price>> getLastPrice(Pair<Security, LocalDate> securityDatePair)
+    public Optional<Pair<Integer, Price>> getLastPrice(Pair<Integer, LocalDate> securityIDDatePair)
             throws DaoException {
-        final Security security = securityDatePair.getKey();
-        final String ticker = security.getTicker();
-        final int id = security.getID();
-        final LocalDate date = securityDatePair.getValue();
-        final String sqlCmd;
-        if (ticker.isEmpty())
-            sqlCmd = "SELECT TOP 1 PRICE FROM " + getTableName()
+        final int id = securityIDDatePair.getKey();
+        final LocalDate date = securityIDDatePair.getValue();
+        final String sqlCmd = "SELECT TOP 1 PRICE FROM " + getTableName()
                     + " WHERE SECURITYID = ? AND DATE <= ? ORDER BY DATE DESC";
-        else
-            sqlCmd = "SELECT TOP 1 PRICE FROM " + getTableName()
-                    + " WHERE TICKER = ? AND DATE <= ? ORDER BY DATE DESC";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCmd)) {
-            if (ticker.isEmpty())
-                preparedStatement.setInt(1, id);
-            else
-                preparedStatement.setString(1, ticker);
+            preparedStatement.setInt(1, id);
             preparedStatement.setObject(2, date);
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
                     BigDecimal p = resultSet.getBigDecimal("PRICE");
                     Price price = new Price(date, p);
-                    return Optional.of(new Pair<>(security, price));
+                    return Optional.of(new Pair<>(id, price));
                 }
                 return Optional.empty();
             }
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET,
-                    "Failed to get latest price for '" + ticker + "'(" + id + ") no later than " + date, e);
+                    "Failed to get latest price for (" + id + ") no later than " + date, e);
         }
     }
 }

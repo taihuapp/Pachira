@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -30,7 +30,8 @@ public class DaoException extends Exception {
         FAIL_TO_CHANGE_PASSWORD, FAIL_RUN_SCRIPT,
         FAIL_TO_SET_AUTOCOMMIT, FAIL_TO_ROLLBACK,
         DB_DRIVER_NOT_FOUND, MISSING_DB_VERSION,
-        DB_FILE_NOT_FOUND, BAD_PASSWORD
+        DB_FILE_NOT_FOUND, BAD_PASSWORD,
+        FAIL_TO_UPDATE_DB, UNIQUENESS_VIOLATED
     }
 
     private final ErrorCode errorCode;
@@ -67,5 +68,36 @@ public class DaoException extends Exception {
         else
             string += cause.toString();
         return string;
+    }
+
+    public static DaoException fromSQLException(SQLException sqlException) {
+        final DaoException.ErrorCode errorCode;
+        final String errMsg;
+        switch (sqlException.getErrorCode()) {
+            case org.h2.api.ErrorCode.DATABASE_NOT_FOUND_1: //
+            case org.h2.api.ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1:
+                errorCode = DaoException.ErrorCode.DB_FILE_NOT_FOUND;
+                errMsg = "Database file not found";
+                break;
+            case org.h2.api.ErrorCode.FILE_ENCRYPTION_ERROR_1:
+            case org.h2.api.ErrorCode.WRONG_PASSWORD_FORMAT:
+            case org.h2.api.ErrorCode.WRONG_USER_OR_PASSWORD:
+                errorCode = DaoException.ErrorCode.BAD_PASSWORD;
+                errMsg = "Wrong password";
+                break;
+            case org.h2.api.ErrorCode.DATABASE_ALREADY_OPEN_1: // 90020
+                errorCode = DaoException.ErrorCode.FAIL_TO_OPEN_CONNECTION;
+                errMsg = "Database is opened by other process.  Please close the other process";
+                break;
+            case org.h2.api.ErrorCode.DUPLICATE_KEY_1: // 23505
+                errorCode = DaoException.ErrorCode.UNIQUENESS_VIOLATED;
+                errMsg = "Unique index or primary key violation";
+                break;
+            default:
+                errorCode = DaoException.ErrorCode.FAIL_TO_OPEN_CONNECTION;
+                errMsg = "Failed to open database";
+                break;
+        }
+        return new DaoException(errorCode, errMsg, sqlException);
     }
 }

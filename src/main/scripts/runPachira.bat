@@ -15,7 +15,7 @@ if %major% LSS 11 (
   exit /b 1
 )
 
-if not exist %~dp0%Pachira.jar (
+if not exist "%~dp0%Pachira.jar" (
   echo Pachira.jar not found
   pause
   exit /b 1
@@ -24,7 +24,8 @@ if not exist %~dp0%Pachira.jar (
 if not defined PATH_TO_FX (
   set "PATH_TO_FX=C:\Program Files\Java\javafx-sdk-11.0.2\lib"
 )
+
 java --module-path="%PATH_TO_FX%"^
  --add-modules javafx.controls,javafx.fxml^
  --add-exports javafx.base/com.sun.javafx.event=ALL-UNNAMED^
-  -jar %~dp0%Pachira.jar
+  -jar "%~dp0%Pachira.jar"

@@ -20,7 +20,6 @@
 
 package net.taihuapp.pachira;
 
-import com.google.common.collect.ImmutableList;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import com.webcohesion.ofx4j.OFXException;
@@ -453,8 +452,8 @@ public class MainModel {
             for (Transaction t : newTransactionList)
                 t.setID(transactionDao.insert(t));
 
-            mergeSecurityPrices(ImmutableList.of(new Pair<>(newSecurity, new Price(date, newSharePrice)),
-                    new Pair<>(security, new Price(date, sharePrice))));
+            mergeSecurityPrices(List.of(new Pair<>(newSecurity.getID(), new Price(date, newSharePrice)),
+                    new Pair<>(security.getID(), new Price(date, sharePrice))));
 
             daoManager.commit();
 
@@ -762,19 +761,28 @@ public class MainModel {
 
     /**
      *
-     * @param pair a pair of security and date input
+     * @param pair a pair of security id and date input
      * @return the price of the security for the given date as an optional or an empty optional
      */
-    Optional<Pair<Security, Price>> getSecurityPrice(Pair<Security, LocalDate> pair) throws DaoException {
-        return ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).get(pair);
+    Optional<Pair<Integer, Price>> getSecurityPrice(Pair<Integer, LocalDate> pair) throws DaoException {
+        return ((SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE)).get(pair);
     }
 
-    List<Price> getSecurityPriceList(Security security) throws DaoException {
-        return ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).get(security);
+    /**
+     *
+     * @param pair a pair of security id and date
+     * @return the latest price of the security on or before the input date as optional or an empty optional
+     */
+    Optional<Pair<Integer, Price>> getSecurityLastPrice(Pair<Integer, LocalDate> pair) throws DaoException {
+        return ((SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE)).getLastPrice(pair);
     }
 
-    void insertSecurityPrice(Pair<Security, Price> pair) throws DaoException {
-        ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).insert(pair);
+    List<Price> getSecurityPriceList(Integer securityID) throws DaoException {
+        return ((SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE)).get(securityID);
+    }
+
+    void insertSecurityPrice(Pair<Integer, Price> pair) throws DaoException {
+        ((SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE)).insert(pair);
     }
 
     /**
@@ -782,21 +790,21 @@ public class MainModel {
      * @param priceList - the input list
      * @throws ModelException - from database operation
      */
-    void mergeSecurityPrices(List<Pair<Security, Price>> priceList) throws ModelException {
+    void mergeSecurityPrices(List<Pair<Integer, Price>> priceList) throws ModelException {
         try {
-            ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).mergePricesToDB(priceList);
+            ((SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE)).mergePricesToDB(priceList);
         } catch (DaoException e) {
             throw new ModelException(ModelException.ErrorCode.SECURITY_PRICE_DB_FAILURE,
                     "Failed to update prices", e);
         }
     }
 
-    void deleteSecurityPrice(Security security, LocalDate date) throws ModelException {
+    void deleteSecurityPrice(Integer securityID, LocalDate date) throws ModelException {
         try {
-            ((SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE)).delete(new Pair<>(security, date));
+            ((SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE)).delete(new Pair<>(securityID, date));
         } catch (DaoException e) {
             throw new ModelException(ModelException.ErrorCode.SECURITY_PRICE_DB_FAILURE,
-                    "Failed to delete security price for (" + security + ") on " + date, e);
+                    "Failed to delete security price for (" + securityID + ") on " + date, e);
         }
     }
 
@@ -805,13 +813,13 @@ public class MainModel {
      * @param file - a file object of the csv file
      * @return - a Pair object of a list of accepted security prices and a list of rejected lines
      */
-    public Pair<List<Pair<Security, Price>>, List<String[]>> importPrices(File file)
+    public Pair<List<Pair<Integer, Price>>, List<String[]>> importPrices(File file)
             throws IOException, CsvException, ModelException {
-        final List<Pair<Security, Price>> priceList = new ArrayList<>();
+        final List<Pair<Integer, Price>> priceList = new ArrayList<>();
         final List<String[]> skippedLines = new ArrayList<>();
 
-        final Map<String, Security> tickerSecurityMap = new HashMap<>();
-        securityList.forEach(s -> tickerSecurityMap.put(s.getTicker(), s));
+        final Map<String, Integer> tickerSecurityIDMap = new HashMap<>();
+        securityList.forEach(s -> tickerSecurityIDMap.put(s.getTicker(), s.getID()));
 
         List<String> datePatterns = Arrays.asList("yyyy/M/d", "M/d/yyyy", "M/d/yy");
         final CSVReader reader = new CSVReader(new FileReader(file));
@@ -835,8 +843,8 @@ public class MainModel {
                 continue;
             }
 
-            Security security = tickerSecurityMap.get(line[0]);
-            if (security == null) {
+            Integer securityID = tickerSecurityIDMap.get(line[0]);
+            if (securityID == null) {
                 logger.warn("Unknown ticker: " + line[0]);
                 skippedLines.add(line);
                 continue;
@@ -846,7 +854,7 @@ public class MainModel {
             for (String pattern : datePatterns) {
                 try {
                     LocalDate localDate = LocalDate.parse(line[2], DateTimeFormatter.ofPattern(pattern));
-                    priceList.add(new Pair<>(security, new Price(localDate, p)));
+                    priceList.add(new Pair<>(securityID, new Price(localDate, p)));
                     added = true;
                     break;
                 } catch (DateTimeParseException ignored) {
@@ -862,14 +870,14 @@ public class MainModel {
         mergeSecurityPrices(priceList);
 
         // the set of securities updated prices
-        Set<Security> securitySet = new HashSet<>();
-        priceList.forEach(p -> securitySet.add(p.getKey()));
+        Set<Integer> securityIDSet = new HashSet<>();
+        priceList.forEach(p -> securityIDSet.add(p.getKey()));
 
         Predicate<Account> predicate = account -> {
             if (!account.getType().isGroup(Account.Type.Group.INVESTING))
                 return false;
             for (Security security : account.getCurrentSecurityList()) {
-                if (securitySet.contains(security)) {
+                if (securityIDSet.contains(security.getID())) {
                     return true;
                 }
             }
@@ -1077,8 +1085,6 @@ public class MainModel {
 
         BigDecimal totalMarketValue = totalCashNow;
         BigDecimal totalCostBasis = totalCashNow;
-        final SecurityPriceDao securityPriceDao =
-                (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
         final List<SecurityHolding> securityHoldingList = shMap.values().stream()
                 .filter(sh -> sh.getQuantity().signum() != 0)
                 .sorted(Comparator.comparing(SecurityHolding::getSecurityName))
@@ -1089,8 +1095,8 @@ public class MainModel {
             if (securityOptional.isPresent()) {
                 final Security security = securityOptional.get();
                 try {
-                    Optional<Pair<Security, Price>> optionalSecurityPricePair =
-                            securityPriceDao.getLastPrice(new Pair<>(security, date));
+                    Optional<Pair<Integer, Price>> optionalSecurityPricePair =
+                            getSecurityLastPrice(new Pair<>(security.getID(), date));
                     if (optionalSecurityPricePair.isPresent()) {
                         final Price price = optionalSecurityPricePair.get().getValue();
                         BigDecimal p = price.getPrice();
@@ -1260,13 +1266,12 @@ public class MainModel {
      * @return all payees in a sorted set with case-insensitive ordering.
      */
     public SortedSet<String> getPayeeSet() {
-        SortedSet<String> payeeSet = new TreeSet<>(Comparator.comparing(String::toLowerCase));
+        SortedSet<String> payeeSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        // we care only 3 years of transactions
+        final LocalDate cutOffDate = LocalDate.now().minusYears(3);
+        payeeSet.addAll(transactionList.filtered(t -> ((!t.getPayee().isBlank()) && t.getTDate().isAfter(cutOffDate)))
+                .stream().map(Transaction::getPayee).collect(Collectors.toList()));
 
-        for (Transaction transaction : transactionList) {
-            final String payee = transaction.getPayee();
-            if (payee != null && !payee.isEmpty())
-                payeeSet.add(payee);
-        }
         return payeeSet;
     }
 
@@ -1324,7 +1329,7 @@ public class MainModel {
         TransactionDao transactionDao = (TransactionDao) daoManager.getDao(DaoManager.DaoType.TRANSACTION);
         PairTidMatchInfoListDao pairTidMatchInfoListDao =
                 (PairTidMatchInfoListDao) daoManager.getDao(DaoManager.DaoType.PAIR_TID_MATCH_INFO);
-        SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
+        SecurityIDPriceDao securityIDPriceDao = (SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE);
         final int DELETE_ACCOUNT_ID = getAccount(a -> a.getName().equals(DELETED_ACCOUNT_NAME)).orElseThrow(() ->
                 new ModelException(ModelException.ErrorCode.MISSING_DELETED_ACCOUNT, "Cannot find DELETED_ACCOUNT",
                         null)).getID();
@@ -1597,8 +1602,8 @@ public class MainModel {
 
                 if (security != null && price != null && price.compareTo(BigDecimal.ZERO) > 0) {
                     // insert price if not currently present
-                    if (securityPriceDao.get(new Pair<>(security, newT.getTDate())).isEmpty()) {
-                        securityPriceDao.insert(new Pair<>(security, new Price(newT.getTDate(), price)));
+                    if (securityIDPriceDao.get(new Pair<>(security.getID(), newT.getTDate())).isEmpty()) {
+                        securityIDPriceDao.insert(new Pair<>(security.getID(), new Price(newT.getTDate(), price)));
                     }
                     getAccountList(Account.Type.Group.INVESTING, false, true).stream()
                             .filter(a -> a.hasSecurity(security)).forEach(a -> accountIDSet.add(a.getID()));
@@ -2430,7 +2435,7 @@ public class MainModel {
             Map<String, List<Transaction>> accountNameTransactionMap = qifParser.getAccountNameTransactionMap();
             final Map<Integer, Security> securityIDMap = new HashMap<>();
             getSecurityList().forEach(s -> securityIDMap.put(s.getID(), s));
-            List<Pair<Security, Price>> tradePriceList = new ArrayList<>();
+            List<Pair<Integer, Price>> tradePriceList = new ArrayList<>();
             for (Map.Entry<String, List<Transaction>> entry : accountNameTransactionMap.entrySet()) {
                 final int accountID = accountNameIDMap.getOrDefault(entry.getKey(), 0);
                 if (accountID <= 0)
@@ -2446,17 +2451,17 @@ public class MainModel {
                         BigDecimal p = t.getPrice();
                         LocalDate d = t.getTDate();
                         if (p != null && p.signum() > 0) {
-                            tradePriceList.add(new Pair<>(security, new Price(d, p)));
+                            tradePriceList.add(new Pair<>(security.getID(), new Price(d, p)));
                         }
                     }
                 }
             }
 
-            SecurityPriceDao securityPriceDao = (SecurityPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITY_PRICE);
+            SecurityIDPriceDao securityPriceDao = (SecurityIDPriceDao) daoManager.getDao(DaoManager.DaoType.SECURITYID_PRICE);
             securityPriceDao.mergePricesToDB(tradePriceList); // need to add trade price before the other prices
 
             // save imported prices last
-            final List<Pair<Security, Price>> priceList = new ArrayList<>();
+            final List<Pair<Integer, Price>> priceList = new ArrayList<>();
             for (Pair<String, Price> ticker_price : qifParser.getPriceList()) {
                 final String ticker = ticker_price.getKey();
                 final Price p = ticker_price.getValue();
@@ -2464,7 +2469,7 @@ public class MainModel {
                         k -> getSecurity(s -> s.getTicker().equals(ticker)).orElse(null));
                 if (security == null)
                     throw new ModelException(ModelException.ErrorCode.QIF_PARSE_EXCEPTION, "Bad ticker " + ticker, null);
-                priceList.add(new Pair<>(security, p));
+                priceList.add(new Pair<>(security.getID(), p));
             }
             securityPriceDao.mergePricesToDB(priceList);  // this may overwrite trade prices
 
@@ -2536,7 +2541,7 @@ public class MainModel {
             for (Security s : getSecurityList()) {
                 if (s.getTicker().isEmpty())
                     continue; // we don't export prices for security without a ticker
-                for (Price p : getSecurityPriceList(s)) {
+                for (Price p : getSecurityPriceList(s.getID())) {
                     final String ticker = s.getTicker();
                     stringBuilder.append(p.toQIF(ticker));
                 }

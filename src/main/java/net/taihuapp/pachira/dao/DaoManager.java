@@ -281,7 +281,7 @@ public class DaoManager {
                     if (!hasSettingsTable()) {
                         logger.info("Start backup...");
                         backupFileName = backup();
-                        logger.info("Backup to " + backupFileName + " complete.");
+                        logger.info("Backup to {} complete.", backupFileName);
                         createSettingsTable();
                         putSetting(DB_VERSION_NAME, "0");
                         dbVersion = 0;
@@ -303,9 +303,9 @@ public class DaoManager {
                     if ((dbVersion < DB_VERSION_VALUE) && (dbVersion != 0)) {
                         logger.info("Start backup...");
                         backupFileName = backup();
-                        logger.info("Backup to " + backupFileName + " complete.");
+                        logger.info("Backup to {} complete.", backupFileName);
                         updateDB(dbVersion, DB_VERSION_VALUE);
-                        logger.info("Update DB to " + DB_VERSION_VALUE + " from " + dbVersion + " complete");
+                        logger.info("Update DB to " + DB_VERSION_VALUE + " from {} complete", dbVersion);
                     }
                 } catch (DaoException | SQLException e) {
                     // update database failed.
@@ -472,7 +472,7 @@ public class DaoManager {
 
         // securities table
         // Ticker can be either empty, or unique if not empty.
-        // emtpy ticker is converted to null in DB
+        // empty ticker is converted to null in DB
         //  starts from 1
         sqlCmd = "create table SECURITIES ("
                 + "ID integer NOT NULL AUTO_INCREMENT (1), "  // make sure starts with 1
@@ -690,7 +690,7 @@ public class DaoManager {
             executeUpdateQuery("alter table SETTINGS rename column \"VALUE\" to SETTING_VALUE");
         } else if ((newV < 20 ) && (newV > 12)) {
             // never used these version numbers, do nothing and skip through
-            logger.debug("newV = " + newV);
+            logger.debug("newV = {}", newV);
         } else if (newV == 12) {
             // add column to DISPLAYORDER to SAVEDREPORTS
             executeUpdateQuery("alter table SAVEDREPORTS add column DISPLAYORDER int default "

@@ -498,9 +498,10 @@ public class EditTransactionDialogControllerNew {
         mOldSharesLabel.visibleProperty().bind(mOldSharesTextField.visibleProperty());
 
 
-        // price is always calculated
+        // price is calculated if there is a quantity and it is not SHRSOUT
         mPriceTextField.visibleProperty().bind(Bindings.createBooleanBinding(()
-                -> Transaction.hasQuantity(mTradeActionChoiceBox.getValue()), mTradeActionChoiceBox.valueProperty()));
+                -> (Transaction.hasQuantity(mTradeActionChoiceBox.getValue())
+                && (mTradeActionChoiceBox.getValue() != SHRSOUT)), mTradeActionChoiceBox.valueProperty()));
         mPriceTextField.textProperty().bind(Bindings.createStringBinding(() ->
                         ConverterUtil.getPriceQuantityFormatInstance().format(mTransaction.getPrice()),
                 mTransaction.getPriceProperty()));
@@ -707,7 +708,7 @@ public class EditTransactionDialogControllerNew {
         try {
             shList = mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, mTransaction.getID());
         } catch (ModelException e) {
-            mLogger.error("Failed to computer Security holdings for Account " + account.getName(), e);
+            mLogger.error("Failed to computer Security holdings for Account {}", account.getName(), e);
             return false;
         }
         for (SecurityHolding sh : shList) {
@@ -830,7 +831,7 @@ public class EditTransactionDialogControllerNew {
             }
             if (mainModel.getAccount(a -> a.getID() == -categoryID).isEmpty()
                     && mTransaction.getSplitTransactionList().isEmpty()) {
-                mLogger.warn("Invalid transfer account, ID = " + (-categoryID));
+                mLogger.warn("Invalid transfer account, ID = {}", -categoryID);
                 showWarningDialog("Invalid transfer account, ID = " + (-categoryID),
                         "Please select a valid transfer account");
                 return false;
@@ -851,7 +852,7 @@ public class EditTransactionDialogControllerNew {
                 }
             }
             if (netAmount.compareTo(BigDecimal.ZERO) != 0) {
-                mLogger.warn("Net Difference = " + netAmount + ", mismatch");
+                mLogger.warn("Net Difference = {}, mismatch", netAmount);
                 showWarningDialog("Split transaction amount not matching total amount.",
                         "Please check split transaction and total amount");
                 return false;
@@ -900,7 +901,7 @@ public class EditTransactionDialogControllerNew {
                     return false;
                 }
             } catch (ModelException e) {
-                mLogger.error("ModelException " + e.getErrorCode(), e);
+                mLogger.error("ModelException {}", e.getErrorCode(), e);
                 DialogUtil.showExceptionDialog(getStage(), "Exception", "DaoException " + e.getErrorCode(),
                         e.toString(), e);
                 return false;
@@ -957,7 +958,7 @@ public class EditTransactionDialogControllerNew {
             DialogUtil.showExceptionDialog(stage, "IOException",
                     "IOException encountered on showSpecifyLotsDialog", e.getMessage(), e);
         } catch (ModelException e) {
-            mLogger.error("DaoException " + e.getErrorCode() + " on showSpecifyLotsDialog", e);
+            mLogger.error("DaoException {} on showSpecifyLotsDialog", e.getErrorCode(), e);
             DialogUtil.showExceptionDialog(stage, "DaoException",
                     e.getErrorCode() + " on showSpecifyLotsDialog", e.toString(), e);
         }

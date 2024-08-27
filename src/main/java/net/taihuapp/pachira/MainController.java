@@ -243,25 +243,25 @@ public class MainController {
                 mergeMI.disableProperty().bind(Bindings.createBooleanBinding(()->
                         (row.getItem() == null || row.getItem().getFITID().isEmpty()), row.itemProperty()));
                 mergeMI.setOnAction(evt -> {
-                    final Transaction downloadedTransaction = row.getItem();
-                    final Stage dialogStage = new Stage();
-                    dialogStage.initOwner(getStage());
-                    dialogStage.initModality(Modality.WINDOW_MODAL);
-                    final MergeCandidateDialog mcd = new MergeCandidateDialog(getMainModel(), dialogStage,
-                            downloadedTransaction);
-                    dialogStage.showAndWait();
+                    try {
+                        final Transaction downloadedTransaction = row.getItem();
+                        final Stage dialogStage = new Stage();
+                        dialogStage.initOwner(getStage());
+                        dialogStage.initModality(Modality.WINDOW_MODAL);
+                        final MergeCandidateDialog mcd = new MergeCandidateDialog(getMainModel(), dialogStage,
+                                downloadedTransaction);
+                        dialogStage.showAndWait();
 
-                    final Transaction selected = mcd.getSelectedTransaction();
-                    if (selected != null) {
-                        final Transaction mergedTransaction = Transaction.mergeDownloadedTransaction(
-                                selected, downloadedTransaction);
+                        final Transaction selected = mcd.getSelectedTransaction();
+                        if (selected != null) {
+                            final Transaction mergedTransaction = Transaction.mergeDownloadedTransaction(
+                                    selected, downloadedTransaction);
 
-                        try {
                             final List<MatchInfo> mil = getMainModel().getMatchInfoList(mergedTransaction.getID());
                             getMainModel().alterTransaction(downloadedTransaction, mergedTransaction, mil);
-                        } catch (DaoException | ModelException ex) {
-                            logAndDisplayException("Failed to merge a downloaded transaction", ex);
                         }
+                    } catch (DaoException | ModelException ex) {
+                        logAndDisplayException("Failed to merge a downloaded transaction", ex);
                     }
                 });
                 contextMenu.getItems().add(mergeMI);
@@ -720,40 +720,44 @@ public class MainController {
 
     @FXML
     private void handleSearch() {
-        Stage dialogStage = new Stage();
-        dialogStage.initModality(Modality.WINDOW_MODAL);
-        dialogStage.initOwner(getStage());
-        SearchResultDialog srd = new SearchResultDialog(mSearchTextField.getText().trim(), mainModel, dialogStage);
-        dialogStage.showAndWait();
-        Transaction t = srd.getSelectedTransaction();
-        if (t != null) {
-            Account a = getMainModel().getAccount(account -> account.getID() == t.getAccountID()).orElse(null);
-            if (a == null) {
-                logAndDisplayException("Invalid account id " + t.getAccountID() + " for Transaction " + t.getID(), null);
-                return;
-            }
-            if (a.getHiddenFlag()) {
-                DialogUtil.showWarningDialog(null,"Hidden Account Transaction",
-                        "Selected Transaction Belongs to a Hidden Account",
-                        "Please unhide " + a.getName() + " to view/edit the transaction");
-                return;
-            }
+        try {
+            Stage dialogStage = new Stage();
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(getStage());
+            SearchResultDialog srd = new SearchResultDialog(mSearchTextField.getText().trim(), mainModel, dialogStage);
+            dialogStage.showAndWait();
+            Transaction t = srd.getSelectedTransaction();
+            if (t != null) {
+                Account a = getMainModel().getAccount(account -> account.getID() == t.getAccountID()).orElse(null);
+                if (a == null) {
+                    logAndDisplayException("Invalid account id " + t.getAccountID() + " for Transaction " + t.getID(), null);
+                    return;
+                }
+                if (a.getHiddenFlag()) {
+                    DialogUtil.showWarningDialog(null, "Hidden Account Transaction",
+                            "Selected Transaction Belongs to a Hidden Account",
+                            "Please unhide " + a.getName() + " to view/edit the transaction");
+                    return;
+                }
 
-            for (TreeItem<Account> tia : mAccountTreeTableView.getRoot().getChildren()) {
-                if (tia.getValue().getType().isGroup(a.getType().getGroup())) {
-                    for (TreeItem<Account> tia1 : tia.getChildren()) {
-                        if (tia1.getValue().getID() == a.getID()) {
-                            mAccountTreeTableView.getSelectionModel().select(tia1);
-                            for (Transaction t1 : mTransactionTableView.getItems()) {
-                                if (t1.getID() == t.getID()) {
-                                    mTransactionTableView.getSelectionModel().select(t1);
-                                    mTransactionTableView.scrollTo(t1);
+                for (TreeItem<Account> tia : mAccountTreeTableView.getRoot().getChildren()) {
+                    if (tia.getValue().getType().isGroup(a.getType().getGroup())) {
+                        for (TreeItem<Account> tia1 : tia.getChildren()) {
+                            if (tia1.getValue().getID() == a.getID()) {
+                                mAccountTreeTableView.getSelectionModel().select(tia1);
+                                for (Transaction t1 : mTransactionTableView.getItems()) {
+                                    if (t1.getID() == t.getID()) {
+                                        mTransactionTableView.getSelectionModel().select(t1);
+                                        mTransactionTableView.scrollTo(t1);
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+        } catch (ModelException e) {
+            logAndDisplayException("Exception caught on open search dialog", e);
         }
     }
 
@@ -823,7 +827,7 @@ public class MainController {
 
         if (isNew && file.exists() && !file.delete()) {
             // can't delete an existing file
-            mLogger.warn("unable to delete " + dbName + dbPostfix);
+            mLogger.warn("unable to delete {}{}", dbName, dbPostfix);
             DialogUtil.showWarningDialog(stage,"Unable to delete",
                     "Unable to delete existing " + dbName + dbPostfix,"");
             return; // we are done
@@ -949,7 +953,7 @@ public class MainController {
             List<Pair<Integer, Price>> priceList = outputPair.getKey();
             List<String[]> rejectLines = outputPair.getValue();
             StringBuilder message = new StringBuilder();
-            if (rejectLines.size() > 0) {
+            if (!rejectLines.isEmpty()) {
                 message.append("Skipped line(s):").append(System.lineSeparator()).append(System.lineSeparator());
                 rejectLines.forEach(l -> message.append(String.join(",", l)).append(System.lineSeparator()));
             }
@@ -1066,7 +1070,7 @@ public class MainController {
             ExportQIFDialogController controller = loader.getController();
             controller.setMainModel(getMainModel());
             stage.showAndWait();
-        } catch (IOException e) {
+        } catch (IOException | ModelException e) {
             logAndDisplayException("IOException when export QIF", e);
         }
     }
@@ -1561,12 +1565,8 @@ public class MainController {
 
     }
 
-    private void showAccountTransactions(Account account) {
-        getMainModel().setCurrentAccount(account);
-
-        if (account == null) {
-            return;
-        }
+    private void showCurrentAccountTransactions() {
+        Account account = mainModel.getCurrentAccount();
 
         boolean isTradingAccount = account.getType().isGroup(Account.Type.Group.INVESTING);
         mTransactionAccountNameLabel.setVisible(true);
@@ -1575,12 +1575,14 @@ public class MainController {
         mTransactionShowHoldingsButton.setVisible(isTradingAccount);
 
         //mTransactionTableView.setVisible(true);
-        mTransactionTableView.setItems(account.getTransactionList());
+
+        mTransactionTableView.setItems(mainModel.getCurrentAccountTransactionList());
+
         int selectedIdx = mTransactionTableView.getSelectionModel().getSelectedIndex();
         if (selectedIdx >= 0)
             mTransactionTableView.scrollTo(selectedIdx);
         else
-            mTransactionTableView.scrollTo(account.getTransactionList().size()-1);
+            mTransactionTableView.scrollTo(mTransactionTableView.getItems().size()-1);
         mTransactionTableView.mTransactionStatusColumn.setVisible(true);
         mTransactionTableView.mTransactionTradeActionColumn.setVisible(isTradingAccount);
         mTransactionTableView.mTransactionReferenceColumn.setVisible(!isTradingAccount);
@@ -1626,7 +1628,7 @@ public class MainController {
         try {
             currentTF.setText(getMainModel().getClientUID().map(UUID::toString).orElse(""));
         } catch (DaoException e) {
-            mLogger.error(e.getErrorCode() + " DaoException on getClientUID", e);
+            mLogger.error("{} DaoException on getClientUID", e.getErrorCode(), e);
             textArea.setVisible(true);
             textArea.setText(e.toString());
         }
@@ -1674,14 +1676,13 @@ public class MainController {
                     newTF.setText("");
                 }
             } catch (DaoException e) {
-                mLogger.error(e.getErrorCode() + " DaoException on Update ClientUID", e);
+                mLogger.error("{} DaoException on Update ClientUID", e.getErrorCode(), e);
                 textArea.setText(e.toString());
                 textArea.setVisible(true);
             }
         });
         updateButton.disableProperty().bind(Bindings.createBooleanBinding(() -> {
             try {
-                //noinspection ResultOfMethodCallIgnored
                 UUID.fromString(newTF.getText());
                 textArea.setVisible(false);
                 return false;
@@ -1776,10 +1777,14 @@ public class MainController {
 
         mAccountTreeTableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
             if (nv != null && nv.getValue().getID() >= MainApp.MIN_ACCOUNT_ID) {
-                getMainModel().setCurrentAccount(nv.getValue());
-                showAccountTransactions(nv.getValue());
-                mImportOFXAccountStatementMenuItem.setDisable(false);
-                mTransactionVBox.setVisible(true);
+                try {
+                    getMainModel().setCurrentAccount(nv.getValue());
+                    showCurrentAccountTransactions();
+                    mImportOFXAccountStatementMenuItem.setDisable(false);
+                    mTransactionVBox.setVisible(true);
+                } catch (ModelException e) {
+                    logAndDisplayException("ModelException caught on setCurrentAccount", e);
+                }
             }
         });
 

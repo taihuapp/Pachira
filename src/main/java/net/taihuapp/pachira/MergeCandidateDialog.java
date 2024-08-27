@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -45,7 +45,8 @@ class MergeCandidateDialog {
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
 
     // constructor
-    MergeCandidateDialog(MainModel mainModel, Stage stage, final Transaction downloadedTransaction) {
+    MergeCandidateDialog(MainModel mainModel, Stage stage, final Transaction downloadedTransaction)
+            throws ModelException {
         mDialogStage = stage;
 
         TransactionTableView mergeCandidateTransactionTableView =
@@ -110,7 +111,7 @@ class MergeCandidateDialog {
 
         VBox.setVgrow(mergeCandidateTransactionTableView, Priority.ALWAYS);
 
-        if (mergeCandidateTransactionTableView.getItems().size() > 0)
+        if (!mergeCandidateTransactionTableView.getItems().isEmpty())
             mergeCandidateTransactionTableView.getSelectionModel().select(0);  // select the very first
         mDialogStage.setScene(new Scene(vBox));
         mergeButton.requestFocus();

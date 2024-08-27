@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -137,6 +137,10 @@ public class ReconcileDialogController {
             final String msg = "DaoException " + e.getErrorCode() + " when reconcile account " + account.getName();
             logger.error(msg, e);
             DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+        } catch (ModelException e) {
+            final String msg = "ModelException " + e.getErrorCode() + " when reconcile account " + account.getName();
+            logger.error(msg);
+            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
         }
 
         stage.close();
@@ -168,7 +172,7 @@ public class ReconcileDialogController {
                 }
             }
         } catch (ModelException e) {
-            logger.error(e.getErrorCode() + " DaoException", e);
+            logger.error("{} DaoException", e.getErrorCode(), e);
             throw new RuntimeException(e);
         }
     }
@@ -189,7 +193,7 @@ public class ReconcileDialogController {
 
         // process transaction list and calculate balances
         // make sure we are observing STATUS property
-        transactionList.addAll(account.getTransactionList());
+        transactionList.addAll(mainModel.getAccountTransactionList(account));
 
         // keep original Status in case we want to undo
         for (Transaction t : transactionList) {

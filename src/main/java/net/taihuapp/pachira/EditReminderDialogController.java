@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -245,7 +245,13 @@ public class EditReminderDialogController {
         // bind the values of the controls to reminder fields
         mTypeChoiceBox.valueProperty().bindBidirectional(mReminder.getTypeProperty());
         mPayeeTextField.textProperty().bindBidirectional(mReminder.getPayeeProperty());
-        TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
+        try {
+            TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
+        } catch (ModelException e) {
+            final String msg = "Failed to get payee set";
+            logger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.getMessage(), e);
+        }
 
         Bindings.bindBidirectional(mAccountIDComboBox.valueProperty(), mReminder.getAccountIDProperty());
         if (mAccountIDComboBox.getSelectionModel().isEmpty())

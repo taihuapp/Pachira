@@ -22,6 +22,7 @@ package net.taihuapp.pachira;
 
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.ListChangeListener;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
@@ -43,6 +44,7 @@ public class HoldingsDialogController {
     private static final Logger logger = LogManager.getLogger(HoldingsDialogController.class);
 
     private MainModel mainModel;
+    SortedList<Transaction> accountTransactionList;
 
     @FXML
     private AnchorPane mMainPane;
@@ -70,8 +72,8 @@ public class HoldingsDialogController {
     private void populateTreeTable() {
         try {
             mSecurityHoldingTreeTableView.setRoot(new TreeItem<>(new SecurityHolding(SecurityHolding.TOTAL, 2)));
-            for (SecurityHolding h : mainModel.computeSecurityHoldings(mainModel.getCurrentAccount().getTransactionList(),
-                            mDatePicker.getValue(), -1)) {
+            for (SecurityHolding h : mainModel.computeSecurityHoldings(accountTransactionList,
+                    mDatePicker.getValue(), -1)) {
                 TreeItem<LotView> t = new TreeItem<>(h);
                 mSecurityHoldingTreeTableView.getRoot().getChildren().add(t);
                 for (SecurityLot securityLot : h.getSecurityLotList()) {
@@ -93,6 +95,8 @@ public class HoldingsDialogController {
     void setMainModel(MainModel mainModel) {
 
         this.mainModel = mainModel;
+
+        accountTransactionList = mainModel.getCurrentAccountTransactionList();
 
         // javafx DatePicker aren't aware of edited the value in its TextField,
         // this is a work around
@@ -142,8 +146,7 @@ public class HoldingsDialogController {
             if (newPrice == null || newPrice.signum() < 0) {
                 DialogUtil.showWarningDialog((Stage) mSecurityHoldingTreeTableView.getScene().getWindow(),
                         "Warning!", "Bad input price, change discarded!",
-                        ""
-                                + "Security Name  : " + security.getName() + System.lineSeparator()
+                        "Security Name  : " + security.getName() + System.lineSeparator()
                                 + "Security Ticker: " + security.getTicker() + System.lineSeparator()
                                 + "Security ID    : " + security.getID() + System.lineSeparator()
                                 + "Date           : " + date);
@@ -153,11 +156,11 @@ public class HoldingsDialogController {
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Confirmation Dialog");
                 alert.setHeaderText("Do you want to save zero price to database?");
-                alert.setContentText(""
-                        + "Security Name  : " + security.getName() + "\n"
-                        + "Security Ticker: " + security.getTicker() + "\n"
-                        + "Security ID    : " + security.getID() + "\n"
-                        + "Date           : " + date + "\n"
+                alert.setContentText(
+                        "Security Name  : " + security.getName() + System.lineSeparator()
+                        + "Security Ticker: " + security.getTicker() + System.lineSeparator()
+                        + "Security ID    : " + security.getID() + System.lineSeparator()
+                        + "Date           : " + date + System.lineSeparator()
                         + "Price          : " + newPrice + "?");
                 Optional<ButtonType> result = alert.showAndWait();
                 if (result.isEmpty() || result.get() != ButtonType.OK)
@@ -167,7 +170,7 @@ public class HoldingsDialogController {
             try {
                 mainModel.mergeSecurityPrices(List.of(new Pair<>(security.getID(), new Price(date, newPrice))));
                 populateTreeTable();
-                mainModel.updateAccountBalance(a -> a.hasSecurity(security));
+                mainModel.updateAccountBalance(a -> a.getType().isGroup(Account.Type.Group.INVESTING));
             } catch (ModelException e) {
                 final String msg = "Failed to merge price: " + System.lineSeparator()
                         + "Security Name: " + security.getName() + System.lineSeparator()
@@ -246,10 +249,10 @@ public class HoldingsDialogController {
 
         // set a listener on TransactionList
         mTransactionListChangeListener = c -> populateTreeTable();
-        mainModel.getCurrentAccount().getTransactionList().addListener(mTransactionListChangeListener);
+        accountTransactionList.addListener(mTransactionListChangeListener);
     }
 
-    void close() { mainModel.getCurrentAccount().getTransactionList().removeListener(mTransactionListChangeListener); }
+    void close() { accountTransactionList.removeListener(mTransactionListChangeListener); }
 
     @FXML
     private void handleEnterTransaction() {
@@ -260,7 +263,6 @@ public class HoldingsDialogController {
                 List.of(Transaction.TradeAction.WITHDRAW, Transaction.TradeAction.DEPOSIT);
         try {
             DialogUtil.showEditTransactionDialog(mainModel, stage,null, List.of(account), account, taList);
-            populateTreeTable();
         } catch (DaoException | IOException e) {
             final String msg = "showEditTransactionDialog throws " + e.getClass().getName();
             logger.error(msg, e);

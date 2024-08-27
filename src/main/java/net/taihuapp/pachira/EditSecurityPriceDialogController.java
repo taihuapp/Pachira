@@ -119,7 +119,7 @@ public class EditSecurityPriceDialogController {
             try {
                 mainModel.mergeSecurityPrices(List.of(new Pair<>(this.security.getID(), new Price(date, newPrice))));
                 event.getRowValue().setPrice(newPrice);
-                mainModel.updateAccountBalance(a -> a.hasSecurity(this.security));
+                mainModel.updateAccountBalance(a -> a.getType().isGroup(Account.Type.Group.INVESTING));
             } catch (ModelException e) {
                 final String msg = "Failed to merge price for '" + this.security.getTicker() + "'/("
                         + this.security.getID() + "), " + date + ", " + newPrice;
@@ -172,7 +172,7 @@ public class EditSecurityPriceDialogController {
         try {
             mainModel.deleteSecurityPrice(this.security.getID(), priceList.get(index).getDate());
             priceList.remove(index);
-            mainModel.updateAccountBalance(a -> a.hasSecurity(this.security));
+            mainModel.updateAccountBalance(a -> a.getType().isGroup(Account.Type.Group.INVESTING));
         } catch (ModelException e) {
             final Stage stage = (Stage) mPriceTableView.getScene().getWindow();
             final String msg = "Failed delete security price or update account balance";

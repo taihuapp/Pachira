@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -21,8 +21,6 @@
 package net.taihuapp.pachira;
 
 import javafx.beans.property.*;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -146,10 +144,8 @@ public class Account {
     private final StringProperty mName;
     private final StringProperty mDescription;
     private final ObjectProperty<BigDecimal> mCurrentBalance;
-    private ObservableList<Transaction> mTransactionList = null;
     private final BooleanProperty mHiddenFlag = new SimpleBooleanProperty(false);
     private final ObjectProperty<Integer> mDisplayOrder = new SimpleObjectProperty<>(Integer.MAX_VALUE);
-    private final ObservableList<Security> mCurrentSecurityList;
     private final ObjectProperty<LocalDate> mLastReconcileDateProperty = new SimpleObjectProperty<>(null);
 
     // detailed constructor
@@ -163,8 +159,6 @@ public class Account {
         mHiddenFlag.set(hidden);
         mDisplayOrder.set(displayOrder);
         mLastReconcileDateProperty.set(lrDate);
-        // sorted by Name
-        mCurrentSecurityList = FXCollections.observableArrayList();
     }
 
     public String toQIF(boolean useAlt) {
@@ -180,16 +174,6 @@ public class Account {
     public ObjectProperty<Type> getTypeProperty() { return mTypeProperty; }
     public Type getType() { return mTypeProperty.get(); }
     public void setType(Type type) { mTypeProperty.set(type); }
-
-    public ObservableList<Security> getCurrentSecurityList() { return mCurrentSecurityList; }
-    public boolean hasSecurity(Security security) {
-        for (Security s : getCurrentSecurityList()) {
-            // test same ID instead of test s == security
-            if (s.getID() == security.getID())
-                return true;
-        }
-        return false;
-    }
 
     public int getID() { return mID; }
     // AccountDao needs setID
@@ -210,10 +194,6 @@ public class Account {
     private StringProperty getDescriptionProperty() { return mDescription; }
     public String getDescription() { return getDescriptionProperty().get(); }
     void setDescription(String d) { mDescription.set(d); }
-
-    public void setTransactionList(ObservableList<Transaction> tList) { mTransactionList = tList; }
-
-    public ObservableList<Transaction> getTransactionList() { return mTransactionList; }
 
     public ObjectProperty<BigDecimal> getCurrentBalanceProperty() { return mCurrentBalance; }
     BigDecimal getCurrentBalance() { return getCurrentBalanceProperty().get(); }

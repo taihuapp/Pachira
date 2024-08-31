@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -60,14 +60,14 @@ public class OFXBankStatementReader {
         TimeZone TZ = TimeZone.getTimeZone("GMT");  // default GMT
         int parseLen = dtString.length();
         if (dtString.endsWith("]")) {
-            // we have time zone info in a braket
+            // we have time zone info in a bracket
             int braPos = dtString.indexOf('[');
             int endPos = dtString.indexOf(':');
             if (endPos < 0) // no :
                 endPos = dtString.length();
-            int tzOffset = Integer.parseInt(dtString.substring(braPos+1, endPos-1));
+            int tzOffset = Integer.parseInt(dtString.substring(braPos+1, endPos));
             TZ.setRawOffset(tzOffset*60*60*1000);
-            parseLen = braPos-1;
+            parseLen = braPos;
         }
 
         final String fullFormat = "yyyyMMddHHmmss.SSS"; // without time zone

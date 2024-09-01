@@ -1122,7 +1122,7 @@ public class MainModel {
     public ObjectProperty<Account> getCurrentAccountProperty() { return currentAccountProperty; }
     public void setCurrentAccount(Account account) throws ModelException {
         getCurrentAccountProperty().set(account);
-        getAccountTransactionList(account);
+        updateAccountBalance(a -> a.getID() == account.getID());
     }
     public Account getCurrentAccount() { return getCurrentAccountProperty().get(); }
 

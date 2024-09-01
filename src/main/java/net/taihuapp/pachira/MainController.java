@@ -1511,8 +1511,9 @@ public class MainController {
         mTransactionTableView.setItems(mainModel.getCurrentAccountTransactionList());
 
         int selectedIdx = mTransactionTableView.getSelectionModel().getSelectedIndex();
+        int numItems = mTransactionTableView.getItems().size();
         if (selectedIdx >= 0)
-            mTransactionTableView.scrollTo(selectedIdx);
+            mTransactionTableView.scrollTo(selectedIdx < numItems ? selectedIdx : numItems-1);
         else
             mTransactionTableView.scrollTo(mTransactionTableView.getItems().size()-1);
         mTransactionTableView.mTransactionStatusColumn.setVisible(true);

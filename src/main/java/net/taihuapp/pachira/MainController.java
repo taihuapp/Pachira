@@ -28,7 +28,6 @@ import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -153,7 +152,11 @@ public class MainController {
 
     private MainModel getMainModel() { return mainModel; }
 
+    private final ListChangeListener<Account> accountListChangeListener = c -> populateTreeTable();
+
     private void setMainModel(MainModel m) {
+        if (mainModel != null)  // if there is an existing mainModel, take off the change listener on account list.
+            mainModel.getAccountList(null, false, true).removeListener(accountListChangeListener);
         mainModel = m;
 
         mEditMenu.setVisible(m != null);
@@ -168,6 +171,9 @@ public class MainController {
         mSearchTextField.setVisible(m != null);
 
         if (m != null) {
+            // add a change listener to the account list
+            mainModel.getAccountList(null, false, true).addListener(accountListChangeListener);
+
             populateTreeTable();
             updateSavedReportsMenu();
             mImportOFXAccountStatementMenuItem.setDisable(true);
@@ -416,17 +422,6 @@ public class MainController {
 
     private Stage getStage() { return (Stage) mAccountTreeTableView.getScene().getWindow(); }
 
-    private boolean isNonTrivialPermutated(ListChangeListener.Change<?> c) {
-        if (!c.wasPermutated())
-            return false;  // not even a permutated change
-
-        for (int i = c.getFrom(); i < c.getTo(); i++)
-            if (c.getPermutation(i) != i)
-                return true;  // there is something nontrivial
-
-        return false;
-    }
-
     private void populateTreeTable() {
         final Account rootAccount = new Account(-1, null, "Total", "Placeholder for total asset",
                 false, -1, null, BigDecimal.ZERO);
@@ -434,7 +429,7 @@ public class MainController {
         root.setExpanded(true);
         mAccountTreeTableView.setRoot(root);
 
-        if (getMainModel() == null)
+        if (getMainModel() == null)  // nothing to show here
             return;
 
         ObservableList<Account> groupAccountList = FXCollections.observableArrayList(account ->
@@ -453,76 +448,13 @@ public class MainController {
             }
             if (!accountList.isEmpty())
                 root.getChildren().add(typeNode);
-            ListChangeListener<Account> accountListChangeListener = c -> {
-                while (c.next()) {
-                    if (c.wasAdded() || c.wasRemoved() || isNonTrivialPermutated(c)) {
-                        ReadOnlyObjectProperty<TreeItem<Account>> selectedItemProperty =
-                                mAccountTreeTableView.getSelectionModel().selectedItemProperty();
-                        // save the original selectedItem
-                        Account selectedAccount = null;
-                        if (selectedItemProperty.get() != null)
-                            selectedAccount = selectedItemProperty.get().getValue();
 
-                        // rebuild children of the typeNode
-                        typeNode.getChildren().clear();
-                        for (Account a : accountList) {
-                            typeNode.getChildren().add(new TreeItem<>(a));
-                        }
-
-                        if (typeNode.getChildren().isEmpty()) {
-                            // remove typeNode if it is empty
-                            root.getChildren().remove(typeNode);
-                        } else {
-                            // not empty, add to the right spot under root
-                            boolean added = false;
-                            for (int i = 0; i < root.getChildren().size(); i++) {
-                                Account.Type type = root.getChildren().get(i).getValue().getType();
-                                if (type == typeNode.getValue().getType()) {
-                                    // already added
-                                    added = true;
-                                    break;
-                                } else if (type.ordinal() > typeNode.getValue().getType().ordinal()) {
-                                    // typeNode is not in, add now
-                                    root.getChildren().add(i, typeNode);
-                                    added = true;
-                                    break;
-                                }
-                            }
-                            if (!added)
-                                root.getChildren().add(typeNode);
-                        }
-
-                        boolean hasNewSelection = false;
-                        if (selectedAccount != null) {
-                            // we had a selection, check further
-                            for (TreeItem<Account> groupNode : root.getChildren()) {
-                                if (groupNode.getValue().getType() == selectedAccount.getType()) {
-                                    // the original selection was in the type group
-                                    for (TreeItem<Account> accountNode : groupNode.getChildren()) {
-                                        if (accountNode.getValue().getID() == selectedAccount.getID()) {
-                                            mAccountTreeTableView.getSelectionModel().select(accountNode);
-                                            hasNewSelection = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        if (!hasNewSelection) {
-                            // clear Selection here to make sure changeListener is called with
-                            // null account.
-                            mAccountTreeTableView.getSelectionModel().clearSelection();
-                        }
-                    }
-                }
-            };
-
-            accountList.addListener(accountListChangeListener);
             groupAccount.getCurrentBalanceProperty().bind(Bindings.createObjectBinding(() ->
-                            accountList.stream().map(Account::getCurrentBalance)
-                                    .reduce(BigDecimal.ZERO, BigDecimal::add), accountList));
+                    accountList.stream().map(Account::getCurrentBalance)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add), accountList));
         }
         rootAccount.getCurrentBalanceProperty().bind(Bindings.createObjectBinding(() ->
-                groupAccountList.stream().map(Account::getCurrentBalance).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        groupAccountList.stream().map(Account::getCurrentBalance).reduce(BigDecimal.ZERO, BigDecimal::add),
                 groupAccountList));
     }
 

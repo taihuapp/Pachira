@@ -1721,15 +1721,16 @@ public class MainModel {
     }
 
     /**
-     * mark all cleared transaction for the given account as reconciled
+     * mark all cleared transaction for the current account as reconciled
      * and update account reconciled date
-     * @param account the account to be reconciled
      * @param d - the date
      */
-    void reconcileAccount(Account account, LocalDate d) throws ModelException, DaoException {
+    void reconcileCurrentAccount(LocalDate d) throws ModelException {
+        Account account = getCurrentAccount();
+
         // create a local list of relevant transactions
-        final List<Transaction> tList = getAccountTransactionList(account)
-                .filtered(t -> t.getStatus().equals(Transaction.Status.CLEARED));
+        final List<Transaction> tList = new ArrayList<>(getCurrentAccountTransactionList()
+                .filtered(t -> t.getStatus().equals(Transaction.Status.CLEARED)));
         LocalDate oldReconcileDate = account.getLastReconcileDate();
 
         tList.forEach(t -> t.setStatus(Transaction.Status.RECONCILED));
@@ -1758,7 +1759,8 @@ public class MainModel {
                 e.addSuppressed(e1);
             }
 
-            throw e;
+            throw new ModelException(ModelException.ErrorCode.RECONCILE_ACCOUNT_FAILURE,
+                    "Failed to reconcile account " + account, e);
         }
     }
 

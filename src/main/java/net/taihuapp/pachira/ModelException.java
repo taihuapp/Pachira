@@ -124,7 +124,11 @@ public class ModelException extends Exception {
         /**
          * Ill-formatted Transaction CSV file
          */
-        ILL_FORMATTED_TRANSACTION_CSV
+        ILL_FORMATTED_TRANSACTION_CSV,
+        /**
+         * Failure to reconcile account
+         */
+        RECONCILE_ACCOUNT_FAILURE
     }
 
     private final ErrorCode errorCode;

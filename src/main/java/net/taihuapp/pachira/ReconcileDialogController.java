@@ -89,8 +89,7 @@ public class ReconcileDialogController {
 
     private MainModel mainModel;
 
-    private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList(t
-            -> new Observable[] {t.getStatusProperty()});
+    private final ObservableList<Transaction> transactionList = FXCollections.observableArrayList();
     @FXML
     private VBox mVBox;
     @FXML
@@ -132,11 +131,7 @@ public class ReconcileDialogController {
         LocalDate d = mEndDatePicker.getValue();
         Account account = mainModel.getCurrentAccount();
         try {
-            mainModel.reconcileAccount(account, d);
-        } catch (DaoException e) {
-            final String msg = "DaoException " + e.getErrorCode() + " when reconcile account " + account.getName();
-            logger.error(msg, e);
-            DialogUtil.showExceptionDialog(stage, e.getClass().getName(), msg, e.toString(), e);
+            mainModel.reconcileCurrentAccount(d);
         } catch (ModelException e) {
             final String msg = "ModelException " + e.getErrorCode() + " when reconcile account " + account.getName();
             logger.error(msg);
@@ -193,7 +188,7 @@ public class ReconcileDialogController {
 
         // process transaction list and calculate balances
         // make sure we are observing STATUS property
-        transactionList.addAll(mainModel.getAccountTransactionList(account));
+        transactionList.addAll(mainModel.getCurrentAccountTransactionList());
 
         // keep original Status in case we want to undo
         for (Transaction t : transactionList) {

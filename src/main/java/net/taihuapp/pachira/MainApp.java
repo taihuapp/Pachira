@@ -29,8 +29,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
-import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -51,7 +49,6 @@ import java.math.BigDecimal;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
 import java.time.LocalDate;
@@ -59,7 +56,6 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 public class MainApp extends Application {
@@ -96,7 +92,6 @@ public class MainApp extends Application {
     static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     static final int MIN_CATEGORY_ID = 10;
 
-    private Preferences mPrefs;
     private Stage mPrimaryStage;
 
     private final ObjectProperty<Connection> mConnectionProperty = new SimpleObjectProperty<>(null);
@@ -128,42 +123,10 @@ public class MainApp extends Application {
 
     private final ScheduledExecutorService mExecutorService = Executors.newScheduledThreadPool(1);
 
-    // return accounts for given type t or all account if t is null
-    // return either hidden or Unhidden account based on hiddenflag, or all if hiddenflag is null
-    // include DELETED_ACCOUNT if exDeleted is false.
-    SortedList<Account> getAccountList(Account.Type.Group g, Boolean hidden, Boolean exDeleted) {
-        FilteredList<Account> fList = new FilteredList<>(mAccountList,
-                a -> (g == null || a.getType().isGroup(g)) && (hidden == null || a.getHiddenFlag() == hidden)
-                        && !(exDeleted && a.getName().equals(DELETED_ACCOUNT_NAME)));
-
-        // sort accounts by type first, then displayOrder, then ID
-        return new SortedList<>(fList, Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)
-                .thenComparing(Account::getID));
-    }
-
-    ObservableList<Security> getSecurityList() { return mSecurityList; }
-
-
-
     // Given a transaction t, find an index location in (sorted by ID) mTransactionList
     // for the matching ID.
     private int getTransactionIndex(Transaction t) {
         return Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
-    }
-
-    void showInformationDialog(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.initOwner(mPrimaryStage);
-        alert.initModality(Modality.WINDOW_MODAL);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-
-        // work around for non-resizable alert dialog truncates message
-        alert.setResizable(true);
-        alert.getDialogPane().setPrefSize(480, 320);
-
-        alert.showAndWait();
     }
 
     // return true if OK
@@ -219,8 +182,6 @@ public class MainApp extends Application {
         alert.setResizable(true);
         alert.showAndWait();
     }
-
-    Stage getStage() { return mPrimaryStage; }
 
     // return true if a savepoint is set here.
     // false if a savepoint was previously set elsewhere
@@ -463,35 +424,6 @@ public class MainApp extends Application {
     void deleteFIDataFromDB(int fiDataID) throws SQLException {
         try (Statement statement = getConnection().createStatement()) {
             statement.executeUpdate("delete from FIDATA where ID = " + fiDataID);
-        }
-    }
-
-    private void initVault() {
-
-        if (getConnection() == null)
-            return;
-
-        hasMasterPasswordProperty().set(false);
-        try {
-            mVault.setupKeyStore();
-        } catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException
-                | InvalidKeySpecException e) {
-            mLogger.error("Vault.setupKeyStore throws exception " + e.getClass().getName(), e);
-            showExceptionDialog(mPrimaryStage,"Exception", e.getClass().getName(),
-                    "In Vault.setupKeyStore", e);
-            return; // can't continue, return here.
-        }
-
-        try {
-            String ehmp = initDCInfoList();
-            if (ehmp != null) {
-                mVault.setHashedMasterPassword(ehmp);
-                hasMasterPasswordProperty().set(true);
-            }
-        } catch (SQLException e) {
-            mLogger.error("SQLException on select DCINFO table " + e.getSQLState(), e);
-            showExceptionDialog(mPrimaryStage,"Database Error", "Select DCInfo Error",
-                    SQLExceptionToString(e), e);
         }
     }
 
@@ -934,9 +866,6 @@ public class MainApp extends Application {
     }
 
     @Override
-    public void init() { mPrefs = Preferences.userNodeForPackage(MainApp.class); }
-
-    @Override
     public void start(final Stage stage) {
         mPrimaryStage = stage;
         mPrimaryStage.setTitle(MainApp.class.getPackage().getImplementationTitle());
@@ -956,7 +885,7 @@ public class MainApp extends Application {
         if (version.endsWith("SNAPSHOT"))
             KEY_OPENEDDBPREFIX = "SNAPSHOT-" + KEY_OPENEDDBPREFIX;
 
-        mLogger.info(title + " " + version);
+        mLogger.info("{} {}", title, version);
 
         launch(args);
     }

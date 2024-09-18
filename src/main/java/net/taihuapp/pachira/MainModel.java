@@ -87,8 +87,8 @@ public class MainModel {
 
     private final DaoManager daoManager = DaoManager.getInstance();
     private final ObservableList<Account> accountList = FXCollections.observableArrayList(
-            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(), a.getTypeProperty(),
-                    a.getCurrentBalanceProperty() });
+            a -> new Observable[] { a.getHiddenFlagProperty(), a.getDisplayOrderProperty(), a.getTypeProperty() });
+
     private final ObjectProperty<Account> currentAccountProperty = new SimpleObjectProperty<>(null);
 
     // we want to expose transaction Status so when it changes it will trig sort.

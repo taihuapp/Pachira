@@ -538,7 +538,8 @@ public class MainModel {
         if (encodedHashedMasterPassword != null) {
             vault.setHashedMasterPassword(encodedHashedMasterPassword);
             hasMasterPasswordProperty.set(true);
-        }
+        } else
+            hasMasterPasswordProperty.set(false);
     }
 
     private Vault getVault() { return vault; }

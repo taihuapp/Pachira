@@ -32,6 +32,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -151,12 +152,14 @@ public class MainController {
     private TextField mSearchTextField;
 
     private MainModel getMainModel() { return mainModel; }
-
+    private SortedList<Account> accountList;
     private final ListChangeListener<Account> accountListChangeListener = c -> populateTreeTable();
 
+
     private void setMainModel(MainModel m) {
-        if (mainModel != null)  // if there is an existing mainModel, take off the change listener on account list.
-            mainModel.getAccountList(null, false, true).removeListener(accountListChangeListener);
+        if (mainModel != null) { // if there is an existing mainModel, take off the change listener on account list.
+            accountList.removeListener(accountListChangeListener);
+        }
         mainModel = m;
 
         mEditMenu.setVisible(m != null);
@@ -172,7 +175,8 @@ public class MainController {
 
         if (m != null) {
             // add a change listener to the account list
-            mainModel.getAccountList(null, false, true).addListener(accountListChangeListener);
+            accountList = mainModel.getAccountList(null, false, true);
+            accountList.addListener(accountListChangeListener);
 
             populateTreeTable();
             updateSavedReportsMenu();

@@ -28,6 +28,7 @@ import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -155,6 +156,8 @@ public class MainController {
     private SortedList<Account> accountList;
     private final ListChangeListener<Account> accountListChangeListener = c -> populateTreeTable();
 
+    private final Map<Account.Type.Group, ObservableList<ObjectProperty<BigDecimal>>> accountBalanceListMap
+            = new HashMap<>();
 
     private void setMainModel(MainModel m) {
         if (mainModel != null) { // if there is an existing mainModel, take off the change listener on account list.
@@ -453,15 +456,23 @@ public class MainController {
             TreeItem<Account> typeNode = new TreeItem<>(groupAccount);
             typeNode.setExpanded(true);
             final ObservableList<Account> accountList = getMainModel().getAccountList(g, false, true);
+            if (accountBalanceListMap.isEmpty()) {
+                // make sure the map in initialized
+                for (Account.Type.Group group : Account.Type.Group.values())
+                    accountBalanceListMap.put(group, FXCollections.observableArrayList(b -> new Observable[] {b}));
+            }
+            ObservableList<ObjectProperty<BigDecimal>> accountBalanceList = accountBalanceListMap.get(g);
+            accountBalanceList.clear();
             for (Account a : accountList) {
                 typeNode.getChildren().add(new TreeItem<>(a));
+                accountBalanceList.add(a.getCurrentBalanceProperty());
             }
             if (!accountList.isEmpty())
                 root.getChildren().add(typeNode);
 
             groupAccount.getCurrentBalanceProperty().bind(Bindings.createObjectBinding(() ->
-                    accountList.stream().map(Account::getCurrentBalance)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add), accountList));
+                    accountBalanceList.stream().map(ObjectProperty<BigDecimal>::get)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add), accountBalanceList));
         }
         rootAccount.getCurrentBalanceProperty().bind(Bindings.createObjectBinding(() ->
                         groupAccountList.stream().map(Account::getCurrentBalance).reduce(BigDecimal.ZERO, BigDecimal::add),

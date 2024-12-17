@@ -128,7 +128,7 @@ public class MainTest {
             mainModel.alterTransaction(z0, z0Copy, new ArrayList<>());
 
             // we should see 3 entries for the security holding list on 1/6/2022
-            assert(mainModel.computeSecurityHoldings(account.getTransactionList(),
+            assert(mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account),
                     LocalDate.of(2022, 1, 6), -1).size() == 3);
 
             // On 1/5/2022, buy 20 A, $3.45 commission, total 2003.45
@@ -184,11 +184,11 @@ public class MainTest {
 
             // we should have the following transactions
             // d0, z0, t0, t1, t2, s0, zSplit
-            assert(account.getTransactionList().size() == 7);
+            assert(mainModel.getAccountTransactionList(account).size() == 7);
 
             // compute holdings for 1/8/2022
             final List<SecurityHolding> securityHoldingList0 =
-                    mainModel.computeSecurityHoldings(account.getTransactionList(),
+                    mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account),
                             LocalDate.of(2022, 1, 8), -1);
             assert(securityHoldingList0.size() == 4); // 4 security holdings, A, Z, Cash, Total
             final Optional<SecurityHolding> securityHoldingAOptional = securityHoldingList0.stream()
@@ -203,7 +203,7 @@ public class MainTest {
             // we should not see Cash entry
             LocalDate localDate20220109 = LocalDate.of(2022, 1, 9);
             final List<SecurityHolding> securityHoldingList1 =
-                    mainModel.computeSecurityHoldings(account.getTransactionList(),
+                    mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account),
                             localDate20220109, s0.getID());
             assert(securityHoldingList1.size() == 4);  // A, Z, cash, total
             assert(securityHoldingList1.stream().anyMatch(sh -> sh.getSecurityName().equals(SecurityHolding.TOTAL)));
@@ -217,7 +217,7 @@ public class MainTest {
 
             // compute holdings for 1/9/2022, including s0
             final List<SecurityHolding> securityHoldingList2 =
-                    mainModel.computeSecurityHoldings(account.getTransactionList(), s0.getTDate(), -1);
+                    mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account), s0.getTDate(), -1);
             assert(securityHoldingList2.size() == 3); // A, Z, total
             assert(securityHoldingList2.stream().anyMatch(sh -> sh.getSecurityName().equals(SecurityHolding.TOTAL)));
             assert(securityHoldingList2.stream().noneMatch(sh -> sh.getSecurityName().equals(SecurityHolding.CASH)));
@@ -233,7 +233,7 @@ public class MainTest {
             assert(shZOptional2.get().getQuantity().compareTo(quantity)== 0);
 
             final List<SecurityHolding> securityHoldingList3 =
-                    mainModel.computeSecurityHoldings(account.getTransactionList(),
+                    mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account),
                             LocalDate.of(2022, 1, 31), -1);
             final Optional<SecurityHolding> shZOptional3 = securityHoldingList3.stream()
                     .filter(sh -> sh.getSecurityName().equals(securityZ.getName())).findAny();

@@ -25,6 +25,7 @@ import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -203,7 +204,7 @@ public class EditTransactionDialogControllerNew {
     private Stage getStage() { return (Stage) mTradeActionChoiceBox.getScene().getWindow(); }
 
     // clean data contained on invisible controls
-    private void cleanInvisibleControlData() {
+    private void cleanInvisibleControlData() throws ModelException {
         if (!mADatePicker.isVisible())
             mTransaction.setADate(null);
 
@@ -242,8 +243,7 @@ public class EditTransactionDialogControllerNew {
             boolean isOK = true;
             BigDecimal totalQuantity = BigDecimal.ZERO;
             for (MatchInfo mi : mMatchInfoList) {
-                Transaction transaction = mainModel.getTransaction(t -> t.getID() == mi.getMatchTransactionID())
-                        .orElse(null);
+                Transaction transaction = mainModel.getTransactionByID(mi.getMatchTransactionID()).orElse(null);
                 // it's not OK if
                 // 1) transaction is null, 2) transaction trade date is after mTransaction trade date
                 // 3) transaction trade date is the same as mTransaction trade date
@@ -413,8 +413,17 @@ public class EditTransactionDialogControllerNew {
         final TreeSet<Integer> allSecurityIDSet = new TreeSet<>(Comparator.comparing(securityIDConverter::toString));
         allSecurityIDSet.addAll(mainModel.getSecurityList().stream().map(Security::getID).collect(Collectors.toSet()));
         final TreeSet<Integer> accountSecurityIDSet = new TreeSet<>(Comparator.comparing(securityIDConverter::toString));
-        accountSecurityIDSet.addAll(defaultAccount.getCurrentSecurityList().stream()
-                .map(Security::getID).collect(Collectors.toSet()));
+        try {
+            SortedList<Transaction> defaultAccountTransactions = mainModel.getAccountTransactionList(defaultAccount);
+            List<SecurityHolding> shList = mainModel.computeSecurityHoldings(defaultAccountTransactions,
+                    LocalDate.now(), -1);
+            accountSecurityIDSet.addAll(mainModel.fromSecurityHoldingList(shList).stream()
+                    .map(Security::getID).collect(Collectors.toSet()));
+        } catch (ModelException e) {
+            final String msg = "ModelException " + e.getErrorCode();
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+        }
 
         allSecurityIDSet.removeAll(accountSecurityIDSet); // exclude account securities
 
@@ -442,7 +451,14 @@ public class EditTransactionDialogControllerNew {
         mOldSecurityNameLabel.visibleProperty().bind(mOldSecurityComboBox.visibleProperty());
 
         // payee, same visibility as reference
-        TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
+        try {
+            TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
+        } catch (ModelException e) {
+            final String msg = "ModelException " + e.getErrorCode();
+            mLogger.error(msg, e);
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+        }
+
         mPayeeTextField.visibleProperty().bind(mReferenceTextField.visibleProperty());
         mPayeeLabel.visibleProperty().bind(mPayeeTextField.visibleProperty());
         mPayeeTextField.textProperty().bindBidirectional(mTransaction.getPayeeProperty());
@@ -498,9 +514,10 @@ public class EditTransactionDialogControllerNew {
         mOldSharesLabel.visibleProperty().bind(mOldSharesTextField.visibleProperty());
 
 
-        // price is always calculated
+        // price is calculated if there is a quantity and it is not SHRSOUT
         mPriceTextField.visibleProperty().bind(Bindings.createBooleanBinding(()
-                -> Transaction.hasQuantity(mTradeActionChoiceBox.getValue()), mTradeActionChoiceBox.valueProperty()));
+                -> (Transaction.hasQuantity(mTradeActionChoiceBox.getValue())
+                && (mTradeActionChoiceBox.getValue() != SHRSOUT)), mTradeActionChoiceBox.valueProperty()));
         mPriceTextField.textProperty().bind(Bindings.createStringBinding(() ->
                         ConverterUtil.getPriceQuantityFormatInstance().format(mTransaction.getPrice()),
                 mTransaction.getPriceProperty()));
@@ -705,9 +722,10 @@ public class EditTransactionDialogControllerNew {
         final String memo = mTransaction.getMemo().isEmpty() ? "Share class conversion" : mTransaction.getMemo();
         List<SecurityHolding> shList;
         try {
-            shList = mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, mTransaction.getID());
+            SortedList<Transaction> transactions = mainModel.getAccountTransactionList(account);
+            shList = mainModel.computeSecurityHoldings(transactions, tDate, mTransaction.getID());
         } catch (ModelException e) {
-            mLogger.error("Failed to computer Security holdings for Account " + account.getName(), e);
+            mLogger.error("Failed to computer Security holdings for Account {}", account.getName(), e);
             return false;
         }
         for (SecurityHolding sh : shList) {
@@ -742,7 +760,7 @@ public class EditTransactionDialogControllerNew {
 
             // insert to DB first
             for (Transaction t : transactionList) {
-                mainModel.insertTransaction(t, MainModel.InsertMode.DB_ONLY);
+                mainModel.insertTransaction(t);
             }
 
             // delete original transaction from DB and Master list
@@ -754,10 +772,6 @@ public class EditTransactionDialogControllerNew {
             }
 
             daoManager.commit();
-
-            for (Transaction t : transactionList) {
-                mainModel.insertTransaction(t, MainModel.InsertMode.MEM_ONLY);
-            }
 
             // we are done
             return true;
@@ -787,15 +801,15 @@ public class EditTransactionDialogControllerNew {
         // accountID is not automatically updated, update now
         mTransaction.setAccountID(mAccountComboBox.getSelectionModel().getSelectedItem().getID());
 
-        // clean data attached to invisible controls
-        cleanInvisibleControlData();
-
-        // validate transaction now
-        if (!validateTransaction())
-            return false;
-
         // most work is done by alterTransaction method
         try {
+            // clean data attached to invisible controls
+            cleanInvisibleControlData();
+
+            // validate transaction now
+            if (!validateTransaction())
+                return false;
+
             mainModel.alterTransaction(mTransactionOrig, mTransaction, mMatchInfoList);
             return true;
         } catch (DaoException | ModelException e) {
@@ -830,7 +844,7 @@ public class EditTransactionDialogControllerNew {
             }
             if (mainModel.getAccount(a -> a.getID() == -categoryID).isEmpty()
                     && mTransaction.getSplitTransactionList().isEmpty()) {
-                mLogger.warn("Invalid transfer account, ID = " + (-categoryID));
+                mLogger.warn("Invalid transfer account, ID = {}", -categoryID);
                 showWarningDialog("Invalid transfer account, ID = " + (-categoryID),
                         "Please select a valid transfer account");
                 return false;
@@ -851,7 +865,7 @@ public class EditTransactionDialogControllerNew {
                 }
             }
             if (netAmount.compareTo(BigDecimal.ZERO) != 0) {
-                mLogger.warn("Net Difference = " + netAmount + ", mismatch");
+                mLogger.warn("Net Difference = {}, mismatch", netAmount);
                 showWarningDialog("Split transaction amount not matching total amount.",
                         "Please check split transaction and total amount");
                 return false;
@@ -869,8 +883,9 @@ public class EditTransactionDialogControllerNew {
             }
 
             try {
+                SortedList<Transaction> transactions = mainModel.getAccountTransactionList(account);
                 final List<SecurityHolding> securityHoldingList =
-                        mainModel.computeSecurityHoldings(account.getTransactionList(),
+                        mainModel.computeSecurityHoldings(transactions,
                                 mTransaction.getTDate(), mTransaction.getID());
 
                 boolean hasEnough = false;
@@ -900,7 +915,7 @@ public class EditTransactionDialogControllerNew {
                     return false;
                 }
             } catch (ModelException e) {
-                mLogger.error("ModelException " + e.getErrorCode(), e);
+                mLogger.error("ModelException {}", e.getErrorCode(), e);
                 DialogUtil.showExceptionDialog(getStage(), "Exception", "DaoException " + e.getErrorCode(),
                         e.toString(), e);
                 return false;
@@ -957,7 +972,7 @@ public class EditTransactionDialogControllerNew {
             DialogUtil.showExceptionDialog(stage, "IOException",
                     "IOException encountered on showSpecifyLotsDialog", e.getMessage(), e);
         } catch (ModelException e) {
-            mLogger.error("DaoException " + e.getErrorCode() + " on showSpecifyLotsDialog", e);
+            mLogger.error("DaoException {} on showSpecifyLotsDialog", e.getErrorCode(), e);
             DialogUtil.showExceptionDialog(stage, "DaoException",
                     e.getErrorCode() + " on showSpecifyLotsDialog", e.toString(), e);
         }

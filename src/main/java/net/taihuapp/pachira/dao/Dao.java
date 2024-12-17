@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2021.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -34,7 +34,7 @@ import java.util.Optional;
  * @param <T>
  * @param <K>
  */
-abstract class Dao<T, K> {
+public abstract class Dao<T, K> {
 
     /**
      * the jdbc database connection

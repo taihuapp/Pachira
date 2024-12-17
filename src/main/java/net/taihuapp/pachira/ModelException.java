@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -24,7 +24,7 @@ package net.taihuapp.pachira;
  * Model related exception class
  */
 public class ModelException extends Exception {
-    enum ErrorCode {
+    public enum ErrorCode {
         /**
          * failure in setting up key store
          */
@@ -34,9 +34,21 @@ public class ModelException extends Exception {
          */
         INVALID_TRANSACTION,
         /**
+         * fail to get transaction
+         */
+        FAIL_TO_GET_TRANSACTION,
+        /**
+         * fail to get payee set
+         */
+        FAIL_TO_GET_PAYEE_SET,
+        /**
          * fail to insert transaction
          */
         FAIL_TO_UPDATE_TRANSACTION,
+        /**
+         * fail to retrieve account transaction
+         */
+        FAIL_TO_GET_ACCOUNT_TRANSACTION,
         /**
          *
          */
@@ -112,7 +124,11 @@ public class ModelException extends Exception {
         /**
          * Ill-formatted Transaction CSV file
          */
-        ILL_FORMATTED_TRANSACTION_CSV
+        ILL_FORMATTED_TRANSACTION_CSV,
+        /**
+         * Failure to reconcile account
+         */
+        RECONCILE_ACCOUNT_FAILURE
     }
 
     private final ErrorCode errorCode;

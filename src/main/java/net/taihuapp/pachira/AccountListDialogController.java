@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -114,6 +114,8 @@ public class AccountListDialogController {
         account.setHiddenFlag(!account.getHiddenFlag());
         try {
             mainModel.insertUpdateAccount(account);
+            mAccountTableView.getSelectionModel().select(null); // make sure selectedItem property is updated
+            mAccountTableView.getSelectionModel().select(account);
         } catch (ModelException e) {
             // first put back
             account.setHiddenFlag(!account.getHiddenFlag());

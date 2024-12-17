@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -103,8 +103,12 @@ public class ReminderModel {
         if (reminderTransaction.getTransactionID() < 0) {
             return reminderIdMap.get(reminderTransaction.getReminderId()).getAmountProperty();
         } else {
-            return mainModel.getTransactionByID(reminderTransaction.getTransactionID())
-                    .map(Transaction::getAmountProperty).orElse(null);
+            try {
+                return mainModel.getTransactionByID(reminderTransaction.getTransactionID())
+                        .map(Transaction::getAmountProperty).orElse(null);
+            } catch (ModelException e) {
+                return null;  // didn't get the transaction with right id, return null.
+            }
         }
     }
 

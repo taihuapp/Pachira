@@ -20,10 +20,6 @@
 
 package net.taihuapp.pachira;
 
-import com.webcohesion.ofx4j.client.FinancialInstitution;
-import com.webcohesion.ofx4j.client.impl.BaseFinancialInstitutionData;
-import com.webcohesion.ofx4j.client.impl.FinancialInstitutionImpl;
-import com.webcohesion.ofx4j.client.net.OFXV1Connection;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.Observable;
@@ -33,8 +29,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
-import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -52,12 +46,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.sql.*;
 import java.time.LocalDate;
@@ -65,7 +56,6 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 public class MainApp extends Application {
@@ -102,7 +92,6 @@ public class MainApp extends Application {
     static final String DELETED_ACCOUNT_NAME = "Deleted Account";
     static final int MIN_CATEGORY_ID = 10;
 
-    private Preferences mPrefs;
     private Stage mPrimaryStage;
 
     private final ObjectProperty<Connection> mConnectionProperty = new SimpleObjectProperty<>(null);
@@ -134,42 +123,10 @@ public class MainApp extends Application {
 
     private final ScheduledExecutorService mExecutorService = Executors.newScheduledThreadPool(1);
 
-    // return accounts for given type t or all account if t is null
-    // return either hidden or Unhidden account based on hiddenflag, or all if hiddenflag is null
-    // include DELETED_ACCOUNT if exDeleted is false.
-    SortedList<Account> getAccountList(Account.Type.Group g, Boolean hidden, Boolean exDeleted) {
-        FilteredList<Account> fList = new FilteredList<>(mAccountList,
-                a -> (g == null || a.getType().isGroup(g)) && (hidden == null || a.getHiddenFlag() == hidden)
-                        && !(exDeleted && a.getName().equals(DELETED_ACCOUNT_NAME)));
-
-        // sort accounts by type first, then displayOrder, then ID
-        return new SortedList<>(fList, Comparator.comparing(Account::getType).thenComparing(Account::getDisplayOrder)
-                .thenComparing(Account::getID));
-    }
-
-    ObservableList<Security> getSecurityList() { return mSecurityList; }
-
-
-
     // Given a transaction t, find an index location in (sorted by ID) mTransactionList
     // for the matching ID.
     private int getTransactionIndex(Transaction t) {
         return Collections.binarySearch(mTransactionList, t, Comparator.comparing(Transaction::getID));
-    }
-
-    void showInformationDialog(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.initOwner(mPrimaryStage);
-        alert.initModality(Modality.WINDOW_MODAL);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-
-        // work around for non-resizable alert dialog truncates message
-        alert.setResizable(true);
-        alert.getDialogPane().setPrefSize(480, 320);
-
-        alert.showAndWait();
     }
 
     // return true if OK
@@ -225,8 +182,6 @@ public class MainApp extends Application {
         alert.setResizable(true);
         alert.showAndWait();
     }
-
-    Stage getStage() { return mPrimaryStage; }
 
     // return true if a savepoint is set here.
     // false if a savepoint was previously set elsewhere
@@ -469,35 +424,6 @@ public class MainApp extends Application {
     void deleteFIDataFromDB(int fiDataID) throws SQLException {
         try (Statement statement = getConnection().createStatement()) {
             statement.executeUpdate("delete from FIDATA where ID = " + fiDataID);
-        }
-    }
-
-    private void initVault() {
-
-        if (getConnection() == null)
-            return;
-
-        hasMasterPasswordProperty().set(false);
-        try {
-            mVault.setupKeyStore();
-        } catch (NoSuchAlgorithmException | KeyStoreException | IOException | CertificateException
-                | InvalidKeySpecException e) {
-            mLogger.error("Vault.setupKeyStore throws exception " + e.getClass().getName(), e);
-            showExceptionDialog(mPrimaryStage,"Exception", e.getClass().getName(),
-                    "In Vault.setupKeyStore", e);
-            return; // can't continue, return here.
-        }
-
-        try {
-            String ehmp = initDCInfoList();
-            if (ehmp != null) {
-                mVault.setHashedMasterPassword(ehmp);
-                hasMasterPasswordProperty().set(true);
-            }
-        } catch (SQLException e) {
-            mLogger.error("SQLException on select DCINFO table " + e.getSQLState(), e);
-            showExceptionDialog(mPrimaryStage,"Database Error", "Select DCInfo Error",
-                    SQLExceptionToString(e), e);
         }
     }
 
@@ -886,196 +812,6 @@ public class MainApp extends Application {
         }
     }
 
-    // In Database Only:
-    //   change cleared Transaction status to reconciled for the given account
-    //   and mark the account reconciled date as d.
-    // Caller is responsible to update objects in memory
-    //
-    // return true for success, false for error.
-    // if false is returned, the database is not changed.
-    boolean reconcileAccountToDB(Account a, LocalDate d) {
-        List<Transaction> tList = new ArrayList<>(a.getTransactionList()
-                .filtered(t -> t.getStatus().equals(Transaction.Status.CLEARED)));
-        boolean savepointSetHere = false;
-        try (Statement statement = getConnection().createStatement()) {
-            savepointSetHere = setDBSavepoint();
-            //
-            for (Transaction t : tList) {
-                statement.addBatch("update TRANSACTIONS set STATUS = '"
-                    + Transaction.Status.RECONCILED.name() + "' where ID = " + t.getID());
-            }
-
-            statement.addBatch("update ACCOUNTS set LASTRECONCILEDATE = '" + d.toString()
-                    + "' where ID = "+ a.getID());
-            statement.executeBatch();
-            if (savepointSetHere)
-                commitDB();
-            return true;
-        } catch (SQLException e) {
-            if (savepointSetHere) {
-                try {
-                    rollbackDB();
-                    mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog(mPrimaryStage, "Database Error", "Reconcile account failed",
-                            SQLExceptionToString(e), e);
-                } catch (SQLException e1) {
-                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                    showExceptionDialog(mPrimaryStage, "Database Error", "Unable to rollback",
-                            SQLExceptionToString(e1), e1);
-                }
-            }
-        } finally {
-            if (savepointSetHere) {
-                try {
-                    releaseDBSavepoint();
-                } catch (SQLException e) {
-                    mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog(mPrimaryStage, "Database Error", "releaseDBSavepint failed",
-                            SQLExceptionToString(e), e);
-                }
-            }
-        }
-        return false;
-    }
-
-    // update Status column in Transaction Table for the given tid.
-    // return true for success and false for failure.
-    boolean setTransactionStatusInDB(int tid, Transaction.Status s) {
-        boolean savepointSetHere = false;
-        try (Statement statement = getConnection().createStatement()) {
-            savepointSetHere = setDBSavepoint();
-            statement.executeUpdate("update TRANSACTIONS set STATUS = '" + s.name() + "' where ID = " + tid);
-            if (savepointSetHere)
-                commitDB();
-            return true;
-        } catch (SQLException e) {
-            if (savepointSetHere) {
-                try {
-                    rollbackDB();
-                    mLogger.error("SQLException: " + e.getSQLState(), e);
-                    showExceptionDialog(mPrimaryStage, "Database Error", "Unable update transaction status",
-                            SQLExceptionToString(e), e);
-                } catch (SQLException e1) {
-                    mLogger.error("SQLException: " + e1.getSQLState(), e1);
-                    showExceptionDialog(mPrimaryStage, "Database Error", "Unable to rollback",
-                            SQLExceptionToString(e1), e1);
-                }
-            }
-        } finally {
-            if (savepointSetHere) {
-                try {
-                    releaseDBSavepoint();
-                } catch (SQLException e) {
-                    mLogger.error("SQLException" + e.getSQLState(), e);
-                    showExceptionDialog(mPrimaryStage, "Database Error", "releaseDBSavepint failed",
-                            SQLExceptionToString(e), e);
-                }
-            }
-        }
-        return false;
-    }
-
-    // create SETTINGS table and populate DBVERSION
-    private void createSettingsTable(int dbVersion) {
-        try (ResultSet resultSet = getConnection().getMetaData().getTables(null, null,
-                "SETTINGS", new String[]{"TABLE"});
-             Statement statement = getConnection().createStatement()) {
-            if (!resultSet.next()) {
-                // Settings table is not created yet, create it now
-                sqlCreateTable("create table SETTINGS (" +
-                        "NAME varchar(32) UNIQUE NOT NULL," +
-                        "VALUE varchar(255) NOT NULL," +
-                        "primary key (NAME))");
-                statement.executeUpdate("merge into SETTINGS (NAME, VALUE) values (" +
-                        "'" + DBVERSIONNAME + "', " + dbVersion + ")");
-            }
-        } catch (SQLException e) {
-            mLogger.error("SQLException: " + e.getSQLState(), e);
-            showExceptionDialog(mPrimaryStage,"Exception", "Database Exception",
-                    "Failed to create SETTINGS table", e);
-        }
-    }
-
-    private int getDBVersion() {
-        String sqlCmd = "select VALUE from SETTINGS where NAME = '" + DBVERSIONNAME + "'";
-        int dbVersion = 0;
-        try (Statement statement = getConnection().createStatement();
-             ResultSet resultSet = statement.executeQuery(sqlCmd)) {
-            ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
-            int columnType = resultSetMetaData.getColumnType(1);
-            if (resultSet.next()) {
-                if (columnType == Types.INTEGER)
-                    dbVersion = resultSet.getInt(1);
-                else
-                    dbVersion = Integer.parseInt(resultSet.getString(1));
-            }
-        } catch (SQLException e) {
-            mLogger.error("SQLException: " + e.getSQLState(), e);
-        }
-        return dbVersion;
-    }
-
-    // todo
-    // These few methods should belong to Direct Connection, but I need to put a FIData object instead of
-    // a FIID in DirectConnection
-    // Later.
-    private FinancialInstitution DCGetFinancialInstitution(DirectConnection directConnection)
-            throws MalformedURLException {
-        OFXV1Connection connection = new OFXV1Connection();
-        DirectConnection.FIData fiData = getFIDataByID(directConnection.getFIID());
-        BaseFinancialInstitutionData bfid = new BaseFinancialInstitutionData();
-        bfid.setFinancialInstitutionId(fiData.getFIID());
-        bfid.setOFXURL(new URL(fiData.getURL()));
-        bfid.setName(fiData.getName());
-        bfid.setOrganization(fiData.getORG());
-        FinancialInstitution fi = new FinancialInstitutionImpl(bfid, connection);
-        fi.setLanguage(Locale.US.getISO3Language().toUpperCase());
-        return fi;
-    }
-
-    private void alterAccountDCSTable() {
-        try (Statement statement = getConnection().createStatement()) {
-            statement.executeUpdate("alter table ACCOUNTDCS add (LASTDOWNLOADLEDGEBAL decimal(20, 4))");
-        } catch (SQLException e) {
-            mLogger.error("SQLException", e);
-        }
-    }
-
-    private void createDirectConnectTables() {
-        String sqlCmd;
-        sqlCmd = "create table ACCOUNTDCS ("
-                + "ACCOUNTID integer UNIQUE NOT NULL, "
-                + "ACCOUNTTYPE varchar(16) NOT NULL, "
-                + "DCID integer NOT NULL, "
-                + "ROUTINGNUMBER varchar(9) NOT NULL, "
-                + "ACCOUNTNUMBER varchar(256) NOT NULL, "  // encrypted account number
-                + "LASTDOWNLOADDATE Date NOT NULL, "
-                + "LASTDOWNLOADTIME Time Not NULL, "
-                + "primary key (ACCOUNTID))";
-        sqlCreateTable(sqlCmd);
-
-        sqlCmd = "create table DCINFO ("
-                + "ID integer NOT NULL AUTO_INCREMENT (10), "
-                + "NAME varchar(128) UNIQUE NOT NULL, "
-                + "FIID integer NOT NULL, "
-                + "USERNAME varchar(256), "   // encrypted username
-                + "PASSWORD varchar(256), "   // encrypted password
-                + "primary key (ID))";
-        sqlCreateTable(sqlCmd);
-
-        sqlCmd = "create table FIDATA ("
-                + "ID integer NOT NULL AUTO_INCREMENT (10), "
-                + "FIID varchar(32) NOT NULL, "  // not null, can be empty
-                + "SUBID varchar(32) NOT NULL, " // not null, can be empty
-                + "NAME varchar(128) UNIQUE NOT NULL, " // not null, can be empty
-                + "ORG varchar(128) NOT NULL, "
-                + "BROKERID varchar(32) NOT NULL, "
-                + "URL varchar(2084) UNIQUE NOT NULL, "
-                + "primary key (ID), "
-                + "CONSTRAINT FIID_SUBID UNIQUE(FIID, SUBID))";
-        sqlCreateTable(sqlCmd);
-    }
-
     static String SQLExceptionToString(SQLException e) {
         StringBuilder s = new StringBuilder();
         while (e != null) {
@@ -1130,9 +866,6 @@ public class MainApp extends Application {
     }
 
     @Override
-    public void init() { mPrefs = Preferences.userNodeForPackage(MainApp.class); }
-
-    @Override
     public void start(final Stage stage) {
         mPrimaryStage = stage;
         mPrimaryStage.setTitle(MainApp.class.getPackage().getImplementationTitle());
@@ -1152,7 +885,7 @@ public class MainApp extends Application {
         if (version.endsWith("SNAPSHOT"))
             KEY_OPENEDDBPREFIX = "SNAPSHOT-" + KEY_OPENEDDBPREFIX;
 
-        mLogger.info(title + " " + version);
+        mLogger.info("{} {}", title, version);
 
         launch(args);
     }

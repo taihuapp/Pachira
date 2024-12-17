@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -113,7 +113,7 @@ public class Transaction {
         if (!categoryOrTransferAccountName.isEmpty() && !isBanking)
             stringBuilder.append("$").append(getAmount()).append(EOL);
 
-        if (getSplitTransactionList().size() > 0) {
+        if (!getSplitTransactionList().isEmpty()) {
             if (account.getType().isGroup(Account.Type.Group.INVESTING)) {
                 mLogger.error("Split transactions in INVESTING account are not supported");
             } else {
@@ -366,7 +366,7 @@ public class Transaction {
                 case STKSPLIT:
                     return getQuantity();
                 default:
-                    mLogger.error("getSignedQuantity not implemented for " + getTradeAction());
+                    mLogger.error("getSignedQuantity not implemented for {}", getTradeAction());
                     return getQuantity();
             }
         }, mTradeActionProperty, mQuantityProperty));
@@ -414,14 +414,15 @@ public class Transaction {
                 case WITHDRAW:
                     return BigDecimal.ZERO;
                 default:
-                    mLogger.error("TradingAction " + getTradeAction() + " not implement yet");
+                    mLogger.error("Investment Amount for TradingAction {} not implement yet", getTradeAction());
                     return BigDecimal.ZERO;
             }
         }, getTradeActionProperty(), getAmountProperty(), getCategoryIDProperty()));
 
         // calculate prices
         mPriceProperty.bind(Bindings.createObjectBinding(() -> {
-            if (!hasQuantity(getTradeAction()))
+            // don't compute price for SHRSOUT, or any trade action without quantity.
+            if (!hasQuantity(getTradeAction()) || getTradeAction() == TradeAction.SHRSOUT)
                 return BigDecimal.ZERO;
 
             final BigDecimal amount = getAmount();
@@ -517,7 +518,7 @@ public class Transaction {
             case STKSPLIT:
                 return null;
             default:
-                mLogger.error("Transaction::TransferTradeAction: " + getTradeAction() + " not implemented yet.");
+                mLogger.error("Transaction::TransferTradeAction: {} not implemented yet.", getTradeAction());
                 return null;
         }
     }
@@ -588,7 +589,7 @@ public class Transaction {
             case SHRSOUT:
                 return BigDecimal.ZERO;
             default:
-                mLogger.error("TradingAction " + getTradeAction() + " not implement yet");
+                mLogger.error("cash flow for TradingAction {} not implement yet", getTradeAction());
                 return BigDecimal.ZERO;
         }
     }

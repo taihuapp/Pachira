@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -159,7 +159,7 @@ public class ExportQIFDialogController {
         mClearAllButton.visibleProperty().bind(mTransactionCheckBox.selectedProperty());
     }
 
-    void setMainModel(MainModel mainModel) {
+    void setMainModel(MainModel mainModel) throws ModelException {
 
         this.mainModel = mainModel;
 
@@ -171,7 +171,7 @@ public class ExportQIFDialogController {
         LocalDate fromDate = LocalDate.MAX;
         LocalDate toDate = LocalDate.MIN;
         for (Account account : accountList) {
-            final List<Transaction> transactionList = account.getTransactionList();
+            final List<Transaction> transactionList = mainModel.getAccountTransactionList(account);
             final int s = transactionList.size();
             if (s == 0)
                 continue;

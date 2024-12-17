@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -173,10 +173,10 @@ public class SpecifyLotsDialogController {
 
         Account account = mainModel.getAccount(a -> a.getID() == t.getAccountID()).orElse(null);
         if (account == null) {
-            mLogger.error("Invalid account ID " + t.getAccountID());
+            mLogger.error("Invalid account ID {}", t.getAccountID());
             return;
         }
-        List<SecurityHolding> shList = mainModel.computeSecurityHoldings(account.getTransactionList(),
+        List<SecurityHolding> shList = mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account),
                 t.getTDate(), t.getID());
         mSpecifyLotInfoList.clear(); // make sure nothing in the list
         for (SecurityHolding s : shList) {

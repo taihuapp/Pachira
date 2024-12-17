@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -39,7 +39,7 @@ class SearchResultDialog {
     Transaction getSelectedTransaction() { return mSelectedTransaction; }
 
     // constructor
-    SearchResultDialog(String searchString, MainModel mainModel, Stage stage) {
+    SearchResultDialog(String searchString, MainModel mainModel, Stage stage) throws ModelException {
         mDialogStage = stage;
 
         TransactionTableView searchTransactionTableView = new TransactionTableView(mainModel,

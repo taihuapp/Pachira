@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -25,15 +25,9 @@ import net.taihuapp.pachira.SplitTransaction;
 import net.taihuapp.pachira.Transaction;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class TransactionDao extends Dao<Transaction, Integer> {
@@ -129,16 +123,35 @@ public class TransactionDao extends Dao<Transaction, Integer> {
             preparedStatement.setInt(21, transaction.getID());
     }
 
-    @Override
-    public List<Transaction> getAll() throws DaoException {
-        // refresh tidSplitTransactionListMap
+    private void refreshTidSplitTransactionListMap() throws DaoException {
         tidSplitTransactionListMap.clear();
         List<Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>>> list =
                 splitTransactionListDao.getAll(SplitTransaction.Type.TXN);
         for (Pair<Pair<SplitTransaction.Type, Integer>, List<SplitTransaction>> pair : list) {
             tidSplitTransactionListMap.put(pair.getKey().getValue(), pair.getValue());
         }
+    }
 
+    public List<Transaction> getAccountTransactionList(int accountID) throws DaoException {
+        // refresh tidSplitTransactionListMap
+        refreshTidSplitTransactionListMap();
+
+        final String sqlCmd = "select * from " + getTableName() + " where ACCOUNTID = " + accountID;
+        try (Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            final List<Transaction> tList = new ArrayList<>();
+            while (resultSet.next()) {
+                tList.add(fromResultSet(resultSet));
+            }
+            return tList;
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "", e);
+        }
+    }
+
+    @Override
+    public List<Transaction> getAll() throws DaoException {
+        refreshTidSplitTransactionListMap();
         return super.getAll();
     }
 
@@ -199,6 +212,20 @@ public class TransactionDao extends Dao<Transaction, Integer> {
             }
 
             throw e;
+        }
+    }
+
+    public SortedSet<String> getPayeeSet(LocalDate cutoffDate) throws DaoException {
+        final String sqlCmd = "select distinct(PAYEE) from " + getTableName() + " where DATE > '" + cutoffDate + "'";
+        try (Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(sqlCmd)) {
+            final SortedSet<String> payeeSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            while (resultSet.next()) {
+                payeeSet.add(resultSet.getString(1));
+            }
+            return payeeSet;
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "Fail to get PayeeSet", e);
         }
     }
 }

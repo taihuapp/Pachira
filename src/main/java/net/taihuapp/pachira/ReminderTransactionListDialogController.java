@@ -99,7 +99,7 @@ public class ReminderTransactionListDialogController {
             showEditReminderDialog(reminderCopy);
         } else {
             // we shouldn't be here.  But if for some reason we are here, display an error message
-            logger.warn("Cannot get reminder with id = " + rt.getReminderId());
+            logger.warn("Cannot get reminder with id = {}", rt.getReminderId());
             DialogUtil.showWarningDialog(getStage(), "Edit Reminder", "Failed to retrieve reminder",
                     "Cannot edit reminder");
         }
@@ -111,7 +111,7 @@ public class ReminderTransactionListDialogController {
         try {
             reminderModel.deleteReminder(rId);
         } catch (DaoException e) {
-            logger.error("Delete Reminder failed: " + e.getErrorCode(), e);
+            logger.error("Delete Reminder failed: {}", e.getErrorCode(), e);
             DialogUtil.showExceptionDialog(getStage(),"Database Error",
                     "delete Reminder failed", e.getErrorCode() + "", e);
         }
@@ -352,10 +352,16 @@ public class ReminderTransactionListDialogController {
                     final ReminderTransaction rt = cellData.getValue();
                     final MainModel mainModel = reminderModel.getMainModel();
                     final Reminder reminder = reminderModel.getReminder(rt.getReminderId());
-                    final int accountID = mainModel.getTransaction(t -> t.getID() == rt.getTransactionID())
-                            .map(Transaction::getAccountID).orElse(reminder.getAccountID());
-                    return mainModel.getAccount(a -> a.getID() == accountID).map(Account::getNameProperty)
-                            .orElse(new ReadOnlyStringWrapper(""));
+                    final int accountID;
+                    try {
+                        accountID = mainModel.getTransactionByID(rt.getTransactionID())
+                                .map(Transaction::getAccountID).orElse(reminder.getAccountID());
+                        return mainModel.getAccount(a -> a.getID() == accountID).map(Account::getNameProperty)
+                                .orElse(new ReadOnlyStringWrapper(""));
+                    } catch (ModelException e) {
+                        logger.error("Exception on retrieve reminder transaction {}", rt.getTransactionID(), e);
+                        return new ReadOnlyStringWrapper("");
+                    }
         });
         BooleanBinding visibility = Bindings.createBooleanBinding(() -> {
                     ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();

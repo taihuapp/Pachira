@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -699,7 +699,7 @@ public class ReportDialogController {
         Optional<String> result = tiDialog.showAndWait();
         if (result.isPresent()) {
             String settingName = result.get();
-            if (settingName.length() == 0 || settingName.length() > MainModel.SAVEDREPORTS_NAME_LEN) {
+            if (settingName.isEmpty() || settingName.length() > MainModel.SAVEDREPORTS_NAME_LEN) {
                 DialogUtil.showWarningDialog(getStage(), "Warning", "Bad Report Setting Name",
                         "Name length should be between 1 and " + MainModel.SAVEDREPORTS_NAME_LEN);
             } else {
@@ -761,7 +761,7 @@ public class ReportDialogController {
 
             Map<String, Income> securityIncomeMap = new TreeMap<>();
             accountSecurityIncomeList.add(securityIncomeMap);
-            for (Transaction t : account.getTransactionList()) {
+            for (Transaction t : mainModel.getAccountTransactionList(account)) {
                 LocalDate tDate = t.getTDate();
                 if (tDate.isBefore(mSetting.getStartDate()))
                     continue;
@@ -782,7 +782,8 @@ public class ReportDialogController {
                     case CVTSHRT:
                         fieldUsed.realized = BigDecimal.ONE;
                         final SecurityHolding securityHolding =
-                                mainModel.computeSecurityHoldings(account.getTransactionList(), tDate, t.getID())
+                                mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account),
+                                                tDate, t.getID())
                                         .stream().filter(sh -> sh.getSecurityName().equals(sName)).findAny()
                                         .orElseThrow(() ->
                                                 new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
@@ -1008,7 +1009,7 @@ public class ReportDialogController {
         return reportStr.toString();
     }
 
-    private String InvestTransReport() {
+    private String InvestTransReport() throws ModelException {
         StringBuilder reportStr = new StringBuilder("Investment Transaction Report from "
                 + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
         if (mSetting.getSelectedTradeActionSet().isEmpty()) {
@@ -1053,7 +1054,7 @@ public class ReportDialogController {
         BigDecimal totalCashAmt = BigDecimal.ZERO;
         BigDecimal totalInvAmt = BigDecimal.ZERO;
         for (Account account : mSetting.getSelectedAccountList(mainModel)) {
-            for (Transaction t : account.getTransactionList()) {
+            for (Transaction t : mainModel.getAccountTransactionList(account)) {
                 LocalDate tDate = t.getTDate();
                 if (tDate.isBefore(mSetting.getStartDate()))
                     continue;
@@ -1196,7 +1197,8 @@ public class ReportDialogController {
             final Account account = mainModel.getAccount(a -> a.getID() == accountID).orElse(null);
             if (account == null)
                 continue;
-            for (Transaction t : new FilteredList<>(account.getTransactionList(), p -> {
+            ObservableList<Transaction> accountTransactions = mainModel.getAccountTransactionList(account);
+            for (Transaction t : new FilteredList<>(accountTransactions, p -> {
                 final String sName = mainModel.getSecurity(p.getSecurityID())
                                 .map(Security::getName).orElse(NO_SECURITY);
                 return ((p.getTradeAction() == Transaction.TradeAction.SELL ||
@@ -1206,7 +1208,7 @@ public class ReportDialogController {
             })) {
                 final String sName = mainModel.getSecurity(t.getSecurityID())
                         .map(Security::getName).orElse("");
-                final SecurityHolding securityHolding = mainModel.computeSecurityHoldings(account.getTransactionList(),
+                final SecurityHolding securityHolding = mainModel.computeSecurityHoldings(accountTransactions,
                         t.getTDate(), t.getID()).stream().filter(sh -> sh.getSecurityName().equals(sName))
                         .findAny().orElseThrow(() -> new ModelException(ModelException.ErrorCode.INVALID_TRANSACTION,
                                 account.getName() + " " + t.getTradeAction() + " " + t.getQuantity() + " on "
@@ -1434,7 +1436,7 @@ public class ReportDialogController {
         return reportSB.toString();
     }
 
-    private String BankTransReport() {
+    private String BankTransReport() throws ModelException {
         StringBuilder reportStr = new StringBuilder("Banking Transaction Report from "
                 + mSetting.getStartDate() + " to " + mSetting.getEndDate() + "\n");
 
@@ -1482,7 +1484,7 @@ public class ReportDialogController {
                 null : Pattern.compile(mSetting.getMemoRegEx() ?
                 mSetting.getMemoContains() : "(?i)" + Pattern.quote(mSetting.getMemoContains()));
         for (Account account : mSetting.getSelectedAccountList(mainModel)) {
-            for (Transaction t : account.getTransactionList()) {
+            for (Transaction t : mainModel.getAccountTransactionList(account)) {
                 LocalDate tDate = t.getTDate();
                 if (tDate.isAfter(mSetting.getEndDate()))
                     break; // we are done with this account
@@ -1601,9 +1603,10 @@ public class ReportDialogController {
         final Map<Integer, List<SecurityHolding>> accountSecurityHoldingMap = new HashMap<>();
         final DecimalFormat decimalFormat = ConverterUtil.getDollarCentFormatInstance();
         for (Account account : mSetting.getSelectedAccountList(mainModel)) {
-            final List<SecurityHolding> shList =  mainModel.computeSecurityHoldings(account.getTransactionList(),
-                    date, -1).stream().filter(sh -> securityNameSet.contains(sh.getSecurityName()))
-                    .collect(Collectors.toList());
+            final List<SecurityHolding> shList =
+                    mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account), date, -1)
+                            .stream().filter(sh -> securityNameSet.contains(sh.getSecurityName()))
+                            .collect(Collectors.toList());
             for (SecurityHolding sh : shList) {
                 final int len = sh.getSecurityName().length();
                 if (len > nameLen)
@@ -1695,8 +1698,8 @@ public class ReportDialogController {
         final DecimalFormat qpFormat = new DecimalFormat("#,##0.000"); // formatter for quantity and price
 
         for (Account account : mSetting.getSelectedAccountList(mainModel)) {
-            List<SecurityHolding> shList = mainModel.computeSecurityHoldings(account.getTransactionList(),
-                    date, -1);
+            List<SecurityHolding> shList =
+                    mainModel.computeSecurityHoldings(mainModel.getAccountTransactionList(account), date, -1);
             int shListLen = shList.size();
 
             // aggregate total

@@ -188,6 +188,22 @@ public class MainModel {
         }
     }
 
+    int getDefaultCategory(String payee) {
+        LocalDate threeYearsAgo = LocalDate.now().minusYears(3);
+        // first filter transactions in recent 3 years with the same payee
+        // then grouping by category id into a map
+        Map<Integer, Long> categoryFreq = currentAccountTransactionList.stream()
+                .filter(t -> t.getTDate().isAfter(threeYearsAgo) && payee.equals(t.getPayee()))
+                .collect(Collectors.groupingBy(Transaction::getCategoryID, Collectors.counting()));
+
+        // get the map entry with the highest count
+        Optional<Map.Entry<Integer, Long>> optEntry = categoryFreq.entrySet().stream()
+                .max((a, b) -> (int) (a.getValue() - b.getValue()));
+
+        // return
+        return optEntry.map(Map.Entry::getKey).orElse(0);
+    }
+
     /**
      * get a list of saved reports sorted in display order
      * @return list

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -453,6 +453,14 @@ public class EditTransactionDialogControllerNew {
         // payee, same visibility as reference
         try {
             TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
+            // add a listener to autofill category.
+            mPayeeTextField.focusedProperty().addListener((obs, o, n) -> {
+                if (!n) {
+                    // out of focus, autofill category
+                    Integer categoryID = mainModel.getDefaultCategory(mPayeeTextField.getText());
+                    mCategoryComboBox.getSelectionModel().select(categoryID);
+                }
+            });
         } catch (ModelException e) {
             final String msg = "ModelException " + e.getErrorCode();
             mLogger.error(msg, e);

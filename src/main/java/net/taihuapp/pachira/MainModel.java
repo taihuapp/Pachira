@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -168,6 +168,24 @@ public class MainModel {
             setting.setID(reportSettingDao.insert(setting));
         else
             reportSettingDao.update(setting);
+    }
+
+    void putDefaultPath(String pathID, String path) throws ModelException {
+        try {
+            daoManager.putDefaultPath(pathID, path);
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_PUT_PATH,
+                    "Failed to put default path " + pathID + " " + path, e);
+        }
+    }
+
+    String getDefaultPath(String pathID) throws ModelException {
+        try {
+            return daoManager.getDefaultPath(pathID);
+        } catch (DaoException e) {
+            throw new ModelException(ModelException.ErrorCode.FAIL_TO_GET_PATH,
+                    "Failed to get default path " + pathID, e);
+        }
     }
 
     /**

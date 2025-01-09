@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -891,17 +891,26 @@ public class MainController {
 
     @FXML
     private void handleImportPrices() {
-        // get the csv file name from the user
-        final FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
-                Arrays.asList("*.csv", "*.CSV")));
-        fileChooser.setTitle("Import Prices in CSV file...");
-        final Stage stage = getStage();
-        final File file = fileChooser.showOpenDialog(stage);
-        if (file == null)
-            return;  // user cancelled it
-
+        final String PATH_ID = "PRC";
+        File file = null;
         try {
+            // get the csv file name from the user
+            final FileChooser fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
+                    Arrays.asList("*.csv", "*.CSV")));
+            fileChooser.setTitle("Import Prices in CSV file...");
+
+            String defaultPath = mainModel.getDefaultPath(PATH_ID);
+            file = new File(defaultPath);
+            File dir = file.getParentFile();
+            if (dir != null && dir.exists())
+                fileChooser.setInitialDirectory(dir);
+
+            final Stage stage = getStage();
+            file = fileChooser.showOpenDialog(stage);
+            if (file == null)
+                return;  // user cancelled it
+
             Pair<List<Pair<Integer, Price>>, List<String[]>> outputPair = getMainModel().importPrices(file);
             List<Pair<Integer, Price>> priceList = outputPair.getKey();
             List<String[]> rejectLines = outputPair.getValue();
@@ -912,6 +921,8 @@ public class MainController {
             }
             DialogUtil.showInformationDialog(stage, "Import Prices", priceList.size() + " prices imported",
                     message.toString());
+
+            mainModel.putDefaultPath(PATH_ID, file.getAbsolutePath());
         } catch (IOException | CsvException e) {
             logAndDisplayException("Failed to open file " + file.getAbsolutePath() + " for read", e);
         } catch (ModelException e) {
@@ -1889,16 +1900,25 @@ public class MainController {
 
     @FXML
     private void handleImportTransactions() {
-        final FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
-                Arrays.asList("*.csv", "*.CSV")));
-        fileChooser.setTitle("Import Transactions from CSV file...");
-        final Stage stage = getStage();
-        final File file = fileChooser.showOpenDialog(stage);
-        if (file == null)
-            return; // user cancelled it
-
+        final String PATH_ID = "TXN";
+        File file = null;
         try {
+            final FileChooser fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("csv files",
+                    Arrays.asList("*.csv", "*.CSV")));
+            fileChooser.setTitle("Import Transactions from CSV file...");
+
+            String defaultPath = mainModel.getDefaultPath(PATH_ID);
+            file = new File(defaultPath);
+            File dir = file.getParentFile();
+            if (dir != null && dir.exists())
+                fileChooser.setInitialDirectory(dir);
+
+            final Stage stage = getStage();
+            file = fileChooser.showOpenDialog(stage);
+            if (file == null)
+                return; // user cancelled it
+
             Pair<List<String[]>, List<String[]>> importOutput = getMainModel().importTransactionsCSV(file);
             String title = "Import Transaction";
             List<String[]> importedLines = importOutput.getKey();
@@ -1926,10 +1946,12 @@ public class MainController {
                     "Imported " + importedLines.size() + " lines, " +
                             "Skipped " + skippedLines.size() + " lines.",
                     sb.toString());
-        } catch (IOException | CsvException | ModelException e) {
-            final String msg = file.getName() + " " + e.getMessage();
-            mLogger.error(msg, e);
-            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, e.toString(), e);
+
+            mainModel.putDefaultPath(PATH_ID, file.getAbsolutePath());
+        } catch (IOException | CsvException e) {
+            logAndDisplayException("Failed to open file " + file.getAbsolutePath() + " for read", e);
+        } catch (ModelException e) {
+            logAndDisplayException("Database exception " + e.getErrorCode(), e);
         }
     }
 }

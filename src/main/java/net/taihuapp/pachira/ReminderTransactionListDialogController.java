@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -146,7 +146,8 @@ public class ReminderTransactionListDialogController {
     @FXML
     private void handleSkip() {
         final ReminderTransaction rt = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
-        if (reminderModel.getReminder(rt.getReminderId()).getType() == Reminder.Type.LOAN_PAYMENT) {
+        Reminder reminder = reminderModel.getReminder(rt.getReminderId());
+        if (reminder.getType() == Reminder.Type.LOAN_PAYMENT) {
             if (!DialogUtil.showConfirmationDialog(getStage(), "Skip a loan payment",
                     "Are you sure to skip a loan payment?",
                     "Skipping a loan payment may lose track of loan payment sequences.  "
@@ -154,6 +155,21 @@ public class ReminderTransactionListDialogController {
                 return;
         }
 
+        StringBuilder sb = new StringBuilder("Do you want to skip ");
+        switch (reminder.getType()) {
+            case PAYMENT:
+                sb.append("payment to ");
+                break;
+            case DEPOSIT:
+                sb.append("deposit from ");
+            case LOAN_PAYMENT:
+                break;
+        }
+        sb.append(reminder.getPayee()).append(" on ").append(rt.getDueDate()).append("?");
+
+        if (!DialogUtil.showConfirmationDialog(getStage(), "Confirmation",
+                "Confirmation for skip scheduled transaction", sb.toString()))
+            return;
         final int oldTid = rt.getTransactionID();
         rt.setTransactionID(0);
         try {

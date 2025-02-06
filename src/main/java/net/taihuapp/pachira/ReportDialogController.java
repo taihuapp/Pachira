@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -617,19 +617,40 @@ public class ReportDialogController {
 
     @FXML
     private void handleSaveReport() {
-        final FileChooser fileChooser = new FileChooser();
-        final FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text file",
-                "*.TXT", "*.TXt", "*.TxT", "*.Txt", "*.tXT", "*.tXt", "*.txT", "*.txt");
-        fileChooser.getExtensionFilters().add(txtFilter);
-        fileChooser.setInitialFileName(mSetting.getName()+".txt");
-        File reportFile = fileChooser.showSaveDialog(mTabPane.getScene().getWindow());
+        try {
+            final FileChooser fileChooser = new FileChooser();
+            final FileChooser.ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("Text file",
+                    "*.TXT", "*.TXt", "*.TxT", "*.Txt", "*.tXT", "*.tXt", "*.txT", "*.txt");
+            fileChooser.getExtensionFilters().add(txtFilter);
+            fileChooser.setInitialFileName(mSetting.getName()+".txt");
 
-        if (reportFile != null) {
-            try (PrintWriter pw = new PrintWriter(reportFile.getCanonicalPath())) {
-                pw.print(mReportTextArea.getText());
-            } catch (IOException e) {
-                mLogger.error("IOException", e);
+            final String PATH_ID = "RPT";
+            String defaultPath = mainModel.getDefaultPath(PATH_ID);
+            File dir = (new File(defaultPath)).getParentFile();
+            if (dir != null && dir.exists())
+                fileChooser.setInitialDirectory(dir);
+            File reportFile = fileChooser.showSaveDialog(mTabPane.getScene().getWindow());
+            if (reportFile != null) {
+                try (PrintWriter pw = new PrintWriter(reportFile.getCanonicalPath())) {
+                    pw.print(mReportTextArea.getText());
+                    mainModel.putDefaultPath(PATH_ID, reportFile.getAbsolutePath());
+                } catch (IOException e) {
+                    mLogger.error("IOException", e);
+                    DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), "IOException",
+                            e.getMessage(), e);
+                }
             }
+        } catch (ModelException e) {
+            String msg = "Database error " + e.getErrorCode();
+            mLogger.error(msg, e);
+            StringBuilder sb = new StringBuilder();
+            Throwable cause = e;
+            while (cause != null) {
+                sb.append(cause.getClass().getName()).append(" ").append(cause.getMessage())
+                        .append(System.lineSeparator());
+                cause = cause.getCause();
+            }
+            DialogUtil.showExceptionDialog(getStage(), e.getClass().getName(), msg, sb.toString(), e);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -128,7 +128,12 @@ public class ModelException extends Exception {
         /**
          * Failure to reconcile account
          */
-        RECONCILE_ACCOUNT_FAILURE
+        RECONCILE_ACCOUNT_FAILURE,
+        /**
+         * Failure to get/put default path
+         */
+        FAIL_TO_GET_PATH,
+        FAIL_TO_PUT_PATH
     }
 
     private final ErrorCode errorCode;

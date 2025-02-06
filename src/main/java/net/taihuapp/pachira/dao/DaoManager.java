@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -54,6 +54,8 @@ public class DaoManager {
     private static final String CIPHER_CLAUSE="CIPHER=AES;";
     private static final String IF_EXIST_CLAUSE="IFEXISTS=TRUE;";
 
+    private static final int SETTINGS_NAME_LEN = 32;
+    private static final int SETTINGS_VALUE_LEN = 255;
     private static final String CLIENT_UID_NAME = "ClientUID";
 
     private static final int ACCOUNT_NAME_LEN = 40;
@@ -363,6 +365,10 @@ public class DaoManager {
         executeUpdateQuery("merge into SETTINGS (SETTING_NAME, SETTING_VALUE) values ('" + name + "', '" + value + "')");
     }
 
+    private void deleteSetting(String name) throws SQLException {
+        executeUpdateQuery("delete from SETTINGS where setting_name like '" + name + "'");
+    }
+
     /**
      * put DB_VERSION_NAME, DB_VERSION_VALUE into settings using old column names
      *
@@ -433,6 +439,42 @@ public class DaoManager {
             putSetting(CLIENT_UID_NAME, uuid.toString());
         } catch (SQLException e) {
             throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "Failed to put Client UID", e);
+        }
+    }
+
+    public void putDefaultPath(String pathID, String path) throws DaoException {
+        // begin working on db
+        try {
+            beginTransaction();
+            deleteSetting(pathID + "%");  // delete the old ones if any
+            int i = 0;
+            while (i*SETTINGS_VALUE_LEN < path.length()) {
+                String sub = path.substring(i*SETTINGS_VALUE_LEN, Math.min((i+1)*SETTINGS_VALUE_LEN, path.length()));
+                putSetting(pathID + i, sub);
+                i++;
+            }
+            commit();
+        } catch (SQLException e) {
+            try {
+                rollback();
+            } catch (DaoException e1) {
+                e.addSuppressed(e1);
+            }
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_INSERT, "Failed to put path " + pathID);
+        }
+    }
+
+    public String getDefaultPath(String pathID) throws DaoException {
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("select * from SETTINGS where SETTING_NAME like '"
+                     + pathID + "%' order by length(SETTING_NAME), SETTING_NAME")) {
+            StringBuilder sb = new StringBuilder();
+            while (resultSet.next()) {
+                sb.append(resultSet.getString("SETTING_VALUE"));  // first column is 1
+            }
+            return sb.toString();
+        } catch (SQLException e) {
+            throw new DaoException(DaoException.ErrorCode.FAIL_TO_GET, "Failed to get default path " + pathID, e);
         }
     }
 
@@ -905,8 +947,8 @@ public class DaoManager {
     // create settings table and populate database version
     private void createSettingsTable() throws SQLException {
         executeUpdateQuery("create table SETTINGS (" +
-                "SETTING_NAME varchar(32) UNIQUE NOT NULL," +
-                "SETTING_VALUE varchar(255) NOT NULL," +
+                "SETTING_NAME varchar(" + SETTINGS_NAME_LEN + ") UNIQUE NOT NULL," +
+                "SETTING_VALUE varchar(" + SETTINGS_VALUE_LEN + ") NOT NULL," +
                 "primary key (SETTING_NAME))");
     }
 

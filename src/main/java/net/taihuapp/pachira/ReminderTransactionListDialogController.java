@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2026.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -107,9 +107,34 @@ public class ReminderTransactionListDialogController {
 
     @FXML
     private void handleDelete() {
+        ReminderTransaction selectedRT = mReminderTransactionTableView.getSelectionModel().getSelectedItem();
         final int rId = mReminderTransactionTableView.getSelectionModel().getSelectedItem().getReminderId();
         try {
-            reminderModel.deleteReminder(rId);
+            String account = mAccountTableColumn.getCellObservableValue(selectedRT).getValue();
+            String payee = mPayeeTableColumn.getCellObservableValue(selectedRT).getValue();
+            Reminder.Type type = mTypeTableColumn.getCellObservableValue(selectedRT).getValue();
+            String freq = mFrequencyTableColumn.getCellObservableValue(selectedRT).getValue();
+            StringBuilder sb = new StringBuilder("Do you want to delete following Reminder:")
+                    .append(System.lineSeparator());
+            switch (type) {
+                case PAYMENT:
+                    sb.append("payment to ").append(payee).append(System.lineSeparator())
+                            .append("from ").append(account).append(System.lineSeparator())
+                            .append(freq).append(System.lineSeparator());
+                    break;
+                case DEPOSIT:
+                    sb.append("deposit from ").append(payee).append(System.lineSeparator())
+                            .append("into ").append(account).append(System.lineSeparator())
+                            .append(freq).append(System.lineSeparator());
+                    break;
+                case LOAN_PAYMENT:
+                    sb.append("Loan payment to ").append(payee).append(System.lineSeparator())
+                            .append("from ").append(account);
+                    break;
+            }
+            if (DialogUtil.showConfirmationDialog(getStage(), "Confirmation",
+                    "Confirmation for delete Reminder", sb.toString()))
+                reminderModel.deleteReminder(rId);
         } catch (DaoException e) {
             logger.error("Delete Reminder failed: {}", e.getErrorCode(), e);
             DialogUtil.showExceptionDialog(getStage(),"Database Error",
@@ -155,7 +180,7 @@ public class ReminderTransactionListDialogController {
                 return;
         }
 
-        StringBuilder sb = new StringBuilder("Do you want to skip ");
+        StringBuilder sb = new StringBuilder("Do you want to skip ").append(System.lineSeparator());
         switch (reminder.getType()) {
             case PAYMENT:
                 sb.append("payment to ");

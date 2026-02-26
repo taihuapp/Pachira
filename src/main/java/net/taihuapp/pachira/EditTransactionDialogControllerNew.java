@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2025.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2026.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -22,6 +22,7 @@ package net.taihuapp.pachira;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -116,14 +117,18 @@ public class EditTransactionDialogControllerNew {
 
     @FXML
     private ChoiceBox<Transaction.TradeAction> mTradeActionChoiceBox;
+    private ChangeListener<Transaction.TradeAction> TradeActionChangeListener;
     @FXML
     private DatePicker mTDatePicker;
+    private ChangeListener<Boolean> TDatePickerFocusChangeListener;
     @FXML
     private Label mADatePickerLabel;
     @FXML
     private DatePicker mADatePicker;
+    private ChangeListener<Boolean> ADatePickerFocusChangeListener;
     @FXML
     private ComboBox<Account> mAccountComboBox;
+    private ChangeListener<Account> AccountChangeListener;
     @FXML
     private Label mCategoryLabel;
     @FXML
@@ -157,18 +162,22 @@ public class EditTransactionDialogControllerNew {
     private Label mPayeeLabel;
     @FXML
     private TextField mPayeeTextField;
+    private ChangeListener<Boolean> PayeeTextFocusChangeListener;
     @FXML
     private Label mIncomeLabel;
     @FXML
     private TextField mIncomeTextField;
+    private TextFormatter<BigDecimal> IncomeTextFormatter;
     @FXML
     private Label mSharesLabel;
     @FXML
     private TextField mSharesTextField;
+    private TextFormatter<BigDecimal> SharesTextFormatter;
     @FXML
     private Label mOldSharesLabel;
     @FXML
     private TextField mOldSharesTextField;
+    private TextFormatter<BigDecimal> OldSharesTextFormatter;
     @FXML
     private Label mPriceLabel;
     @FXML
@@ -177,14 +186,17 @@ public class EditTransactionDialogControllerNew {
     private Label mCommissionLabel;
     @FXML
     private TextField mCommissionTextField;
+    private TextFormatter<BigDecimal> CommissionTextFormatter;
     @FXML
     private Label mAccruedInterestLabel;
     @FXML
     private TextField mAccruedInterestTextField;
+    private TextFormatter<BigDecimal> AccruedInterestTextFormatter;
     @FXML
     private Label mTotalLabel;
     @FXML
     private TextField mTotalTextField;
+    private TextFormatter<BigDecimal> TotalTextFormatter;
     @FXML
     private Button mEnterNewButton;
     @FXML
@@ -311,15 +323,25 @@ public class EditTransactionDialogControllerNew {
         // trade action always visible
         mTradeActionChoiceBox.getItems().setAll(taList);
         mTradeActionChoiceBox.valueProperty().bindBidirectional(mTransaction.getTradeActionProperty());
-        mTradeActionChoiceBox.valueProperty().addListener((obs, ov, nv) -> {
+        TradeActionChangeListener = (obs, ov, nv) -> {
             final Account account = mAccountComboBox.getValue();
             if (nv == null || account == null || mCategoryComboBoxWrapper == null)
                 return;
 
             mCategoryComboBoxWrapper.setFilter(nv != DEPOSIT && nv != WITHDRAW, account.getID());
-        });
+        };
+        mTradeActionChoiceBox.valueProperty().addListener(TradeActionChangeListener);
 
         // trade date always visible
+        TDatePickerFocusChangeListener = (obj, wasFocused, isFocused) -> {
+            if (isFocused)
+                mTDatePicker.show();
+            else
+                mTDatePicker.hide();
+        };
+        mTDatePicker.focusedProperty().addListener(TDatePickerFocusChangeListener);
+        System.out.println("TDatePickerFocusChangeListener added");
+
         DatePickerUtil.captureEditedDate(mTDatePicker);
         mTDatePicker.valueProperty().bindBidirectional(mTransaction.getTDateProperty());
 
@@ -329,6 +351,15 @@ public class EditTransactionDialogControllerNew {
         mADatePickerLabel.visibleProperty().bind(mADatePicker.visibleProperty());
         mADatePicker.valueProperty().bindBidirectional(mTransaction.getADateProperty());
 
+        ADatePickerFocusChangeListener = (obj, wasFocused, isFocused) -> {
+            if (isFocused)
+                mADatePicker.show();
+            else
+                mADatePicker.hide();
+        };
+        mADatePicker.focusedProperty().addListener(ADatePickerFocusChangeListener);
+        System.out.println("ADatePickerFocusChangeListener added");
+
         // account always visible
         mAccountComboBox.setConverter(new ConverterUtil.AccountConverter(mainModel));
         mAccountComboBox.getItems().setAll(accountList);
@@ -336,13 +367,14 @@ public class EditTransactionDialogControllerNew {
             // setup autocompletion if more than one account
             autoCompleteComboBox(mAccountComboBox);
         }
-        mAccountComboBox.valueProperty().addListener((obs, ov, nv) -> {
+        AccountChangeListener = (obs, ov, nv) -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             if (nv == null || ta == null || mCategoryComboBoxWrapper == null)
-                return;
-
+                return;  // do nothing
             mCategoryComboBoxWrapper.setFilter(ta != DEPOSIT && ta != WITHDRAW, nv.getID());
-        });
+        };
+        mAccountComboBox.valueProperty().addListener(AccountChangeListener);
+
         // mAccountComboBox is NOT bind to transaction accountId property because
         // transaction doesn't have account
         mAccountComboBox.getSelectionModel().select(defaultAccount);
@@ -376,10 +408,12 @@ public class EditTransactionDialogControllerNew {
             }
         }, mTradeActionChoiceBox.valueProperty()));
         mCategoryComboBox.valueProperty().bindBidirectional(mTransaction.getCategoryIDProperty());
-        splitLabel.setVisible(!mTransaction.getSplitTransactionList().isEmpty());
 
         // memo always visible
         mMemoTextField.textProperty().bindBidirectional(mTransaction.getMemoProperty());
+
+        // split transaction label
+        splitLabel.setVisible(!mTransaction.getSplitTransactionList().isEmpty());
 
         // split transaction button, visible for X*, Deposit and Withdraw
         mSplitTransactionButton.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
@@ -399,11 +433,11 @@ public class EditTransactionDialogControllerNew {
         mTagComboBox.valueProperty().bindBidirectional(mTransaction.getTagIDProperty());
 
         // reference
+        mReferenceLabel.visibleProperty().bind(mReferenceTextField.visibleProperty());
         mReferenceTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == DEPOSIT || ta == WITHDRAW);
         }, mTradeActionChoiceBox.valueProperty()));
-        mReferenceLabel.visibleProperty().bind(mReferenceTextField.visibleProperty());
         mReferenceTextField.textProperty().bindBidirectional(mTransaction.getReferenceProperty());
 
         // security combobox
@@ -454,13 +488,14 @@ public class EditTransactionDialogControllerNew {
         try {
             TextFields.bindAutoCompletion(mPayeeTextField, mainModel.getPayeeSet());
             // add a listener to autofill category.
-            mPayeeTextField.focusedProperty().addListener((obs, o, n) -> {
+            PayeeTextFocusChangeListener = (obs, o, n) -> {
                 if (!n) {
                     // out of focus, autofill category
                     Integer categoryID = mainModel.getDefaultCategory(mPayeeTextField.getText());
                     mCategoryComboBox.getSelectionModel().select(categoryID);
                 }
-            });
+            };
+            mPayeeTextField.focusedProperty().addListener(PayeeTextFocusChangeListener);
         } catch (ModelException e) {
             final String msg = "ModelException " + e.getErrorCode();
             mLogger.error(msg, e);
@@ -474,11 +509,12 @@ public class EditTransactionDialogControllerNew {
         final Currency currency = Currency.getInstance("USD");  // hard code USD for now
 
         // Income
-        final TextFormatter<BigDecimal> incomeTextFormatter = new TextFormatter<>(
+        IncomeTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency, false)
                         .matcher(c.getControlNewText()).matches() ? c : null);
-        mIncomeTextField.setTextFormatter(incomeTextFormatter);
+        IncomeTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
+        mIncomeTextField.setTextFormatter(IncomeTextFormatter);
         mIncomeTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == REINVDIV || ta == REINVINT || ta == REINVLG || ta == REINVMD || ta == REINVSH
@@ -487,14 +523,13 @@ public class EditTransactionDialogControllerNew {
         }, mTradeActionChoiceBox.valueProperty()));
         mIncomeLabel.visibleProperty().bind(mIncomeTextField.visibleProperty());
         mIncomeLabel.textProperty().bind(mTradeActionChoiceBox.valueProperty().asString());
-        incomeTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
 
         // shares
-        final TextFormatter<BigDecimal> sharesTextFormatter = new TextFormatter<>(
+        SharesTextFormatter = new TextFormatter<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(), null,
                 c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null);
-        mSharesTextField.setTextFormatter(sharesTextFormatter);
-        sharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getQuantityProperty());
+        mSharesTextField.setTextFormatter(SharesTextFormatter);
+        SharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getQuantityProperty());
         mSharesTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return (ta == BUY || ta == SELL || ta == REINVDIV || ta == REINVINT || ta == REINVLG
@@ -512,11 +547,11 @@ public class EditTransactionDialogControllerNew {
         }, mTradeActionChoiceBox.valueProperty()));
 
         // old shares
-        final TextFormatter<BigDecimal> oldSharesTextFormatter = new TextFormatter<>(
+        OldSharesTextFormatter = new TextFormatter<>(
                 ConverterUtil.getPriceQuantityStringConverterInstance(), null,
                 c -> RegExUtil.getPriceQuantityInputRegEx(false).matcher(c.getControlNewText()).matches() ? c : null);
-        mOldSharesTextField.setTextFormatter(oldSharesTextFormatter);
-        oldSharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getOldQuantityProperty());
+        mOldSharesTextField.setTextFormatter(OldSharesTextFormatter);
+        OldSharesTextFormatter.valueProperty().bindBidirectional(mTransaction.getOldQuantityProperty());
         mOldSharesTextField.visibleProperty().bind(mTradeActionChoiceBox.valueProperty().isEqualTo(STKSPLIT)
                 .or(mTradeActionChoiceBox.valueProperty().isEqualTo(SHRCLSCVN)));
         mOldSharesLabel.visibleProperty().bind(mOldSharesTextField.visibleProperty());
@@ -533,12 +568,12 @@ public class EditTransactionDialogControllerNew {
 
         // commission, same visibility as price, except in Share Class Conversion and Corp Spin Off
         // For Corp Spin Off, this field is for input Old Share Price
-        final TextFormatter<BigDecimal> commissionTextFormatter = new TextFormatter<>(
+        CommissionTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency, false)
                         .matcher(c.getControlNewText()).matches() ? c : null);
-        mCommissionTextField.setTextFormatter(commissionTextFormatter);
-        commissionTextFormatter.valueProperty().bindBidirectional(mTransaction.getCommissionProperty());
+        mCommissionTextField.setTextFormatter(CommissionTextFormatter);
+        CommissionTextFormatter.valueProperty().bindBidirectional(mTransaction.getCommissionProperty());
         mCommissionTextField.visibleProperty().bind(mPriceTextField.visibleProperty()
                 .and(mTradeActionChoiceBox.valueProperty().isNotEqualTo(SHRCLSCVN))
                 .or(mTradeActionChoiceBox.valueProperty().isEqualTo(CORPSPINOFF)));
@@ -549,12 +584,12 @@ public class EditTransactionDialogControllerNew {
 
         // accrued interest, same visibility as commission, except corp spin off
         // For Corp Spin Off, accrued interest field is for input New Share Price
-        final TextFormatter<BigDecimal> accruedInterestTextFormatter = new TextFormatter<>(
+        AccruedInterestTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency, false)
                         .matcher(c.getControlNewText()).matches() ? c : null);
-        mAccruedInterestTextField.setTextFormatter(accruedInterestTextFormatter);
-        accruedInterestTextFormatter.valueProperty().bindBidirectional(mTransaction.getAccruedInterestProperty());
+        mAccruedInterestTextField.setTextFormatter(AccruedInterestTextFormatter);
+        AccruedInterestTextFormatter.valueProperty().bindBidirectional(mTransaction.getAccruedInterestProperty());
         mAccruedInterestTextField.visibleProperty().bind(mCommissionTextField.visibleProperty());
         mAccruedInterestLabel.visibleProperty().bind(mAccruedInterestTextField.visibleProperty());
         mAccruedInterestLabel.textProperty().bind(Bindings.createStringBinding(() ->
@@ -568,12 +603,12 @@ public class EditTransactionDialogControllerNew {
         }, mTradeActionChoiceBox.valueProperty()));
 
         // total cost
-        final TextFormatter<BigDecimal> totalTextFormatter = new TextFormatter<>(
+        TotalTextFormatter = new TextFormatter<>(
                 ConverterUtil.getCurrencyAmountStringConverterInstance(currency), null,
                 c -> RegExUtil.getCurrencyInputRegEx(currency, false)
                         .matcher(c.getControlNewText()).matches() ? c : null);
-        mTotalTextField.setTextFormatter(totalTextFormatter);
-        totalTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
+        mTotalTextField.setTextFormatter(TotalTextFormatter);
+        TotalTextFormatter.valueProperty().bindBidirectional(mTransaction.getAmountProperty());
         mTotalTextField.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
             final Transaction.TradeAction ta = mTradeActionChoiceBox.getValue();
             return ta == BUY || ta == SELL || ta == SHRSIN || ta == SHTSELL || ta == CVTSHRT
@@ -997,7 +1032,7 @@ public class EditTransactionDialogControllerNew {
                     mTransaction.getPayment().subtract(mTransaction.getDeposit()));
 
             if (outSplitTransactionList == null) {
-                // it was cancelled. do nothing
+                // it was canceled. do nothing
                 return;
             }
 
@@ -1079,5 +1114,98 @@ public class EditTransactionDialogControllerNew {
             handleClear();
             Platform.runLater(() -> mTradeActionChoiceBox.requestFocus());
         }
+    }
+
+    // call this when the dialog is closed
+    public void cleanup() {
+        //********************************
+        // remove listeners and unbind bindings
+
+        // mTradeActionChoiceBox
+        mTradeActionChoiceBox.valueProperty().removeListener(TradeActionChangeListener);
+        mTradeActionChoiceBox.valueProperty().unbindBidirectional(mTransaction.getTradeActionProperty());
+
+        // trade date
+        mTDatePicker.focusedProperty().removeListener(TDatePickerFocusChangeListener);
+        TDatePickerFocusChangeListener = null;
+        mTDatePicker.valueProperty().unbindBidirectional(mTransaction.getTDateProperty());
+        System.out.println("TDatePicker");
+
+        // ADatePicker
+        mADatePicker.focusedProperty().removeListener(ADatePickerFocusChangeListener);
+        System.out.println("ADatePickerFocusChangeListener removed");
+        ADatePickerFocusChangeListener = null;
+        mTDatePicker.valueProperty().unbindBidirectional(mTransaction.getTDateProperty());
+        mADatePicker.visibleProperty().unbind();
+        mADatePicker.valueProperty().unbindBidirectional(mTransaction.getADateProperty());
+
+        // account combobox
+        mAccountComboBox.valueProperty().removeListener(AccountChangeListener);
+        AccountChangeListener = null;
+
+        // category combobox
+        mCategoryComboBox.visibleProperty().unbind();
+        mCategoryComboBox.valueProperty().unbind();
+        mCategoryComboBox.valueProperty().unbindBidirectional(mTransaction.getCategoryIDProperty());
+        mCategoryComboBox.valueProperty().unbindBidirectional(mTransaction.getCategoryIDProperty());
+        mCategoryLabel.visibleProperty().unbind();
+        mCategoryLabel.textProperty().unbind();
+
+        mMemoTextField.textProperty().unbindBidirectional(mTransaction.getMemoProperty());
+
+        mSplitTransactionButton.visibleProperty().unbind();
+
+        mTagComboBox.valueProperty().unbindBidirectional(mTransaction.getTagIDProperty());
+
+        mReferenceLabel.visibleProperty().unbind();
+        mReferenceTextField.visibleProperty().unbind();
+        mReferenceTextField.textProperty().unbindBidirectional(mTransaction.getReferenceProperty());
+
+        mSecurityComboBox.visibleProperty().unbind();
+        mSecurityNameLabel.visibleProperty().unbind();
+        mSecurityNameLabel.textProperty().unbind();
+        Bindings.unbindBidirectional(mTransaction.getSecurityIDProperty(), mSecurityComboBox.valueProperty());
+
+
+        mPayeeTextField.focusedProperty().removeListener(PayeeTextFocusChangeListener);
+        PayeeTextFocusChangeListener = null;
+        mPayeeTextField.visibleProperty().unbind();
+        mPayeeTextField.textProperty().unbindBidirectional(mTransaction.getPayeeProperty());
+        mPayeeLabel.visibleProperty().unbind();
+
+        IncomeTextFormatter.valueProperty().unbindBidirectional(mTransaction.getAmountProperty());
+        mIncomeTextField.visibleProperty().unbind();
+        mIncomeLabel.visibleProperty().unbind();
+        mIncomeLabel.textProperty().unbindBidirectional(mTransaction.getADateProperty());
+
+        SharesTextFormatter.valueProperty().unbindBidirectional(mTransaction.getQuantityProperty());
+        mSharesTextField.visibleProperty().unbind();
+        mSharesLabel.visibleProperty().unbind();
+        mSharesLabel.textProperty().unbind();
+
+        OldSharesTextFormatter.valueProperty().unbindBidirectional(mTransaction.getOldQuantityProperty());
+        mOldSharesTextField.visibleProperty().unbind();
+        mOldSharesLabel.visibleProperty().unbind();
+
+        mPriceTextField.visibleProperty().unbind();
+        mPriceTextField.textProperty().unbind();
+        mPriceLabel.visibleProperty().unbind();
+
+        CommissionTextFormatter.valueProperty().unbindBidirectional(mTransaction.getCommissionProperty());
+        mCommissionTextField.visibleProperty().unbind();
+        mCommissionLabel.visibleProperty().unbind();
+        mCommissionLabel.textProperty().unbind();
+
+        AccruedInterestTextFormatter.valueProperty().unbindBidirectional(mTransaction.getAccruedInterestProperty());
+        mAccruedInterestTextField.visibleProperty().unbind();
+        mAccruedInterestLabel.visibleProperty().unbind();
+        mAccruedInterestLabel.textProperty().unbind();
+
+        mSpecifyLotButton.visibleProperty().unbind();
+
+        TotalTextFormatter.valueProperty().unbindBidirectional(mTransaction.getAmountProperty());
+        mTotalTextField.visibleProperty().unbind();
+        mTotalLabel.visibleProperty().unbind();
+        mTotalLabel.textProperty().unbind();
     }
 }

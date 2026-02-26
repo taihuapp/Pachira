@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2026.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -199,6 +199,7 @@ public class DialogUtil {
 
         EditTransactionDialogControllerNew controller = loader.getController();
         controller.setMainModel(mainModel, transaction, accountList, defaultAccount, taList);
+        dialogStage.setOnHidden(e -> controller.cleanup());
         dialogStage.showAndWait();
         return controller.getTransactionID();
     }

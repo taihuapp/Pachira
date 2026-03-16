@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024.  Guangliang He.  All Rights Reserved.
+ * Copyright (C) 2018-2026.  Guangliang He.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This file is part of Pachira.
@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Currency;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -298,6 +299,15 @@ public class EditReminderDialogController {
             // remove the ids for loan accounts already has a reminder
             loanAccountIdSet.removeAll(reminderModel.getLoanReminderLoanAccountIdSet().stream().map(i -> -i)
                     .collect(Collectors.toSet()));
+            // remove loan account doesn't have any payment schedule
+            loanAccountIdSet.removeIf(i -> {
+                try {
+                    final Optional<Loan> optLoan = mainModel.getLoan(-i);
+                    return optLoan.map(loan -> loan.getPaymentSchedule().filtered(p -> !p.getIsPaidProperty().get()).isEmpty()).orElse(true);
+                } catch (DaoException e) {
+                    throw new RuntimeException(e);
+                }
+            });
 
             // only show Loan type accounts in loanAccountIDSet. Add i < 0 should improve performance
             return i -> i < 0 && loanAccountIdSet.contains(i);
